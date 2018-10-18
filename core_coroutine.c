@@ -87,13 +87,12 @@ io_close(lua_State *L){
 /* === 定时器 === */
 void
 timeout_cb(EV_P_ ev_timer *timer, int revents){
-	printf("开始运行定时器...\n");
 	if (ev_have_watcher_userdata(timer)){
 		lua_State *co = (lua_State *)ev_get_watcher_userdata(timer);
 		int status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
-		printf("status = %d, string = %s\n", status, lua_gettop(co) > 1 ? lua_tostring(co, -1) : "no error");
 	}
-	printf("定时器运行结束...\n");
+	ev_timer_stop(EV_DEFAULT_ timer);
+	free(timer);
 }
 
 void
@@ -102,6 +101,8 @@ repeat_cb(EV_P_ ev_timer *timer, int revents){
 		lua_State *co = (lua_State *)ev_get_watcher_userdata(timer);
 		int status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
 	}
+	ev_timer_stop(EV_DEFAULT_ timer);
+	free(timer);
 }
 
 int
@@ -128,7 +129,6 @@ timer_timeout(lua_State *L){
 	ev_timer_start(EV_DEFAULT_ timer);
 	
 	lua_settop(L, 0);
-	printf("注册定时器完成...\n");
 	return 0;
 }
 

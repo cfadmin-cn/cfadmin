@@ -8,9 +8,11 @@ init_main(int revents, void *args){
 	if (!main_co) return ;
 	lua_openlibs(main_co);
 
+	lua_gc(main_co, LUA_GCSTOP, 0);
+
 	luaL_loadfile(main_co, "script/main.lua");
 	int status = lua_pcall(main_co, 0, LUA_MULTRET, 0);
-	if (status > 0){
+	if (status > 1){
 		LOG("INFO", lua_tostring(main_co, -1));
 	}
 }

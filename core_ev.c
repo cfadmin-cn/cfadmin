@@ -4,16 +4,15 @@
 void
 once_cb(struct ev_once *once, int revents){
 	/* 用户回调函数 */
-	once->cb(revents, once->data);
-
-	if(once->io){
-		ev_io_stop(EV_DEFAULT_ once->io);
-		free(once->io);
-	}
-	if(once->timer){
+	if (once->timer){
 		ev_timer_stop(EV_DEFAULT_ once->timer);
 		free(once->timer);
 	}
+	if (once->io){
+		ev_io_stop(EV_DEFAULT_ once->io);
+		free(once->io);
+	}
+	once->cb(revents, once->data);
 	free(once);
 }
 
@@ -34,7 +33,7 @@ once_io_cb(EV_P_ ev_io *io, int revents){
 
 void
 ev_once(int socket, int events, ev_tstamp timeout, void (*cb)(int revents, void *arg), void *args) {
-	struct ev_once *once = realloc(0, sizeof(struct ev_once));
+	struct ev_once *once = calloc(1, sizeof(struct ev_once));
 	if (!once) return ;
 	once->cb = cb;
 	if (args) once->data = args;
