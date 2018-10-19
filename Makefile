@@ -30,7 +30,7 @@ debug : $(objects)
 	cc -o main $(objects) $(INCLUDE) $(LIB) -Wall -Wl -lev -ljemalloc -llua -O0 -ggdb
 
 build : $(objects)
-	cc -o main $(objects) $(INCLUDE) $(LIB) -Wall -Wl -lev -ljemalloc -llua
+	cc -o main $(objects) $(INCLUDE) $(LIB) -Wall -Wl -lev -ljemalloc -llua -O2
 
 clean :
 	rm -rf *.o *.dSYM main
