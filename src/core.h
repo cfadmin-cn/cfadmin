@@ -5,6 +5,7 @@
 #include "core_utils.h"
 #include "core_memory.h"
 #include "core_ev.h"
-#include "core_coroutine.h"
+#include "core_socket.h"
+#include "core_timer.h"
 
 #endif

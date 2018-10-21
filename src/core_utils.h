@@ -1,10 +1,8 @@
 #ifndef __CORE_UTILS__
 #define __CORE_UTILS__
 
-#include "stdio.h"
-
-// 规范日志
-#define LOG(level, content) printf("[%s]%s\n", level, content);
+#include "core.h"
+	
 
 /* === 以下方法为一些运行时检查配置方法 === */
 

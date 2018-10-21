@@ -12,7 +12,7 @@ once_cb(struct ev_once *once, int revents){
 		ev_io_stop(EV_DEFAULT_ once->io);
 		free(once->io);
 	}
-	once->cb(revents, once->data);
+	once->cb(once, once->data, revents);
 	free(once);
 }
 
@@ -32,7 +32,7 @@ once_io_cb(EV_P_ ev_io *io, int revents){
 
 
 void
-ev_once(int socket, int events, ev_tstamp timeout, void (*cb)(int revents, void *arg), void *args) {
+ev_once(int socket, int events, ev_tstamp timeout, void (*cb)(EV_ONCE_ void *arg, int revents), void *args) {
 	struct ev_once *once = calloc(1, sizeof(struct ev_once));
 	if (!once) return ;
 	once->cb = cb;
