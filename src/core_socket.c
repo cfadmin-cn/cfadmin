@@ -59,34 +59,6 @@ tcp_server(char *ipaddr, int port){
 	return sockfd;
 }
 
-// void /* 读取数据 */
-// socket_listen(struct ev_once *once, void *args, int revents){
-// 	errno = 0;
-// 	int times = 0;
-// 	int fd = once->io->fd;
-// 	luaL_Buffer *buf;
-// 	lua_State *co = (lua_State *) args;
-// 	luaL_buffinit(co, buf);
-// 	while (1) {
-// 		const char recvbuf[4096];
-// 		size_t len = recv(fd, recvbuf, 4096, 0);
-// 		times += 1;
-// 		if (0 == len) {  /* 客户端关闭了连接 */
-// 			LOG("INFO", "客户端关闭了连接");
-// 			close(fd);
-// 			return ;
-// 		}
-// 		if (0 > len) {
-// 			if (errno == EINTR) continue; /* 重试 */
-// 			return ;
-// 		} /* 根据实际错误处理 */
-// 		luaL_addlstring(buf, recvbuf, 4096);
-// 		luaL_pushresult(&b);
-// 		break;
-// 	}
-// 	int status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
-// }
-
 void /* 读取数据 */
 socket_listen(EV_P_ ev_io *io, int revents){
 	errno = 0;
@@ -102,19 +74,14 @@ socket_listen(EV_P_ ev_io *io, int revents){
 	while (1) {
 		char recvbuf[4096];
 		size_t len = recv(io->fd, recvbuf, 4096, 0);
-		printf("len = %ld\n", len);
-		if (0 == len) break;
 		if (0 > len) {
-			// LOG("INFO", strerror(errno));
 			if (errno == EINTR) continue; /* 重试 */
 			if (errno == EAGAIN) break;
-			// LOG("INFO", "停止监听客户端");
 			ev_io_stop(EV_DEFAULT_ io); 
 			close(io->fd); 
 			free(io);
 			return ;
 		} /* 根据实际错误处理 */
-
 		luaL_addlstring(&buf, recvbuf, len);
 	}
 	luaL_pushresult(&buf);
