@@ -4,6 +4,7 @@
 void
 once_cb(struct ev_once *once, int revents){
 	/* 用户回调函数 */
+	once->cb(once, once->data, revents);
 	if (once->timer){
 		ev_timer_stop(EV_DEFAULT_ once->timer);
 		free(once->timer);
@@ -12,7 +13,6 @@ once_cb(struct ev_once *once, int revents){
 		ev_io_stop(EV_DEFAULT_ once->io);
 		free(once->io);
 	}
-	once->cb(once, once->data, revents);
 	free(once);
 }
 

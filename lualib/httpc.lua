@@ -11,6 +11,8 @@ local co_yield = coroutine.yield
 local co_status = coroutine.status
 
 
+local httpc = class("httpc")
+
 local http = class("http")
 
 function http:ctor(opt)
@@ -20,31 +22,6 @@ function http:ctor(opt)
 	self.resp = resp:new()
 end
 
-
-local httpd = class("httpd")
-
-function httpd:ctor(opt)
-		
-end
-
--- 注册路由 --
-function httpd:use(url, cb)
+function httpc:ctor(opt)
 	-- body
 end
-
--- 解析请求 --
-function httpd:request_parser(data)
-	-- body
-end
-
-function httpd:listen(port)
-	return socket.listen(port, function(fd, addr)
-
-	end)
-end
-
-function httpd:start(ip, port)
-	return self:listen(port)
-end
-
-return httpd
