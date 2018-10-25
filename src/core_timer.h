@@ -9,10 +9,19 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-int timer_timeout(lua_State *L);
+/* 创建定时器 */
+int timer_new(lua_State *L);
 
-static const luaL_Reg timer_libs[] = {
-	{"timeout", timer_timeout},
+/* 停止定时器 */
+int timer_stop(lua_State *L);
+
+/* 启动定时器 */
+int timer_start(lua_State *L);
+
+const luaL_Reg timer_libs[] = {
+	{"new",   timer_new},
+	{"stop",  timer_stop},
+	{"start", timer_start},
 	{NULL, NULL}
 };
 

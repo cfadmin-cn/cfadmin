@@ -10,8 +10,8 @@ build :
 	cd src && make build && mv main ../main && mv *.so ../
 
 rebuild :
-	rm -rf main *.so
+	rm -rf main *.so && cd src && make clean
 	cd src && make build && mv main ../main && mv *.so ../
 
 clean :
-	rm -rf main *.so && cd src && rm -rf *.o
+	rm -rf main *.so && cd src && make clean
