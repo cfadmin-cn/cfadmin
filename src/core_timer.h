@@ -18,11 +18,15 @@ int timer_stop(lua_State *L);
 /* 启动定时器 */
 int timer_start(lua_State *L);
 
+/* 重置回调 */
+int timer_set_cb(lua_State *L);
+
 const luaL_Reg timer_libs[] = {
-	{"new",   timer_new},
-	{"stop",  timer_stop},
-	{"start", timer_start},
-	{NULL, NULL}
+	{"new",   	timer_new},
+	{"stop",  	timer_stop},
+	{"start", 	timer_start},
+	{"set_cb",  timer_set_cb},
+	{NULL, NULL},
 };
 
 #endif

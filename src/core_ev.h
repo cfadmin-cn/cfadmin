@@ -31,8 +31,6 @@
 /* 使用自带的floor计算浮点数 */
 #define EV_USE_FLOOR 1
 
-#define EV_COMMON void *co;
-
 #include <ev.h>
 
 #define EV_ONCE struct ev_once *once
@@ -47,13 +45,13 @@ struct ev_once {
 };
 
 /* 获取用户数据 */
-#define ev_get_watcher_userdata(watcher) ((watcher)->co ? (watcher)->co: NULL)
+#define ev_get_watcher_userdata(watcher) ((watcher)->data ? (watcher)->data: NULL)
 
 /* 判断是否包含用户数据 */
-#define ev_have_watcher_userdata(watcher) ((watcher)->co ? (watcher)->co : NULL)
+#define ev_have_watcher_userdata(watcher) ((watcher)->data ? (watcher)->data : NULL)
 
 /* 设置用户数据的宏 */
-#define ev_set_watcher_userdata(watcher, userdata) ((watcher)->co = (userdata))
+#define ev_set_watcher_userdata(watcher, userdata) ((watcher)->data = (userdata))
 
 
 void ev_once(int socket, int events, ev_tstamp timeout, void (*cb)(EV_ONCE_ void *arg, int revents), void *args);

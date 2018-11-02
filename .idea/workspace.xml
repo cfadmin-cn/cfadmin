@@ -10,24 +10,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c2b7b08f-7fdc-4c37-9918-0b839276c0c7" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/Project.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lualib/internal/coroutine.lua" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/Makefile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lualib/class.lua" beforeDir="false" afterPath="$PROJECT_DIR$/lualib/class.lua" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lualib/httpd.lua" beforeDir="false" afterPath="$PROJECT_DIR$/lualib/httpd.lua" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lualib/internal/dns.lua" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/lualib/internal/req.lua" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/lualib/internal/resp.lua" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/lualib/utils.lua" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/src/Makefile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/core.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core_signal.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/core_signal.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core_socket.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/core_socket.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core_socket.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/core_socket.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core_start.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/core_start.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core_timer.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/core_timer.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core_timer.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/core_timer.h" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -39,7 +23,7 @@
     <session id="548140661">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="1" />
+          <entry key="project.closed" value="2" />
           <entry key="project.open.time.2" value="1" />
           <entry key="project.open.time.9" value="1" />
           <entry key="project.opened" value="2" />
@@ -48,7 +32,7 @@
       <usages-collector id="statistics.file.extensions.open">
         <counts>
           <entry key="Makefile" value="6" />
-          <entry key="c" value="8" />
+          <entry key="c" value="9" />
           <entry key="h" value="3" />
           <entry key="lua" value="22" />
           <entry key="md" value="1" />
@@ -59,7 +43,7 @@
           <entry key="Lua" value="22" />
           <entry key="Makefile" value="5" />
           <entry key="Markdown" value="1" />
-          <entry key="ObjectiveC" value="11" />
+          <entry key="ObjectiveC" value="12" />
           <entry key="PLAIN_TEXT" value="1" />
         </counts>
       </usages-collector>
@@ -67,12 +51,12 @@
         <counts>
           <entry key="Makefile" value="49" />
           <entry key="c" value="471" />
-          <entry key="lua" value="4865" />
+          <entry key="lua" value="4968" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Lua" value="4865" />
+          <entry key="Lua" value="4968" />
           <entry key="Makefile" value="49" />
           <entry key="ObjectiveC" value="471" />
         </counts>
@@ -111,8 +95,17 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/lualib/httpd.lua">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="573">
-              <caret line="51" column="13" lean-forward="true" selection-start-line="51" selection-start-column="13" selection-end-line="51" selection-end-column="13" />
+            <state relative-caret-position="675">
+              <caret line="45" column="7" lean-forward="true" selection-start-line="45" selection-start-column="7" selection-end-line="45" selection-end-column="7" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/core_start.c">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="536">
+              <caret line="67" column="32" selection-start-line="67" selection-start-column="32" selection-end-line="67" selection-end-column="32" />
             </state>
           </provider>
         </entry>
@@ -148,14 +141,14 @@
         <option value="$PROJECT_DIR$/Makefile" />
         <option value="$PROJECT_DIR$/lualib/internal/Timer.lua" />
         <option value="$PROJECT_DIR$/src/core_timer.c" />
-        <option value="$PROJECT_DIR$/script/main.lua" />
         <option value="$PROJECT_DIR$/lualib/class.lua" />
         <option value="$PROJECT_DIR$/lualib/internal/coroutine.lua" />
         <option value="$PROJECT_DIR$/lualib/internal/IO.lua" />
         <option value="$PROJECT_DIR$/lualib/protocol/http.lua" />
         <option value="$PROJECT_DIR$/lualib/internal/callback.lua" />
-        <option value="$PROJECT_DIR$/lualib/httpd.lua" />
         <option value="$PROJECT_DIR$/src/core_socket.c" />
+        <option value="$PROJECT_DIR$/script/main.lua" />
+        <option value="$PROJECT_DIR$/lualib/httpd.lua" />
       </list>
     </option>
   </component>
@@ -184,28 +177,6 @@
             <path>
               <item name="core_framework" type="b2602c69:ProjectViewProjectNode" />
               <item name="core_framework" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="core_framework" type="b2602c69:ProjectViewProjectNode" />
-              <item name="core_framework" type="462c0819:PsiDirectoryNode" />
-              <item name="lualib" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="core_framework" type="b2602c69:ProjectViewProjectNode" />
-              <item name="core_framework" type="462c0819:PsiDirectoryNode" />
-              <item name="lualib" type="462c0819:PsiDirectoryNode" />
-              <item name="internal" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="core_framework" type="b2602c69:ProjectViewProjectNode" />
-              <item name="core_framework" type="462c0819:PsiDirectoryNode" />
-              <item name="lualib" type="462c0819:PsiDirectoryNode" />
-              <item name="protocol" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="core_framework" type="b2602c69:ProjectViewProjectNode" />
-              <item name="core_framework" type="462c0819:PsiDirectoryNode" />
-              <item name="script" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="core_framework" type="b2602c69:ProjectViewProjectNode" />
@@ -254,16 +225,15 @@
       <option name="presentableId" value="Default" />
       <updated>1540370518024</updated>
       <workItem from="1540370519495" duration="290000" />
-      <workItem from="1540371033580" duration="19512000" />
+      <workItem from="1540371033580" duration="24385000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="19802000" />
+    <option name="totallyTimeSpent" value="24675000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="23" width="1920" height="990" extended-state="6" />
-    <editor active="true" />
     <layout>
       <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.18210863" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
@@ -339,13 +309,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/core_start.c">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="222">
-          <caret line="20" column="28" lean-forward="true" selection-start-line="20" selection-start-column="28" selection-end-line="20" selection-end-column="28" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/core_timer.c">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="313">
@@ -378,13 +341,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="270">
           <caret line="18" column="31" selection-start-line="18" selection-start-column="31" selection-end-line="18" selection-end-column="31" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/script/main.lua">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="45">
-          <caret line="3" lean-forward="true" selection-start-line="3" selection-end-line="3" />
         </state>
       </provider>
     </entry>
@@ -433,10 +389,24 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/src/core_start.c">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="536">
+          <caret line="67" column="32" selection-start-line="67" selection-start-column="32" selection-end-line="67" selection-end-column="32" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/script/main.lua">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="45">
+          <caret line="3" lean-forward="true" selection-start-line="3" selection-end-line="3" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/lualib/httpd.lua">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="573">
-          <caret line="51" column="13" lean-forward="true" selection-start-line="51" selection-start-column="13" selection-end-line="51" selection-end-column="13" />
+        <state relative-caret-position="675">
+          <caret line="45" column="7" lean-forward="true" selection-start-line="45" selection-start-column="7" selection-end-line="45" selection-end-column="7" />
         </state>
       </provider>
     </entry>

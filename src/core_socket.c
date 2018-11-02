@@ -75,30 +75,30 @@ tcp_socket_new(const char *ipaddr, int port, int type){
 
  void /* 读取数据 */
  socket_listen(EV_P_ ev_io *io, int revents){
- 	errno = 0;
- 	if (client_is_closed(io->fd)){ /* 探测虽然有一定的微弱损耗, 但是减少了无用的逻辑判断 */
- 		LOG("INFO", "客户端关闭了连接");
- 		ev_io_stop(EV_DEFAULT_ io);
- 		close(io->fd);
- 		free(io);
- 	}
- 	lua_State *co = (lua_State *) ev_get_watcher_userdata(io);
- 	luaL_Buffer buf;
- 	luaL_buffinitsize(co, &buf, 10);
- 	while (1) {
- 		char recvbuf[4096];
- 		size_t len = recv(io->fd, recvbuf, 4096, 0);
- 		if (0 > len) {
- 			if (errno == EINTR) continue; /* 重试 */
- 			if (errno == EAGAIN) break;
- 			ev_io_stop(EV_DEFAULT_ io);
- 			close(io->fd); free(io);
- 			return ;
- 		} /* 根据实际错误处理 */
- 		luaL_addlstring(&buf, recvbuf, 4096);
- 	}
- 	luaL_pushresult(&buf);
- 	int status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
+ 	// errno = 0;
+ 	// if (client_is_closed(io->fd)){ /* 探测虽然有一定的微弱损耗, 但是减少了无用的逻辑判断 */
+ 	// 	LOG("INFO", "客户端关闭了连接");
+ 	// 	ev_io_stop(EV_DEFAULT_ io);
+ 	// 	close(io->fd);
+ 	// 	free(io);
+ 	// }
+ 	// lua_State *co = (lua_State *) ev_get_watcher_userdata(io);
+ 	// luaL_Buffer buf;
+ 	// luaL_buffinitsize(co, &buf, 10);
+ 	// while (1) {
+ 	// 	char recvbuf[4096];
+ 	// 	int len = recv(io->fd, recvbuf, 4096, 0);
+ 	// 	if (0 > len) {
+ 	// 		if (errno == EINTR) continue; /* 重试 */
+ 	// 		if (errno == EAGAIN) break;
+ 	// 		ev_io_stop(EV_DEFAULT_ io);
+ 	// 		close(io->fd); free(io);
+ 	// 		return ;
+ 	// 	} /* 根据实际错误处理 */
+ 	// 	luaL_addlstring(&buf, recvbuf, 4096);
+ 	// }
+ 	// luaL_pushresult(&buf);
+ 	// int status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
  }
 
 void /* 接受链接 */
@@ -109,35 +109,151 @@ socket_accept(EV_P_ ev_io *io, int revents){
 
 		socklen_t slen = sizeof(struct sockaddr_in);
 		int client = accept(io->fd, (struct sockaddr*)&addr, &slen);
-		if (0 > client) return ; /* 无视 accept 错误 */
-
-		ev_io *clien_io = malloc(sizeof(ev_io));
-		if (!clien_io) return ;
+		if (0 >= client) return ; /* 无视 accept 错误 */
 
 		lua_State *co = (lua_State *) ev_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){  /* 这里触发 on_open */
-			lua_pushinteger(co, io->fd);
+
+			lua_pushinteger(co, client);
 
 			lua_pushstring(co, inet_ntoa(addr.sin_addr));
 
-			lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
-		}
-
-		if (lua_status(co) == LUA_YIELD){
-			 ev_set_watcher_userdata(clien_io, lua_tothread(co, 1));
-
-			 ev_io_init(clien_io, socket_listen, client, EV_READ);
-
-			 ev_io_start(EV_DEFAULT_ clien_io);
-
-			 lua_settop(co, 1);
+			int status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
+			if (status != LUA_YIELD && status != LUA_OK) {
+				LOG("ERROR", lua_tostring(co, -1));
+				LOG("ERROR", "错误的accept函数");
+			}
 		}
 	}
 }
 
 
+void
+IO_CB(EV_P_ ev_io *io, int revents) {
+	if (revents & EV_READ){
+		lua_State *co = (lua_State *)ev_get_watcher_userdata(io);
+		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+			lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
+		}
+	}
+
+	if (revents & EV_WRITE){
+		printf("write..\n");
+	}
+}
+
+
+int
+io_read(lua_State *L){
+
+	errno = 0;
+
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__IO__");
+	if(!io) return 0;
+
+	int bytes = lua_tointeger(L, 2);
+	if (0 >= bytes) return 0;
+
+	lua_settop(L, 0);
+
+	int closed = client_is_closed(io->fd);
+	if (closed) {
+		lua_pushinteger(L, -1);
+		lua_pushnil(L);
+		return 2;
+	}
+
+	for(;;){
+		char str[bytes];
+		int len = read(io->fd, str, bytes);
+		if (len >= 0){
+			if (!len){
+				lua_pushinteger(L, len);
+ 				lua_pushlstring(L, "", len);
+ 				break;
+			}
+			lua_pushinteger(L, len);
+			lua_pushlstring(L, str, len);
+			break;
+		}
+		if (errno == EINTR) continue;
+		if (errno == EAGAIN){
+			lua_pushinteger(L, 0);
+			lua_pushlstring(L, "", 0);
+			break;
+		}
+	}
+	return 2;
+}
+
+int
+io_write(lua_State *L){
+
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__IO__");
+	if(!io) return 0;
+
+	const char *reponse = lua_tostring(L, 2);
+	if (!reponse) return 0;
+
+	int wsize = write(io->fd, reponse, strlen(reponse));
+
+	printf("rsize = %d\n", wsize);
+
+	return 1;
+}
+
+
+int 
+io_start(lua_State *L){
+
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__IO__");
+	if(!io) return 0;
+
+	/* socket文件描述符 */
+	int fd = lua_tointeger(L, 2);
+	if (0 >= fd) return 0;
+
+	/* 监听事件 */
+	int events = lua_tointeger(L, 3);
+	if (0 >= events) return 0;
+
+	/* 监听事件 */
+	lua_State *co = lua_tothread(L, 4);
+	if (!co) return 0;
+
+	lua_pushinteger(co, fd);
+
+	ev_set_watcher_userdata(io, co);
+
+	ev_io_init(io, IO_CB, fd, events);
+
+	ev_io_start(EV_DEFAULT_ io);
+
+	lua_settop(L, 1);
+
+	return 1;
+}
+
+
+
 int 
 io_stop(lua_State *L){
+
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__IO__");
+	if(!io) return 0;
+
+	ev_io_stop(EV_DEFAULT_ io);
+
+	close(io->fd);
+
+	return 0;
+}
+
+int
+io_close(lua_State *L){
+	int fd = lua_tointeger(L, 1);
+	if (0 >= fd) return 0;
+	close(fd);
 	return 1;
 }
 
@@ -149,18 +265,18 @@ io_listen(lua_State *L){
 
 	/* IP地址 */
 	const char *ip = lua_tostring(L, 2);
-	if (0 >= ip) return 0;
+	if (!ip) return 0;
 
 	/* 端口 */
 	int port = lua_tointeger(L, 3);
 	if (0 >= port) return 0;
 
 	/* 回调协程 */
-	lua_State *co = lua_tothread(L, 3);
+	lua_State *co = lua_tothread(L, 4);
 	if(!co) return 0;
 
 	int sockfd = tcp_socket_new(NULL, port, SERVER);
-	if (sockfd) return 0;
+	if ( 0 >= sockfd) return 0;
 
 	ev_set_watcher_userdata(io, co);
 
@@ -173,13 +289,10 @@ io_listen(lua_State *L){
 	return 1;
 }
 
-int 
+int
 io_new(lua_State *L){
-	ev_io *io = (ev_io*) lua_newuserdata(L, sizeof(ev_io));
-	if(!io) {
-		lua_settop(L, 0);
-		return 0;
-	}
+	ev_io *io = (ev_io *) lua_newuserdata(L, sizeof(ev_io));
+	if(!io) return 0;
 	luaL_setmetatable(L, "__IO__");
 	return 1;
 }

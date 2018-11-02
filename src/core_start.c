@@ -21,14 +21,14 @@ init_main(EV_ONCE_ void *args, int revents){
     lua_pushstring(L, clib);
     lua_setfield(L, 1, "cpath");
 
-    //	/* 注入socket模块 */
+    /* 注入socket模块 */
 	luaL_newmetatable(L, "__IO__");
 	lua_pushstring (L, "__index");
 	lua_pushvalue(L, -2);
 	lua_rawset(L, -3);
 	luaL_setfuncs(L, socket_libs,0);
-	luaL_newlib(L,socket_libs);
-	lua_setglobal(L,"core_socket");
+	luaL_newlib(L, socket_libs);
+	lua_setglobal(L, "core_socket");
 
     /* 注入timer模块 */
     luaL_newmetatable(L, "__TIMER__");
@@ -36,15 +36,8 @@ init_main(EV_ONCE_ void *args, int revents){
     lua_pushvalue(L, -2);
     lua_rawset(L, -3);
     luaL_setfuncs(L, timer_libs,0);
-    luaL_newlib(L,timer_libs);
-    lua_setglobal(L,"core_timer");
-
-//	luaL_newlib(L, socket_libs);
-//	lua_setglobal(L,"core_socket");
-
-	/* 注入timer模块 */
-//	luaL_newlib(L, timer_libs);
-//	lua_setglobal(L,"core_timer");
+    luaL_newlib(L, timer_libs);
+    lua_setglobal(L, "core_timer");
 
 	status = luaL_loadfile(L, "script/main.lua");
 	if(status != LUA_OK) {
@@ -70,6 +63,8 @@ init_main(EV_ONCE_ void *args, int revents){
 		LOG("ERROR", lua_tostring(L, -1));
 		ev_break (EV_DEFAULT_ EVBREAK_ALL);
 	}
+
+	lua_gc(L, LUA_GCCOLLECT, 0);
 }
 
 
