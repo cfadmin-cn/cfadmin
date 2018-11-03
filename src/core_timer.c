@@ -59,8 +59,6 @@ timer_start(lua_State *L){
 
 	ev_set_watcher_userdata(timer, (void*)co);
 
-	ev_init(timer, TIMER_CB);
-
 	timer->repeat = timeout ? timeout : repeat;
 
 	ev_timer_again(EV_DEFAULT_ timer);
@@ -73,8 +71,14 @@ timer_start(lua_State *L){
 
 int
 timer_new(lua_State *L){
+
 	ev_timer *timer = (ev_timer *) lua_newuserdata(L, sizeof(ev_timer));
 	if(!timer) return 0;
+
+	ev_init(timer, TIMER_CB);
+
 	luaL_setmetatable(L, "__TIMER__");
+
 	return 1;
+	
 }

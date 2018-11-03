@@ -1,4 +1,16 @@
-function dump (obj)
+
+function table.key(t, key)
+	for k, _ in pairs(t) do
+		if key == k then
+			return key
+		end
+	end
+end
+
+-- 格式化表输出
+function table.tostring (obj)
+	local str_fmt = string.format
+	local tostring = tostring
 	local getIndent, quoteStr, wrapKey, wrapVal, isArray, dumpObj
 	getIndent = function (level)
 		return string.rep("\t", level)
@@ -11,15 +23,15 @@ function dump (obj)
 			["\""] = "\\\"",
 			["\\"] = "\\\\",
 		})
-		return '"' .. str .. '"'
+		return str_fmt('"%s"', str)
 	end
 	wrapKey = function (val)
 		if type(val) == "number" then
-			return "[" .. val .. "]"
+			return str_fmt('[%d]', val)
 		elseif type(val) == "string" then
-			return "[" .. quoteStr(val) .. "]"
+			return str_fmt('[%s]', quoteStr(val))
 		else
-			return "[" .. tostring(val) .. "]"
+			return str_fmt('[%s]', tostring(val))
 		end
 	end
 	wrapVal = function (val, level)
@@ -55,11 +67,11 @@ function dump (obj)
 		local ret, count = isArray(obj)
 		if ret then
 			for i = 1, count do
-				tokens[#tokens + 1] = getIndent(level) .. wrapVal(obj[i], level) .. ","
+				tokens[#tokens + 1] = str_fmt("%s%s = %s,", getIndent(level), wrapKey(i), wrapVal(obj[i], level))
 			end
 		else
 			for k, v in pairs(obj) do
-				tokens[#tokens + 1] = getIndent(level) .. wrapKey(k) .. " = " .. wrapVal(v, level) .. ","
+				tokens[#tokens + 1] = str_fmt("%s%s = %s,", getIndent(level), wrapKey(k), wrapVal(v, level))
 			end
 		end
 		tokens[#tokens + 1] = getIndent(level - 1) .. "}"
@@ -68,3 +80,23 @@ function dump (obj)
 	return dumpObj(obj, 0)
 end
 
+function LOG(level, ...)
+	local now = os.date("%Y/%m/%d %H:%M:%S")
+	local t = debug.getinfo(2)
+	local head = string.format("[%s][%s][file:%s][line:%s][func: %s]:", 
+		level,
+		now,
+		t["short_src"],
+		t['currentline'],
+		t['name'] or "Unknown"
+	)
+	print(head, ...)
+end
+
+pcall = function (func, ...)
+	local function info(msg)
+		local co = coroutine.running()
+		return string.format("%s\n%s", debug.traceback(co, nil, 2), msg)
+	end
+	return xpcall(func, info, ...)
+end

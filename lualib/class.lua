@@ -1,12 +1,15 @@
 -- a minimal class implementation
 -- 一个精简版的类实现
 function class(cls_name)
-    local cls = {}
-
+    local cls = { }
     cls.__index = cls
-
     cls.__name = cls_name
-
+    function cls.__call(cls, ...)
+        if cls[__name] then
+            return cls[__name](cls, ...)
+        end
+        return nil
+    end
     function cls.new(cls, ...)
         if not cls then
             print("[class.lua][line:13]: Please use ':' to index (new) method :)")
@@ -15,7 +18,6 @@ function class(cls_name)
         cls.ctor(cls, ...)
         return setmetatable({}, cls)
     end
-
     return cls
 end
 

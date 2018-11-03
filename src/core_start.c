@@ -1,15 +1,21 @@
 #include "core.h"
 
-lua_State *L;
+void *
+L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
+
+	(void)ud;  (void)osize;  /* Lua 不会使用 */
+
+	if (nsize == 0) return free(ptr), NULL;
+
+	return realloc(ptr, nsize);
+
+}
 
 void
-init_main(EV_ONCE_ void *args, int revents){
-	int status;
-	L = luaL_newstate();
-	if (!L) return ;
+init_libs(lua_State *L){
 	luaL_openlibs(L);
 
-    // /* 注入搜索域 */
+	// /* 注入搜索域 */
     char *lib  = "./lualib/?.lua;./?.lua;./script/?.lua;" ;
     char *clib = "./luaclib/?.so;./lualib/?.so;./script/?.so" ;
 
@@ -22,7 +28,7 @@ init_main(EV_ONCE_ void *args, int revents){
     lua_setfield(L, 1, "cpath");
 
     /* 注入socket模块 */
-	luaL_newmetatable(L, "__IO__");
+	luaL_newmetatable(L, "__Socket__");
 	lua_pushstring (L, "__index");
 	lua_pushvalue(L, -2);
 	lua_rawset(L, -3);
@@ -38,27 +44,42 @@ init_main(EV_ONCE_ void *args, int revents){
     luaL_setfuncs(L, timer_libs,0);
     luaL_newlib(L, timer_libs);
     lua_setglobal(L, "core_timer");
+}
+
+void
+init_main(EV_ONCE_ void *args, int revents){
+
+	int status;
+	lua_State *L = lua_newstate(L_ALLOC, NULL);
+	if (!L) return ;
+	init_libs(L);
 
 	status = luaL_loadfile(L, "script/main.lua");
 	if(status != LUA_OK) {
 		switch(status){
 			case LUA_ERRFILE :
-				LOG("ERROR", "找不到文件或无法读取文件.");
+				LOG("ERROR", "Can't find file or load file Error.");
 				break;
 			case LUA_ERRSYNTAX:
 				LOG("ERROR", lua_tostring(L, -1));
 				break;
 			case LUA_ERRMEM:
-				LOG("ERROR", "内存分配失败.");
+				LOG("ERROR", "Memory Allocated faild.");
 				break;
 			case LUA_ERRGCMM:
-				LOG("ERROR", "__gc方法失败.");
+				LOG("ERROR", "An Error from lua GC Machine.");
 				break;
 		}
 		ev_break (EV_DEFAULT_ EVBREAK_ALL);
 		return ;
 	}
-	status = lua_pcall(L, 0, LUA_MULTRET, 0);
+	// status = lua_pcall(L, 0, LUA_MULTRET, 0);
+	// if (status > 1){
+	// 	LOG("ERROR", lua_tostring(L, -1));
+	// 	ev_break (EV_DEFAULT_ EVBREAK_ALL);
+	// }
+
+	status = lua_resume(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
 		ev_break (EV_DEFAULT_ EVBREAK_ALL);
@@ -70,7 +91,7 @@ init_main(EV_ONCE_ void *args, int revents){
 
 void
 core_sys_init(){
-	/* hook内存分配 */
+	/* hook libev 内存分配 */
 	ev_set_allocator(realloc);
 	
 	/* 初始化script */

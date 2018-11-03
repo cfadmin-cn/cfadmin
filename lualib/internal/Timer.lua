@@ -16,9 +16,12 @@ end
 
 -- 超时器 --
 function Timer.timeout(timeout, cb)
+    if not timeout or timeout < 0 then
+        return
+    end
     ti = Timer.get_timer()
     if not ti then
-        print("new timer class error! memory maybe not enough...")
+        LOG("INFO", "new timer class error! memory maybe not enough...")
         return
     end
     local timer = {}
@@ -27,24 +30,14 @@ function Timer.timeout(timeout, cb)
     timer.cb = cb
     timer.closed = nil
     function timer_out( ... )
-        if timer.closed then
-            table.insert(TIMER_LIST, timer.ti)
-            timer.ti:stop()
-            timer.current_co = nil
-            timer.ti = nil
-            timer.cb = nil
-            timer = nil
-            return
-        end
-        local ok, msg = pcall(timer.cb)
-        if not ok then
-            print("timer_out error:", msg)
+        if not timer.closed then
+            local ok, msg = pcall(timer.cb)
+            if not ok then
+               LOG("INFO", "timer_out error:", msg)
+            end
         end
         table.insert(TIMER_LIST, timer.ti)
         timer.ti:stop()
-        timer.current_co = nil
-        timer.ti = nil
-        timer.cb = nil
         timer = nil
         return
     end
@@ -54,9 +47,12 @@ end
 
 -- 定时器 --
 function Timer.ti(repeats, cb)
+    if not repeats or repeats < 0 then
+        return
+    end
     local ti = Timer.get_timer()
     if not ti then
-        print("new timer class error! memory maybe not enough...")
+        LOG("INFO", "new timer class error! memory maybe not enough...")
         return
     end
     local timer = {}
@@ -70,10 +66,6 @@ function Timer.ti(repeats, cb)
             if timer.closed then
                 table.insert(TIMER_LIST, timer.ti)
                 timer.ti:stop()
-                timer.current_co = nil
-                timer.repeats = nil
-                timer.ti = nil
-                timer.cb = nil
                 timer = nil
                 return
             end
@@ -81,12 +73,8 @@ function Timer.ti(repeats, cb)
             if not ok then
                 table.insert(TIMER_LIST, timer.ti)
                 timer.ti:stop()
-                timer.current_co = nil
-                timer.repeats = nil
-                timer.ti = nil
-                timer.cb = nil
                 timer = nil
-                print("timer_repeats error:", msg)
+                LOG("ERROR", "timer_repeats error:", msg)
                 return
             end
             co_suspend()
@@ -95,6 +83,32 @@ function Timer.ti(repeats, cb)
     timer.co = co_new(timer_repeats)
     timer.ti:start(repeats, repeats, timer.co)
     return timer
+end
+
+-- 仅让出执行权 --
+function Timer.sleep(second)
+    if not second or second < 0 then
+        return
+    end
+    local ti = Timer.get_timer()
+    if not ti then
+        LOG("INFO", "new timer class error! memory maybe not enough...")
+        return
+    end
+    local timer = { }
+    timer.ti = ti
+    timer.current_co = co_self()
+    timer.co = co_new(function ( ... )
+        local co = timer.co
+        local ti = timer.ti
+        local current_co = timer.current_co
+        table.insert(TIMER_LIST, ti)
+        ti:stop()
+        co_wakeup(current_co)
+        timer = nil
+    end)
+    timer.ti:start(second, second, timer.co)
+    return co_suspend()
 end
 
 return Timer
