@@ -13,12 +13,17 @@ local CLIENT = 1
 local Socket = class("Socket")
 
 function Socket:ctor(opt)
-    self.co = nil   -- 当前协程(相对来说)
-    self.fd = nil   -- 套接字文件描述符
-    self.type = nil -- client or server
-    self.socket = nil -- 套接字对象
-    self.accept_co = nil -- accept 协程
-    self.connect_co = nil -- connect 协程
+    self.co = co_self()     -- 当前协程(相对来说)
+    self.fd = nil           -- 套接字文件描述符
+    self.type = nil         -- client or server
+    self.socket = nil       -- 套接字对象
+    self.accept_co = nil    -- accept 协程
+    self.connect_co = nil   -- connect 协程
+    self.status = "inited"
+end
+
+function Socket:set_status(status)
+    self.status = status
 end
 
 -- 设置回调函数
@@ -36,15 +41,60 @@ function Socket:set_fd(fd)
 end
 
 function Socket:send(data)
-    if self.socket and self.fd then
-        self.socket:write(data)
+    if self.status ~= "connected" then
+        return
     end
+    if not self.socket and not self.fd then
+        return
+    end
+    self.write_co = co_new(function (...)
+        local send_data = data
+        local send_len
+        while 1 do
+            send_len = self.socket:write(send_data)
+            if not send_len or #send_data == send_len then
+                if send_len then
+                    self.socket:stop()
+                end
+                self.write_co = nil
+                return co_wakeup(self.co, send_len)
+            end
+            if #send_data > send_len then
+                send_data = string.sub(send_data, send_len + 1, -1)
+            end
+            co_suspend()
+        end
+    end)
+    self.socket:start(self.fd, EVENT_WRITE, self.write_co)
+    return co_suspend()
 end
 
 function Socket:recv(bytes)
-    if self.socket and self.fd then
-        self.socket:read(bytes)
+    if self.status ~= "connected" then
+        return
     end
+    if not self.socket and not self.fd then
+        return
+    end
+    self.read_co = co_new(function ( ... )
+        while 1 do
+            local buf, len = self.socket:read(bytes)
+            if not buf then
+                self:set_status("closed")
+                self.read_co = nil
+                self.socket:stop()
+                return co_wakeup(self.co)
+            end
+            if len > 0 then
+                self.read_co = nil
+                self.socket:stop()
+                return co_wakeup(self.co, buf, len)
+            end
+            co_suspend()
+        end
+    end)
+    self.socket:start(self.fd, EVENT_READ, self.read_co)
+    return co_suspend()
 end
 
 function Socket:listen(ip, port)
@@ -53,7 +103,6 @@ function Socket:listen(ip, port)
         return
     end
     self.type = SERVER
-    self.co = co_self()
     self.socket = self.socket or socket:new()
     if not self.socket then
         print("Listen Socket Create Error! :) ")
@@ -69,12 +118,11 @@ function Socket:listen(ip, port)
         while 1 do
             print(fd, ipaddr)
             if fd and ipaddr then
-                -- listen方法不接受任何回调, 回调由封装的set_cb传入
                 if self.accept and type(self.accept) == "function" then
-                    local ok, msg = pcall(self.accept, fd, ipaddr)
+                    local ok, msg = co_start(co_new(self.accept, fd, ipaddr))
+                    -- local ok, msg = pcall(self.accept, fd, ipaddr)
                     if not ok then
                         print("Socket Accept error:", msg)
-                        self.co = nil
                         self.fd = nil
                         self.accept_co = nil
                         self.socket:close()
@@ -82,7 +130,6 @@ function Socket:listen(ip, port)
                     end
                 else
                     print("Please Set Socket Accept Callback Method! :) ")
-                    self.co = nil
                     self.fd = nil
                     self.accept_co = nil
                     self.socket:close()
@@ -91,7 +138,7 @@ function Socket:listen(ip, port)
             fd, ipaddr = co_suspend()
         end
     end)
-    self.socket:listen(self.fd, self.accept_co)
+    return self.socket:listen(self.fd, self.accept_co)
 end
 
 function Socket:connect(domain, port)
@@ -110,10 +157,11 @@ function Socket:connect(domain, port)
         self.socket = nil
         return
     end
-    self.co = co_self()
     self.type = CLIENT
     self.connect_co = co_new(function (connected)
+        self.socket:stop()
         if connected then
+            self:set_status("connected")
             co_wakeup(self.co, true)
             self.co = nil
             self.connect_co = nil
@@ -123,7 +171,7 @@ function Socket:connect(domain, port)
         self.co = nil
         self.connect_co = nil
     end)
-    self.socket:start(self.fd, EVENT_READ | EVENT_WRITE, self.connect_co)
+    self.socket:connect(self.fd, self.connect_co)
     return co_suspend()
 end
 

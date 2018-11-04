@@ -22,6 +22,8 @@ int io_stop(lua_State *L);
 
 int io_listen(lua_State *L);
 
+int io_connect(lua_State *L);
+
 int io_start(lua_State *L);
 
 int io_close(lua_State *L);
@@ -38,6 +40,7 @@ static const luaL_Reg socket_libs[] = {
 	{"start", io_start},
 	{"close", io_close},
 	{"listen", io_listen},
+	{"connect", io_connect},
 	{"get_fd", io_get_fd},
 	{"new_tcp_fd", io_new_tcp_fd},
 	{NULL, NULL}
