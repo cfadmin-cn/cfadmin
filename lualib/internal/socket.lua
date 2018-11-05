@@ -13,7 +13,7 @@ local CLIENT = 1
 local Socket = class("Socket")
 
 function Socket:ctor(opt)
-    self.co = co_self()     -- 当前协程(相对来说)
+    self.co = nil           -- 当前协程(相对来说)
     self.fd = nil           -- 套接字文件描述符
     self.type = nil         -- client or server
     self.socket = nil       -- 套接字对象
@@ -40,24 +40,27 @@ function Socket:set_fd(fd)
     end
 end
 
-function Socket:send(data)
+function Socket:write(data)
     if self.status ~= "connected" then
         return
     end
     if not self.socket and not self.fd then
         return
     end
+    self.co = co_self()
     self.write_co = co_new(function (...)
         local send_data = data
         local send_len
         while 1 do
             send_len = self.socket:write(send_data)
             if not send_len or #send_data == send_len then
+                local co = self.co
+                self.co = nil
                 if send_len then
                     self.socket:stop()
                 end
                 self.write_co = nil
-                return co_wakeup(self.co, send_len)
+                return co_wakeup(co, send_len)
             end
             if #send_data > send_len then
                 send_data = string.sub(send_data, send_len + 1, -1)
@@ -69,29 +72,55 @@ function Socket:send(data)
     return co_suspend()
 end
 
-function Socket:recv(bytes)
+function Socket:readall()
     if self.status ~= "connected" then
         return
     end
     if not self.socket and not self.fd then
         return
     end
+    self.co = co_self()
     self.read_co = co_new(function ( ... )
-        while 1 do
-            local buf, len = self.socket:read(bytes)
-            if not buf then
-                self:set_status("closed")
-                self.read_co = nil
-                self.socket:stop()
-                return co_wakeup(self.co)
-            end
-            if len > 0 then
-                self.read_co = nil
-                self.socket:stop()
-                return co_wakeup(self.co, buf, len)
-            end
-            co_suspend()
+        local buf, len = self.socket:readall()
+        local co = self.co
+        self.co = nil
+        self.read_co = nil
+        self.socket:stop()
+        if not buf then
+            return co_wakeup(co)
         end
+        return co_wakeup(co, buf, len)
+    end)
+    self.socket:start(self.fd, EVENT_READ, self.read_co)
+    return co_suspend()
+end
+
+function Socket:read(bytes)
+    if self.status ~= "connected" then
+        return
+    end
+    if not self.socket and not self.fd then
+        return
+    end
+    self.co = co_self()
+    self.read_co = co_new(function ( ... )
+        local buf, len = self.socket:read(bytes)
+        if not buf then
+            self:set_status("closed")
+            local co = self.co
+            self.co = nil
+            self.read_co = nil
+            self.socket:stop()
+            return co_wakeup(co)
+        end
+        if len > 0 then
+            local co = self.co
+            self.co = nil
+            self.read_co = nil
+            self.socket:stop()
+            return co_wakeup(co, buf, len)
+        end
+        co_suspend()
     end)
     self.socket:start(self.fd, EVENT_READ, self.read_co)
     return co_suspend()
@@ -120,7 +149,6 @@ function Socket:listen(ip, port)
             if fd and ipaddr then
                 if self.accept and type(self.accept) == "function" then
                     local ok, msg = co_start(co_new(self.accept, fd, ipaddr))
-                    -- local ok, msg = pcall(self.accept, fd, ipaddr)
                     if not ok then
                         print("Socket Accept error:", msg)
                         self.fd = nil
@@ -158,18 +186,16 @@ function Socket:connect(domain, port)
         return
     end
     self.type = CLIENT
+    self.co = co_self()
     self.connect_co = co_new(function (connected)
         self.socket:stop()
+        self.connect_co = nil
+        local co = self.co
         if connected then
             self:set_status("connected")
-            co_wakeup(self.co, true)
-            self.co = nil
-            self.connect_co = nil
-            return
+            return co_wakeup(co, true)
         end
-        co_wakeup(self.co)
-        self.co = nil
-        self.connect_co = nil
+        return co_wakeup(self.co)
     end)
     self.socket:connect(self.fd, self.connect_co)
     return co_suspend()

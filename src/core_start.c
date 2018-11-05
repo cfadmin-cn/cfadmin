@@ -73,18 +73,11 @@ init_main(EV_ONCE_ void *args, int revents){
 		ev_break (EV_DEFAULT_ EVBREAK_ALL);
 		return ;
 	}
-	// status = lua_pcall(L, 0, LUA_MULTRET, 0);
-	// if (status > 1){
-	// 	LOG("ERROR", lua_tostring(L, -1));
-	// 	ev_break (EV_DEFAULT_ EVBREAK_ALL);
-	// }
-
 	status = lua_resume(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
 		ev_break (EV_DEFAULT_ EVBREAK_ALL);
 	}
-
 	lua_gc(L, LUA_GCCOLLECT, 0);
 }
 

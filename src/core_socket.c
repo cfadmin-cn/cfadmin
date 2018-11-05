@@ -143,7 +143,6 @@ IO_ACCEPT(EV_P_ ev_io *io, int revents){
 		int client = accept(io->fd, (struct sockaddr*)&addr, &slen);
 		if (0 >= client) {
 			LOG("INFO", strerror(errno));
-			errno = 0;
 			return ;
 		}
 
@@ -185,23 +184,63 @@ io_read(lua_State *L){
 	}
 
 	for(;;){
-		char str[bytes];
-		int len = read(io->fd, str, bytes);
-		if (len > 0){
+		char str[1024];
+		int len = read(io->fd, str, 1024);
+		if (len > 0) {
 			lua_pushlstring(L, str, len);
 			lua_pushinteger(L, len);
 			break;
 		}
-		if (errno == EINTR) continue;
-		if (errno == EAGAIN){
-			lua_pushlstring(L, "", 0);
-			lua_pushinteger(L, 0);
+		if (!len) {
+			lua_pushnil(L);
+			lua_pushinteger(L, -1);
 			break;
 		}
+		if (errno == EINTR) continue;
+		if (errno == EAGAIN) break;
 		lua_pushnil(L);
 		lua_pushinteger(L, -1);
 		break;
 	}
+	return 2;
+}
+
+int
+io_readall(lua_State *L){
+
+	errno = 0;
+
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__Socket__");
+	if(!io) return 0;
+
+	lua_settop(L, 0);
+
+	int closed = client_is_closed(io->fd);
+	if (closed) {
+		lua_pushnil(L);
+		lua_pushinteger(L, -1);
+		return 2;
+	}
+	luaL_Buffer buf;
+	luaL_buffinit(L, &buf);
+	size_t Max = 0;
+	for(;;){
+		char str[1024];
+		int len = read(io->fd, str, 1024);
+		len >=0 ? Max = Max + len : 0;
+		if (len == 0) break;
+		if (len > 0) {
+			luaL_addlstring(&buf, str, 1024);
+			continue;
+		}
+		if (errno == EINTR) continue;
+		if (errno == EAGAIN) break;
+		lua_pushnil(L);
+		lua_pushinteger(L, -1);
+		return 2;
+	}
+	luaL_pushresult(&buf);
+	lua_pushinteger(L, Max);
 	return 2;
 }
 
@@ -381,8 +420,6 @@ io_start(lua_State *L){
 	if (!co) return 0;
 
 	ev_set_watcher_userdata(io, co);
-
-	// ev_io_set(io, fd, events);
 
 	ev_io_init(io, IO_CB, fd, events);
 

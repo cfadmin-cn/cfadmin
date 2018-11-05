@@ -28,12 +28,15 @@ int io_start(lua_State *L);
 
 int io_close(lua_State *L);
 
+int io_readall(lua_State *L);
+
 int io_read(lua_State *L);
 
 int io_write(lua_State *L);
 
 static const luaL_Reg socket_libs[] = {
 	{"read", io_read},
+	{"readall", io_readall},
 	{"write", io_write},
 	{"new", io_new},
 	{"stop", io_stop},
