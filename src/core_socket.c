@@ -176,16 +176,9 @@ io_read(lua_State *L){
 
 	lua_settop(L, 0);
 
-	int closed = client_is_closed(io->fd);
-	if (closed) {
-		lua_pushnil(L);
-		lua_pushinteger(L, -1);
-		return 2;
-	}
-
 	for(;;){
-		char str[1024];
-		int len = read(io->fd, str, 1024);
+		char str[bytes];
+		int len = read(io->fd, str, bytes);
 		if (len > 0) {
 			lua_pushlstring(L, str, len);
 			lua_pushinteger(L, len);
@@ -215,31 +208,24 @@ io_readall(lua_State *L){
 
 	lua_settop(L, 0);
 
-	int closed = client_is_closed(io->fd);
-	if (closed) {
-		lua_pushnil(L);
-		lua_pushinteger(L, -1);
-		return 2;
-	}
-	luaL_Buffer buf;
-	luaL_buffinit(L, &buf);
 	size_t Max = 0;
+
 	for(;;){
-		char str[1024];
+		char str[1024] = {0};
 		int len = read(io->fd, str, 1024);
-		len >=0 ? Max = Max + len : 0;
-		if (len == 0) break;
+		len >= 0 ? Max = Max + len : 0;
 		if (len > 0) {
-			luaL_addlstring(&buf, str, 1024);
+			lua_pushlstring(L, str, len);
 			continue;
 		}
 		if (errno == EINTR) continue;
 		if (errno == EAGAIN) break;
+		lua_settop(L, 0);
 		lua_pushnil(L);
 		lua_pushinteger(L, -1);
 		return 2;
 	}
-	luaL_pushresult(&buf);
+	lua_concat(L, lua_gettop(L));
 	lua_pushinteger(L, Max);
 	return 2;
 }
@@ -343,7 +329,7 @@ io_close(lua_State *L){
 
 	ev_io_stop(EV_DEFAULT_ io);
 
-	if (io->fd && io->fd > 0) close(io->fd);
+	if (io->fd > 0) close(io->fd);
 
 	return 0;
 

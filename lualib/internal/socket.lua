@@ -1,8 +1,11 @@
-require "internal.coroutine"
-require "utils"
-
 local class = require "class"
 local socket = core_socket
+
+local co_new = coroutine.create
+local co_start = coroutine.resume
+local co_wakeup = coroutine.resume
+local co_suspend = coroutine.yield
+local co_self = coroutine.running
 
 local EVENT_READ  = 0x01
 local EVENT_WRITE = 0x02
@@ -56,11 +59,14 @@ function Socket:write(data)
             if not send_len or #send_data == send_len then
                 local co = self.co
                 self.co = nil
-                if send_len then
-                    self.socket:stop()
-                end
+                self.socket:stop()
                 self.write_co = nil
-                return co_wakeup(co, send_len)
+                local ok, err = co_wakeup(co, send_len)
+                if not ok then
+                    print(err)
+                    self.socket:close()
+                end
+                return
             end
             if #send_data > send_len then
                 send_data = string.sub(send_data, send_len + 1, -1)
@@ -87,6 +93,7 @@ function Socket:readall()
         self.read_co = nil
         self.socket:stop()
         if not buf then
+            self.status = "closed"
             return co_wakeup(co)
         end
         return co_wakeup(co, buf, len)
@@ -111,14 +118,24 @@ function Socket:read(bytes)
             self.co = nil
             self.read_co = nil
             self.socket:stop()
-            return co_wakeup(co)
+            local ok, err = co_wakeup(co)
+            if not ok then
+                print(err)
+                self.socket.close()
+            end
+            return
         end
         if len > 0 then
             local co = self.co
             self.co = nil
             self.read_co = nil
             self.socket:stop()
-            return co_wakeup(co, buf, len)
+            local ok, err = co_wakeup(co, buf, len)
+            if not ok then
+                print(err)
+                self.socket.close()
+            end
+            return 
         end
         co_suspend()
     end)

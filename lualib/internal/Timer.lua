@@ -1,5 +1,8 @@
-require "internal.coroutine"
-require "utils"
+local co_new = coroutine.create
+local co_start = coroutine.resume
+local co_wakeup = coroutine.resume
+local co_suspend = coroutine.yield
+local co_self = coroutine.running
 
 local ti = core_timer
 
@@ -21,7 +24,7 @@ function Timer.timeout(timeout, cb)
     end
     ti = Timer.get_timer()
     if not ti then
-        LOG("INFO", "new timer class error! memory maybe not enough...")
+        print("[INFO] Create timer class error! memory maybe not enough...")
         return
     end
     local timer = {}
@@ -31,9 +34,9 @@ function Timer.timeout(timeout, cb)
     timer.closed = nil
     function timer_out( ... )
         if not timer.closed then
-            local ok, msg = pcall(timer.cb)
+            local ok, err = pcall(timer.cb)
             if not ok then
-               LOG("INFO", "timer_out error:", msg)
+                print ("[INFO] timer_out error:", err)
             end
         end
         table.insert(TIMER_LIST, timer.ti)
@@ -52,7 +55,7 @@ function Timer.ti(repeats, cb)
     end
     local ti = Timer.get_timer()
     if not ti then
-        LOG("INFO", "new timer class error! memory maybe not enough...")
+        print("[INFO] Create timer class error! memory maybe not enough...")
         return
     end
     local timer = {}
@@ -69,12 +72,12 @@ function Timer.ti(repeats, cb)
                 timer = nil
                 return
             end
-            local ok, msg = pcall(timer.cb)
+            local ok, err = pcall(timer.cb)
             if not ok then
                 table.insert(TIMER_LIST, timer.ti)
                 timer.ti:stop()
                 timer = nil
-                LOG("ERROR", "timer_repeats error:", msg)
+                print("[ERROR] timer_repeats error:", err)
                 return
             end
             co_suspend()
