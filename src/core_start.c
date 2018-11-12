@@ -5,7 +5,7 @@ L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
 
 	(void)ud;  (void)osize;  /* Lua 不会使用 */
 
-	if (nsize == 0) return free(ptr), NULL;
+	if (nsize == 0) return realloc(ptr, nsize);
 
 	return realloc(ptr, nsize);
 
@@ -28,13 +28,21 @@ init_libs(lua_State *L){
     lua_setfield(L, 1, "cpath");
 
     /* 注入socket模块 */
-	luaL_newmetatable(L, "__Socket__");
+	luaL_newmetatable(L, "__TCP__");
 	lua_pushstring (L, "__index");
 	lua_pushvalue(L, -2);
 	lua_rawset(L, -3);
-	luaL_setfuncs(L, socket_libs,0);
-	luaL_newlib(L, socket_libs);
-	lua_setglobal(L, "core_socket");
+	luaL_setfuncs(L, tcp_libs,0);
+	luaL_newlib(L, tcp_libs);
+	lua_setglobal(L, "core_tcp");
+
+	luaL_newmetatable(L, "__UDP__");
+	lua_pushstring (L, "__index");
+	lua_pushvalue(L, -2);
+	lua_rawset(L, -3);
+	luaL_setfuncs(L, udp_libs,0);
+	luaL_newlib(L, udp_libs);
+	lua_setglobal(L, "core_udp");
 
     /* 注入timer模块 */
     luaL_newmetatable(L, "__TIMER__");

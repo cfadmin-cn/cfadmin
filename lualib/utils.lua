@@ -8,7 +8,7 @@ function table.key(t, key)
 end
 
 -- 格式化表输出
-function table.tostring (obj)
+function to_string(obj)
 	local str_fmt = string.format
 	local tostring = tostring
 	local getIndent, quoteStr, wrapKey, wrapVal, isArray, dumpObj
@@ -93,10 +93,4 @@ function LOG(level, ...)
 	print(head, ...)
 end
 
-pcall = function (func, ...)
-	local function info(msg)
-		local co = coroutine.running()
-		return string.format("%s\n%s", debug.traceback(co, nil, 2), msg)
-	end
-	return xpcall(func, info, ...)
-end
+return pcall

@@ -1,8 +1,7 @@
-local socket = require "internal.socket"
+local tcp = require "internal.TCP"
 local HTTP = require "protocol.http"
 local class = require "class"
 -- local dns = require "protocol.dns"
-
 
 local PARSER_PROTOCOL = HTTP.RESPONSE_PROTOCOL_PARSER
 local PARSER_HEAD = HTTP.RESPONSE_HEAD_PARSER
@@ -10,8 +9,14 @@ local PARSER_BODY = HTTP.RESPONSE_BODY_PARSER
 
 local find = string.find
 local split = string.sub
-local insert = table.insert
 local spliter = string.gsub
+
+local insert = table.insert
+local concat = table.concat
+
+local fmt = string.format
+
+local HTTPC = "cf/0.1"
 
 local httpc = class("httpc")
 
@@ -19,21 +24,22 @@ function httpc:ctor(opt)
 	self.socket = nil
 	self.version = 1.1
 	self.SSL = nil
+	self.Invaild = nil
 end
 
 function check_ip(ip, version)
 	if version == 4 then
-	    if #str > 15 and #str < 7 then
-	        return 
+	    if #ip > 15 or #ip < 7 then
+	        return false
 	    end
 	    local num_list = {nil, nil, nil, nil}
-	    string.gsub(str, '(%d+)', function (num)
+	    string.gsub(ip, '(%d+)', function (num)
 	    	insert(num_list, tonumber(num))
 	    end)
 	    if #num_list ~= 4 then
-	    	return
+			return false
 	    end
-	    for num in ipairs(num_list) do
+	    for _, num in ipairs(num_list) do
 	    	if num < 0 or num > 255 then
 	    		return false
 	    	end
@@ -42,16 +48,27 @@ function check_ip(ip, version)
 	end
 end
 
--- 设置User-Agent
-function httpc:Set_UA(UA)
-	self['User-Agent'] = UA
+-- 设置请求超时时间
+function httpc:set_timeout(Invaild)
+	if Invaild > 0 then
+		self.Invaild = Invaild
+	end
 end
 
-function httpc:get(address, port)
+-- 处理接口重定向
+function httpc:redirect( ... )
+	-- body
+end
+
+function httpc:get(domain, port)
+	-- if self.domain or self.port then
+	-- 	return 
+	-- end
 	self.method = "GET"
-	local PORT = port or 80
+	self.domain = domain
+	self.port = port or 80
 	local PROTOCOL, IP, PATH
-	spliter(address, '(http[s]*)://([%w%.%-]+)(.*)', function (protocol, domain, path)
+	spliter(domain, '(http[s]*)://([%w%.%-]+)(.*)', function (protocol, domain, path)
 		if protocol then
 			if protocol == "https" then
 				PROTOCOL = protocol
@@ -61,30 +78,39 @@ function httpc:get(address, port)
 				PROTOCOL = protocol
 			end
 		end
-		IP = domain
-		PATH = path
+		self.ip = domain
+		self.path = path
 	end)
 	if not PROTOCOL then
 		return nil, "Invaild protocol."
 	end
-	if not IP then
+	if not self.domain then
 		return nil, "Invaild domain or ip address."
 	end
-	-- if not check_ip(IP, 4) then
-	-- 	IP = dns.resolve(IP)
-	-- 	if not IP then
-	-- 		return nil, "Can't resolve domain."
+	-- if not check_ip(self.ip, 4) then
+	-- 	self.ip = dns.resolve(self.domain)
+	-- 	if not self.ip then
+	-- 		return nil, "Can't resolve this domain."
 	-- 	end
 	-- end
-	if not self.socket then
-		self.socket = socket:new()
+	if not self.tcp then
+		self.tcp = tcp:new()
 	end
-	local ok = self.socket:connect(IP, PORT)
+	local ok = self.tcp:connect(self.ip, self.port)
 	if not ok then
+		self.tcp:close()
 		return nil, "Can't connect to this IP and Port."
 	end
-	local ok = self.socket:write("GET / HTTP/1.1\r\n\r\n")
+	local request = {
+		fmt("GET %s HTTP/1.1", self.path or '/'),
+		fmt("Host: %s", 'www.qq.com' or self.domain),
+		fmt("Connect: Keep-Alive"),
+		fmt("User-Agent: %s", self['User-Agent'] or HTTPC),
+		'\r\n'
+	}
+	local ok = self.tcp:send(concat(request, '\r\n'))
 	if not ok then
+		self.tcp:close()
 		return nil, "Can't connect to this IP and Port."
 	end
 	return self:response()
@@ -93,53 +119,60 @@ end
 
 
 function httpc:response()
-	if not self.socket then
+	if not self.tcp then
 		return nil, "Can't used this method before other httpc method.."
 	end
 	local RESPONSE = ''
 	local response = {
 		Header = { },
 	}
-	local socket = self.socket
-	local next_step = 1
-	-- local file = io.open("./index.html", 'w')
-	local TOTLE, HEAD, BODY = 0, 0, 0
+	local tcp = self.tcp
+	local CODE, HEAD, BODY
+	local Content_Length
+	local content = {}
+	local times = 0
 	while 1 do
-		local data = socket:readall()
+		local data = tcp:recvall()
 		if not data then
-			return nil
+			return nil, "A peer of remote close this connection."
 		end
-		-- file:write(data)
-		-- file:flush()
-		RESPONSE = RESPONSE .. data
-		if next_step == 1 then
-			local header_start, header_end = find(RESPONSE, '\r\n\r\n')
-			if header_start and header_end then
-				local HEAD = header_end
-				local protocol_start, protocol_end = find(RESPONSE, '\r\n')
+		insert(content, data)
+		if times == 0 then
+			local DATA = concat(content)
+			local posA, posB = find(DATA, '\r\n\r\n')
+			if posA and posB then
+				if #DATA > posB then
+					content = {}
+					insert(content, split(DATA, posB + 1, -1))
+				end
+				local protocol_start, protocol_end = find(DATA, '\r\n')
 				if not protocol_start or not protocol_end then
-					return nil, "Invaild HTTP protocol."
+					return nil, "can't resolvable protocol."
 				end
-				local CODE = PARSER_PROTOCOL(response, split(RESPONSE, 1, protocol_start - 1))
-				if CODE ~= 200 then
-					return nil, "Invaild protocol header."
+				CODE = PARSER_PROTOCOL(split(DATA, 1, protocol_end))
+				HEAD = PARSER_HEAD(split(DATA, 1, posA + 1))
+				if not HEAD['Content-Length'] then
+					break
 				end
-				PARSER_HEAD(response['Header'], split(RESPONSE, protocol_end + 1, header_end))
-				next_step = next_step + 1
+				Content_Length = HEAD['Content-Length']
+				times = times + 1
 			end
 		end
-		if next_step == 2 then
-
+		if times > 0 then
+			BODY = concat(content)
+			if #BODY >= Content_Length then
+				break
+			end
 		end
 	end
+	return CODE, BODY
 end
 
 
 function httpc:close()
-	return self.socket.close()
+	self.tcp:close()
+	self.tcp = nil
 end
-
-
 
 
 return httpc

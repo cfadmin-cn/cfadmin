@@ -10,16 +10,9 @@ local Timer = {}
 
 local TIMER_LIST = {}
 
-function Timer.get_timer()
-    if #TIMER_LIST > 0 then
-        return table.remove(TIMER_LIST)
-    end
-    return ti.new()
-end
-
 -- 超时器 --
 function Timer.timeout(timeout, cb)
-    if not timeout or timeout < 0 then
+    if not timeout or timeout <= 0 then
         return
     end
     ti = Timer.get_timer()
@@ -50,7 +43,7 @@ end
 
 -- 定时器 --
 function Timer.ti(repeats, cb)
-    if not repeats or repeats < 0 then
+    if not repeats or repeats <= 0 then
         return
     end
     local ti = Timer.get_timer()
@@ -90,7 +83,7 @@ end
 
 -- 仅让出执行权 --
 function Timer.sleep(second)
-    if not second or second < 0 then
+    if not second or second <= 0 then
         return
     end
     local ti = Timer.get_timer()

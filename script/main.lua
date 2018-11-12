@@ -5,12 +5,15 @@
 -- app:start("localhost", 8080)
 
 
--- local socket = require "internal.socket"
-
--- local match = string.match
--- local split = string.sub
 
 local httpc = require "httpc"
+local to_string = require "utils"
+
 local hc = httpc:new()
-local data = hc:get("http://163.177.151.109/")
-print(table.tostring(data))
+
+-- local data, err = hc:get("http://34.226.187.139/")
+
+-- www.qq.com
+local data, msg = hc:get("http://58.250.137.36/")
+print(data)
+print(msg)

@@ -19,6 +19,7 @@
     #define EWOULDBLOCK EAGAIN
 #endif
 
+#define non_blocking(socket) ({fcntl(socket, F_SETFL, fcntl(socket, F_GETFL, 0) | O_NONBLOCK);});
 
 /* [level][datetime][file][function:][具体打印内容] */
 #define LOG(log_level, content) { \
