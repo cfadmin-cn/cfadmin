@@ -1,14 +1,22 @@
+local ti = core_timer
 local co_new = coroutine.create
 local co_start = coroutine.resume
 local co_wakeup = coroutine.resume
 local co_suspend = coroutine.yield
 local co_self = coroutine.running
 
-local ti = core_timer
+local remove = table.remove
 
 local Timer = {}
 
 local TIMER_LIST = {}
+
+function Timer.get_timer()
+    if #TIMER_LIST > 0 then
+        return remove(TIMER_LIST)
+    end
+    return ti:new()
+end
 
 -- 超时器 --
 function Timer.timeout(timeout, cb)

@@ -33,17 +33,6 @@
 
 #include <ev.h>
 
-#define EV_ONCE struct ev_once *once
-
-#define EV_ONCE_ struct ev_once *once,
-
-struct ev_once {
-	ev_io *io;
-	ev_timer *timer;
-	void *data;
-	void (*cb)(EV_ONCE_ void *arg, int revents);
-};
-
 /* 获取用户数据 */
 #define ev_get_watcher_userdata(watcher) ((watcher)->data ? (watcher)->data: NULL)
 
@@ -52,8 +41,5 @@ struct ev_once {
 
 /* 设置用户数据的宏 */
 #define ev_set_watcher_userdata(watcher, userdata) ((watcher)->data = (userdata))
-
-
-void ev_once(int socket, int events, ev_tstamp timeout, void (*cb)(EV_ONCE_ void *arg, int revents), void *args);
 
 #endif

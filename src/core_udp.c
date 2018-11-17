@@ -6,8 +6,8 @@ udp_socket_new(const char *ipaddr, int port){
 
 	errno = 0;
 	/* 建立socket*/
-	int sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_TCP);
-	if (0 >= sockfd) return 1;
+	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (0 >= sockfd) return -1;
 
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
@@ -16,10 +16,6 @@ udp_socket_new(const char *ipaddr, int port){
 
      /* 地址/端口重用 */
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &ENABLE, sizeof(ENABLE));
-    
-     /* 关闭小包延迟合并算法 */
-	setsockopt(sockfd, SOL_SOCKET, TCP_NODELAY, &ENABLE, sizeof(ENABLE));
-
 
 	struct sockaddr_in sock_addr;
 	memset(&sock_addr, 0, sizeof(sock_addr));
@@ -29,29 +25,75 @@ udp_socket_new(const char *ipaddr, int port){
 	sock_addr.sin_addr.s_addr = inet_addr(ipaddr);
 
 	int connection = connect(sockfd, (struct sockaddr*)&sock_addr, sizeof(struct sockaddr));
-	if (errno != EINPROGRESS){
-		close(sockfd);
-		return -1;
-	}
+
 	return sockfd;
 }
 
 void
 UDP_IO_CB(EV_P_ ev_io *io, int revents){
 
+	int status = 0;
+
+	if (revents & EV_ERROR) {
+		LOG("ERROR", "Recevied a ev_io object internal error from libev.");
+		return ;
+	}
+
+	if (revents & EV_READ){
+		lua_State *co = (lua_State *)ev_get_watcher_userdata(io);
+		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+			status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
+			if (status != LUA_YIELD && status != LUA_OK){
+				LOG("ERROR", lua_tostring(co, -1));
+			}
+		}
+	}
 }
-
-void
-UDP_IO_CONNECT(EV_P_ ev_io *io, int revents){
-
-}
-
 
 int
-new_udp_fd(lua_State *L){
+udp_send(lua_State *L){
 
 	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
-	if(!io) {lua_settop(L, 0); return 0;}
+	if(!io) return 0;
+
+	const char* data = lua_tostring(L, 2);
+	if (!data) return 0;
+
+	size_t len = lua_tointeger(L, 3);
+
+	int wsize = write(io->fd, data, len);
+
+	lua_pushinteger(L, wsize);
+
+	return 1;
+
+}
+
+int
+udp_recv(lua_State *L){
+
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
+	if(!io) return 0;
+
+	char str[4096] = {0};
+
+	int rsize = read(io->fd, str, 4096);
+
+	if (rsize < 0) return 0;
+
+	lua_pushlstring(L, str, rsize);
+
+	lua_pushinteger(L, rsize);
+
+	return 2;
+
+}
+
+int
+udp_connect(lua_State *L){
+
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
+	if(!io) return 0;
 
 	const char *ip = lua_tostring(L, 2);
 	if(!ip) {lua_settop(L, 0); return 0;}
@@ -60,20 +102,39 @@ new_udp_fd(lua_State *L){
 	if(!port) {lua_settop(L, 0); return 0;}
 
 	int fd = udp_socket_new(ip, port);
-	if (0 >= fd) {lua_settop(L, 0); return 0;}
 
-	lua_settop(L, 0);
+	lua_pushboolean(L, fd > 0 ? 1 : 0);
 
-	lua_pushinteger(L, fd);
+	io->fd = fd > 0 ? fd : 0;
 
 	return 1;
 
 }
 
 int
+udp_start(lua_State *L){
+
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
+	if(!io) return 0;
+
+	/* 回调协程 */
+	lua_State *co = lua_tothread(L, 2);
+	if (!co) return 0;
+
+	ev_set_watcher_userdata(io, co);
+
+	ev_io_init (io, UDP_IO_CB, io->fd, EV_READ);
+
+	ev_io_start (EV_DEFAULT_ io);
+
+	return 0;
+
+}
+
+int
 udp_stop(lua_State *L){
 
-	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__TCP__");
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
 	if(!io) return 0;
 
 	ev_io_stop(EV_DEFAULT_ io);
@@ -85,11 +146,8 @@ udp_stop(lua_State *L){
 int
 udp_close(lua_State *L){
 
-	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) {
-		close(lua_tointeger(L, 1));
-		return 0;
-	}
+	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
+	if(!io) return 0;
 
 	ev_io_stop(EV_DEFAULT_ io);
 
@@ -99,31 +157,6 @@ udp_close(lua_State *L){
 
 }
 
-int
-udp_connect(lua_State *L){
-
-	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
-	if(!io) return 0;
-
-	/* socket文件描述符 */
-	int fd = lua_tointeger(L, 2);
-	if (0 >= fd) return 0;
-
-	/* 回调协程 */
-	lua_State *co = lua_tothread(L, 3);
-	if (!co) return 0;
-
-	ev_set_watcher_userdata(io, co);
-
-	ev_io_init(io, UDP_IO_CONNECT, fd, EV_READ | EV_WRITE);
-
-	ev_io_start(EV_DEFAULT_ io);
-
-	lua_settop(L, 1);
-
-	return 1;
-
-}
 
 
 int

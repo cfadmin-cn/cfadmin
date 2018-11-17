@@ -9,8 +9,6 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-int new_udp_fd(lua_State *L);
-
 int udp_new(lua_State *L);
 
 int udp_close(lua_State *L);
@@ -19,14 +17,21 @@ int udp_connect(lua_State *L);
 
 int udp_stop(lua_State *L);
 
-int udp_close(lua_State *L);
+int udp_start(lua_State *L);
+
+int udp_recv(lua_State *L);
+
+int udp_send(lua_State *L);
 
 
 static const luaL_Reg udp_libs[] = {
 	{"new", udp_new},
 	{"close", udp_close},
+    {"start", udp_start},
+    {"stop", udp_stop},
 	{"connect", udp_connect},
-	{"new_udp_fd", new_udp_fd},
+    {"send", udp_send},
+    {"recv", udp_recv},
 	{NULL, NULL}
 };
 

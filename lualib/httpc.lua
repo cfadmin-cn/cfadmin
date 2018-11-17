@@ -1,7 +1,8 @@
 local tcp = require "internal.TCP"
 local HTTP = require "protocol.http"
+local dns = require "protocol.dns"
+
 local class = require "class"
--- local dns = require "protocol.dns"
 
 local PARSER_PROTOCOL = HTTP.RESPONSE_PROTOCOL_PARSER
 local PARSER_HEAD = HTTP.RESPONSE_HEAD_PARSER
@@ -61,9 +62,6 @@ function httpc:redirect( ... )
 end
 
 function httpc:get(domain, port)
-	-- if self.domain or self.port then
-	-- 	return 
-	-- end
 	self.method = "GET"
 	self.domain = domain
 	self.port = port or 80
@@ -87,12 +85,12 @@ function httpc:get(domain, port)
 	if not self.domain then
 		return nil, "Invaild domain or ip address."
 	end
-	-- if not check_ip(self.ip, 4) then
-	-- 	self.ip = dns.resolve(self.domain)
-	-- 	if not self.ip then
-	-- 		return nil, "Can't resolve this domain."
-	-- 	end
-	-- end
+	if not check_ip(self.ip, 4) then
+		local ok, self.ip = dns.resolve(self.domain)
+		if not ok or not self.ip then
+			return nil, "Can't resolve this domain."
+		end
+	end
 	if not self.tcp then
 		self.tcp = tcp:new()
 	end
@@ -103,7 +101,7 @@ function httpc:get(domain, port)
 	end
 	local request = {
 		fmt("GET %s HTTP/1.1", self.path or '/'),
-		fmt("Host: %s", 'www.qq.com' or self.domain),
+		fmt("Host: %s", self.domain),
 		fmt("Connect: Keep-Alive"),
 		fmt("User-Agent: %s", self['User-Agent'] or HTTPC),
 		'\r\n'

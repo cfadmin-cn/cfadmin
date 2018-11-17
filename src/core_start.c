@@ -55,7 +55,7 @@ init_libs(lua_State *L){
 }
 
 void
-init_main(EV_ONCE_ void *args, int revents){
+init_main(int revents, void *args){
 
 	int status;
 	lua_State *L = lua_newstate(L_ALLOC, NULL);
@@ -96,7 +96,7 @@ core_sys_init(){
 	ev_set_allocator(realloc);
 	
 	/* 初始化script */
-	ev_once(-1, 0, 0, init_main, NULL);
+	ev_once(EV_DEFAULT_ -1, 0, 0, init_main, NULL);
 }
 
 int
