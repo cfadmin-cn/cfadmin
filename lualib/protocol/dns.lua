@@ -2,7 +2,6 @@ local UDP = require "internal.UDP"
 
 local LIMIT_HEADER_LEN = 12
 local MAX_THREAD_ID = 65535
-local MAX_CLIENTS = 8
 
 local concat = table.concat
 local insert = table.insert
@@ -16,8 +15,6 @@ local spliter = string.gsub
 local dns = {}
 
 local dns_list = {}
-
-local dns_clients = {}
 
 local dns_cache = {}
 
@@ -79,19 +76,15 @@ if #dns_list < 1 then
     end
 end
 
-for i = 1, MAX_CLIENTS do
-    local udp = UDP:new()
-    local ok = udp:connect(dns_list[1], 53)
-    if ok then
-        insert(dns_clients, udp)
-    end
-end
-
 local dns_client_rr = 0
 
 local function get_dns_client()
-    dns_client_rr = dns_client_rr % MAX_CLIENTS + 1
-    return dns_clients[dns_client_rr]
+    dns_client_rr = dns_client_rr % #dns_list + 1
+    local udp = UDP:new()
+    local ok = udp:connect(dns_list[dns_client_rr], 53)
+    if ok then
+        return udp
+    end
 end
 
 local function pack_header()
