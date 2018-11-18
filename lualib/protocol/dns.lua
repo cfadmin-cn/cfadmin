@@ -1,7 +1,8 @@
 local UDP = require "internal.UDP"
 
 local LIMIT_HEADER_LEN = 12
-local MAX_CLIENTS = 4
+local MAX_THREAD_ID = 65535
+local MAX_CLIENTS = 8
 
 local concat = table.concat
 local insert = table.insert
@@ -18,26 +19,26 @@ local dns_list = {}
 
 local dns_clients = {}
 
-local dns_cache = { }
+local dns_cache = {}
 
 local function check_cache(name)
-    local ip_list = dns_cache[name]
-    if not ip_list or #ip_list < 1 then
-        return nil
-    end 
-    if ip_list.ttl < now() then
-        return nil
-    end 
-    return ip_list.ip
+    local query = dns_cache[name]
+    if not query then
+        return
+    end
+    if query.ttl < now() then
+        dns_cache[name] = nil
+        return
+    end
+    return query
 end
 
 local thread_id = 0
 
 local function gen_id()
-    thread_id = thread_id % 65535 + 1
+    thread_id = thread_id % MAX_THREAD_ID + 1
     return thread_id
 end
-
 
 function check_ip(ip, version)
     if version == 4 then
@@ -89,7 +90,7 @@ end
 local dns_client_rr = 0
 
 local function get_dns_client()
-    dns_client_rr = dns_client_rr % #dns_clients + 1
+    dns_client_rr = dns_client_rr % MAX_CLIENTS + 1
     return dns_clients[dns_client_rr]
 end
 
@@ -123,7 +124,7 @@ local function unpack_name(chunk, nbyte)
     local jump_pointer
     local tag, offset, label
     while true do
-        tag, nbyte = unpack("B", chunk, nbyte)
+        tag, nbyte = unpack(">B", chunk, nbyte)
         if tag & 0xc0 == 0xc0 then
             offset,nbyte = unpack(">H", chunk, nbyte - 1)
             offset = offset & 0x3fff
@@ -154,7 +155,11 @@ local function unpack_answer(chunk, nbyte)
 end
 
 local function unpack_rdata(chunk)
-    return fmt("%d.%d.%d.%d", unpack("BBBB", chunk))
+    return fmt("%d.%d.%d.%d", unpack(">BBBB", chunk))
+end
+
+function dns.flush()
+    dns_cache = {}
 end
 
 function dns.query(name)
@@ -181,15 +186,14 @@ function dns.query(name)
     end
     local question, nbyte = unpack_question(dns_resp, nbyte)
 
+    if question.name ~= name then
+        return nil, "quetions not equal."
+    end
     local answer
-    local answers = {}
-
     for i = 1, answer_header.ancount do
         answer, nbyte = unpack_answer(dns_resp, nbyte)
-        local ip = unpack_rdata(answer.rdata)
-        local ttl = answer.ttl
-        answer.ip = ip
-        dns_cache[answer.name] = {ip = ip, ttl = ttl}
+        answer.ip = unpack_rdata(answer.rdata)
+        dns_cache[answer.name] = {ip = answer.ip, ttl = now() + answer.ttl}
     end
     return true, answer.ip
 end
