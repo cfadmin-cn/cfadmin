@@ -21,13 +21,15 @@ function TCP:ctor(opt)
     self.fd = nil           -- 套接字文件描述符
     self.type = nil         -- client or server
     self.tcp = nil       -- 套接字对象
-    self.accept_co = nil    -- accept 协程
-    self.connect_co = nil   -- connect 协程
     self.status = "inited"
 end
 
 function TCP:set_status(status)
     self.status = status
+end
+
+function TCP:get_status()
+    return self.status
 end
 
 -- 设置回调函数
@@ -52,27 +54,23 @@ function TCP:set_fd(fd)
 end
 
 function TCP:send(data)
-    if self.status ~= "connected" then
+    if self:get_status() ~= "connected" then
         return
     end
     if not self.tcp and not self.fd then
         return
     end
-    self.co = co_self()
-    self.write_co = co_new(function (...)
+    local co = co_self()
+    local write_co = co_new(function (...)
         local send_data = data
         local send_len
         while 1 do
-            send_len = self.tcp:write(send_data)
+            send_len = self.tcp:write(send_data, #send_data)
             if not send_len or #send_data == send_len then
-                local co = self.co
-                self.co = nil
                 self.tcp:stop()
-                self.write_co = nil
                 local ok, err = co_wakeup(co, send_len)
                 if not ok then
                     print(err)
-                    self.tcp:close()
                 end
                 return
             end
@@ -82,31 +80,24 @@ function TCP:send(data)
             co_suspend()
         end
     end)
-    self.tcp:start(self.fd, EVENT_WRITE, self.write_co)
+    self.tcp:start(self.fd, EVENT_WRITE, write_co)
     return co_suspend()
 end
 
 function TCP:recvall()
-    if self.status ~= "connected" then
-        return
-    end
-    if not self.tcp and not self.fd then
+    if self:get_status() ~= "connected" then
         return
     end
     local read = true
     local timeout = true
-    self.co = co_self()
-    self.read_co = co_new(function ( ... )
+    local co = co_self()
+    local read_co = co_new(function ( ... )
         if read then
             local buf, len = self.tcp:readall()
-            local co = self.co
             timeout = nil
-            self.read_ti = nil
-            self.co = nil
-            self.read_co = nil
             self.tcp:stop()
             if not buf then
-                self.status = "closed"
+                self:set_status("closed")
                 local ok, err = co_wakeup(co, buf, len)
                 if not ok then
                     print(err)
@@ -120,21 +111,17 @@ function TCP:recvall()
             return
         end
     end)
-    self.read_ti = ti.timeout(self._timeout, co_new(function ( ... )
+    local read_ti = ti.timeout(self._timeout, co_new(function ( ... )
         if timeout then
-            local co = self.co
-            self.co = nil
-            self.read_co = nil
-            read = nil
             self.tcp:stop()
             local ok, err = co_wakeup(co, nil, "read timeout")
             if not ok then
                 print(err)
             end
-            self.read_ti = nil
+            return
         end
     end))
-    self.tcp:start(self.fd, EVENT_READ, self.read_co)
+    self.tcp:start(self.fd, EVENT_READ, read_co)
     return co_suspend()
 end
 
@@ -142,18 +129,12 @@ function TCP:recv(bytes)
     if self.status ~= "connected" then
         return
     end
-    if not self.tcp and not self.fd then
-        return
-    end
     local read = true
     local timeout = true
-    self.co = co_self()
-    self.read_co = co_new(function ( ... )
+    local co = co_self()
+    local read_co = co_new(function ( ... )
         if read then
             local buf, len = self.tcp:read(bytes)
-            local co = self.co
-            self.co = nil
-            self.read_co = nil
             self.timeout = nil
             self.tcp:stop()
             if not buf then
@@ -170,22 +151,17 @@ function TCP:recv(bytes)
             end
         end
     end)
-    self.read_ti = ti.timeout(self._timeout, function ( ... )
+    local read_ti = ti.timeout(self._timeout, function ( ... )
         if timeout then
-            local co = self.co
-            read = nil
-            self.co = nil
-            self.read_co = nil
             self.tcp:stop()
             local ok, err = co_wakeup(co, nil, "read timeout")
             if not ok then
                 print(err)
             end
-            self.read_ti = nil
             return
         end
     end)
-    self.tcp:start(self.fd, EVENT_READ, self.read_co)
+    self.tcp:start(self.fd, EVENT_READ, read_co)
     return co_suspend()
 end
 
@@ -200,7 +176,7 @@ function TCP:listen(ip, port)
         print("Listen Socket Create Error! :) ")
         return
     end
-    self.fd = self.fd or self.tcp:new_tcp_fd(ip, port, SERVER)
+    self.fd = self.tcp:new_tcp_fd(ip, port, SERVER)
     if not self.fd then
         print("this IP and port Create A bind or listen method Faild! :) ")
         self.tcp = nil
@@ -217,8 +193,6 @@ function TCP:listen(ip, port)
                     end
                 else
                     print("Please Set Socket Accept Callback Method! :) ")
-                    self.fd = nil
-                    self.accept_co = nil
                     self.tcp:close()
                 end
             end
@@ -245,15 +219,13 @@ function TCP:connect(domain, port)
         return
     end
     self.type = CLIENT
-    self.co = co_self()
+    local co = co_self()
     local timeout = true
     local connect = true
-    self.connect_co = co_new(function (connected)
+    local connect_co = co_new(function (connected)
         if connect then
             self.tcp:stop()
-            self.connect_co = nil
             timeout = nil
-            local co = self.co
             if connected then
                 self:set_status("connected")
                 local ok, msg = co_wakeup(co, true)
@@ -269,42 +241,24 @@ function TCP:connect(domain, port)
             return
         end
     end)
-    self.connect_ti = ti.timeout(self._timeout, function ( ... )
+    local connect_ti = ti.timeout(self._timeout, function ( ... )
         if timeout then
             self.tcp:stop()
-            self.connect_co = nil
             connect = nil
-            co_wakeup(self.co, nil, 'connect timeot.')
+            co_wakeup(co, nil, 'connect timeot.')
         end
     end)
-    self.tcp:connect(self.fd, self.connect_co)
+    self.tcp:connect(self.fd, connect_co)
     return co_suspend()
 end
 
--- clear 用于清理后再使用
-function TCP:clear(...)
-    self.co = nil
-    self.fd = nil
-    self.type = nil
-    self.accept_co = nil
-    self.connect_co = nil
-    self.read_co = nil
-    self.write_co = nil
-end
-
--- clear 用于关闭
 function TCP:close(...)
     if self.tcp then
         self.tcp:close()
         self.tcp = nil
     end
-    self.co = nil
     self.fd = nil
     self.type = nil
-    self.accept_co = nil
-    self.connect_co = nil
-    self.read_co = nil
-    self.write_co = nil
 end
 
 return TCP

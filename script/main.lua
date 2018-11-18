@@ -4,8 +4,7 @@
 
 -- app:start("localhost", 8080)
 
-local dns = require "protocol.dns"
-local ok, ip = dns.resolve("www.jd.com")
-if ok then
-    print("ip :", ip)
-end
+local httpc = require "httpc"
+
+local code, body = httpc:get("http://www.baidu.com")
+print(code, body)

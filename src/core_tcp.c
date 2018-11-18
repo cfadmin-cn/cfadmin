@@ -191,21 +191,19 @@ tcp_readall(lua_State *L){
 	for(;;){
 		char str[4096] = {0};
 		int len = read(io->fd, str, 4096);
-		len >= 0 ? Max = Max + len : 0;
-		if (len > 0) {
+		if (!len) {
+			if (!Max) return 0;
+			break;
+		}
+		if (0 < len) {
+			Max = Max + len;
 			lua_pushlstring(L, str, len);
 			continue;
 		}
-		if (0 > len){
-			if (errno == EINTR) continue;
-			if (errno == EAGAIN) {
-				if (lua_gettop(L) > 0) break;
-			}
+		if (errno == EINTR) continue;
+		if (errno == EAGAIN) {
+			if (lua_gettop(L) > 0) break;
 		}
-		lua_settop(L, 0);
-		lua_pushnil(L);
-		lua_pushinteger(L, -1);
-		return 2;
 	}
 	lua_concat(L, lua_gettop(L));
 	lua_pushinteger(L, Max);
@@ -216,9 +214,11 @@ int
 tcp_write(lua_State *L){
 	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__TCP__");
 	if(!io) return 0;
-	const char *response = lua_tostring(L, 2);
 
+	const char *response = lua_tostring(L, 2);
 	if (!response) return 0;
+
+	int resp_len = lua_tointeger(L, 3);
 
 	lua_settop(L, 0);
 
@@ -226,12 +226,12 @@ tcp_write(lua_State *L){
 
 	for(;;){
 
-		int wsize = write(io->fd, response, strlen(response));
+		int wsize = write(io->fd, response, resp_len);
+
 		if (wsize > 0) {
 			lua_pushinteger(L, wsize);
 			break;
 		}
-
 		if (wsize < 0){
 			if (errno == EINTR) continue;
 			if (errno == EAGAIN){

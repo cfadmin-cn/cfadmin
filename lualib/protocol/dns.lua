@@ -14,27 +14,44 @@ local spliter = string.gsub
 
 local dns = {}
 
-local dns_list = {}
-
 local dns_cache = {}
 
-local function check_cache(name)
-    local query = dns_cache[name]
-    if not query then
-        return
-    end
-    if query.ttl < now() then
-        dns_cache[name] = nil
-        return
-    end
-    return query
-end
+local dns_list = {}
 
 local thread_id = 0
 
 local function gen_id()
     thread_id = thread_id % MAX_THREAD_ID + 1
     return thread_id
+end
+
+local function check_cache(name)
+    local query = dns_cache[name]
+    if not query then
+        return
+    end
+    if query.ttl and query.ttl < now() then
+        dns_cache[name] = nil
+        return
+    end
+    return query.ip
+end
+
+local function gen_cache()
+    local file = io.open("/etc/hosts", "r")
+    dns_cache['localhost'] = { ip = "127.0.0.1"}
+    if file then
+        for line in file:lines() do
+            spliter(line, "(%d+%p%d+%p%d+%p%d+) (.-)$", function(ip, name)
+                if not dns_cache[name] then
+                    dns_cache[name] = {ip = ip}
+                else
+                    dns_cache[name]["ip"] = ip
+                end
+            end)
+        end
+        file:close()
+    end
 end
 
 function check_ip(ip, version)
@@ -74,6 +91,7 @@ if #dns_list < 1 then
     if #dns_list < 1 then
         dns_list = {"114.114.114.114", "8.8.8.8"}
     end
+    gen_cache()
 end
 
 local dns_client_rr = 0
@@ -153,6 +171,7 @@ end
 
 function dns.flush()
     dns_cache = {}
+    gen_cache()
 end
 
 function dns.query(name)
@@ -167,6 +186,7 @@ function dns.query(name)
         return nil, "Send dns request falt."
     end
     local dns_resp, len = dns_client:recv()
+    dns_client:close()
     if not len or len < LIMIT_HEADER_LEN then
         return nil, "Malformed dns response package."
     end

@@ -63,7 +63,6 @@ end
 
 function httpc:get(domain, port)
 	self.method = "GET"
-	self.domain = domain
 	self.port = port or 80
 	local PROTOCOL, IP, PATH
 	spliter(domain, '(http[s]*)://([%w%.%-]+)(.*)', function (protocol, domain, path)
@@ -76,24 +75,24 @@ function httpc:get(domain, port)
 				PROTOCOL = protocol
 			end
 		end
-		self.ip = domain
+		self.domain = domain
 		self.path = path
 	end)
+
 	if not PROTOCOL then
 		return nil, "Invaild protocol."
 	end
 	if not self.domain then
 		return nil, "Invaild domain or ip address."
 	end
-	if not check_ip(self.ip, 4) then
-		local ok, self.ip = dns.resolve(self.domain)
-		if not ok or not self.ip then
+	if not check_ip(self.domain, 4) then
+		local ok, ip = dns.resolve(self.domain)
+		if not ok or not ip then
 			return nil, "Can't resolve this domain."
 		end
+		self.ip = ip
 	end
-	if not self.tcp then
-		self.tcp = tcp:new()
-	end
+	self.tcp = tcp:new()
 	local ok = self.tcp:connect(self.ip, self.port)
 	if not ok then
 		self.tcp:close()
@@ -120,18 +119,15 @@ function httpc:response()
 	if not self.tcp then
 		return nil, "Can't used this method before other httpc method.."
 	end
-	local RESPONSE = ''
-	local response = {
-		Header = { },
-	}
 	local tcp = self.tcp
 	local CODE, HEAD, BODY
 	local Content_Length
 	local content = {}
 	local times = 0
 	while 1 do
-		local data = tcp:recvall()
+		local data, len = tcp:recvall()
 		if not data then
+			print(data, len)
 			return nil, "A peer of remote close this connection."
 		end
 		insert(content, data)
