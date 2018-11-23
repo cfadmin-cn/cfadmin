@@ -175,3 +175,15 @@ udp_new(lua_State *L){
 	return 1;
 
 }
+
+int
+luaopen_udp(lua_State *L){
+	luaL_newmetatable(L, "__UDP__");
+	lua_pushstring (L, "__index");
+	lua_pushvalue(L, -2);
+	lua_rawset(L, -3);
+	luaL_setfuncs(L, udp_libs,0);
+	luaL_newlib(L, udp_libs);
+	lua_setglobal(L, "core_udp");
+	return 1;
+}

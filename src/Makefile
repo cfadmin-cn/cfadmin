@@ -4,12 +4,12 @@ default :
 	@echo "======================================="
 	@echo "Please use 'make build' command to build it.."
 	@echo "======================================="
-	
-core_ev.o :
-	$(CC) -c core_ev.c
 
 core_tcp.o :
 	$(CC) -c core_tcp.c
+
+core_loop.o :
+	$(CC) -c core_loop.c
 
 core_udp.o :
 	$(CC) -c core_udp.c
@@ -22,7 +22,7 @@ core_timer.o :
 
 CC = cc
 
-CORE_OBJ += core_signal.o core_ev.o core_tcp.o core_udp.o core_timer.o
+CORE_OBJ += core_signal.o core_tcp.o core_loop.o core_udp.o core_timer.o
 
 LIBS += -L/usr/local/lib
 

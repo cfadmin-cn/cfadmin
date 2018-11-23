@@ -124,6 +124,9 @@ IO_ACCEPT(EV_P_ ev_io *io, int revents){
 		socklen_t slen = sizeof(struct sockaddr_in);
 		int client = accept(io->fd, (struct sockaddr*)&addr, &slen);
 		if (0 >= client) {
+			if (errno == ENFILE){
+				LOG("INFO", strerror(errno))
+			}
 			LOG("INFO", strerror(errno));
 			return ;
 		}
@@ -414,4 +417,16 @@ tcp_new(lua_State *L){
 
 	return 1;
 
+}
+
+int
+luaopen_tcp(lua_State *L){
+	luaL_newmetatable(L, "__TCP__");
+	lua_pushstring (L, "__index");
+	lua_pushvalue(L, -2);
+	lua_rawset(L, -3);
+	luaL_setfuncs(L, tcp_libs,0);
+	luaL_newlib(L, tcp_libs);
+	lua_setglobal(L, "core_tcp");
+	return 1;
 }

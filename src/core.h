@@ -9,5 +9,6 @@
 #include "core_tcp.h"
 #include "core_udp.h"
 #include "core_timer.h"
+#include "core_loop.h"
 
 #endif

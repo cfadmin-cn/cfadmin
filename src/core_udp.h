@@ -23,6 +23,7 @@ int udp_recv(lua_State *L);
 
 int udp_send(lua_State *L);
 
+int luaopen_udp(lua_State *L);
 
 static const luaL_Reg udp_libs[] = {
 	{"new", udp_new},

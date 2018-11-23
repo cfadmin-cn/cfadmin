@@ -27,19 +27,6 @@ timer_stop(lua_State *L){
 	timer->repeat = 0.;
 
    	ev_timer_again (EV_DEFAULT_ timer);
-	return 1;
-}
-
-int
-timer_set_cb(lua_State *L){
-
-	ev_timer *timer = (ev_timer *) luaL_testudata(L, 1, "__TIMER__");
-	if(!timer) return 0;
-
-	lua_State *co = lua_tothread(L, 2);
-	if(!co) return 0;
-
-	ev_set_watcher_userdata(timer, (void*)co);
 
 	return 1;
 }
@@ -81,4 +68,16 @@ timer_new(lua_State *L){
 
 	return 1;
 	
+}
+
+int
+luaopen_timer(lua_State *L){
+    luaL_newmetatable(L, "__TIMER__");
+    lua_pushstring (L, "__index");
+    lua_pushvalue(L, -2);
+    lua_rawset(L, -3);
+    luaL_setfuncs(L, timer_libs,0);
+    luaL_newlib(L, timer_libs);
+    lua_setglobal(L, "core_timer");
+    return 1;
 }
