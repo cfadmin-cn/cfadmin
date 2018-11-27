@@ -32,11 +32,13 @@ CFLAGS += -DJEMALLOC
 
 DLL += -lev -ljemalloc -llua
 
+MACRO += -Wunused-value
+
 build : $(CORE_OBJ)
 
-	$(CC) $(CORE_OBJ) -o core_event.so $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL) -fPIC --shared -Wall -O2
+	$(CC) $(CORE_OBJ) -o core_event.so $(INCLUDES) $(LIBS) $(MACRO) $(CFLAGS) $(DLL) -fPIC --shared -O2
 
-	$(CC) core_event.so core_start.c -o main $(DLL) -Wall -O2
+	$(CC) core_event.so core_start.c -o main $(MACRO) $(DLL) -O2
 
 clean :
 	rm -rf *.o *.so

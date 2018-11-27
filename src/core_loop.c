@@ -2,8 +2,7 @@
 
 int
 loop_run(lua_State *L){
-	// printf("main loop running...\n");
-	return ev_run(EV_DEFAULT_ 0);
+	return ev_run(EV_LOOP_ 0);
 }
 
 

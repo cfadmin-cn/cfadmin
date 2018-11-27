@@ -16,7 +16,6 @@ local httpd = class("httpd")
 function httpd:ctor(opt)
 	self.cos = {}
     self.IO = nil
-    self.cb = nil
 end
 
 function httpd:registery(co, fd, ipaddr)
@@ -37,16 +36,17 @@ function httpd:listen (ip, port)
         while 1 do
         	if fd and ipaddr then
         		local co = co_new(function (fd, ipaddr)
-					local socket = tcp:new():set_fd(fd):timeout(1)
-					while 1 do
-						local buf, len = socket:recv(1024)
-						if not buf then
-							self:unregistery(co)
-							return socket:close()
-						end
-						print(len, buf)
-					end
-				end)
+                    local socket = tcp:new():set_fd(fd):timeout(3)
+                    print(fd, ipaddr)
+                    while 1 do
+                        local buf, len = socket:recv(1024)
+                        if not buf then
+                            self:unregistery(co)
+                            return socket:close()
+                        end
+                        socket:send("HTTP/1.1 200 OK\r\nServer: cf/0.1\r\nConnection: Keep-Alive\r\nContent-Type: text/html\r\n\r\n<html><body>Hello world!</body></html>")
+                    end
+                end)
         		self:registery(co, fd, ipaddr)
         		local ok, msg = co_start(co, fd, ipaddr)
         		if not ok then
