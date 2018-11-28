@@ -1,8 +1,7 @@
-local tcp = require "internal.TCP"
-local HTTP = require "protocol.http"
-local dns = require "protocol.dns"
-
 local class = require "class"
+local tcp = require "internal.TCP"
+local dns = require "protocol.dns"
+local HTTP = require "protocol.http"
 
 local PARSER_PROTOCOL = HTTP.RESPONSE_PROTOCOL_PARSER
 local PARSER_HEAD = HTTP.RESPONSE_HEAD_PARSER

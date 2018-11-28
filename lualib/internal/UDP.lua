@@ -16,12 +16,6 @@ function UDP:ctor(opt)
 	self.port = nil
 end
 
-function UDP:settimeout(Interval)
-	if Interval and Interval > 0 then
-		self._timeout = Interval
-	end
-end
-
 function UDP:connect(ip, port)
 	self.udp = udp:new()
 	if not self.udp then

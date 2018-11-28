@@ -95,7 +95,9 @@ function TCP:recvall()
     local timer, read_co
     read_co = co_new(function ( ... )
         local buf, len = self.tcp:readall()
-        timer:close()
+        if timer then
+            timer:close()
+        end
         self.tcp:stop()
         if not buf then
             local ok, err = co_wakeup(co, buf, len)
@@ -130,7 +132,9 @@ function TCP:recv(bytes)
     local timer, read_co
     read_co = co_new(function ( ... )
         local buf, len = self.tcp:read(bytes)
-        timer:stop()
+        if timer then
+            timer:close()
+        end
         self.tcp:stop()
         if not buf then
             local ok, err = co_wakeup(co)
@@ -196,7 +200,9 @@ function TCP:connect(domain, port)
     local connect_co, timer
     connect_co = co_new(function (connected)
         self.tcp:stop()
-        timer:stop()
+        if timer then
+            timer:close()
+        end
         if connected then
             local ok, msg = co_wakeup(co, true)
             if not ok then
