@@ -5,10 +5,6 @@
 #include "../src/core_memory.h"
 #include "../src/core_ev.h"
 
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-
 int udp_new(lua_State *L);
 
 int udp_close(lua_State *L);

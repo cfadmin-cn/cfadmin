@@ -5,10 +5,6 @@
 #include "../src/core_memory.h"
 #include "../src/core_ev.h"
 
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-
 int loop_run(lua_State *L);
 
 int luaopen_loop(lua_State *L);

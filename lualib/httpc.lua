@@ -16,24 +16,21 @@ local concat = table.concat
 
 local fmt = string.format
 
-local HTTPC = "cf/0.1"
+local SERVER = "cf/0.1"
 
-local httpc = class("httpc")
+local TIMEOUT = 30
 
-function httpc:ctor(opt)
-	self.socket = nil
-	self.version = 1.1
-	self.SSL = nil
-	self.Invaild = nil
-end
+local httpc = {}
 
-function check_ip(ip, version)
+
+-- IPv4规范检查
+local function check_ip(ip, version)
 	if version == 4 then
 	    if #ip > 15 or #ip < 7 then
 	        return false
 	    end
 	    local num_list = {nil, nil, nil, nil}
-	    string.gsub(ip, '(%d+)', function (num)
+	    spliter(ip, '(%d+)', function (num)
 	    	insert(num_list, tonumber(num))
 	    end)
 	    if #num_list ~= 4 then
@@ -49,84 +46,152 @@ function check_ip(ip, version)
 end
 
 -- 设置请求超时时间
-function httpc:set_timeout(Invaild)
+function httpc.set_timeout(Invaild)
 	if Invaild > 0 then
-		self.Invaild = Invaild
+		TIMEOUT = Invaild
 	end
 end
 
--- 处理接口重定向
-function httpc:redirect( ... )
-	-- body
-end
 
-function httpc:get(domain, port)
-	self.method = "GET"
-	self.port = port or 80
-	local PROTOCOL, IP, PATH
+function httpc.get(domain)
+
+	local PROTOCOL, DOMAIN, PATH, IP
+
 	spliter(domain, '(http[s]*)://([%w%.%-]+)(.*)', function (protocol, domain, path)
-		if protocol then
-			if protocol == "https" then
-				PROTOCOL = protocol
-				self.SSL = true
-			end
-			if protocol == "http" then
-				PROTOCOL = protocol
-			end
-		end
-		self.domain = domain
-		self.path = path
+		PROTOCOL = protocol
+		DOMAIN = domain
+		PATH = path
 	end)
 
-	if not PROTOCOL then
+	if not PROTOCOL or not DOMAIN or not PATH then
 		return nil, "Invaild protocol."
 	end
-	if not self.domain then
-		return nil, "Invaild domain or ip address."
-	end
-	if not check_ip(self.domain, 4) then
-		local ok, ip = dns.resolve(self.domain)
+
+	if not check_ip(DOMAIN, 4) then
+		local ok, ip = dns.resolve(DOMAIN)
 		if not ok or not ip then
 			return nil, "Can't resolve this domain."
 		end
-		self.ip = ip
+		IP = ip
+	else
+		IP = DOMAIN
 	end
-	self.tcp = tcp:new()
-	local ok = self.tcp:connect(self.ip, self.port)
-	if not ok then
-		self.tcp:close()
-		return nil, "Can't connect to this IP and Port."
+
+	local IO = tcp:new():timeout(TIMEOUT)
+	if PROTOCOL == "http" then
+		local ok = IO:connect(IP, 80)
+		if not ok then
+			IO:close()
+			return nil, "Can't connect to this IP and Port."
+		end
+	else
+		local ok = IO:ssl_connect(IP, 443)
+		if not ok then
+			IO:close()
+			return nil, "Can't ssl connect to this IP and Port."
+		end
 	end
+
+	if PATH == "" then
+		PATH = "/"
+	end
+
 	local request = {
-		fmt("GET %s HTTP/1.1", self.path or '/'),
-		fmt("Host: %s", self.domain),
+		fmt("GET %s HTTP/1.1", PATH),
+		fmt("Host: %s", DOMAIN),
 		fmt("Connect: Keep-Alive"),
-		fmt("User-Agent: %s", self['User-Agent'] or HTTPC),
+		fmt("User-Agent: %s", SERVER),
 		'\r\n'
 	}
-	local ok = self.tcp:send(concat(request, '\r\n'))
-	if not ok then
-		self.tcp:close()
-		return nil, "Can't connect to this IP and Port."
+	if PROTOCOL == "http" then
+		IO:send(concat(request, '\r\n'))
+	else
+		IO:ssl_send(concat(request, '\r\n'))
 	end
-	return self:response()
+	return httpc.response(IO, PROTOCOL)
 end
 
+function httpc.post(doamina, body)
+	local PROTOCOL, DOMAIN, PATH, IP
 
+	spliter(domain, '(http[s]*)://([%w%.%-]+)(.*)', function (protocol, domain, path)
+		PROTOCOL = protocol
+		DOMAIN = domain
+		PATH = path
+	end)
 
-function httpc:response()
-	if not self.tcp then
+	if not PROTOCOL or not DOMAIN or not PATH then
+		return nil, "Invaild protocol."
+	end
+
+	if not check_ip(DOMAIN, 4) then
+		local ok, ip = dns.resolve(DOMAIN)
+		if not ok or not ip then
+			return nil, "Can't resolve this domain."
+		end
+		IP = ip
+	else
+		IP = DOMAIN
+	end
+
+	local IO = tcp:new():timeout(TIMEOUT)
+	if PROTOCOL == "http" then
+		local ok = IO:connect(IP, 80)
+		if not ok then
+			IO:close()
+			return nil, "Can't connect to this IP and Port."
+		end
+	else
+		local ok = IO:ssl_connect(IP, 443)
+		if not ok then
+			IO:close()
+			return nil, "Can't ssl connect to this IP and Port."
+		end
+	end
+
+	if PATH == "" then
+		PATH = "/"
+	end
+
+	if not BODY then
+		BODY = ""
+	end
+
+	local request = {
+		fmt("POST %s HTTP/1.1\r\n", PATH),
+		fmt("Host: %s\r\n", DOMAIN),
+		fmt("Connect: keep-alive\r\n"),
+		fmt("User-Agent: %s\r\n", SERVER),
+		fmt("Content-Length: %s\r\n", #BODY),
+		'\r\n\r\n',
+		BODY,
+	}
+
+	if PROTOCOL == "http" then
+		IO:send(concat(request))
+	else
+		IO:ssl_send(concat(request))
+	end
+
+	return httpc.response(IO, PROTOCOL)
+end
+
+function httpc.response(IO, SSL)
+	if not IO then
 		return nil, "Can't used this method before other httpc method.."
 	end
-	local tcp = self.tcp
 	local CODE, HEAD, BODY
 	local Content_Length
 	local content = {}
 	local times = 0
 	while 1 do
-		local data, len = tcp:recvall()
+		local data, len
+		if SSL == "http" then
+			data, len = IO:recv(4096)
+		else
+			data, len = IO:ssl_recv(4096)
+		end
 		if not data then
-			print(data, len)
 			return nil, "A peer of remote close this connection."
 		end
 		insert(content, data)
@@ -145,6 +210,7 @@ function httpc:response()
 				CODE = PARSER_PROTOCOL(split(DATA, 1, protocol_end))
 				HEAD = PARSER_HEAD(split(DATA, 1, posA + 1))
 				if not HEAD['Content-Length'] then
+					BODY = ""
 					break
 				end
 				Content_Length = HEAD['Content-Length']
@@ -158,14 +224,8 @@ function httpc:response()
 			end
 		end
 	end
+	IO:close()
 	return CODE, BODY
 end
-
-
-function httpc:close()
-	self.tcp:close()
-	self.tcp = nil
-end
-
 
 return httpc

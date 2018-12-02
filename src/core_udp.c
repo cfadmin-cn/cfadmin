@@ -125,7 +125,7 @@ udp_start(lua_State *L){
 
 	ev_io_init (io, UDP_IO_CB, io->fd, EV_READ);
 
-	ev_io_start (EV_DEFAULT_ io);
+	ev_io_start (EV_LOOP_ io);
 
 	return 0;
 
@@ -137,7 +137,7 @@ udp_stop(lua_State *L){
 	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
 	if(!io) return 0;
 
-	ev_io_stop(EV_DEFAULT_ io);
+	ev_io_stop(EV_LOOP_ io);
 
 	return 0;
 
@@ -149,7 +149,7 @@ udp_close(lua_State *L){
 	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
 	if(!io) return 0;
 
-	ev_io_stop(EV_DEFAULT_ io);
+	ev_io_stop(EV_LOOP_ io);
 
 	if (io->fd > 0) close(io->fd);
 

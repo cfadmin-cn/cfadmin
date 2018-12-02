@@ -1,4 +1,4 @@
-.PHONY : build
+.PHONY : build clean
 
 default :
 	@echo "======================================="
@@ -22,23 +22,21 @@ core_timer.o :
 
 CC = cc
 
-CORE_OBJ += core_signal.o core_tcp.o core_loop.o core_udp.o core_timer.o
+CORE_OBJ += core_signal.o core_udp.o core_timer.o core_tcp.o core_loop.o
 
 LIBS += -L/usr/local/lib
 
 INCLUDES += -I/usr/local/include
 
-CFLAGS += -DJEMALLOC
+CFLAGS += -Wunused-value -DJEMALLOC
 
-DLL += -lev -ljemalloc -llua
-
-MACRO += -Wunused-value
+DLL += -lev -ljemalloc -llua -lssl
 
 build : $(CORE_OBJ)
 
-	$(CC) $(CORE_OBJ) -o core_event.so $(INCLUDES) $(LIBS) $(MACRO) $(CFLAGS) $(DLL) -fPIC --shared -O2
+	$(CC) $(CORE_OBJ) -o core_event.so $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL) -fPIC --shared -O2
 
-	$(CC) core_event.so core_start.c -o main $(MACRO) $(DLL) -O2
+	$(CC) core_event.so core_start.c -o main $(CFLAGS) $(DLL) -O2
 
 clean :
 	rm -rf *.o *.so

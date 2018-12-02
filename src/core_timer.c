@@ -26,7 +26,7 @@ timer_stop(lua_State *L){
 
 	timer->repeat = 0.;
 
-   	ev_timer_again (EV_DEFAULT_ timer);
+   	ev_timer_again (EV_LOOP_ timer);
 
 	return 1;
 }
@@ -48,7 +48,7 @@ timer_start(lua_State *L){
 
 	timer->repeat = timeout ? timeout : repeat;
 
-	ev_timer_again(EV_DEFAULT_ timer);
+	ev_timer_again(EV_LOOP_ timer);
 
 	lua_settop(L, 1);
 

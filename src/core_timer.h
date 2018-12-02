@@ -5,10 +5,6 @@
 #include "core_memory.h"
 #include "core_ev.h"
 
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-
 /* 创建定时器 */
 int timer_new(lua_State *L);
 
