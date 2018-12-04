@@ -2,13 +2,18 @@
 #define __CORE_MEMORY__
 
 #ifdef JEMALLOC
+    #warning "used jemalloc"
 	#include "jemalloc/jemalloc.h"
-	#define malloc je_malloc
-	#define calloc je_calloc
-	#define realloc je_realloc
-	#define free je_free
+	#define xmalloc je_malloc
+	#define xcalloc je_calloc
+	#define xrealloc je_realloc
+	#define xfree je_free
 #else
 	#include <stdlib.h>
+    #define xmalloc malloc
+    #define xcalloc calloc
+    #define xrealloc realloc
+    #define xfree free
 #endif
 
 #endif

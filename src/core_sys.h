@@ -2,6 +2,7 @@
 #define __CORE_SYS__
 
 #include <stdio.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -36,10 +37,5 @@
     	log_level, \
     	__FILE__, __FUNCTION__, __LINE__, \
     	content);}
-
-#define ERRNO(errno) !errno ? strerror(errno) : "errno no error!"
-
-/* ipv4转换为字符串 */
-#define ipv4_to_str(ip, str) sprintf(str, "%d.%d.%d.%d", ip & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF)
 
 #endif

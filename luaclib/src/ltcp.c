@@ -1,9 +1,14 @@
 #define LUA_LIB
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/crypto.h>
 #include "../../src/core.h"
 
 #define SERVER 0
 #define CLIENT 1
+
+SSL_CTX *ctx = NULL;
 
 int
 tcp_socket_new(const char *ipaddr, int port, int mode){
@@ -510,11 +515,14 @@ LUAMOD_API int
 luaopen_tcp(lua_State *L){
 
 	luaL_checkversion(L);
+
 	/* 添加SSL支持 */
     SSL_library_init();
     SSL_load_error_strings();
+    CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
     // OpenSSL_add_ssl_algorithms();
 	/* 添加SSL支持 */
+
 	luaL_newmetatable(L, "__TCP__");
 	lua_pushstring (L, "__index");
 	lua_pushvalue(L, -2);

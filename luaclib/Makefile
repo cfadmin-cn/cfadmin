@@ -6,23 +6,23 @@ default :
 	@echo "Please use 'make clean' command to clean all."
 	@echo "======================================="
 
-MACRO += -Wall -O2 -fPIC --shared
+MACRO += -Wall -Os -fPIC --shared
 
-# DLL += -llua -lssl -lm
-DLL += 
 
 build :
-	cc -o tcp.so src/ltcp.c ../core.so $(MACRO) $(DLL)
-	cc -o udp.so src/ludp.c ../core.so $(MACRO) $(DLL)
-	cc -o timer.so src/ltimer.c ../core.so $(MACRO) $(DLL)
-	cc -o crypt.so src/lsha1.c src/lua_crypt.c $(MACRO) $(DLL)
+	cc -o tcp.so src/ltcp.c $(MACRO) -lssl -lcrypto ../core.so
+	cc -o udp.so src/ludp.c $(MACRO) ../core.so
+	cc -o timer.so src/ltimer.c $(MACRO) ../core.so
+	### 以下为预留clib编译位置 ###
+	cc -o crypt.so src/lcrypt.c $(MACRO) ../core.so
 
 rebuild :
 	rm -rf *.so
-	cc -o tcp.so src/ltcp.c ../core.so $(MACRO) $(DLL)
-	cc -o udp.so src/ludp.c ../core.so $(MACRO) $(DLL)
-	cc -o timer.so src/ltimer.c ../core.so $(MACRO) $(DLL)
-	cc -o crypt.so src/lsha1.c src/lua_crypt.c $(MACRO) $(DLL)
+	cc -o tcp.so src/ltcp.c $(MACRO) -lssl -lcrypto ../core.so
+	cc -o udp.so src/ludp.c $(MACRO) ../core.so
+	cc -o timer.so src/ltimer.c $(MACRO) ../core.so
+	### 以下为预留clib编译位置 ###
+	cc -o crypt.so src/lcrypt.c $(MACRO) ../core.so
 
 clean :
 	rm -rf *.so

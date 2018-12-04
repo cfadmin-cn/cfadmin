@@ -5,12 +5,7 @@
 #include "core_memory.h"
 #include "core_ev.h"
 
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-
-SSL_CTX *ctx = NULL;
-
-#define CORE_LOOP  ev_default_loop(ev_supported_backends() & EVBACKEND_EPOLL || ev_supported_backends() & EVBACKEND_KQUEUE)
+#define CORE_LOOP  core_default_loop()
 
 #define CORE_LOOP_ CORE_LOOP,
 
@@ -53,7 +48,7 @@ void core_break(core_loop *loop, int mode);
 
 int core_start(core_loop *loop, int mode);
 
-core_loop* core_default_loop(int flags);
+core_loop* core_default_loop();
 
 
 void core_sys_init();

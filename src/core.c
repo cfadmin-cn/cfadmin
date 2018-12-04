@@ -59,9 +59,10 @@ core_io_stop(core_loop *loop, core_io *io){
 /* ===========  IO  =========== */
 
 core_loop *
-core_default_loop(int flags){
+core_default_loop(){
 
-	return ev_default_loop(flags ? flags : ev_supported_backends() & EVBACKEND_EPOLL || ev_supported_backends() & EVBACKEND_KQUEUE);
+	// return ev_default_loop(flags ? flags : ev_supported_backends() & EVBACKEND_EPOLL || ev_supported_backends() & EVBACKEND_KQUEUE);
+	return ev_default_loop(ev_supported_backends() & EVBACKEND_EPOLL || ev_supported_backends() & EVBACKEND_KQUEUE);
 
 }
 
@@ -92,7 +93,7 @@ init_lua_libs(lua_State *L){
 
 	/* 注入搜索域 */
     char *lib  = "./lualib/?.lua;./script/?.lua;" ;
-    char *clib = "./luaclib/?.so;./script/?.so" ;
+    char *clib = "./luaclib/?.so;./script/?.so;" ;
 
     lua_getglobal(L, "package");
 
@@ -101,6 +102,8 @@ init_lua_libs(lua_State *L){
 
     lua_pushstring(L, clib);
     lua_setfield(L, 1, "cpath");
+
+    lua_settop(L, 0);
 
 }
 
@@ -142,7 +145,7 @@ init_main(){
 void
 core_sys_init(){
 	/* hook libev 内存分配 */
-	ev_set_allocator(realloc);
+	ev_set_allocator(xrealloc);
 
 	/* 初始化script */
 	init_main();
@@ -150,6 +153,7 @@ core_sys_init(){
 
 int
 core_sys_run(){
+	printf("%p\n", CORE_LOOP);
 	return core_start(CORE_LOOP_ 0);
 }
 
