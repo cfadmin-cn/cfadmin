@@ -19,9 +19,6 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-
 #ifndef EWOULDBLOCK
     #define EWOULDBLOCK EAGAIN
 #endif

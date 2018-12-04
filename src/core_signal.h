@@ -1,5 +1,1 @@
-#ifndef __CORE_SIGNAL__
-#define __CORE_SIGNAL__
-
-
-#endif
+#define LUA_LIB

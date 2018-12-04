@@ -1,42 +1,34 @@
-.PHONY : build clean
+.PHONY : build rebuild clean
 
 default :
 	@echo "======================================="
 	@echo "Please use 'make build' command to build it.."
 	@echo "======================================="
 
-core_tcp.o :
-	$(CC) -c core_tcp.c
-
-core_loop.o :
-	$(CC) -c core_loop.c
-
-core_udp.o :
-	$(CC) -c core_udp.c
-
-core_signal.o :
-	$(CC) -c core_signal.c
-
-core_timer.o :
-	$(CC) -c core_timer.c
-
 CC = cc
-
-CORE_OBJ += core_signal.o core_udp.o core_timer.o core_tcp.o core_loop.o
 
 LIBS += -L/usr/local/lib
 
 INCLUDES += -I/usr/local/include
 
-CFLAGS += -Wunused-value -DJEMALLOC
+CFLAGS += -Wall -O2 -fPIC --shared -static
 
-DLL += -lev -ljemalloc -llua -lssl
+MACRO += -Wall -O2 -DJEMALLOC
 
-build : $(CORE_OBJ)
+DLL += -ljemalloc -lev -lssl -llua -lm
 
-	$(CC) $(CORE_OBJ) -o core_event.so $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL) -fPIC --shared -O2
+build :
 
-	$(CC) core_event.so core_start.c -o main $(CFLAGS) $(DLL) -O2
+	$(CC) -o core.so core.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL) 
+
+	$(CC) core_start.c -o main $(MACRO) core.so
+
+rebuild:
+	rm -rf *.o *.so
+
+	$(CC) -o core.so core.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL) 
+
+	$(CC) core_start.c -o main $(MACRO) core.so
 
 clean :
 	rm -rf *.o *.so

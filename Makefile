@@ -8,14 +8,14 @@ default :
 
 build :
 	cd src && make build && mv main ../main && mv *.so ../
-	cd luaclib && cd src && cc -o crypt.so lsha1.c lua_crypt.c -fPIC -shared -llua
+	cd luaclib &&  make build
 
 rebuild :
 	rm -rf main *.so
-	cd src && make clean
-	cd luaclib && make clean
-	cd src && make build && mv main ../main && mv *.so ../
-	cd luaclib && make build
+	cd src && make rebuild && mv main ../main && mv *.so ../
+	cd luaclib && make rebuild
 
 clean :
-	rm -rf main *.so && cd src && make clean
+	rm -rf main *.so
+	cd src && make clean
+	cd luaclib && make clean

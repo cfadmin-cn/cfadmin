@@ -25,21 +25,4 @@
 
 #include <ev.h>
 
-#if EV_MULTIPLICITY
-
-#define EV_LOOP  ev_default_loop(ev_supported_backends() & EVBACKEND_EPOLL || ev_supported_backends() & EVBACKEND_KQUEUE)
-
-#define EV_LOOP_  EV_LOOP,
-
-#endif
-
-/* 获取用户数据 */
-#define ev_get_watcher_userdata(watcher) ((watcher)->data ? (watcher)->data: NULL)
-
-/* 判断是否包含用户数据 */
-#define ev_have_watcher_userdata(watcher) ((watcher)->data ? (watcher)->data : NULL)
-
-/* 设置用户数据的宏 */
-#define ev_set_watcher_userdata(watcher, userdata) ((watcher)->data = (userdata))
-
 #endif

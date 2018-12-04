@@ -1,5 +1,6 @@
-#include "core_udp.h"
+#define LUA_LIB
 
+#include "../../src/core.h"
 
 int
 udp_socket_new(const char *ipaddr, int port){
@@ -24,13 +25,13 @@ udp_socket_new(const char *ipaddr, int port){
 	sock_addr.sin_port = htons(port);
 	sock_addr.sin_addr.s_addr = inet_addr(ipaddr);
 
-	int connection = connect(sockfd, (struct sockaddr*)&sock_addr, sizeof(struct sockaddr));
+	connect(sockfd, (struct sockaddr*)&sock_addr, sizeof(struct sockaddr));
 
 	return sockfd;
 }
 
 void
-UDP_IO_CB(EV_P_ ev_io *io, int revents){
+UDP_IO_CB(CORE_P_ ev_io *io, int revents){
 
 	int status = 0;
 
@@ -40,7 +41,7 @@ UDP_IO_CB(EV_P_ ev_io *io, int revents){
 	}
 
 	if (revents & EV_READ){
-		lua_State *co = (lua_State *)ev_get_watcher_userdata(io);
+		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
 			status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
 			if (status != LUA_YIELD && status != LUA_OK){
@@ -121,11 +122,11 @@ udp_start(lua_State *L){
 	lua_State *co = lua_tothread(L, 2);
 	if (!co) return 0;
 
-	ev_set_watcher_userdata(io, co);
+	core_set_watcher_userdata(io, co);
 
-	ev_io_init (io, UDP_IO_CB, io->fd, EV_READ);
+	core_io_init (io, UDP_IO_CB, io->fd, EV_READ);
 
-	ev_io_start (EV_LOOP_ io);
+	core_io_start (CORE_LOOP_ io);
 
 	return 0;
 
@@ -137,7 +138,7 @@ udp_stop(lua_State *L){
 	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
 	if(!io) return 0;
 
-	ev_io_stop(EV_LOOP_ io);
+	core_io_stop(CORE_LOOP_ io);
 
 	return 0;
 
@@ -149,7 +150,7 @@ udp_close(lua_State *L){
 	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
 	if(!io) return 0;
 
-	ev_io_stop(EV_LOOP_ io);
+	core_io_stop(CORE_LOOP_ io);
 
 	if (io->fd > 0) close(io->fd);
 
@@ -166,18 +167,31 @@ udp_new(lua_State *L){
 
 	if(!io) return 0;
 
-	ev_init (io, UDP_IO_CB);
-
-	io->fd = io->events	= 0x00;
-
 	luaL_setmetatable(L, "__UDP__");
 
 	return 1;
 
 }
 
-int
+LUAMOD_API int
 luaopen_udp(lua_State *L){
 	luaL_checkversion(L);
+
+    luaL_newmetatable(L, "__UDP__");
+    lua_pushstring (L, "__index");
+    lua_pushvalue(L, -2);
+    lua_rawset(L, -3);
+
+	luaL_Reg udp_libs[] = {
+		{"new", udp_new},
+		{"close", udp_close},
+	    {"start", udp_start},
+	    {"stop", udp_stop},
+		{"connect", udp_connect},
+	    {"send", udp_send},
+	    {"recv", udp_recv},
+		{NULL, NULL}
+	};
+	luaL_newlib(L, udp_libs);
 	return 1;
 }

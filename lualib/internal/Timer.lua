@@ -1,4 +1,4 @@
-local ti = core_timer
+local ti = require "timer"
 local co_new = coroutine.create
 local co_start = coroutine.resume
 local co_wakeup = coroutine.resume
