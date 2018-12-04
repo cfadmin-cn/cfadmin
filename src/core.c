@@ -51,9 +51,9 @@ core_io_start(core_loop *loop, core_io *io){
 void
 core_io_stop(core_loop *loop, core_io *io){  
 
-	io->fd = io->events = 0x0;
-
 	ev_io_stop(loop ? loop : CORE_LOOP, io);
+
+	io->fd = io->events = 0x0;
 
 }
 /* ===========  IO  =========== */
@@ -153,7 +153,7 @@ core_sys_init(){
 
 int
 core_sys_run(){
-	printf("%p\n", CORE_LOOP);
+
 	return core_start(CORE_LOOP_ 0);
 }
 

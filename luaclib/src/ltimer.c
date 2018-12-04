@@ -70,8 +70,9 @@ timer_new(lua_State *L){
 
 LUAMOD_API int
 luaopen_timer(lua_State *L){
+
 	luaL_checkversion(L);
-    printf("%p\n", CORE_LOOP);
+
     luaL_newmetatable(L, "__TIMER__");
     lua_pushstring (L, "__index");
     lua_pushvalue(L, -2);
@@ -83,6 +84,7 @@ luaopen_timer(lua_State *L){
 		{"start", 	timer_start},
 		{NULL, NULL},
 	};
+    luaL_setfuncs(L, timer_libs, 0);
 	luaL_newlib(L, timer_libs);
     return 1;
 }

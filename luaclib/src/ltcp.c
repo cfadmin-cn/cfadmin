@@ -546,6 +546,7 @@ luaopen_tcp(lua_State *L){
 		{"new_tcp_fd", new_tcp_fd},
 		{NULL, NULL}
 	};
+	luaL_setfuncs(L, tcp_libs, 0);
 	luaL_newlib(L, tcp_libs);
 	return 1;
 }

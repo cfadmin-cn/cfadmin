@@ -1,7 +1,8 @@
 local ti = require "internal.Timer"
+local tcp = require "tcp"
+
 local class = require "class"
 
-local tcp = core_tcp
 local co_new = coroutine.create
 local co_start = coroutine.resume
 local co_wakeup = coroutine.resume

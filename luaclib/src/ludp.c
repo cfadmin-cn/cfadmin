@@ -175,6 +175,7 @@ udp_new(lua_State *L){
 
 LUAMOD_API int
 luaopen_udp(lua_State *L){
+
 	luaL_checkversion(L);
 
     luaL_newmetatable(L, "__UDP__");
@@ -192,6 +193,7 @@ luaopen_udp(lua_State *L){
 	    {"recv", udp_recv},
 		{NULL, NULL}
 	};
+	luaL_setfuncs(L, udp_libs, 0);
 	luaL_newlib(L, udp_libs);
 	return 1;
 }

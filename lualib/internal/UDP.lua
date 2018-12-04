@@ -1,7 +1,7 @@
-local class = require "class"
 local ti = require "internal.Timer"
+local udp = require "udp"
+local class = require "class"
 
-local udp = core_udp
 local co_new = coroutine.create
 local co_start = coroutine.resume
 local co_wakeup = coroutine.resume
