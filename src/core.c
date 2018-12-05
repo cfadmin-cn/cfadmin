@@ -49,11 +49,15 @@ core_io_start(core_loop *loop, core_io *io){
 }
 
 void
-core_io_stop(core_loop *loop, core_io *io){  
+core_io_stop(core_loop *loop, core_io *io){
 
-	ev_io_stop(loop ? loop : CORE_LOOP, io);
+	if (io->events){
 
-	io->fd = io->events = 0x0;
+		ev_io_stop(loop ? loop : CORE_LOOP, io);
+
+		io->fd = io->events = 0x0;
+
+	}
 
 }
 /* ===========  IO  =========== */

@@ -2,7 +2,7 @@
 #define __CORE_MEMORY__
 
 #ifdef JEMALLOC
-    #warning "used jemalloc"
+    // #warning "used jemalloc"
 	#include "jemalloc/jemalloc.h"
 	#define xmalloc je_malloc
 	#define xcalloc je_calloc

@@ -505,7 +505,7 @@ tcp_close(lua_State *L){
 
 	int fd = lua_tointeger(L, 1);
 
-	if (fd) close(fd);
+	if (fd && fd > 0) close(fd);
 
 	return 0;
 

@@ -257,10 +257,10 @@ function TCP:ssl_connect(domain, port)
     local connect_co, timer
     connect_co = co_new(function (connected)
         self.IO_WRITE:stop()
+        if timer then
+            timer:stop()
+        end
         if connected == nil then
-            if timer then
-                timer:stop()
-            end
             local ok, msg = co_wakeup(co)
             if not ok then
                 print(msg)
