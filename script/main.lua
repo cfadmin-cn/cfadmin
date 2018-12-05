@@ -4,10 +4,14 @@
 
 -- app:start("localhost", 8080)
 
-local httpc = require "httpc"
+require "utils"
 
-local code, body = httpc.get("https://api.github.com/search/users?q=candymi")
-print(body)
+local httpc = require "httpc"
+local cjson = require "cjson"
+
+-- local code, body = httpc.get("https://api.github.com/search/users?q=candymi")
+local code, body = httpc.get("https://api.github.com/users/candymi")
+
 if code ~= 200 then
 	local f = io.open("error.html", "w")
 	if f then
@@ -15,3 +19,7 @@ if code ~= 200 then
 		f:close()
 	end
 end
+
+var_dump(cjson.decode(body))
+
+print(pcall(cjson.c, body))

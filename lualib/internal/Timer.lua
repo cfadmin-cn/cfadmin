@@ -43,7 +43,7 @@ function Timer.timeout(timeout, cb)
             insert(TIMER_LIST, ti)
         end)
     }
-    ti:start(timeout, timeout, t.co)
+    ti:start(timeout, t.co)
     return t
 end
 

@@ -143,7 +143,7 @@ init_main(){
 		LOG("ERROR", lua_tostring(L, -1));
 		return ;
 	}
-	lua_gc(L, LUA_GCCOLLECT, 0);
+	// lua_gc(L, LUA_GCCOLLECT, 0);
 }
 
 void
@@ -160,6 +160,3 @@ core_sys_run(){
 
 	return core_start(CORE_LOOP_ 0);
 }
-
-
-

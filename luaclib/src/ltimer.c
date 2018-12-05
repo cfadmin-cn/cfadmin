@@ -11,7 +11,7 @@ TIMEOUT_CB(CORE_P_ core_timer *timer, int revents){
         lua_State *co = (lua_State *) core_get_watcher_userdata(timer);
 
         int status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
-        
+
         if (status != LUA_OK && status != LUA_YIELD){
 
         	LOG( "ERROR", lua_tostring(co, -1));
@@ -38,15 +38,14 @@ timer_start(lua_State *L){
 	if(!timer) return 0;
 
 	lua_Number timeout = luaL_checknumber(L, 2);
+    if (timeout <= 0 ) return 0;
 
-	lua_Number repeat = luaL_checknumber(L, 3);
-
-	lua_State *co = lua_tothread(L, 4);
+	lua_State *co = lua_tothread(L, 3);
 	if(!co) return 0;
 
 	core_set_watcher_userdata(timer, (void*)co);
 
-	core_timer_start(CORE_LOOP, timer, timeout ? timeout : repeat);
+	core_timer_start(CORE_LOOP, timer, timeout);
 
 	lua_settop(L, 1);
 
@@ -65,7 +64,7 @@ timer_new(lua_State *L){
 	luaL_setmetatable(L, "__TIMER__");
 
 	return 1;
-	
+
 }
 
 LUAMOD_API int

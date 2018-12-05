@@ -1,96 +1,55 @@
 
-function table.key(t, key)
-	for k, _ in pairs(t) do
-		if key == k then
-			return key
-		end
-	end
+-- 格式化输出(美化)
+var_dump = function (data, showMetatable, lastCount)
+    if type(data) ~= "table" then
+        --Value
+        if type(data) == "string" then
+            io.write('"', data, '"')
+        else
+            io.write(tostring(data))
+        end
+    else
+        --Format
+        local count = lastCount or 0
+        count = count + 1
+        io.write("{\n")
+        --Metatable
+        if showMetatable then
+            for i = 1,count do io.write("      ") end
+            local mt = getmetatable(data)
+            io.write("\"__metatable\" = ")
+            var_dump(mt, showMetatable, count)    -- 如果不想看到元表的元表，可将showMetatable处填nil
+            io.write(",\n")     				     --如果不想在元表后加逗号，可以删除这里的逗号
+        end
+        --Key
+        for key,value in pairs(data) do
+            for i = 1,count do io.write("      ") end
+            if type(key) == "string" then
+                -- io.write("\"", key, "\" = ")
+				io.write('["', key, '"] = ')
+            elseif type(key) == "number" then
+                io.write("[", key, "] = ")
+            else
+                io.write(tostring(key))
+            end
+            var_dump(value, showMetatable, count) -- 如果不想看到子table的元表，可将showMetatable处填nil
+            io.write(",\n")     					 --如果不想在table的每一个item后加逗号，可以删除这里的逗号
+        end
+        --Format
+        for i = 1, lastCount or 0 do io.write("      ") end
+        io.write("}")
+    end
+    --Format
+    if not lastCount then
+        io.write("\n")
+    end
 end
 
--- 格式化表输出
-function to_string(obj)
-	local str_fmt = string.format
-	local tostring = tostring
-	local getIndent, quoteStr, wrapKey, wrapVal, isArray, dumpObj
-	getIndent = function (level)
-		return string.rep("\t", level)
+-- 最好不要使用原生pcall
+-- 可能导致无法查看完整的出错调用栈
+pcall = function(func, ...)
+	local function trace(e)
+		return debug.traceback(0) .. e
 	end
-	quoteStr = function(str)
-		str = string.gsub(str, "[%c\\\"]", {
-			["\t"] = "\\t",
-			["\r"] = "\\r",
-			["\n"] = "\\n",
-			["\""] = "\\\"",
-			["\\"] = "\\\\",
-		})
-		return str_fmt('"%s"', str)
-	end
-	wrapKey = function (val)
-		if type(val) == "number" then
-			return str_fmt('[%d]', val)
-		elseif type(val) == "string" then
-			return str_fmt('[%s]', quoteStr(val))
-		else
-			return str_fmt('[%s]', tostring(val))
-		end
-	end
-	wrapVal = function (val, level)
-		if type(val) == "table" then
-			return dumpObj(val, level)
-		elseif type(val) == "number" then
-			return val
-		elseif type(val) == "string" then
-			return quoteStr(val)
-		else
-			return tostring(val)
-		end
-	end
-	isArray = function (arr)
-		local count = 0 
-		for k, v in pairs(arr) do
-			count = count + 1 
-		end 
-		for i = 1, count do
-			if arr[i] == nil then
-				return false
-			end 
-		end 
-		return true, count
-	end
-	dumpObj = function (obj, level)
-		if type(obj) ~= "table" then
-			return wrapVal(obj)
-		end
-		level = level + 1
-		local tokens = {}
-		tokens[#tokens + 1] = "{"
-		local ret, count = isArray(obj)
-		if ret then
-			for i = 1, count do
-				tokens[#tokens + 1] = str_fmt("%s%s = %s,", getIndent(level), wrapKey(i), wrapVal(obj[i], level))
-			end
-		else
-			for k, v in pairs(obj) do
-				tokens[#tokens + 1] = str_fmt("%s%s = %s,", getIndent(level), wrapKey(k), wrapVal(v, level))
-			end
-		end
-		tokens[#tokens + 1] = getIndent(level - 1) .. "}"
-		return table.concat(tokens, "\n")
-	end
-	return dumpObj(obj, 0)
+	return xpcall(func, trace, ...)
 end
-
-function LOG(level, ...)
-	local now = os.date("%Y/%m/%d %H:%M:%S")
-	local t = debug.getinfo(2)
-	local head = string.format("[%s][%s][file:%s][line:%s][func: %s]:", 
-		level,
-		now,
-		t["short_src"],
-		t['currentline'],
-		t['name'] or "Unknown"
-	)
-	print(head, ...)
-end
-
-return pcall
