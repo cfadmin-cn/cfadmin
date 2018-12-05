@@ -54,7 +54,7 @@ local function gen_cache()
     end
 end
 
-function check_ip(ip, version)
+local function check_ip(ip, version)
     if version == 4 then
         if #ip > 15 or #ip < 7 then
             return false
@@ -212,6 +212,10 @@ function dns.query(name)
 end
 
 function dns.resolve(name)
+    local ok = check_ip(name, 4)
+    if ok then
+        return ok, name
+    end
     local ip = check_cache(name)
     if ip then
         return true, ip

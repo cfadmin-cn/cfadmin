@@ -1,25 +1,49 @@
--- local httpd = require "httpd"
+-- -- 测试cjson、https、var_dump
+-- -- 需要注意cjson 默认没有编译, 需要手动进入luaclib/src/lcjson make编译一下就行了
+-- require "utils"
+--
+-- local httpc = require "httpc"
+-- local cjson = require "cjson"
+--
+-- -- local code, body = httpc.get("https://api.github.com/search/users?q=candymi")
+-- local code, body = httpc.get("https://api.github.com/users/candymi")
+--
+-- if code ~= 200 then
+-- 	local f = io.open("error.html", "w")
+-- 	if f then
+-- 		f:write(body)
+-- 		f:close()
+-- 	end
+-- end
+--
+-- var_dump(cjson.decode(body))
+--
+-- print(pcall(cjson.c, body))
 
--- local app = httpd:new("app")
 
--- app:start("localhost", 8080)
-
-require "utils"
-
-local httpc = require "httpc"
-local cjson = require "cjson"
-
--- local code, body = httpc.get("https://api.github.com/search/users?q=candymi")
-local code, body = httpc.get("https://api.github.com/users/candymi")
-
-if code ~= 200 then
-	local f = io.open("error.html", "w")
-	if f then
-		f:write(body)
-		f:close()
-	end
-end
-
-var_dump(cjson.decode(body))
-
-print(pcall(cjson.c, body))
+-- -- 测试魔改后的mysql
+-- require "utils"
+-- local mysql = require "protocol.mysql"
+--
+--
+-- local config = {
+--     host = "localhost",
+--     port = 3306,
+--     database = "mysql",
+--     user = "root",
+--     -- password = ""
+-- }
+-- local db, err = mysql:new()
+-- if not db then
+-- 	return nil
+-- end
+--
+-- local ok, err, errno, sqlstate = db:connect(config)
+--
+-- if not ok then
+-- 	return nil
+-- end
+--
+-- var_dump(db:query("select * from user"))
+--
+-- db:close()

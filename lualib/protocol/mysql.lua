@@ -1,4 +1,5 @@
 local tcp = require "internal.TCP"
+local dns = require "protocol.dns"
 local crypt = require "crypt"
 
 local sub = string.sub
@@ -84,16 +85,19 @@ local function _compute_token(password, scramble)
     if password == "" then
         return ""
     end
+    --_dumphex(scramble)
 
     local stage1 = sha1(password)
+    --print("stage1:", _dumphex(stage1) )
     local stage2 = sha1(stage1)
     local stage3 = sha1(scramble .. stage2)
-    local n = #stage1
-    local bytes = new_tab(n, 0)
-    for i = 1, n do
-         bytes[i] = strchar(bxor(strbyte(stage3, i), strbyte(stage1, i)))
-    end
-    return concat(bytes)
+
+	local i = 0
+	return strgsub(stage3,".", function(x)
+		i = i + 1
+		-- ~ is xor in lua 5.3
+		return strchar(strbyte(x) ~ strbyte(stage1, i))
+	end)
 end
 
 
@@ -102,7 +106,7 @@ local function _send_packet(self, req, size)
 
     self.packet_no = self.packet_no + 1
 
-    local packet = _set_byte3(size) .. strchar(band(self.packet_no, 255)) .. req
+    local packet = _set_byte3(size) .. strchar(self.packet_no & 255) .. req
 
     return sock:send(packet)
 end
@@ -111,7 +115,7 @@ end
 local function _recv_packet(self)
     local sock = self.sock
 
-    local data, err = sock:receive(4) -- packet header
+    local data, err = sock:recv(4) -- packet header
     if not data then
         return nil, nil, "failed to receive packet header: " .. err
     end
@@ -136,7 +140,7 @@ local function _recv_packet(self)
 
     self.packet_no = num
 
-    data, err = sock:receive(len)
+    data, err = sock:recv(len)
 
     --print("receive returned")
 
@@ -405,35 +409,30 @@ function _M.connect(self, opts)
     end
     self._max_packet_size = max_packet_size
 
-    local ok, err
-
     self.compact = opts.compact_arrays
 
     local database = opts.database or ""
     local user = opts.user or ""
-
-    local pool = opts.pool
-
     local host = opts.host
-    if host then
-        local port = opts.port or 3306
-        if not pool then
-            pool = user .. ":" .. database .. ":" .. host .. ":" .. port
-        end
 
-        ok, err = sock:connect(host, port, { pool = pool })
+    if not host then
+        return nil, "not host"
+    end
 
-    else
-        local path = opts.path
-        if not path then
-            return nil, 'neither "host" nor "path" options are specified'
-        end
+    local ok, ip = dns.resolve(host)
+    if not ok then
+        return nil, "can't resolve host"
+    end
 
-        if not pool then
-            pool = user .. ":" .. database .. ":" .. path
-        end
+    local port = opts.port or 3306
+    if not pool then
+        pool = user .. ":" .. database .. ":" .. host .. ":" .. port
+    end
 
-        ok, err = sock:connect("unix:" .. path, { pool = pool })
+    local ok = sock:connect(ip, port)
+
+    if not ok then
+        return nil, "Connect failed"
     end
 
     if not ok then
@@ -492,7 +491,7 @@ function _M.connect(self, opts)
     local more_capabilities
     more_capabilities, pos = _get_byte2(packet, pos)
 
-    capabilities = bor(capabilities, lshift(more_capabilities, 16))
+    capabilities = capabilities | more_capabilities << 16
 
     --print("server capabilities: ", capabilities)
 
@@ -511,58 +510,28 @@ function _M.connect(self, opts)
     scramble = scramble .. scramble_part2
     --print("scramble: ", _dump(scramble))
 
-    local client_flags = 0x3f7cf;
-
-    local ssl_verify = opts.ssl_verify
-    local use_ssl = opts.ssl or ssl_verify
-
-    if use_ssl then
-        if band(capabilities, CLIENT_SSL) == 0 then
-            return nil, "ssl disabled on server"
-        end
-
-        -- send a SSL Request Packet
-        local req = _set_byte4(bor(client_flags, CLIENT_SSL))
-                    .. _set_byte4(self._max_packet_size)
-                    .. strchar(charset)
-                    .. strrep("\0", 23)
-
-        local packet_len = 4 + 4 + 1 + 23
-        local bytes, err = _send_packet(self, req, packet_len)
-        if not bytes then
-            return nil, "failed to send client authentication packet: " .. err
-        end
-
-        local ok, err = sock:sslhandshake(false, nil, ssl_verify)
-        if not ok then
-            return nil, "failed to do ssl handshake: " .. (err or "")
-        end
-    end
-
     local password = opts.password or ""
 
     local token = _compute_token(password, scramble)
 
     --print("token: ", _dump(token))
 
-    local req = _set_byte4(client_flags)
-                .. _set_byte4(self._max_packet_size)
-                .. strchar(charset)
-                .. strrep("\0", 23)
-                .. _to_cstring(user)
-                .. _to_binary_coded_string(token)
-                .. _to_cstring(database)
+    local client_flags = 260047;
 
-    local packet_len = 4 + 4 + 1 + 23 + #user + 1
-        + #token + 1 + #database + 1
+    local req = strpack("<I4I4c24zs1z",
+        client_flags,
+        self._max_packet_size,
+        strrep("\0", 24),	-- TODO: add support for charset encoding
+        user,
+        token,
+        database)
+
+    local packet_len = #req
 
     -- print("packet content length: ", packet_len)
     -- print("packet content: ", _dump(concat(req, "")))
 
-    local bytes, err = _send_packet(self, req, packet_len)
-    if not bytes then
-        return nil, "failed to send client authentication packet: " .. err
-    end
+    _send_packet(self, req, packet_len)
 
     --print("packet sent ", bytes, " bytes")
 
@@ -589,33 +558,6 @@ function _M.connect(self, opts)
     return 1
 end
 
-
-function _M.set_keepalive(self, ...)
-    local sock = self.sock
-    if not sock then
-        return nil, "not initialized"
-    end
-
-    if self.state ~= STATE_CONNECTED then
-        return nil, "cannot be reused in the current connection state: "
-                    .. (self.state or "nil")
-    end
-
-    self.state = nil
-    return sock:setkeepalive(...)
-end
-
-
-function _M.get_reused_times(self)
-    local sock = self.sock
-    if not sock then
-        return nil, "not initialized"
-    end
-
-    return sock:getreusedtimes()
-end
-
-
 function _M.close(self)
     local sock = self.sock
     if not sock then
@@ -629,7 +571,8 @@ function _M.close(self)
         return nil, err
     end
 
-    return sock:close()
+    setmetatable(self, nil)
+    sock:close()
 end
 
 
@@ -693,7 +636,7 @@ local function read_result(self, est_nrows)
 
     if typ == 'OK' then
         local res = _parse_ok_packet(packet)
-        if res and band(res.server_status, SERVER_MORE_RESULTS_EXISTS) ~= 0 then
+        if res and (res.server_status & SERVER_MORE_RESULTS_EXISTS) ~= 0 then
             return res, "again"
         end
 
@@ -754,7 +697,7 @@ local function read_result(self, est_nrows)
 
             --print("status flags: ", status_flags)
 
-            if band(status_flags, SERVER_MORE_RESULTS_EXISTS) ~= 0 then
+            if (status_flags & SERVER_MORE_RESULTS_EXISTS) ~= 0 then
                 return rows, "again"
             end
 

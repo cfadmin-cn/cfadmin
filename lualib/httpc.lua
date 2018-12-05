@@ -22,29 +22,6 @@ local TIMEOUT = 30
 
 local httpc = {}
 
-
--- IPv4规范检查
-local function check_ip(ip, version)
-	if version == 4 then
-	    if #ip > 15 or #ip < 7 then
-	        return false
-	    end
-	    local num_list = {nil, nil, nil, nil}
-	    spliter(ip, '(%d+)', function (num)
-	    	insert(num_list, tonumber(num))
-	    end)
-	    if #num_list ~= 4 then
-			return false
-	    end
-	    for _, num in ipairs(num_list) do
-	    	if num < 0 or num > 255 then
-	    		return false
-	    	end
-	    end
-	    return true
-	end
-end
-
 -- 设置请求超时时间
 function httpc.set_timeout(Invaild)
 	if Invaild > 0 then
@@ -53,7 +30,7 @@ function httpc.set_timeout(Invaild)
 end
 
 
-function httpc.get(domain)
+function httpc.get(domain, port)
 
 	local PROTOCOL, DOMAIN, PATH, IP
 
@@ -67,25 +44,20 @@ function httpc.get(domain)
 		return nil, "Invaild protocol."
 	end
 
-	if not check_ip(DOMAIN, 4) then
-		local ok, ip = dns.resolve(DOMAIN)
-		if not ok or not ip then
-			return nil, "Can't resolve this domain."
-		end
-		IP = ip
-	else
-		IP = DOMAIN
+	local ok, ip = dns.resolve(DOMAIN)
+	if not ok then
+		return nil, "Can't resolve domain"
 	end
 
 	local IO = tcp:new():timeout(TIMEOUT)
 	if PROTOCOL == "http" then
-		local ok = IO:connect(IP, 80)
+		local ok = IO:connect(ip, port or 80)
 		if not ok then
 			IO:close()
 			return nil, "Can't connect to this IP and Port."
 		end
 	else
-		local ok = IO:ssl_connect(IP, 443)
+		local ok = IO:ssl_connect(ip, port or 443)
 		if not ok then
 			IO:close()
 			return nil, "Can't ssl connect to this IP and Port."
@@ -111,7 +83,8 @@ function httpc.get(domain)
 	return httpc.response(IO, PROTOCOL)
 end
 
-function httpc.post(doamina, body)
+function httpc.post(domain, body)
+
 	local PROTOCOL, DOMAIN, PATH, IP
 
 	spliter(domain, '(http[s]*)://([%w%.%-]+)(.*)', function (protocol, domain, path)
@@ -124,25 +97,20 @@ function httpc.post(doamina, body)
 		return nil, "Invaild protocol."
 	end
 
-	if not check_ip(DOMAIN, 4) then
-		local ok, ip = dns.resolve(DOMAIN)
-		if not ok or not ip then
-			return nil, "Can't resolve this domain."
-		end
-		IP = ip
-	else
-		IP = DOMAIN
+	local ok, ip = dns.resolve(DOMAIN)
+	if not ok then
+		return nil, "Can't resolve domain"
 	end
 
 	local IO = tcp:new():timeout(TIMEOUT)
 	if PROTOCOL == "http" then
-		local ok = IO:connect(IP, 80)
+		local ok = IO:connect(DOMAIN, 80)
 		if not ok then
 			IO:close()
 			return nil, "Can't connect to this IP and Port."
 		end
 	else
-		local ok = IO:ssl_connect(IP, 443)
+		local ok = IO:ssl_connect(DOMAIN, 443)
 		if not ok then
 			IO:close()
 			return nil, "Can't ssl connect to this IP and Port."
