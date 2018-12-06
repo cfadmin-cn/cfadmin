@@ -1,5 +1,6 @@
 local ti = require "internal.Timer"
 local tcp = require "tcp"
+require "utils"
 
 local class = require "class"
 
@@ -18,10 +19,10 @@ local EVENT_WRITE = 0x02
 local SERVER = 0
 local CLIENT = 1
 
-local TCP = class("Socket")
+local TCP = class("TCP")
 
 function TCP:ctor(opt)
-    -- 
+    --
 end
 
 -- 超时时间
@@ -46,6 +47,10 @@ function TCP:send(buf)
         return
     end
     if not self.queue then
+        if type(buf) ~= "string" then
+            print("attemp to pass unstring to socket send")
+            return
+        end
         self.queue = {buf}
         self.IO_WRITE = tcp:new()
         local write_co = co_new(function ( ... )
@@ -78,6 +83,10 @@ function TCP:ssl_send(buf)
         return
     end
     if not self.queue  then
+        if type(buf) ~= "string" then
+            print("attemp to pass unstring to ssl socket send")
+            return
+        end
         self.queue = {buf}
         local write_co = co_new(function ( ... )
             while 1 do

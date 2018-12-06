@@ -25,7 +25,7 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 
      /* 地址/端口重用 */
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &ENABLE, sizeof(ENABLE));
-    
+
      /* 关闭小包延迟合并算法 */
 	setsockopt(sockfd, SOL_SOCKET, TCP_NODELAY, &ENABLE, sizeof(ENABLE));
 
@@ -42,7 +42,7 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 		if (0 > bind_siccess) {
 			return -1; /* 绑定套接字失败 */
 		}
-		
+
 		int listen_success = listen(sockfd, 512);
 		if (0 > listen_success) {
 			return -1; /* 监听套接字失败 */
@@ -100,7 +100,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 	if (revents & EV_READ && revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			lua_pushboolean(co, 0); 
+			lua_pushboolean(co, 0);
 			status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
@@ -108,11 +108,11 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 		}
 		return ;
 	}
-	
+
 	if (revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			lua_pushboolean(co, 1); 
+			lua_pushboolean(co, 1);
 			status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
