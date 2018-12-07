@@ -1,9 +1,8 @@
 #include "core.h"
 
-
 /* ===========  Timer  =========== */
 void
-core_timer_init(core_timer *timer, TIMER_CB cb){
+core_timer_init(core_timer *timer, _TIMER_CB cb){
 
 	timer->repeat = timer->at = 0x0;
 
@@ -35,7 +34,7 @@ core_timer_stop(core_loop *loop, core_timer *timer){
 
 /* ===========  IO  =========== */
 void
-core_io_init(core_io *io, IO_CB cb, int fd, int events){
+core_io_init(core_io *io, _IO_CB cb, int fd, int events){
 
 	ev_io_init(io, cb, fd, events);
 
@@ -62,6 +61,13 @@ core_io_stop(core_loop *loop, core_io *io){
 }
 /* ===========  IO  =========== */
 
+void
+core_once(core_loop *loop, core_task *task, _TASK_CB cb){
+	return ev_once(task->loop, -1, 0, 0, cb, (void*)task);
+}
+
+
+
 core_loop *
 core_default_loop(){
 
@@ -69,6 +75,12 @@ core_default_loop(){
 	return ev_default_loop(ev_supported_backends() & EVBACKEND_EPOLL || ev_supported_backends() & EVBACKEND_KQUEUE);
 
 }
+
+void
+core_break(core_loop *loop, int mode){
+	ev_break(loop ? loop : CORE_LOOP, mode);
+}
+
 
 int
 core_start(core_loop *loop, int mode){
@@ -83,8 +95,6 @@ void *
 L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
 
 	(void)ud;  (void)osize;  /* lua 不会使用 */
-
-	if (nsize == 0) return realloc(ptr, nsize);
 
 	return realloc(ptr, nsize);
 

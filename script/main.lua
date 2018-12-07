@@ -77,3 +77,25 @@
 --
 -- -- 查看生命周期
 -- print(redis:ttl("table"))
+
+
+-- -- 新增了lua template 渲染 html
+-- -- 类似jinja 2 API
+-- local template = require "template"
+--
+-- local view = template.new "index.html"
+-- view.title = '水果糖的小铺子'
+-- view.ico = 'https://www.baidu.com/favicon.ico'
+-- view:render()
+--
+-- local file = io.open("index1.html", "w")
+-- if file then
+--     file:write(tostring(view))
+--     file:close()
+-- end
+
+local lpeg = require "lpeg"
+
+for name, func in pairs(lpeg) do
+    print(name, func);
+end
