@@ -1,7 +1,28 @@
+require "utils"
+local xpcall = xpcall
+local tostring = tostring
 local spliter = string.gsub
 local match = string.match
+local fmt = string.format
+local int = math.integer
+local find = string.find
+local split = string.sub
+local insert = table.insert
+local remove = table.remove
+local concat = table.concat
 
-local HTTP_PROTOCOL = {}
+
+local CRLF = "\r\n\r\n"
+
+local HTTP_PROTOCOL = {
+	API = 1,
+	[1] = "API",
+	USE = 2,
+	[2] = "USE",
+	STATIC = 3,
+	[3] = "STATIC",
+}
+
 
 local HTTP_CODE = {
 
@@ -75,6 +96,13 @@ local HTTP_CODE = {
 
 }
 
+local function safe_call(func, ...)
+	local function log(e)
+		return debug.traceback(0)..tostring(e)
+	end
+	return xpcall(func, log, ...)
+end
+
 function HTTP_PROTOCOL.RESPONSE_HEAD_PARSER(head)
 	local HEADER = {}
 	spliter(head, "(.-): (.-)\r\n", function (key, value)
@@ -92,7 +120,13 @@ function HTTP_PROTOCOL.RESPONSE_PROTOCOL_PARSER(protocol)
 	return tonumber(CODE)
 end
 
-function HTTP_PROTOCOL.REQUEST_HEADER_PARSER(head)
+local function REQUEST_STATUCODE_RESPONSE(code)
+	return HTTP_CODE[code] or "attempt to Passed A Invaid Code to response message."
+end
+
+
+
+local function REQUEST_HEADER_PARSER(head)
 	local HEADER = {}
 	spliter(head, "(.-): (.-)\r\n", function (key, value)
 		HEADER[key] = value
@@ -100,12 +134,137 @@ function HTTP_PROTOCOL.REQUEST_HEADER_PARSER(head)
 	return HEADER
 end
 
-function HTTP_PROTOCOL.REQUEST_PROTOCOL_PARSER(protocol)
+local function REQUEST_PROTOCOL_PARSER(protocol)
 	return match(protocol, "(%w+) (.+) HTTP/([%d%.]+)\r\n")
 end
 
-function HTTP_PROTOCOL.REQUEST_ERROR_RESPONSE(code)
-	return HTTP_CODE[code] or "attempt to Passed A Invaid Code to response message."
+function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
+	local fields = {}
+	spliter(route, "/([^/?]*)", function (field)
+		insert(fields, field)
+	end)
+	local t 
+	for index, field in ipairs(fields) do
+		if index == 1 then
+			if routes[field] then
+				t = routes[field]
+				if #fields == index then
+					break
+				end
+			else
+				t = {}
+				routes[field] = t
+				if #fields == index then
+					break
+				end
+			end
+		else
+			if t[field] then
+				t = t[field]
+				if #fields == index then
+					break
+				end
+			else
+				t[field] = {}
+				t = t[field]
+				if #fields == index then
+					break
+				end
+			end
+		end
+	end
+	t.route = route
+	t.class = class
+	t.type = type
+	return
+end
+
+function HTTP_PROTOCOL.ROUTE_DISPATCH(routes, route)
+	local fields = {}
+	spliter(route, "/([^/?]*)", function (field)
+		insert(fields, field)
+	end)
+	local t, class, type
+	for index, field in ipairs(fields) do
+		if index == 1 then
+			if not routes[field] then
+				break
+			end
+			t = routes[field]
+			if #fields == index and t.class then
+				type = t.type
+				class = t.class
+				break
+			end
+		else
+			if not t[field] then
+				break
+			end
+			t = t[field]
+			if #fields == index and t.class then
+				type = t.type
+				class = t.class
+				break
+			end
+		end
+	end
+	return class, type
+end
+
+
+function HTTP_PROTOCOL.REQUEST_PASER(sock, http)
+	local buffers = {}
+	while 1 do
+		local buf = sock:recv(2048)
+		if not buf then
+			return
+		end
+		insert(buffers, buf)
+		local buffer = concat(buffers)
+		local CRLF_START, CRLF_END = find(buffer, CRLF)
+		if CRLF_START and CRLF_END then
+			local REQ = {}
+			
+			local PROTOCOL_START, PROTOCOL_END = find(buffer, '\r\n')
+			
+			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(split(buffer, 1, PROTOCOL_END))
+			if not METHOD or not PATH or not VERSION then
+				return concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF)
+			end
+
+			REQ['METHOD'], REQ["PATH"], REQ['VERSION'] = METHOD, PATH, VERSION
+			REQ['HEADER'] = REQUEST_HEADER_PARSER(split(buffer, PROTOCOL_END + 1, PROTOCOL_END - 2))
+
+			local class, typ = HTTP_PROTOCOL.ROUTE_DISPATCH(http.routes, REQ['PATH'])
+			if not class or not typ then
+				return concat({REQUEST_STATUCODE_RESPONSE(404)}, CRLF)
+			end
+
+			local cls = class:new()
+
+			local ok, data = safe_call(cls, table.unpack({}))
+			if not ok then
+				print(data)
+				return concat({REQUEST_STATUCODE_RESPONSE(500)}, CRLF)
+			end
+			local header = {REQUEST_STATUCODE_RESPONSE(200)}
+			insert(header, fmt("server: %s", http.server or "cf/0.1"))
+			
+			insert(header, 'Accept: */*')
+
+			if typ == HTTP_PROTOCOL.API then
+				insert(header, 'Content-Type: Application/json')
+				insert(header, 'Cache-Control: no-cache')
+			else
+				insert(header, 'Content-Type: text/html')
+			end
+			if data and #data > 0 then
+				insert(header, fmt('Content-Length: %d', #data))	
+			end
+
+			return concat(header, '\r\n') .. CRLF .. data or ''
+		end
+	end
 end
 
 

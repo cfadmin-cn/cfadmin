@@ -4,19 +4,19 @@ function class(cls_name)
     local cls = { }
     cls.__index = cls
     cls.__name = cls_name
-    function cls.__call(cls, ...)
-        if cls[__name] then
-            return cls[__name](cls, ...)
+    cls.__call = function (cls, ...)
+        if cls[cls.__name] then
+            return cls[cls.__name](cls, ...)
         end
         return nil
     end
-    function cls.new(cls, ...)
-        if not cls then
+    cls.new = function (c, ...)
+        if cls ~= c then
             print("[class.lua] Please use ':' to index (new) method :)")
             return
         end
-        cls.ctor(cls, ...)
-        return setmetatable({}, cls)
+        c.ctor(c, ...)
+        return setmetatable({}, c)
     end
     return cls
 end
