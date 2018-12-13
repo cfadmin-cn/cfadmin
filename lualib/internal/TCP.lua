@@ -1,6 +1,5 @@
 local ti = require "internal.Timer"
 local tcp = require "tcp"
-require "utils"
 
 local class = require "class"
 
@@ -10,6 +9,8 @@ local co_wakeup = coroutine.resume
 local co_suspend = coroutine.yield
 local co_self = coroutine.running
 
+
+local splite = string.sub
 local insert = table.insert
 local remove = table.remove
 
@@ -41,9 +42,9 @@ function TCP:set_fd(fd)
     return self
 end
 
-function TCP:send(buf)
+function TCP:send_nowait(buf)
     if self.ssl then
-        print("Please use ssl_send method :)")
+        print("Please use ssl_send_nowait method :)")
         return
     end
     if not self.queue then
@@ -66,7 +67,7 @@ function TCP:send(buf)
                         break
                     end
                     if #data > send_len then
-                        data = string.sub(data, send_len + 1, -1)
+                        data = splite(data, send_len + 1, -1)
                     end
                     co_suspend()
                 end
@@ -77,9 +78,75 @@ function TCP:send(buf)
     return insert(self.queue, 1, buf)
 end
 
+function TCP:send(buf)
+    if self.ssl then
+        print("Please use ssl_send method :)")
+        return
+    end
+    self.IO_WRITE = self.IO_WRITE or tcp:new()
+    if not self.IO_WRITE then
+        print("Can't find IO or Create IO Faild.")
+        return
+    end
+    local co = co_self()
+    local write_co = co_new(function ( ... )
+        while 1 do
+            local send_len = self.IO_WRITE:write(buf, #buf)
+            if  not send_len or send_len == #buf then
+                if not send_len then
+                    print("send Faild")
+                end
+                self.IO_WRITE:stop()
+                local ok, msg = co_wakeup(co)
+                if not ok then
+                    print(msg)
+                end
+                return
+            end
+            buf = splite(buf, send_len + 1, -1)
+            co_suspend()
+        end
+    end)
+    self.IO_WRITE:start(self.fd, EVENT_WRITE, write_co)
+    return co_suspend()
+end
+
 function TCP:ssl_send(buf)
     if not self.ssl then
         print("Please use send method :)")
+        return
+    end
+    self.IO_WRITE = self.IO_WRITE or tcp:new()
+    if not self.IO_WRITE then
+        print("Can't find IO or Create IO Faild.")
+        return
+    end
+    local co = co_self()
+    local write_co = co_new(function ( ... )
+        while 1 do
+            local send_len = self.IO_WRITE:ssl_write(self.ssl, buf, #buf)
+            if  not send_len or send_len == #buf then
+                if not send_len then
+                    print("send Faild")
+                end
+                self.IO_WRITE:stop()
+                local ok, msg = co_wakeup(co)
+                if not ok then
+                    print(msg)
+                end
+                return
+            end
+            buf = splite(buf, send_len + 1, -1)
+            co_suspend()
+        end
+    end)
+    self.IO_WRITE:start(self.fd, EVENT_WRITE, write_co)
+    return co_suspend()
+end
+
+function TCP:ssl_send_nowait(buf)
+    if not self.ssl then
+        print("Please use send_nowait method :)")
         return
     end
     if not self.queue  then
@@ -100,7 +167,7 @@ function TCP:ssl_send(buf)
                         break
                     end
                     if #data > send_len then
-                        data = string.sub(data, send_len + 1, -1)
+                        data = splite(data, send_len + 1, -1)
                     end
                     co_suspend()
                 end
