@@ -94,8 +94,25 @@
 --     file:close()
 -- end
 
-local lpeg = require "lpeg"
 
-for name, func in pairs(lpeg) do
-    print(name, func);
-end
+local httpd = require "httpd"
+
+local app = httpd:new("App")
+
+local r1 = require "r1"
+local r2 = require "r2"
+
+-- 注册html路由r1
+app:use("/a", r1)
+
+-- 注册API路由r2
+app:api("/b", r2)
+
+app:start("0.0.0.0", 8080)
+
+
+
+
+
+
+

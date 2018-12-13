@@ -12,16 +12,8 @@ local remove = table.remove
 local concat = table.concat
 
 
-local CRLF = "\r\n\r\n"
-
-local HTTP_PROTOCOL = {
-	API = 1,
-	[1] = "API",
-	USE = 2,
-	[2] = "USE",
-	STATIC = 3,
-	[3] = "STATIC",
-}
+local CRLF = "\r\n"
+local CRLF2 = "\r\n\r\n"
 
 
 local HTTP_CODE = {
@@ -96,6 +88,37 @@ local HTTP_CODE = {
 
 }
 
+local MIME = {
+	-- 文本格式
+	['htm']  = 'text/html',
+	['html'] = 'text/html',
+	['txt']  = 'text/plain',
+	['css']  = 'text/css',
+	['js']   = 'application/x-javascript',
+	['json'] = 'application/json',
+	-- 图片格式
+	['bmp']  = 'image/bmp',
+	['png']  = 'image/png',
+	['gif']  = 'image/gif',
+	['jpeg'] = 'image/jpeg',
+	['jpg']  = 'image/jpg',
+	['ico']  = 'image/x-icon',
+	['tif']  = 'image/tiff',
+	['tiff'] = 'image/tiff',
+	-- 其他格式
+	-- TODO
+}
+
+local HTTP_PROTOCOL = {
+	API = 1,
+	[1] = "API",
+	USE = 2,
+	[2] = "USE",
+	STATIC = 3,
+	[3] = "STATIC",
+}
+
+
 local function safe_call(func, ...)
 	local function log(e)
 		return debug.traceback(0)..tostring(e)
@@ -120,10 +143,14 @@ function HTTP_PROTOCOL.RESPONSE_PROTOCOL_PARSER(protocol)
 	return tonumber(CODE)
 end
 
+
 local function REQUEST_STATUCODE_RESPONSE(code)
 	return HTTP_CODE[code] or "attempt to Passed A Invaid Code to response message."
 end
 
+local function REQUEST_MIME_RESPONSE(mime)
+	return MIME[mime] or MIME['html']
+end
 
 
 local function REQUEST_HEADER_PARSER(head)
@@ -179,7 +206,7 @@ function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 	return
 end
 
-function HTTP_PROTOCOL.ROUTE_DISPATCH(routes, route)
+function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 	local fields = {}
 	spliter(route, "/([^/?]*)", function (field)
 		insert(fields, field)
@@ -215,54 +242,97 @@ end
 function HTTP_PROTOCOL.REQUEST_PASER(sock, http)
 	local buffers = {}
 	while 1 do
-		local buf = sock:recv(2048)
+		local buf = sock:recv(4096)
 		if not buf then
 			return
 		end
 		insert(buffers, buf)
 		local buffer = concat(buffers)
-		local CRLF_START, CRLF_END = find(buffer, CRLF)
+		local CRLF_START, CRLF_END = find(buffer, CRLF2)
 		if CRLF_START and CRLF_END then
 			local REQ = {}
-			
-			local PROTOCOL_START, PROTOCOL_END = find(buffer, '\r\n')
-			
+			local PROTOCOL_START, PROTOCOL_END = find(buffer, CRLF)
 			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(split(buffer, 1, PROTOCOL_END))
 			if not METHOD or not PATH or not VERSION then
-				return concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF)
+				return concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF) .. CRLF2
 			end
-
 			REQ['METHOD'], REQ["PATH"], REQ['VERSION'] = METHOD, PATH, VERSION
-			REQ['HEADER'] = REQUEST_HEADER_PARSER(split(buffer, PROTOCOL_END + 1, PROTOCOL_END - 2))
-
-			local class, typ = HTTP_PROTOCOL.ROUTE_DISPATCH(http.routes, REQ['PATH'])
-			if not class or not typ then
-				return concat({REQUEST_STATUCODE_RESPONSE(404)}, CRLF)
+			REQ['HEADER'] = REQUEST_HEADER_PARSER(split(buffer, PROTOCOL_END + 1, CRLF_START + 2))
+			if REQ['METHOD'] == "GET" then
+				local spl_pos = find(REQ['PATH'], '?')
+				if spl_pos < #REQ['PATH'] then
+					REQ['ARGS'] = {}
+					spliter(REQ['PATH'], '([^%?&]*)=([^%?&]*)', function (key, value)
+						REQ['ARGS'][key] = value
+					end)
+				end
+			else
+				local body_len = tonumber(REQ['HEADER']['Content-Length'])
+				local BODY = ''
+				local RECV_BODY = true
+				if #buffer > CRLF_END then
+					BODY = split(buffer, CRLF_END + 1, -1)
+					if #BODY == body_len then
+						RECV_BODY = false
+						REQ['BODY'] = BODY
+					end
+				end
+				if RECV_BODY then
+					buffers = {BODY}
+					while 1 do
+						local buf = sock:recv(4096)
+						if not buf then
+							return
+						end
+						insert(buffers, buf)
+						local buffer = concat(buffers)
+						if #buffer == body_len then
+							REQ['BODY'] = buffer
+							break
+						end
+					end
+				end
+				if REQ['HEADER']['Content-Type'] then
+					if REQ['HEADER']['Content-Type'] == "application/x-www-form-urlencoded" then
+						REQ['ARGS'] = {}
+						spliter(BODY, '([^%?&]*)=([^%?&]*)', function (key, value)
+							REQ['ARGS'][key] = value
+						end)
+					end
+				end
 			end
-
+			var_dump(REQ)
+			buffers = {}
+			local class, typ = HTTP_PROTOCOL.ROUTE_FIND(http.routes, REQ['PATH'])
+			if not class or not typ then
+				return concat({REQUEST_STATUCODE_RESPONSE(404)}, CRLF) .. CRLF2
+			end
 			local cls = class:new()
-
 			local ok, data = safe_call(cls, table.unpack({}))
 			if not ok then
 				print(data)
-				return concat({REQUEST_STATUCODE_RESPONSE(500)}, CRLF)
+				return concat({REQUEST_STATUCODE_RESPONSE(500)}, CRLF)  .. CRLF2
 			end
 			local header = {REQUEST_STATUCODE_RESPONSE(200)}
 			insert(header, fmt("server: %s", http.server or "cf/0.1"))
-			
-			insert(header, 'Accept: */*')
+			insert(header, 'Accept: text/html,application/json')
 
+			local Connection = "Connection: close"
+			if tonumber(VERSION) == 'number' and tonumber(VERSION) == 1.1 then
+				Connection = 'Connection: keep-alive'
+			end
+			insert(header, Connection)
 			if typ == HTTP_PROTOCOL.API then
-				insert(header, 'Content-Type: Application/json')
+				insert(header, fmt('Content-Type: %s', REQUEST_MIME_RESPONSE('json')))
 				insert(header, 'Cache-Control: no-cache')
-			else
-				insert(header, 'Content-Type: text/html')
+			elseif typ == HTTP_PROTOCOL.USE then
+				insert(header, fmt('Content-Type: %s', REQUEST_MIME_RESPONSE('html')) .. ';charset=utf-8')
+				insert(header, 'Cache-Control: no-cache')
 			end
-			if data and #data > 0 then
-				insert(header, fmt('Content-Length: %d', #data))	
+			if data and type(data) == 'string' and #data > 0 then
+				insert(header, fmt('Content-Length: %d', #data))
 			end
-
-			return concat(header, '\r\n') .. CRLF .. data or ''
+			sock:send(concat(header, CRLF) .. CRLF2 .. data or '')
 		end
 	end
 end
