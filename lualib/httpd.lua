@@ -8,7 +8,11 @@ local co_wakeup = coroutine.resume
 local co_suspend = coroutine.yield
 local co_self = coroutine.running
 
-local HTTP_REQUEST_PASER = HTTP.REQUEST_PASER
+
+-- 请求解析
+local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
+
+-- 注册HTTP路由
 local HTTP_ROUTE_REGISTERY = HTTP.ROUTE_REGISTERY
 
 local class = require "class"
@@ -70,21 +74,15 @@ function httpd:listen (ip, port)
     self.accept_co = co_new(function (fd, ipaddr)
         while 1 do
         	if fd and ipaddr then
-        		local co = co_new(function (fd, ipaddr)
+        		local ok, msg = co_start(co_new(function (fd, ipaddr)
                     local co = co_self()
+                    -- 注册协程
                     self:registery(co, fd, ipaddr)
-                    local socket = tcp:new():set_fd(fd):timeout(15)
-                    while 1 do
-                        local buf = HTTP_REQUEST_PASER(socket, self)
-                        if not buf then
-                            self:unregistery(co)
-                            socket:close()
-                            return
-                        end
-                        socket:send(buf)
-                    end
-                end)
-        		local ok, msg = co_start(co, fd, ipaddr)
+                    -- HTTP 生命周期
+                    EVENT_DISPATCH(fd, self)
+                    -- 清除协程
+                    self:unregistery(co)
+                end), fd, ipaddr)
         		if not ok then
         			print(msg)
         		end

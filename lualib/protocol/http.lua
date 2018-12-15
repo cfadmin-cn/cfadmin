@@ -1,5 +1,9 @@
-require "utils"
-local xpcall = xpcall
+local tcp = require "internal.TCP"
+local cjson = require "cjson"
+local cjson_encode = cjson.encode
+local cjson_decode = cjson.decode
+
+local DATE = os.date
 local tostring = tostring
 local spliter = string.gsub
 local match = string.match
@@ -10,7 +14,6 @@ local split = string.sub
 local insert = table.insert
 local remove = table.remove
 local concat = table.concat
-
 
 local CRLF = "\r\n"
 local CRLF2 = "\r\n\r\n"
@@ -119,12 +122,7 @@ local HTTP_PROTOCOL = {
 }
 
 
-local function safe_call(func, ...)
-	local function log(e)
-		return debug.traceback(0)..tostring(e)
-	end
-	return xpcall(func, log, ...)
-end
+-- 以下为 HTTP Client 所需所用方法
 
 function HTTP_PROTOCOL.RESPONSE_HEAD_PARSER(head)
 	local HEADER = {}
@@ -143,6 +141,8 @@ function HTTP_PROTOCOL.RESPONSE_PROTOCOL_PARSER(protocol)
 	return tonumber(CODE)
 end
 
+
+-- 以下为 HTTP Server 所需所用方法
 
 local function REQUEST_STATUCODE_RESPONSE(code)
 	return HTTP_CODE[code] or "attempt to Passed A Invaid Code to response message."
@@ -239,12 +239,94 @@ function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 end
 
 
-function HTTP_PROTOCOL.REQUEST_PASER(sock, http)
+local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
+	local ARGS, FILE
+	if METHOD == "HEAD" or METHOD == "GET" then
+		local spl_pos = find(PATH, '%?')
+		if spl_pos and spl_pos < #PATH then
+			ARGS = {}
+			spliter(PATH, '([^%?&]*)=([^%?&]*)', function (key, value)
+				ARGS[key] = value
+			end)
+		end
+	elseif METHOD == "POST" then
+		local body_len = tonumber(HEADER['Content-Length'])
+		local BODY = ''
+		local RECV_BODY = true
+		local CRLF_START, CRLF_END = find(buffer, '\r\n\r\n')
+		if #buffer > CRLF_END then
+			BODY = split(buffer, CRLF_END + 1, -1)
+			if #BODY == body_len then
+				RECV_BODY = false
+			end
+		end
+		if RECV_BODY then
+			local buffers = {BODY}
+			while 1 do
+				local buf = sock:recv(8192)
+				if not buf then
+					return
+				end
+				insert(buffers, buf)
+				local buffer = concat(buffers)
+				if #buffer == body_len then
+					BODY = buffer
+					break
+				end
+			end
+		end
+		if HEADER['Content-Type'] then
+			local JSON_ENCODE = 'application/json'
+			local FILE_ENCODE = 'multipart/form-data'
+			local URL_ENCODE = 'application/x-www-form-urlencoded'
+			spliter(HEADER['Content-Type'], '(.-/[^;]*)', function(format)
+				if format == FILE_ENCODE then
+					local BOUNDARY
+					spliter(HEADER['Content-Type'], '^.+=[%-]*(.+)', function (boundary)
+						BOUNDARY = boundary
+					end)
+					if BOUNDARY then
+						FILE = {}
+						spliter(BODY, '\r\n\r\n(.-)\r\n[%-]*'..BOUNDARY, function (file)
+							insert(FILE, file)
+						end)
+					end
+				elseif format == JSON_ENCODE then
+					local ok, json = pcall(cjson_decode, BODY)
+					if ok then
+						ARGS = json
+					end
+				elseif format == URL_ENCODE then
+					spliter(BODY, '([^%?&]*)=([^%?&]*)', function (key, value)
+						if not ARGS then
+							ARGS = {}
+						end
+						ARGS[key] = value
+					end)
+				end
+			end)
+		end
+	end
+	return true, ARGS, FILE
+end
+
+local function HTTP_DATE()
+	return DATE("%a, %d %b %Y %X GMT")
+end
+
+local function RESPONSE()
+	-- body
+end
+
+function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
 	local buffers = {}
+	local routes = http.routes
+	local server = http.server
+	local sock = tcp:new():set_fd(fd):timeout(http.timeout or 30)
 	while 1 do
-		local buf = sock:recv(4096)
+		local buf = sock:recv(8192)
 		if not buf then
-			return
+			return sock:close()
 		end
 		insert(buffers, buf)
 		local buffer = concat(buffers)
@@ -252,73 +334,52 @@ function HTTP_PROTOCOL.REQUEST_PASER(sock, http)
 		if CRLF_START and CRLF_END then
 			local REQ = {}
 			local PROTOCOL_START, PROTOCOL_END = find(buffer, CRLF)
-			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(split(buffer, 1, PROTOCOL_END))
+			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(split(buffer, 1, PROTOCOL_START + 1))
+			-- 协议有问题返回400
 			if not METHOD or not PATH or not VERSION then
-				return concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF) .. CRLF2
+				local buf = concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF) .. CRLF2
+				sock:send(buf)
+				return sock:close()
 			end
-			REQ['METHOD'], REQ["PATH"], REQ['VERSION'] = METHOD, PATH, VERSION
-			REQ['HEADER'] = REQUEST_HEADER_PARSER(split(buffer, PROTOCOL_END + 1, CRLF_START + 2))
-			if REQ['METHOD'] == "GET" then
-				local spl_pos = find(REQ['PATH'], '?')
-				if spl_pos < #REQ['PATH'] then
-					REQ['ARGS'] = {}
-					spliter(REQ['PATH'], '([^%?&]*)=([^%?&]*)', function (key, value)
-						REQ['ARGS'][key] = value
-					end)
-				end
-			else
-				local body_len = tonumber(REQ['HEADER']['Content-Length'])
-				local BODY = ''
-				local RECV_BODY = true
-				if #buffer > CRLF_END then
-					BODY = split(buffer, CRLF_END + 1, -1)
-					if #BODY == body_len then
-						RECV_BODY = false
-						REQ['BODY'] = BODY
-					end
-				end
-				if RECV_BODY then
-					buffers = {BODY}
-					while 1 do
-						local buf = sock:recv(4096)
-						if not buf then
-							return
-						end
-						insert(buffers, buf)
-						local buffer = concat(buffers)
-						if #buffer == body_len then
-							REQ['BODY'] = buffer
-							break
-						end
-					end
-				end
-				if REQ['HEADER']['Content-Type'] then
-					if REQ['HEADER']['Content-Type'] == "application/x-www-form-urlencoded" then
-						REQ['ARGS'] = {}
-						spliter(BODY, '([^%?&]*)=([^%?&]*)', function (key, value)
-							REQ['ARGS'][key] = value
-						end)
-					end
-				end
+			-- 没有HEADER返回400
+			local HEADER = REQUEST_HEADER_PARSER(split(buffer, PROTOCOL_END + 1, CRLF_START + 2))
+			if not next(HEADER) then
+				local buf = concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF) .. CRLF2
+				sock:send(buf)
+				return sock:close()
 			end
-			var_dump(REQ)
-			buffers = {}
-			local class, typ = HTTP_PROTOCOL.ROUTE_FIND(http.routes, REQ['PATH'])
-			if not class or not typ then
-				return concat({REQUEST_STATUCODE_RESPONSE(404)}, CRLF) .. CRLF2
+			-- 这里根据PATH先查找路由, 如果没有直接返回404.
+			local cls, typ = HTTP_PROTOCOL.ROUTE_FIND(routes, PATH)
+			if not cls or not typ then
+				local buf = concat({REQUEST_STATUCODE_RESPONSE(404)}, CRLF) .. CRLF2
+				sock:send(buf)
+				return sock:close()
 			end
-			local cls = class:new()
-			local ok, data = safe_call(cls, table.unpack({}))
+
+			-- 根据请求方法进行解析, 如果解析失败说明请求数据不规范(即使在recv中途断线)
+			local ok, ARGS, FILE = PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
+			if not ok then
+				local buf = concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF) .. CRLF2
+				sock:send(buf)
+				return sock:close()
+			end
+
+			local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
+			local ok, data = pcall(c)
 			if not ok then
 				print(data)
-				return concat({REQUEST_STATUCODE_RESPONSE(500)}, CRLF)  .. CRLF2
+				local buf = concat({REQUEST_STATUCODE_RESPONSE(500)}, CRLF) .. CRLF2
+				sock:send(buf)
+				return sock:close()
 			end
-			local header = {REQUEST_STATUCODE_RESPONSE(200)}
-			insert(header, fmt("server: %s", http.server or "cf/0.1"))
-			insert(header, 'Accept: text/html,application/json')
+			local header = {REQUEST_STATUCODE_RESPONSE(200), HTTP_DATE()}
+			insert(header, fmt("server: %s", server or "cf/0.1"))
+			insert(header, 'Accept: text/html, application/json')
 
 			local Connection = "Connection: close"
-			if tonumber(VERSION) == 'number' and tonumber(VERSION) == 1.1 then
+			local CLOSE = true
+			if tonumber(VERSION) and tonumber(VERSION) >= 1.1 then
+				CLOSE = nil
 				Connection = 'Connection: keep-alive'
 			end
 			insert(header, Connection)
@@ -333,6 +394,10 @@ function HTTP_PROTOCOL.REQUEST_PASER(sock, http)
 				insert(header, fmt('Content-Length: %d', #data))
 			end
 			sock:send(concat(header, CRLF) .. CRLF2 .. data or '')
+			if CLOSE then
+				return sock:close()
+			end
+			buffers = {}
 		end
 	end
 end

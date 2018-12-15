@@ -15,7 +15,11 @@ function class(cls_name)
             print("[class.lua] Please use ':' to index (new) method :)")
             return
         end
-        c.ctor(c, ...)
+        if not c.ctor then
+            print("[WARNING]: Can't Find ctor to init.")
+        else
+            c.ctor(c, ...)
+        end
         return setmetatable({}, c)
     end
     return cls
