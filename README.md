@@ -29,7 +29,7 @@ A Web light-framework for Lua based Libev
 
     1. Make build
 
-> 重新编译(Clean And Only)
+> 重新编译(Clean And Build)
 
     2. make rebuild
 
