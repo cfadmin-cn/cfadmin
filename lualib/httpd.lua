@@ -39,8 +39,25 @@ function httpd:use(route, class)
     end
 end
 
+-- 注册静态文件读取路径, foldor是一个目录, ttl是静态文件缓存周期
 function httpd:static(foldor, ttl)
-
+    if foldor and type(foldor) == 'string' and #foldor > 0 then
+        ttl = math.tointeger(ttl)
+        if ttl and ttl > 0 then
+            self.ttl = ttl
+        end
+        HTTP_ROUTE_REGISTERY(self.routes, './'..foldor, function (path)
+            if path then
+                local FILE = io.open(path, "rb")
+                if not FILE then
+                    return
+                end
+                local file = FILE:read('*a')
+                FILE:close()
+                return file, string.match(path, '.+%.([%a]+)')
+            end
+        end, HTTP.STATIC)
+    end
 end
 
 -- 最大http request body长度

@@ -4,8 +4,11 @@ local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
 
 local DATE = os.date
+local time = os.time
 local tostring = tostring
 local spliter = string.gsub
+local lower = string.lower
+local upper = string.upper
 local match = string.match
 local fmt = string.format
 local int = math.integer
@@ -104,7 +107,7 @@ local MIME = {
 	['png']  = 'image/png',
 	['gif']  = 'image/gif',
 	['jpeg'] = 'image/jpeg',
-	['jpg']  = 'image/jpg',
+	['jpg']  = 'image/jpeg',
 	['ico']  = 'image/x-icon',
 	['tif']  = 'image/tiff',
 	['tiff'] = 'image/tiff',
@@ -168,7 +171,9 @@ end
 function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 	local fields = {}
 	spliter(route, "/([^/?]*)", function (field)
-		insert(fields, field)
+		if field ~= "" then
+			insert(fields, field)
+		end
 	end)
 	local t 
 	for index, field in ipairs(fields) do
@@ -209,7 +214,9 @@ end
 function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 	local fields = {}
 	spliter(route, "/([^/?]*)", function (field)
-		insert(fields, field)
+		if field ~= "" then
+			insert(fields, field)
+		end
 	end)
 	local t, class, type
 	for index, field in ipairs(fields) do
@@ -219,6 +226,11 @@ function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 			end
 			t = routes[field]
 			if #fields == index and t.class then
+				type = t.type
+				class = t.class
+				break
+			end
+			if t.type == HTTP_PROTOCOL.STATIC then
 				type = t.type
 				class = t.class
 				break
@@ -306,12 +318,18 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 				end
 			end)
 		end
+	else
+		-- 暂未支持其他方法
+		return
 	end
 	return true, ARGS, FILE
 end
 
-local function HTTP_DATE()
-	return DATE("%a, %d %b %Y %X GMT")
+local function HTTP_DATE(timestamp)
+	if not timestamp then
+		return DATE("%a, %d %b %Y %X GMT")
+	end
+	return DATE("%a, %d %b %Y %X GMT", timestamp)
 end
 
 local function RESPONSE()
@@ -322,6 +340,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
 	local buffers = {}
 	local routes = http.routes
 	local server = http.server
+	local ttl = http.ttl
 	local sock = tcp:new():set_fd(fd):timeout(http.timeout or 30)
 	while 1 do
 		local buf = sock:recv(8192)
@@ -356,51 +375,95 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
 				return sock:close()
 			end
 
-			-- 根据请求方法进行解析, 如果解析失败说明请求数据不规范(即使在recv中途断线)
+			-- 根据请求方法进行解析, 解析失败返回501
 			local ok, ARGS, FILE = PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 			if not ok then
-				local buf = concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF) .. CRLF2
+				local buf = concat({REQUEST_STATUCODE_RESPONSE(501)}, CRLF) .. CRLF2
 				sock:send(buf)
 				return sock:close()
 			end
 
-			local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
-			local ok, data = pcall(c)
-			if not ok then
-				print(data)
-				local buf = concat({REQUEST_STATUCODE_RESPONSE(500)}, CRLF) .. CRLF2
-				sock:send(buf)
-				return sock:close()
+			local header = { }
+
+			local ok, data, static, statucode
+
+			if typ ~= HTTP_PROTOCOL.STATIC then
+
+				local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
+				ok, data = pcall(c)
+				if not ok then
+					print(data)
+					statucode = 500
+					local buf = concat({REQUEST_STATUCODE_RESPONSE(statucode)}, CRLF) .. CRLF2
+					sock:send(buf)
+					return sock:close()
+				end
+				statucode = 200
+				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+			else
+				local file_type
+				ok, data, file_type = pcall(cls, './'..PATH)
+				if not ok then
+					print(data)
+					statucode = 500
+					local buf = concat({REQUEST_STATUCODE_RESPONSE(statucode)}, CRLF) .. CRLF2
+					sock:send(buf)
+					return sock:close()
+				end
+				if not data then
+					statucode = 404
+					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+				else
+					statucode = 200
+					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+					static = fmt('Content-Type: %s', REQUEST_MIME_RESPONSE(lower(file_type or '')))
+				end
 			end
-			local header = {REQUEST_STATUCODE_RESPONSE(200), HTTP_DATE()}
+
+			insert(header, fmt("Date: %s", HTTP_DATE()))
+			insert(header, 'Allow: GET, POST, HEAD')
+			insert(header, 'Access-Control-Allow-Origin: *')
 			insert(header, fmt("server: %s", server or "cf/0.1"))
-			insert(header, 'Accept: text/html, application/json')
 
-			local Connection = "Connection: close"
-			local CLOSE = true
-			if tonumber(VERSION) and tonumber(VERSION) >= 1.1 then
-				CLOSE = nil
-				Connection = 'Connection: keep-alive'
+			local Connection = "Connection: keep-alive"
+			if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
+				Connection = 'Connection: close'
 			end
+
 			insert(header, Connection)
+
 			if typ == HTTP_PROTOCOL.API then
 				insert(header, fmt('Content-Type: %s', REQUEST_MIME_RESPONSE('json')))
+				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
 				insert(header, 'Cache-Control: no-cache')
 			elseif typ == HTTP_PROTOCOL.USE then
 				insert(header, fmt('Content-Type: %s', REQUEST_MIME_RESPONSE('html')) .. ';charset=utf-8')
+				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
 				insert(header, 'Cache-Control: no-cache')
+			else
+				local cache = 'Cache-Control: no-cache'
+				if ttl then
+					cache = fmt('Expires: %s', HTTP_DATE(time() + ttl))
+				end
+				insert(header, cache)
+				insert(header, static)
 			end
 			if data and type(data) == 'string' and #data > 0 then
+				insert(header, 'Transfer-Encoding: identity')
 				insert(header, fmt('Content-Length: %d', #data))
 			end
-			sock:send(concat(header, CRLF) .. CRLF2 .. data or '')
-			if CLOSE then
+
+			sock:send(concat(header, CRLF) .. CRLF2 .. (data or ''))
+
+			if statucode ~= 200 or Connection == 'Connection: keep-alive' then
+
 				return sock:close()
 			end
+
 			buffers = {}
+
 		end
 	end
 end
-
 
 return HTTP_PROTOCOL

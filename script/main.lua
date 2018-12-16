@@ -101,12 +101,19 @@ local app = httpd:new("App")
 
 local r1 = require "r1"
 local r2 = require "r2"
+local radmin = require "r-admin"
 
 -- 注册html路由r1
 app:use("/a", r1)
 
 -- 注册API路由r2
 app:api("/b", r2)
+
+-- 注册静态文件目录
+app:static('static', 10)
+
+-- 测试admin
+app:use('/admin', radmin)
 
 app:start("0.0.0.0", 8080)
 
