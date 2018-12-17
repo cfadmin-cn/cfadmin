@@ -18,8 +18,8 @@ local insert = table.insert
 local remove = table.remove
 local concat = table.concat
 
-local CRLF = "\r\n"
-local CRLF2 = "\r\n\r\n"
+local CRLF = '\r\n'
+local CRLF2 = '\r\n\r\n'
 
 
 local HTTP_CODE = {
@@ -169,11 +169,20 @@ local function REQUEST_PROTOCOL_PARSER(protocol)
 end
 
 function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
+	if route == '' then
+		print('Please Do not add empty string in route registery method :)')
+		return
+	end
+	if find(route, '//') then
+		print('Please Do not add [//] in route registery method :)')
+		return
+	end
+	if route == '/' then
+		route = "/___"
+	end
 	local fields = {}
 	spliter(route, "/([^/?]*)", function (field)
-		if field ~= "" then
-			insert(fields, field)
-		end
+		insert(fields, field)
 	end)
 	local t 
 	for index, field in ipairs(fields) do
@@ -212,6 +221,9 @@ function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 end
 
 function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
+	if route == '/' then
+		route = "/___"
+	end
 	local fields = {}
 	spliter(route, "/([^/?]*)", function (field)
 		if field ~= "" then
@@ -250,6 +262,12 @@ function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 	return class, type
 end
 
+local function HTTP_DATE(timestamp)
+	if not timestamp then
+		return DATE("%a, %d %b %Y %X GMT")
+	end
+	return DATE("%a, %d %b %Y %X GMT", timestamp)
+end
 
 local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 	local ARGS, FILE
@@ -325,15 +343,17 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 	return true, ARGS, FILE
 end
 
-local function HTTP_DATE(timestamp)
-	if not timestamp then
-		return DATE("%a, %d %b %Y %X GMT")
-	end
-	return DATE("%a, %d %b %Y %X GMT", timestamp)
-end
 
-local function RESPONSE()
-	-- body
+-- 一些错误返回
+local function ERROR_RESPONSE(http, code)
+	return concat({
+		REQUEST_STATUCODE_RESPONSE(code),
+		'Date: ' .. HTTP_DATE(),
+		'Allow: GET, POST, HEAD',
+		'Access-Control-Allow-Origin: *',
+		'Connection: close',
+		'server: ' .. (http.server or 'cf/0.1'),
+	}, CRLF) .. CRLF2
 end
 
 function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
@@ -351,36 +371,34 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
 		local buffer = concat(buffers)
 		local CRLF_START, CRLF_END = find(buffer, CRLF2)
 		if CRLF_START and CRLF_END then
-			local REQ = {}
 			local PROTOCOL_START, PROTOCOL_END = find(buffer, CRLF)
 			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(split(buffer, 1, PROTOCOL_START + 1))
 			-- 协议有问题返回400
 			if not METHOD or not PATH or not VERSION then
-				local buf = concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF) .. CRLF2
-				sock:send(buf)
-				return sock:close()
+				sock:send(ERROR_RESPONSE(http, 400))
+				sock:close()
+				return 
 			end
 			-- 没有HEADER返回400
 			local HEADER = REQUEST_HEADER_PARSER(split(buffer, PROTOCOL_END + 1, CRLF_START + 2))
 			if not next(HEADER) then
-				local buf = concat({REQUEST_STATUCODE_RESPONSE(400)}, CRLF) .. CRLF2
-				sock:send(buf)
-				return sock:close()
+				sock:send(ERROR_RESPONSE(http, 400))
+				sock:close()
+				return 
 			end
 			-- 这里根据PATH先查找路由, 如果没有直接返回404.
 			local cls, typ = HTTP_PROTOCOL.ROUTE_FIND(routes, PATH)
 			if not cls or not typ then
-				local buf = concat({REQUEST_STATUCODE_RESPONSE(404)}, CRLF) .. CRLF2
-				sock:send(buf)
-				return sock:close()
+				sock:send(ERROR_RESPONSE(http, 404))
+				sock:close()
+				return 
 			end
-
 			-- 根据请求方法进行解析, 解析失败返回501
 			local ok, ARGS, FILE = PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 			if not ok then
-				local buf = concat({REQUEST_STATUCODE_RESPONSE(501)}, CRLF) .. CRLF2
-				sock:send(buf)
-				return sock:close()
+				sock:send(ERROR_RESPONSE(http, 501))
+				sock:close()
+				return 
 			end
 
 			local header = { }
@@ -394,9 +412,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
 				if not ok then
 					print(data)
 					statucode = 500
-					local buf = concat({REQUEST_STATUCODE_RESPONSE(statucode)}, CRLF) .. CRLF2
-					sock:send(buf)
-					return sock:close()
+					sock:send(ERROR_RESPONSE(http, statucode))
+					sock:close()
+					return 
 				end
 				statucode = 200
 				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
@@ -406,13 +424,14 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
 				if not ok then
 					print(data)
 					statucode = 500
-					local buf = concat({REQUEST_STATUCODE_RESPONSE(statucode)}, CRLF) .. CRLF2
-					sock:send(buf)
-					return sock:close()
+					sock:send(ERROR_RESPONSE(http, statucode))
+					sock:close()
+					return
 				end
 				if not data then
 					statucode = 404
-					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+					sock:send(ERROR_RESPONSE(http, statucode))
+					sock:close()
 				else
 					statucode = 200
 					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
@@ -420,24 +439,22 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
 				end
 			end
 
-			insert(header, fmt("Date: %s", HTTP_DATE()))
+			insert(header, 'Date: ' .. HTTP_DATE())
 			insert(header, 'Allow: GET, POST, HEAD')
 			insert(header, 'Access-Control-Allow-Origin: *')
-			insert(header, fmt("server: %s", server or "cf/0.1"))
+			insert(header, 'server: ' .. (server or 'cf/0.1'))
 
-			local Connection = "Connection: keep-alive"
+			local Connection = 'Connection: keep-alive'
 			if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
 				Connection = 'Connection: close'
 			end
-
 			insert(header, Connection)
-
 			if typ == HTTP_PROTOCOL.API then
-				insert(header, fmt('Content-Type: %s', REQUEST_MIME_RESPONSE('json')))
+				insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('json'))
 				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
 				insert(header, 'Cache-Control: no-cache')
 			elseif typ == HTTP_PROTOCOL.USE then
-				insert(header, fmt('Content-Type: %s', REQUEST_MIME_RESPONSE('html')) .. ';charset=utf-8')
+				insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8')
 				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
 				insert(header, 'Cache-Control: no-cache')
 			else
@@ -452,16 +469,11 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
 				insert(header, 'Transfer-Encoding: identity')
 				insert(header, fmt('Content-Length: %d', #data))
 			end
-
 			sock:send(concat(header, CRLF) .. CRLF2 .. (data or ''))
-
 			if statucode ~= 200 or Connection == 'Connection: keep-alive' then
-
 				return sock:close()
 			end
-
 			buffers = {}
-
 		end
 	end
 end
