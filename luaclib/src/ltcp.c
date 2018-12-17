@@ -397,7 +397,7 @@ tcp_sslconnect(lua_State *L){
 	SSL *ssl = (SSL*) lua_touserdata(L, 1);
 	if (!ssl) return 0;
 
-	int status = SSL_connect(ssl);
+	int status = SSL_do_handshake(ssl);
 	if (1 == status) {
 		lua_pushboolean(L, 1);
 		return 1;
@@ -457,6 +457,8 @@ ssl_new(lua_State *L){
 	if (!ssl) return 0;
 
 	SSL_set_fd(ssl, fd);
+
+	SSL_set_connect_state(ssl);
 
 	lua_pushlightuserdata(L, (void*) ssl);
 
