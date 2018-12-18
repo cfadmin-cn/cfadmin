@@ -209,13 +209,13 @@ function TCP:ssl_recv(bytes)
             log.error(err)
         end
     end)
-    timer = ti.timeout(self._timeout, co_new(function ( ... )
+    timer = ti.timeout(self._timeout, function ( ... )
         self.IO_READ:stop()
         local ok, err = co_wakeup(co, nil, "read timeout")
         if not ok then
             log.error(err)
         end
-    end))
+    end)
     self.IO_READ:start(self.fd, EVENT_READ, read_co)
     return co_suspend()
 end

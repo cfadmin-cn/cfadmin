@@ -83,7 +83,7 @@ function httpc.get(domain, port)
 	return httpc.response(IO, PROTOCOL)
 end
 
-function httpc.post(domain, body)
+function httpc.post(domain, BODY)
 
 	local PROTOCOL, DOMAIN, PATH, IP
 
