@@ -134,9 +134,6 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 		socklen_t slen = sizeof(struct sockaddr_in);
 		int client = accept(io->fd, (struct sockaddr*)&addr, &slen);
 		if (0 >= client) {
-			if (errno == ENFILE){
-				LOG("INFO", strerror(errno))
-			}
 			LOG("INFO", strerror(errno));
 			return ;
 		}

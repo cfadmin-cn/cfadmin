@@ -129,7 +129,7 @@ init_main(){
 	if (!L) return ;
 
 	init_lua_libs(L);
-
+	lua_gc(L, LUA_GCSTOP, 0);
 	status = luaL_loadfile(L, "script/main.lua");
 	if(status != LUA_OK) {
 		switch(status){
@@ -151,9 +151,8 @@ init_main(){
 	status = lua_resume(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
-		return ;
 	}
-	// lua_gc(L, LUA_GCCOLLECT, 0);
+	lua_gc(L, LUA_GCRESTART, 0);
 }
 
 void

@@ -6,7 +6,7 @@ local route = class("route")
 
 
 function route:ctor(opt)
-    var_dump(opt)
+    -- var_dump(opt)
     self.args = opt.args
     self.file = opt.file
     self.path = opt.path

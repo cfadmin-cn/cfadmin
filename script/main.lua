@@ -1,6 +1,6 @@
 -- -- 测试cjson、https、var_dump
 -- -- 需要注意cjson 默认没有编译, 需要手动进入luaclib/src/lcjson make编译一下就行了
-require "utils"
+-- require "utils"
 --
 -- local httpc = require "httpc"
 -- local cjson = require "cjson"
@@ -97,11 +97,13 @@ require "utils"
 
 local httpd = require "httpd"
 
-local app = httpd:new("App")
-
+local radmin = require "r-admin"
 local r1 = require "r1"
 local r2 = require "r2"
-local radmin = require "r-admin"
+
+
+local app = httpd:new("App")
+
 
 -- 注册html路由r1
 app:api("/a", r1)
