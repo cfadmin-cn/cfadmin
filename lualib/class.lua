@@ -12,11 +12,11 @@ function class(cls_name)
     end
     cls.new = function (c, ...)
         if cls ~= c then
-            print("[class.lua] Please use ':' to index (new) method :)")
+            log.error("Please use ':' to index (new) method :)")
             return
         end
         if not c.ctor then
-            print("[WARNING]: Can't Find ctor to init.")
+            log.error("Can't Find ctor to init.")
         else
             c.ctor(c, ...)
         end

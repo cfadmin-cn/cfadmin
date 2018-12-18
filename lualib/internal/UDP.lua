@@ -1,4 +1,5 @@
 local ti = require "internal.Timer"
+local log = require "log"
 local udp = require "udp"
 local class = require "class"
 
@@ -39,13 +40,13 @@ function UDP:recv(...)
 			if data then
 				local ok, msg = co_wakeup(self.co, data, len)
 				if not ok then
-					print(msg)
+					log.error(msg)
 				end
 				return 
 			end
 			local ok, msg = co_wakeup(self.co)
 			if not ok then
-				print(msg)
+				log.error(msg)
 			end
 			return 
 		end)

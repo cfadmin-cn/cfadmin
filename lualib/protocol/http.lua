@@ -170,11 +170,11 @@ end
 
 function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 	if route == '' then
-		print('Please Do not add empty string in route registery method :)')
+		log.warning('Please Do not add empty string in route registery method :)')
 		return
 	end
 	if find(route, '//') then
-		print('Please Do not add [//] in route registery method :)')
+		log.warning('Please Do not add [//] in route registery method :)')
 		return
 	end
 	if route == '/' then
@@ -410,7 +410,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
 				ok, data = pcall(c)
 				if not ok then
-					print(data)
+					log.warning(data)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode))
 					sock:close()
@@ -422,7 +422,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				local file_type
 				ok, data, file_type = pcall(cls, './'..PATH)
 				if not ok then
-					print(data)
+					log.warning(data)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode))
 					sock:close()

@@ -1,4 +1,6 @@
 local ti = require "timer"
+local log = require "log"
+
 local co_new = coroutine.create
 local co_start = coroutine.resume
 local co_wakeup = coroutine.resume
@@ -26,7 +28,7 @@ function Timer.timeout(timeout, cb)
     end
     local ti = Timer.get_timer()
     if not ti then
-        print("[INFO] Create timer class error! memory maybe not enough...")
+        log.error("Create timer class error! memory maybe not enough...")
         return
     end
     local t = {
@@ -37,7 +39,7 @@ function Timer.timeout(timeout, cb)
         co = co_new(function ( ... )
             local ok, err = pcall(cb)
             if not ok then
-                print ("[INFO] timeout error:", err)
+               log.error('timeout error:', err)
             end
             ti:stop()
             insert(TIMER_LIST, ti)

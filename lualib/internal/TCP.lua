@@ -1,5 +1,6 @@
 local ti = require "internal.Timer"
 local tcp = require "tcp"
+local log = require "log"
 
 local class = require "class"
 
@@ -44,12 +45,12 @@ end
 
 function TCP:send_nowait(buf)
     if self.ssl then
-        print("Please use ssl_send_nowait method :)")
+        log.error("Please use ssl_send_nowait method :)")
         return
     end
     if not self.queue then
         if type(buf) ~= "string" then
-            print("attemp to pass unstring to socket send")
+            log.error("attemp to pass unstring to socket send")
             return
         end
         self.queue = {buf}
@@ -80,12 +81,12 @@ end
 
 function TCP:send(buf)
     if self.ssl then
-        print("Please use ssl_send method :)")
+        log.error("Please use ssl_send method :)")
         return
     end
     self.IO_WRITE = self.IO_WRITE or tcp:new()
     if not self.IO_WRITE then
-        print("Can't find IO or Create IO Faild.")
+        log.error("Can't find IO or Create IO Faild.")
         return
     end
     local co = co_self()
@@ -94,12 +95,12 @@ function TCP:send(buf)
             local send_len = self.IO_WRITE:write(buf, #buf)
             if  not send_len or send_len == #buf then
                 if not send_len then
-                    print("send Faild")
+                    log.error("send data faild")
                 end
                 self.IO_WRITE:stop()
                 local ok, msg = co_wakeup(co)
                 if not ok then
-                    print(msg)
+                    log.error(msg)
                 end
                 return
             end
@@ -113,12 +114,12 @@ end
 
 function TCP:ssl_send(buf)
     if not self.ssl then
-        print("Please use send method :)")
+        log.error("Please use send method :)")
         return
     end
     self.IO_WRITE = self.IO_WRITE or tcp:new()
     if not self.IO_WRITE then
-        print("Can't find IO or Create IO Faild.")
+        log.error("Can't find IO or Create IO Faild.")
         return
     end
     local co = co_self()
@@ -127,12 +128,12 @@ function TCP:ssl_send(buf)
             local send_len = self.IO_WRITE:ssl_write(self.ssl, buf, #buf)
             if  not send_len or send_len == #buf then
                 if not send_len then
-                    print("send Faild")
+                    log.error("send data faild")
                 end
                 self.IO_WRITE:stop()
                 local ok, msg = co_wakeup(co)
                 if not ok then
-                    print(msg)
+                    log.error(msg)
                 end
                 return
             end
@@ -146,12 +147,12 @@ end
 
 function TCP:ssl_send_nowait(buf)
     if not self.ssl then
-        print("Please use send_nowait method :)")
+        log.error("Please use send_nowait method :)")
         return
     end
     if not self.queue  then
         if type(buf) ~= "string" then
-            print("attemp to pass unstring to ssl socket send")
+            log.error("attemp to pass unstring to ssl socket send")
             return
         end
         self.queue = {buf}
@@ -180,12 +181,12 @@ end
 
 function TCP:ssl_recv(bytes)
     if not self.ssl then
-        print("Please use recv method :)")
+        log.error("Please use recv method :)")
         return
     end
     self.IO_READ = self.IO_READ or tcp:new()
     if not self.IO_READ then
-        print("Create a READ Socket Error! :) ")
+        log.error("Create a READ Socket Error! :) ")
         return
     end
     local co = co_self()
@@ -199,20 +200,20 @@ function TCP:ssl_recv(bytes)
         if not buf then
             local ok, err = co_wakeup(co, buf, len)
             if not ok then
-                print(err)
+                log.error(err)
             end
             return
         end
         local ok, err = co_wakeup(co, buf, len)
         if not ok then
-            print(err)
+            log.error(err)
         end
     end)
     timer = ti.timeout(self._timeout, co_new(function ( ... )
         self.IO_READ:stop()
         local ok, err = co_wakeup(co, nil, "read timeout")
         if not ok then
-            print(err)
+            log.error(err)
         end
     end))
     self.IO_READ:start(self.fd, EVENT_READ, read_co)
@@ -221,12 +222,12 @@ end
 
 function TCP:recv(bytes)
     if self.ssl then
-        print("Please use ssl_recv method :)")
+        log.error("Please use ssl_recv method :)")
         return
     end
     self.IO_READ = self.IO_READ or tcp:new()
     if not self.IO_READ then
-        print("Create a READ Socket Error! :) ")
+        log.error("Create a READ Socket Error! :) ")
         return
     end
     local co = co_self()
@@ -240,20 +241,20 @@ function TCP:recv(bytes)
         if not buf then
             local ok, err = co_wakeup(co)
             if not ok then
-                print(err)
+                log.error(err)
             end
             return
         end
         local ok, err = co_wakeup(co, buf, len)
         if not ok then
-            print(err)
+            log.error(err)
         end
     end)
     timer = ti.timeout(self._timeout, function ( ... )
         self.IO_READ:stop()
         local ok, err = co_wakeup(co, nil, "read timeout")
         if not ok then
-            print(err)
+            log.error(err)
         end
     end)
     self.IO_READ:start(self.fd, EVENT_READ, read_co)
@@ -263,12 +264,12 @@ end
 function TCP:listen(ip, port, co)
     self.IO_LISTEN = self.IO_LISTEN or tcp:new()
     if not self.IO_LISTEN then
-        print("Listen Socket Create Error! :) ")
+        log.error("Listen Socket Create Error! :) ")
         return
     end
     self.fd = self.IO_LISTEN:new_tcp_fd(ip, port, SERVER)
     if not self.fd then
-        print("this IP and port Create A bind or listen method Faild! :) ")
+        log.error("this IP and port Create A bind or listen method Faild! :) ")
         self.IO_LISTEN = nil
         return
     end
@@ -278,12 +279,12 @@ end
 function TCP:connect(domain, port)
     self.IO_WRITE = self.IO_WRITE or tcp:new()
     if not self.IO_WRITE then
-        print("Create a Connect Socket Error! :) ")
+        log.error("Create a Connect Socket Error! :) ")
         return
     end
     self.fd = self.fd or self.IO_WRITE:new_tcp_fd(domain, port, CLIENT)
     if not self.fd then
-        print("Connect This IP or Port Faild! :) ")
+        log.error("Connect This IP or Port Faild! :) ")
         self.IO_WRITE = nil
         return
     end
@@ -297,20 +298,20 @@ function TCP:connect(domain, port)
         if connected then
             local ok, msg = co_wakeup(co, true)
             if not ok then
-                print(msg)
+                log.error(msg)
             end
             return
         end
         local ok, msg = co_wakeup(co)
         if not ok then
-            print(msg)
+            log.error(msg)
         end
     end)
     timer = ti.timeout(self._timeout, function ( ... )
         self.IO_WRITE:stop()
         local ok, msg = co_wakeup(co, nil, 'connect timeot.')
         if not ok then
-            print(msg)
+            log.error(msg)
         end
     end)
     self.IO_WRITE:connect(self.fd, connect_co)
@@ -320,12 +321,12 @@ end
 function TCP:ssl_connect(domain, port)
     self.IO_WRITE = self.IO_WRITE or tcp:new()
     if not self.IO_WRITE then
-        print("Create a Connect Socket Error! :) ")
+        log.error("Create a Connect Socket Error! :) ")
         return
     end
     self.fd = self.fd or self.IO_WRITE:new_tcp_fd(domain, port, CLIENT)
     if not self.fd then
-        print("Connect This IP or Port Faild! :) ")
+        log.error("Connect This IP or Port Faild! :) ")
         self.IO_WRITE = nil
         return
     end
@@ -339,16 +340,16 @@ function TCP:ssl_connect(domain, port)
         if connected == nil then
             local ok, msg = co_wakeup(co)
             if not ok then
-                print(msg)
+                log.error(msg)
             end
             return
         end
         self.ssl = tcp.new_ssl(self.fd)
         if not self.ssl then
-            print("Create a SSL Error! :) ")
+            log.error("Create a SSL Error! :) ")
             local ok, msg = co_wakeup(co)
             if not ok then
-                print(msg)
+                log.error(msg)
             end
             return
         end
@@ -358,7 +359,7 @@ function TCP:ssl_connect(domain, port)
             if ok then
                 local ok, msg = co_wakeup(co, true)
                 if not ok then
-                    print(msg)
+                    log.error(msg)
                 end
                 return
             end
@@ -370,7 +371,7 @@ function TCP:ssl_connect(domain, port)
         self.IO_WRITE:stop()
         local ok, msg = co_wakeup(co, nil, 'connect timeot.')
         if not ok then
-            print(msg)
+            log.error(msg)
         end
     end)
     self.IO_WRITE:connect(self.fd, connect_co)

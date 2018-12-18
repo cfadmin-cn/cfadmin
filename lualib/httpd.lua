@@ -1,5 +1,6 @@
 local tcp = require "internal.TCP"
 local HTTP = require "protocol.http"
+local log = require "log"
 
 local tostring = tostring
 local co_new = coroutine.create
@@ -74,6 +75,10 @@ function httpd:set_max_header_size(header_size)
     end
 end
 
+function httpd:log(path)
+    self.logpath = path or "cf-httpd.log"
+end
+
 function httpd:registery(co, fd, ipaddr)
 	if type(co) == "thread" then
 		self.cos[co] = {fd = fd, ipaddr = ipaddr}
@@ -101,12 +106,13 @@ function httpd:listen (ip, port)
                     self:unregistery(co)
                 end), fd, ipaddr)
         		if not ok then
-        			print(msg)
+        			log.error(msg)
         		end
         	end
             fd, ipaddr = co_suspend()
         end
     end)
+    log.outfile = self.logpath or "cf-httpd.log"
     return self.IO:listen(ip, port, self.accept_co)
 end
 
