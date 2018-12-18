@@ -1,5 +1,6 @@
 -- a minimal class implementation
 -- 一个精简版的类实现
+local log = require 'log'
 function class(cls_name)
     local cls = { }
     cls.__index = cls

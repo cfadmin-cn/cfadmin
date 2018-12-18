@@ -1,4 +1,5 @@
 local tcp = require "internal.TCP"
+local log = require "log"
 local cjson = require "cjson"
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
@@ -170,11 +171,11 @@ end
 
 function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 	if route == '' then
-		log.warning('Please Do not add empty string in route registery method :)')
+		log.warn('Please Do not add empty string in route registery method :)')
 		return
 	end
 	if find(route, '//') then
-		log.warning('Please Do not add [//] in route registery method :)')
+		log.warn('Please Do not add [//] in route registery method :)')
 		return
 	end
 	if route == '/' then
@@ -410,7 +411,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
 				ok, data = pcall(c)
 				if not ok then
-					log.warning(data)
+					log.warn(data)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode))
 					sock:close()
@@ -422,7 +423,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				local file_type
 				ok, data, file_type = pcall(cls, './'..PATH)
 				if not ok then
-					log.warning(data)
+					log.warn(data)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode))
 					sock:close()

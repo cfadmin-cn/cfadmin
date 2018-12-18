@@ -68,10 +68,6 @@ function httpc.get(domain, port)
 		end
 	end
 
-	if PATH == "" then
-		PATH = "/"
-	end
-
 	local request = {
 		fmt("GET %s HTTP/1.1", PATH),
 		fmt("Host: %s", DOMAIN),
@@ -123,10 +119,6 @@ function httpc.post(domain, body)
 			IO:close()
 			return nil, "Can't ssl connect to this IP and Port."
 		end
-	end
-
-	if PATH == "" then
-		PATH = "/"
 	end
 
 	if not BODY then

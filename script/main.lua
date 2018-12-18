@@ -96,7 +96,7 @@
 
 
 local httpd = require "httpd"
-local log = require 'log'
+
 local radmin = require "r-admin"
 local r1 = require "r1"
 local r2 = require "r2"

@@ -1,4 +1,3 @@
-
 -- 格式化输出(美化)
 var_dump = function (data, showMetatable, lastCount)
     if type(data) ~= "table" then
@@ -45,11 +44,3 @@ var_dump = function (data, showMetatable, lastCount)
     end
 end
 
--- 最好不要使用原生pcall
--- 可能导致无法查看完整的出错调用栈
-pcall = function(func, ...)
-	local function trace(e)
-		return debug.traceback(0) .. e
-	end
-	return xpcall(func, trace, ...)
-end
