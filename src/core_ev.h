@@ -17,6 +17,7 @@
 	#define EV_USE_INOTIFY 1
 	#define EV_USE_SIGNALFD 1
 	#define EV_USE_EVENTFD 1
+    #define EV_USE_EPOLL 1
 #endif
 
 #if defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)

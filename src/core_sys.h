@@ -32,7 +32,7 @@
     struct tm* lt; \
     /*获取Unix时间戳、转为时间结构。*/ \
 	time(&t); lt = localtime(&t);  \
-    fprintf(stdout, "[%04d/%02d/%02d][%02d:%02d:%02d][%s][%s][%s:%d]{%s}\n", \
+    fprintf(stdout, "[%04d/%02d/%02d][%02d:%02d:%02d][%s][%s][%s:%d]:[%s]\n", \
     	lt->tm_year+1900, 1+lt->tm_mon, lt->tm_mday, lt->tm_hour, lt->tm_min, lt->tm_sec, \
     	log_level, \
     	__FILE__, __FUNCTION__, __LINE__, \
