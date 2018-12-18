@@ -34,14 +34,18 @@ function httpc.get(domain, port)
 
 	local PROTOCOL, DOMAIN, PATH, IP
 
-	spliter(domain, '(http[s]*)://([%w%.%-]+)(.*)', function (protocol, domain, path)
+	spliter(domain, '(http[s]?)://([^/]+)([/]?.*)', function (protocol, domain, path)
 		PROTOCOL = protocol
 		DOMAIN = domain
 		PATH = path
 	end)
 
 	if not PROTOCOL or not DOMAIN or not PATH then
-		return nil, "Invaild protocol."
+		return nil, "Invaild protocol from http get 1."
+	end
+
+	if PROTOCOL == '' or DOMAIN == '' or PATH == '' then
+		return nil, "Invaild protocol from http get 2."
 	end
 
 	local ok, ip = dns.resolve(DOMAIN)
@@ -87,14 +91,18 @@ function httpc.post(domain, body)
 
 	local PROTOCOL, DOMAIN, PATH, IP
 
-	spliter(domain, '(http[s]*)://([%w%.%-]+)(.*)', function (protocol, domain, path)
+	spliter(domain, '(http[s]?)://([^/]+)([/]?.*)', function (protocol, domain, path)
 		PROTOCOL = protocol
 		DOMAIN = domain
 		PATH = path
 	end)
 
 	if not PROTOCOL or not DOMAIN or not PATH then
-		return nil, "Invaild protocol."
+		return nil, "Invaild protocol from http post 1."
+	end
+
+	if PROTOCOL == '' or DOMAIN == '' or PATH == '' then
+		return nil, "Invaild protocol from http post 2."
 	end
 
 	local ok, ip = dns.resolve(DOMAIN)

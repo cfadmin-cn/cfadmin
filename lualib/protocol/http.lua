@@ -356,7 +356,7 @@ local function ERROR_RESPONSE(http, code)
 	}, CRLF) .. CRLF2
 end
 
-function HTTP_PROTOCOL.EVENT_DISPATCH(fd, http)
+function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local buffers = {}
 	local routes = http.routes
 	local server = http.server

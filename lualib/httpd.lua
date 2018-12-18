@@ -96,7 +96,7 @@ function httpd:listen (ip, port)
                     -- 注册协程
                     self:registery(co, fd, ipaddr)
                     -- HTTP 生命周期
-                    EVENT_DISPATCH(fd, self)
+                    EVENT_DISPATCH(fd, ipaddr, self)
                     -- 清除协程
                     self:unregistery(co)
                 end), fd, ipaddr)
