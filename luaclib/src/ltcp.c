@@ -160,8 +160,8 @@ tcp_read(lua_State *L){
 
 	errno = 0;
 
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) return 0;
+	int fd = lua_tointeger(L, 1);
+	if (0 >= fd) return 0;
 
 	int bytes = lua_tointeger(L, 2);
 	if (0 >= bytes) return 0;
@@ -170,7 +170,7 @@ tcp_read(lua_State *L){
 
 	do {
 		char str[bytes];
-		int len = read(io->fd, str, bytes);
+		int len = read(fd, str, bytes);
 		if (len > 0) {
 			lua_pushlstring(L, str, len);
 			lua_pushinteger(L, len);
@@ -178,6 +178,11 @@ tcp_read(lua_State *L){
 		}
 		if (0 > len) {
 			if (errno == EINTR) continue;
+			if (errno == EAGAIN) {
+				lua_pushnil(L);
+				lua_pushlstring(L, "", 0);
+				return 2;
+			}
 		}
 	} while(0);
 
@@ -186,15 +191,13 @@ tcp_read(lua_State *L){
 
 int
 tcp_sslread(lua_State *L){
+
 	errno = 0;
 
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) return 0;
-
-	SSL *ssl = lua_touserdata(L, 2);
+	SSL *ssl = lua_touserdata(L, 1);
 	if (!ssl) return 0;
 
-	int bytes = lua_tointeger(L, 3);
+	int bytes = lua_tointeger(L, 2);
 	if (0 >= bytes) return 0;
 
 	lua_settop(L, 0);
@@ -209,9 +212,14 @@ tcp_sslread(lua_State *L){
 		}
 		if (0 > len){
 			if (errno == EINTR) continue;
-			if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, len)){
+			if (errno == EAGAIN) {
+				lua_pushnil(L);
 				lua_pushlstring(L, "", 0);
-				lua_pushinteger(L, 0);
+				return 2;
+			}
+			if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, len)){
+				lua_pushnil(L);
+				lua_pushlstring(L, "", 0);
 				return 2;
 			}
 		}
@@ -223,21 +231,19 @@ tcp_sslread(lua_State *L){
 int
 tcp_write(lua_State *L){
 
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) return 0;
+	errno = 0;
+
+	int fd = lua_tointeger(L, 1);
+	if (0 >= fd) return 0;
 
 	const char *response = lua_tostring(L, 2);
 	if (!response) return 0;
 
 	int resp_len = lua_tointeger(L, 3);
 
-	lua_settop(L, 0);
-
-	errno = 0;
-
 	do {
 
-		int wsize = write(io->fd, response, resp_len);
+		int wsize = write(fd, response, resp_len);
 
 		if (wsize > 0) {
 			lua_pushinteger(L, wsize);
@@ -261,18 +267,13 @@ tcp_write(lua_State *L){
 int
 tcp_sslwrite(lua_State *L){
 
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) return 0;
-
-	SSL *ssl = lua_touserdata(L, 2);
+	SSL *ssl = lua_touserdata(L, 1);
 	if (!ssl) return 0;
 
-	const char *response = lua_tostring(L, 3);
+	const char *response = lua_tostring(L, 2);
 	if (!response) return 0;
 
-	int resp_len = lua_tointeger(L, 4);
-
-	lua_settop(L, 0);
+	int resp_len = lua_tointeger(L, 3);
 
 	errno = 0;
 
@@ -295,36 +296,16 @@ tcp_sslwrite(lua_State *L){
 	return 1;
 }
 
-
-int
-tcp_get_fd(lua_State *L){
-
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-
-	if(!io) {
-		lua_pushinteger(L, -1);
-		return 1;
-	}
-
-	lua_pushinteger(L, io->fd > 0 ? io->fd : 0);
-
-	return 1;
-
-}
-
 int
 new_tcp_fd(lua_State *L){
 
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) return 0;
-
-	const char *ip = lua_tostring(L, 2);
+	const char *ip = lua_tostring(L, 1);
 	if(!ip) return 0;
 
-	int port = lua_tointeger(L, 3);
+	int port = lua_tointeger(L, 2);
 	if(!port) return 0;
 
-	int type = lua_tointeger(L, 4);
+	int type = lua_tointeger(L, 3);
 	if(type != SERVER && type != CLIENT) return 0;
 
 	int fd = tcp_socket_new(ip, port, type);
@@ -543,7 +524,6 @@ luaopen_tcp(lua_State *L){
 		{"new", tcp_new},
 		{"new_ssl", ssl_new},
 		{"free_ssl", ssl_free},
-		{"get_fd", tcp_get_fd},
 		{"new_tcp_fd", new_tcp_fd},
 		{NULL, NULL}
 	};
