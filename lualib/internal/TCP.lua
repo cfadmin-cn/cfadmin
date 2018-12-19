@@ -88,7 +88,7 @@ function TCP:ssl_send(buf)
         log.error("Can't find IO or Create IO Faild.")
         return
     end
-    local len = self.IO:ssl_write(self.ssl, buf, #buf)
+    local len = tcp.ssl_write(self.ssl, buf, #buf)
     if len and len >= 0 then
         local fd = self.fd
         local ssl = self.ssl
@@ -213,14 +213,13 @@ function TCP:ssl_recv(bytes)
                 log.error(err)
             end
         end)
-        tcp.start(self.IO, self.fd, EVENT_READ, read_co)
+        tcp.start(IO, self.fd, EVENT_READ, read_co)
         return co_suspend()
     end
     -- 客户端关闭了连接, 返回nil
 end
 
 function TCP:listen(ip, port, co)
-    self.IO = self.IO or tcp:new()
     if not self.IO then
         log.error("Listen Socket Create Error! :) ")
         return
@@ -230,7 +229,7 @@ function TCP:listen(ip, port, co)
         log.error("this IP and port Create A bind or listen method Faild! :) ")
         return
     end
-    return self.IO:listen(self.fd, co)
+    return tcp.listen(self.IO, self.fd, co)
 end
 
 function TCP:connect(domain, port)
@@ -243,10 +242,11 @@ function TCP:connect(domain, port)
         log.error("Connect This IP or Port Faild! :) ")
         return
     end
+    local IO = self.IO
     local co = co_self()
     local connect_co, timer
     connect_co = co_new(function (connected)
-        tcp.stop(self.IO)
+        tcp.stop(IO)
         if timer then
             timer:stop()
         end
@@ -263,13 +263,13 @@ function TCP:connect(domain, port)
         end
     end)
     timer = ti.timeout(self._timeout, function ( ... )
-        tcp.stop(self.IO)
+        tcp.stop(IO)
         local ok, msg = co_wakeup(co, nil, 'connect timeot.')
         if not ok then
             log.error(msg)
         end
     end)
-    tcp.connect(self.IO, self.fd, connect_co)
+    tcp.connect(IO, self.fd, connect_co)
     return co_suspend()
 end
 
@@ -309,7 +309,7 @@ function TCP:ssl_connect(domain, port)
         end
         while 1 do
             local ok, EVENT = tcp.ssl_connect(self.ssl)
-            tcp:stop(IO)
+            tcp.stop(IO)
             if ok then
                 local ok, msg = co_wakeup(co, true)
                 if not ok then
@@ -334,6 +334,7 @@ end
 
 function TCP:close()
     if self.IO then
+        tcp.stop(self.IO)
         self.IO = nil
     end
     if self.ssl then
