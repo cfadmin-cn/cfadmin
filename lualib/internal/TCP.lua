@@ -43,42 +43,6 @@ function TCP:set_fd(fd)
     return self
 end
 
-function TCP:send_nowait(buf)
-    if self.ssl then
-        log.error("Please use ssl_send_nowait method :)")
-        return
-    end
-    if not self.queue then
-        if type(buf) ~= "string" then
-            log.error("attemp to pass unstring to socket send")
-            return
-        end
-        self.queue = {buf}
-        self.IO_WRITE = tcp:new()
-        local write_co = co_new(function ( ... )
-            while 1 do
-                if #self.queue < 1 then
-                    self.queue = nil
-                    return self.IO_WRITE:stop()
-                end
-                local data = remove(self.queue)
-                while 1 do
-                    local send_len = self.IO_WRITE:write(data, #data)
-                    if send_len == #data then
-                        break
-                    end
-                    if #data > send_len then
-                        data = splite(data, send_len + 1, -1)
-                    end
-                    co_suspend()
-                end
-            end
-        end)
-        return self.IO_WRITE:start(self.fd, EVENT_WRITE, write_co)
-    end
-    return insert(self.queue, 1, buf)
-end
-
 function TCP:send(buf)
     if self.ssl then
         log.error("Please use ssl_send method :)")
@@ -145,38 +109,45 @@ function TCP:ssl_send(buf)
     return co_suspend()
 end
 
-function TCP:ssl_send_nowait(buf)
-    if not self.ssl then
-        log.error("Please use send_nowait method :)")
+function TCP:recv(bytes)
+    if self.ssl then
+        log.error("Please use ssl_recv method :)")
         return
     end
-    if not self.queue  then
-        if type(buf) ~= "string" then
-            log.error("attemp to pass unstring to ssl socket send")
+    self.IO_READ = self.IO_READ or tcp:new()
+    if not self.IO_READ then
+        log.error("Create a READ Socket Error! :) ")
+        return
+    end
+    local co = co_self()
+    local timer, read_co
+    read_co = co_new(function ( ... )
+        local buf, len = self.IO_READ:read(bytes)
+        if timer then
+            timer:stop()
+        end
+        self.IO_READ:stop()
+        if not buf then
+            local ok, err = co_wakeup(co)
+            if not ok then
+                log.error(err)
+            end
             return
         end
-        self.queue = {buf}
-        local write_co = co_new(function ( ... )
-            while 1 do
-                if #self.queue < 1 then
-                    return self.IO_WRITE:stop()
-                end
-                local data = remove(self.queue)
-                while 1 do
-                    local send_len = self.IO_WRITE:ssl_write(self.ssl, data, #data)
-                    if send_len == #data then
-                        break
-                    end
-                    if #data > send_len then
-                        data = splite(data, send_len + 1, -1)
-                    end
-                    co_suspend()
-                end
-            end
-        end)
-        return self.IO_WRITE:start(self.fd, EVENT_WRITE, write_co)
-    end
-    return insert(self.queue, 1, buf)
+        local ok, err = co_wakeup(co, buf, len)
+        if not ok then
+            log.error(err)
+        end
+    end)
+    timer = ti.timeout(self._timeout, function ( ... )
+        self.IO_READ:stop()
+        local ok, err = co_wakeup(co, nil, "read timeout")
+        if not ok then
+            log.error(err)
+        end
+    end)
+    self.IO_READ:start(self.fd, EVENT_READ, read_co)
+    return co_suspend()
 end
 
 function TCP:ssl_recv(bytes)
@@ -199,47 +170,6 @@ function TCP:ssl_recv(bytes)
         self.IO_READ:stop()
         if not buf then
             local ok, err = co_wakeup(co, buf, len)
-            if not ok then
-                log.error(err)
-            end
-            return
-        end
-        local ok, err = co_wakeup(co, buf, len)
-        if not ok then
-            log.error(err)
-        end
-    end)
-    timer = ti.timeout(self._timeout, function ( ... )
-        self.IO_READ:stop()
-        local ok, err = co_wakeup(co, nil, "read timeout")
-        if not ok then
-            log.error(err)
-        end
-    end)
-    self.IO_READ:start(self.fd, EVENT_READ, read_co)
-    return co_suspend()
-end
-
-function TCP:recv(bytes)
-    if self.ssl then
-        log.error("Please use ssl_recv method :)")
-        return
-    end
-    self.IO_READ = self.IO_READ or tcp:new()
-    if not self.IO_READ then
-        log.error("Create a READ Socket Error! :) ")
-        return
-    end
-    local co = co_self()
-    local timer, read_co
-    read_co = co_new(function ( ... )
-        local buf, len = self.IO_READ:read(bytes)
-        if timer then
-            timer:stop()
-        end
-        self.IO_READ:stop()
-        if not buf then
-            local ok, err = co_wakeup(co)
             if not ok then
                 log.error(err)
             end
