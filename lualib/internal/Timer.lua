@@ -14,11 +14,11 @@ local Timer = {}
 
 local TIMER_LIST = {}
 
-function Timer.get_timer()
+function Timer.new()
     if #TIMER_LIST > 0 then
         return remove(TIMER_LIST)
     end
-    return ti:new()
+    return ti.new()
 end
 
 -- 超时器 --
@@ -26,7 +26,7 @@ function Timer.timeout(timeout, cb)
     if not timeout or timeout < 0 then
         return
     end
-    local ti = Timer.get_timer()
+    local ti = Timer.new()
     if not ti then
         log.error("Create timer class error! memory maybe not enough...")
         return

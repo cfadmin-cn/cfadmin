@@ -70,10 +70,11 @@ core_once(core_loop *loop, core_task *task, _TASK_CB cb){
 
 core_loop *
 core_default_loop(){
-
-	// return ev_default_loop(flags ? flags : ev_supported_backends() & EVBACKEND_EPOLL || ev_supported_backends() & EVBACKEND_KQUEUE);
-	return ev_default_loop(ev_supported_backends() & EVBACKEND_EPOLL || ev_supported_backends() & EVBACKEND_KQUEUE);
-
+	return ev_default_loop(
+		ev_supported_backends() & EVBACKEND_EPOLL  || // Linux   使用 epoll
+		ev_supported_backends() & EVBACKEND_KQUEUE || // mac|BSD 使用 kqueue
+		ev_supported_backends() & EVBACKEND_SELECT || // other   使用 SELECT
+		0);											  // SELECT 都没有就自动选择
 }
 
 void
@@ -93,11 +94,20 @@ core_start(core_loop *loop, int mode){
 
 void *
 L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
+	// 为lua内存hook注入日志;
+	// return realloc(ptr, nsize);
 
-	(void)ud;  (void)osize;  /* lua 不会使用 */
+	/* 用户自定义数据 */
+	(void)ud;  (void)osize; 
 
-	return realloc(ptr, nsize);
+	if ( nsize == 0 && ptr) return xfree(ptr), NULL;
 
+	for (;;) {
+		void *newptr = xrealloc(ptr, nsize);
+		if (newptr) return newptr;
+		LOG("WARN", "Allocate Failt, sleep sometime..");
+		sleep(1);
+	}
 }
 
 void

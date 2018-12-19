@@ -10,7 +10,7 @@ TASK_CB(int revents, void *args){
 		core_task *task = (core_task *) args;
 
 		int status = lua_resume(task->co, NULL, lua_gettop(task->co) > 0 ? lua_gettop(task->co) - 1 : 0);
-		printf("get top %d\n", lua_gettop(task->co));
+
 		if (status != LUA_OK && status != LUA_YIELD){
 
 			LOG( "ERROR", lua_tostring(task->co, -1));
