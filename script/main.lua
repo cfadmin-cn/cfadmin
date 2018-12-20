@@ -82,6 +82,10 @@
 local httpd = require "httpd"
 local app = httpd:new("App")
 
+local r1 = require "r1"
+local r2 = require "r2"
+local radmin = require "r-admin"
+
 -- 注册html路由r1
 app:api("/a", r1)
 
