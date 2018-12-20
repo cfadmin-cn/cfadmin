@@ -97,13 +97,12 @@ function httpd:listen (ip, port)
         while 1 do
         	if fd and ipaddr then
         		local ok, msg = co_start(co_new(function (fd, ipaddr)
-                    local co = co_self()
                     -- 注册协程
-                    self:registery(co, fd, ipaddr)
+                    self:registery(co_self(), fd, ipaddr)
                     -- HTTP 生命周期
                     EVENT_DISPATCH(fd, ipaddr, self)
                     -- 清除协程
-                    self:unregistery(co)
+                    self:unregistery(co_self())
                 end), fd, ipaddr)
         		if not ok then
         			log.error(msg)

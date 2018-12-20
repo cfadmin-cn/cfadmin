@@ -28,8 +28,7 @@
 
 /* [level][datetime][file][function:][具体打印内容] */
 #define LOG(log_level, content) { \
-    time_t t;\
-    struct tm* lt; \
+    time_t t; struct tm* lt; \
     /*获取Unix时间戳、转为时间结构。*/ \
 	time(&t); lt = localtime(&t);  \
     fprintf(stdout, "[%04d/%02d/%02d][%02d:%02d:%02d][%s][%s][%s:%d]:[%s]\n", \

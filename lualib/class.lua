@@ -16,12 +16,13 @@ function class(cls_name)
             log.error("Please use ':' to index (new) method :)")
             return
         end
+        local t = {}
         if not c.ctor then
             log.error("Can't Find ctor to init.")
         else
-            c.ctor(c, ...)
+            c.ctor(t, ...)
         end
-        return setmetatable({}, c)
+        return setmetatable(t, c)
     end
     return cls
 end

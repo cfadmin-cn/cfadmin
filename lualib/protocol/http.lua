@@ -359,10 +359,11 @@ end
 
 function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local buffers = {}
+	local timeout = http.timeout
 	local routes = http.routes
 	local server = http.server
 	local ttl = http.ttl
-	local sock = tcp:new():set_fd(fd):timeout(http.timeout or 30)
+	local sock = tcp:new():set_fd(fd):timeout(timeout or 10)
 	while 1 do
 		local buf = sock:recv(8192)
 		if not buf then
@@ -471,7 +472,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				insert(header, fmt('Content-Length: %d', #data))
 			end
 			sock:send(concat(header, CRLF) .. CRLF2 .. (data or ''))
-			if statucode ~= 200 or Connection == 'Connection: keep-alive' then
+			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
 				return sock:close()
 			end
 			buffers = {}

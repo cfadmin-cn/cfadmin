@@ -66,15 +66,13 @@ core_once(core_loop *loop, core_task *task, _TASK_CB cb){
 	return ev_once(task->loop, -1, 0, 0, cb, (void*)task);
 }
 
-
-
 core_loop *
 core_default_loop(){
 	return ev_default_loop(
 		ev_supported_backends() & EVBACKEND_EPOLL  || // Linux   使用 epoll
 		ev_supported_backends() & EVBACKEND_KQUEUE || // mac|BSD 使用 kqueue
-		ev_supported_backends() & EVBACKEND_SELECT || // other   使用 SELECT
-		0);											  // SELECT 都没有就自动选择
+		ev_supported_backends() & EVBACKEND_SELECT || // other   使用 select
+		EVFLAG_AUTO);								  // select  都没有就自动选择
 }
 
 void
@@ -90,7 +88,23 @@ core_start(core_loop *loop, int mode){
 
 }
 
+void *
+EV_ALLOC(void *ptr, long nsize){
+	// 为libev内存hook注入日志;
+	if (ptr && 0 > nsize){
+		LOG("ERROR", "attemp to pass a negative number to malloc or free")
+		return NULL;
+	}
 
+	if ( nsize == 0 && ptr) return xfree(ptr), NULL;
+
+	for (;;) {
+		void *newptr = xrealloc(ptr, nsize);
+		if (newptr) return newptr;
+		LOG("WARN", "Allocate Failt, sleep sometime..");
+		sleep(1);
+	}
+}
 
 void *
 L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
@@ -168,7 +182,7 @@ init_main(){
 void
 core_sys_init(){
 	/* hook libev 内存分配 */
-	ev_set_allocator(xrealloc);
+	ev_set_allocator(EV_ALLOC);
 
 	/* 初始化script */
 	init_main();

@@ -75,21 +75,23 @@ TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 	if (revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
+			status = lua_resume(co, NULL, lua_gettop(co) > 1 ? lua_gettop(co) - 1 : 0);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
 			}
 		}
 	}
+
 	if (revents & EV_READ){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
+			status = lua_resume(co, NULL, lua_gettop(co) > 1 ? lua_gettop(co) - 1 : 0);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
 			}
 		}
 	}
+
 }
 
 void
@@ -101,7 +103,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
 			lua_pushboolean(co, 0);
-			status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
+			status = lua_resume(co, NULL, lua_gettop(co) > 1 ? lua_gettop(co) - 1 : 0);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
 			}
@@ -113,7 +115,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
 			lua_pushboolean(co, 1);
-			status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
+			status = lua_resume(co, NULL, lua_gettop(co) > 1 ? lua_gettop(co) - 1 : 0);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
 			}
@@ -143,7 +145,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 
 			lua_pushinteger(co, client);
 
-			lua_pushstring(co, inet_ntoa(addr.sin_addr));
+			lua_pushlstring(co, inet_ntoa(addr.sin_addr), strlen(inet_ntoa(addr.sin_addr)));
 
 			int status = lua_resume(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
 			if (status != LUA_YIELD && status != LUA_OK) {
@@ -171,6 +173,7 @@ tcp_read(lua_State *L){
 	do {
 		char str[bytes];
 		int len = read(fd, str, bytes);
+
 		if (len > 0) {
 			lua_pushlstring(L, str, len);
 			lua_pushinteger(L, len);
@@ -180,7 +183,7 @@ tcp_read(lua_State *L){
 			if (errno == EINTR) continue;
 			if (errno == EAGAIN) {
 				lua_pushnil(L);
-				lua_pushlstring(L, "", 0);
+				lua_pushinteger(L, 0);
 				return 2;
 			}
 		}
@@ -214,12 +217,12 @@ tcp_sslread(lua_State *L){
 			if (errno == EINTR) continue;
 			if (errno == EAGAIN) {
 				lua_pushnil(L);
-				lua_pushlstring(L, "", 0);
+				lua_pushinteger(L, 0);
 				return 2;
 			}
 			if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, len)){
 				lua_pushnil(L);
-				lua_pushlstring(L, "", 0);
+				lua_pushinteger(L, 0);
 				return 2;
 			}
 		}
@@ -418,7 +421,7 @@ tcp_start(lua_State *L){
 
 	core_io_start(CORE_LOOP_ io);
 
-	lua_settop(L, 1);
+	lua_settop(L, 0);
 
 	return 1;
 
