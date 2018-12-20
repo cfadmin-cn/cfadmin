@@ -175,8 +175,9 @@ init_main(){
 	status = lua_resume(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
+		return core_break(CORE_LOOP_ 0);
 	}
-	lua_gc(L, LUA_GCRESTART, 0);
+	lua_gc(L, LUA_GCCOLLECT, 0);
 }
 
 void

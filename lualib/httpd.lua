@@ -23,10 +23,10 @@ local httpd = class("httpd")
 function httpd:ctor(opt)
 	self.cos = {}
     self.routes = {}
-    self.IO = nil
+    -- self.IO = nil
 end
 
--- 用来注册Rest API
+-- 用来注册接口
 function httpd:api(route, class)
     if route and type(class) == "table" then
         HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.API)
@@ -75,6 +75,7 @@ function httpd:set_max_header_size(header_size)
     end
 end
 
+-- 记录日志到文件
 function httpd:log(path)
     self.logpath = path or "cf-httpd.log"
 end
@@ -111,8 +112,10 @@ function httpd:listen (ip, port)
             fd, ipaddr = co_suspend()
         end
     end)
-    log.outfile = self.logpath or "cf-httpd.log"
-    return self.IO:listen(ip, port, self.accept_co)
+    log.outfile = self.logpath
+    self.IO:listen(ip, port, self.accept_co)
+    while 1 do co_suspend() end -- 防止被GC
+    return
 end
 
 function httpd:start(ip, port)

@@ -79,29 +79,7 @@
 -- print(redis:ttl("table"))
 
 
--- -- 新增了lua template 渲染 html
--- -- 类似jinja 2 API
--- local template = require "template"
---
--- local view = template.new "index.html"
--- view.title = '水果糖的小铺子'
--- view.ico = 'https://www.baidu.com/favicon.ico'
--- view:render()
---
--- local file = io.open("index1.html", "w")
--- if file then
---     file:write(tostring(view))
---     file:close()
--- end
-
-
 local httpd = require "httpd"
-
-local radmin = require "r-admin"
-local r1 = require "r1"
-local r2 = require "r2"
-
-
 local app = httpd:new("App")
 
 -- 注册html路由r1
@@ -117,8 +95,4 @@ app:use("/", radmin)
 app:static('static', 10)
 
 app:start("0.0.0.0", 8080)
-
-
-
-
 

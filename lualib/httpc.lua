@@ -30,21 +30,22 @@ function httpc.set_timeout(Invaild)
 end
 
 
-function httpc.get(domain, port)
+function httpc.get(domain, header)
 
-	local PROTOCOL, DOMAIN, PATH, IP
+	local PROTOCOL, DOMAIN, PATH, IP, PORT
 
-	spliter(domain, '(http[s]?)://([^/]+)([/]?.*)', function (protocol, domain, path)
+	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
 		PROTOCOL = protocol
 		DOMAIN = domain
 		PATH = path
+		PORT = port
 	end)
 
-	if not PROTOCOL or not DOMAIN or not PATH then
+	if not PROTOCOL or not DOMAIN or not PORT or not PATH then
 		return nil, "Invaild protocol from http get 1."
 	end
 
-	if PROTOCOL == '' or DOMAIN == '' or PATH == '' then
+	if not PROTOCOL or not DOMAIN or not PORT or not PATH then
 		return nil, "Invaild protocol from http get 2."
 	end
 
@@ -55,13 +56,19 @@ function httpc.get(domain, port)
 
 	local IO = tcp:new():timeout(TIMEOUT)
 	if PROTOCOL == "http" then
-		local ok = IO:connect(ip, port or 80)
+		if tonumber(PORT) or PORT == '' then
+			PORT = 80
+		end
+		local ok = IO:connect(ip, PORT)
 		if not ok then
 			IO:close()
 			return nil, "Can't connect to this IP and Port."
 		end
 	else
-		local ok = IO:ssl_connect(ip, port or 443)
+		if tonumber(PORT) or PORT == '' then
+			PORT = 443
+		end
+		local ok = IO:ssl_connect(ip, PORT)
 		if not ok then
 			IO:close()
 			return nil, "Can't ssl connect to this IP and Port."
@@ -83,7 +90,7 @@ function httpc.get(domain, port)
 	return httpc.response(IO, PROTOCOL)
 end
 
-function httpc.post(domain, BODY)
+function httpc.post(domain, HEADER, BODY)
 
 	local PROTOCOL, DOMAIN, PATH, IP
 
@@ -108,13 +115,19 @@ function httpc.post(domain, BODY)
 
 	local IO = tcp:new():timeout(TIMEOUT)
 	if PROTOCOL == "http" then
-		local ok = IO:connect(DOMAIN, 80)
+		if tonumber(PORT) or PORT == '' then
+			PORT = 80
+		end
+		local ok = IO:connect(ip, PORT)
 		if not ok then
 			IO:close()
 			return nil, "Can't connect to this IP and Port."
 		end
 	else
-		local ok = IO:ssl_connect(DOMAIN, 443)
+		if tonumber(PORT) or PORT == '' then
+			PORT = 443
+		end
+		local ok = IO:ssl_connect(ip, PORT)
 		if not ok then
 			IO:close()
 			return nil, "Can't ssl connect to this IP and Port."

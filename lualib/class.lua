@@ -1,24 +1,23 @@
 -- a minimal class implementation
 -- 一个精简版的类实现
-local log = require 'log'
 function class(cls_name)
     local cls = { }
     cls.__index = cls
     cls.__name = cls_name
     cls.__call = function (cls, ...)
-        if cls[cls.__name] then
-            return cls[cls.__name](cls, ...)
+        local call = cls[cls.__name]
+        if call then
+            return call(cls, ...)
         end
-        return nil
+        return
     end
     cls.new = function (c, ...)
         if cls ~= c then
-            log.error("Please use ':' to index (new) method :)")
-            return
+            return print("Please use ':' to create new object :)")
         end
         local t = {}
         if not c.ctor then
-            log.error("Can't Find ctor to init.")
+            print("Can't find ctor to init.")
         else
             c.ctor(t, ...)
         end

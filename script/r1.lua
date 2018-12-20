@@ -18,7 +18,8 @@ function route:route()
         return '{"code": 403, "ERROR": "找不到需要查询的用户名"}'
     end
     local code, body = httpc.get(string.format("https://api.github.com/users/%s", self.args['name'] or 'NULL'))
-    if code ~= 200 then
+    if code ~= 200 or code ~= 304 then
+        print(body)
         return '{"code": 500, "ERROR":"内部服务器错误"}'
     end
     return body
