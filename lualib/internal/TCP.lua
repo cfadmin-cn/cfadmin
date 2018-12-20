@@ -48,6 +48,9 @@ function TCP:send(buf)
         return
     end
     local len = tcp.write(self.fd, buf, #buf)
+    if len == #buf then
+        return
+    end
     if len and len >= 0 then
         local co = co_self()
         local write_co = co_new(function ( ... )
@@ -84,6 +87,9 @@ function TCP:ssl_send(buf)
         return
     end
     local len = tcp.ssl_write(self.ssl, buf, #buf)
+    if len == #buf then
+        return
+    end
     if len and len >= 0 then
         local ssl = self.ssl
         local co = co_self()

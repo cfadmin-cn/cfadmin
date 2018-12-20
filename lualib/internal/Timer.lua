@@ -14,7 +14,8 @@ local Timer = {}
 
 local TIMER_LIST = {}
 
-function Timer.new()
+-- 内部函数防止被误用
+local function Timer_new()
     if #TIMER_LIST > 0 then
         return remove(TIMER_LIST)
     end
@@ -26,17 +27,17 @@ function Timer.timeout(timeout, cb)
     if not timeout or timeout < 0 then
         return
     end
-    local ti = Timer.new()
+    local ti = Timer_new()
     if not ti then
-        log.error("Create timer class error! memory maybe not enough...")
+        log.error("timeout error: Create timer class error! memory maybe not enough...")
         return
     end
     local t = {
-        stop = function ( ... )
+        stop = function (...)
             ti:stop()
             insert(TIMER_LIST, ti)
         end,
-        co = co_new(function ( ... )
+        co = co_new(function (...)
             local ok, err = pcall(cb)
             if not ok then
                log.error('timeout error:', err)
