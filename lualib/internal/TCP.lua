@@ -47,20 +47,19 @@ function TCP:send(buf)
         log.error("Can't find IO or Create IO Faild.")
         return
     end
-    local len = tcp.write(self.fd, buf, #buf)
-    if len == #buf then
-        return
-    end
-    if len and len >= 0 then
-        local co = co_self()
-        local write_co = co_new(function ( ... )
-            while 1 do
+    while 1 do
+        local len = tcp.write(self.fd, buf, #buf)
+        if not len or len == #buf then
+            return
+        end
+        if len == 0 then
+            local co = co_self()
+            local write_co = co_new(function ( ... )
                 local len = tcp.write(self.fd, buf, #buf)
                 if not len or len == #buf then
                     tcp.stop(self.IO)
-                    if not len then
-                        log.error("send data faild")
-                    end
+                    -- 这里在发送数据的时候, 客户端可能已经关闭了链接
+                    -- if not len then log.error("write error.")
                     local ok, msg = co_wakeup(co)
                     if not ok then
                         log.error(msg)
@@ -69,10 +68,12 @@ function TCP:send(buf)
                 end
                 buf = split(buf, len + 1, -1)
                 co_suspend()
-            end
-        end)
-        tcp.start(self.IO, self.fd, EVENT_WRITE, write_co)
-        return co_suspend()
+            end)
+            tcp.start(self.IO, self.fd, EVENT_WRITE, write_co)
+            return co_suspend()
+        end
+        buf = split(buf, len + 1, -1)
+        co_suspend()
     end
     -- 客户端关闭了, 连接不由write方法来处理
 end
@@ -86,21 +87,19 @@ function TCP:ssl_send(buf)
         log.error("Can't find IO or Create IO Faild.")
         return
     end
-    local len = tcp.ssl_write(self.ssl, buf, #buf)
-    if len == #buf then
-        return
-    end
-    if len and len >= 0 then
-        local ssl = self.ssl
-        local co = co_self()
-        local write_co = co_new(function ( ... )
-            while 1 do
-                local len = tcp.ssl_write(self.ssl, buf, #buf)
+    while 1 do
+        local len = tcp.ssl_write(self.ssl, buf, #buf)
+        if not len or len == #buf then
+            return
+        end
+        if len == 0 then
+            local co = co_self()
+            local write_co = co_new(function ( ... )
+                local len = tcp.write(self.ssl, buf, #buf)
                 if not len or len == #buf then
                     tcp.stop(self.IO)
-                    if not len then
-                        log.error("send data faild")
-                    end
+                    -- 这里在发送数据的时候, 客户端可能已经关闭了链接
+                    -- if not len then log.error("write error.")
                     local ok, msg = co_wakeup(co)
                     if not ok then
                         log.error(msg)
@@ -109,10 +108,12 @@ function TCP:ssl_send(buf)
                 end
                 buf = split(buf, len + 1, -1)
                 co_suspend()
-            end
-        end)
-        tcp.start(self.IO, self.fd, EVENT_WRITE, write_co)
-        return co_suspend()
+            end)
+            tcp.start(self.IO, self.fd, EVENT_WRITE, write_co)
+            return co_suspend()
+        end
+        buf = split(buf, len + 1, -1)
+        co_suspend()
     end
     -- 客户端关闭了连接, 不由write方法来处理
 end
@@ -133,6 +134,7 @@ function TCP:recv(bytes)
         tcp.stop(self.IO)
         if timer then
             timer:stop()
+            timer = nil
         end
         if not buf then
             local ok, err = co_wakeup(co)
@@ -169,22 +171,29 @@ function TCP:ssl_recv(bytes)
     local co = co_self()
     local timer, read_co
     read_co = co_new(function ( ... )
-        local buf, len = tcp.ssl_read(self.ssl, bytes)
-        tcp.stop(self.IO)
-        if timer then
-            timer:stop()
-        end
-        if not buf then
-            -- 客户端关闭了连接, 返回nil
-            local ok, err = co_wakeup(co, buf, len)
-            if not ok then
-                log.error(err)
+        while 1 do
+            local buf, len = tcp.ssl_read(self.ssl, bytes)
+            if timer then
+                timer:stop()
+                timer = nil
             end
-            return
-        end
-        local ok, err = co_wakeup(co, buf, len)
-        if not ok then
-            log.error(err)
+            if not len and not buf then
+                tcp.stop(self.IO)
+                -- 客户端关闭了连接, 返回nil
+                local ok, err = co_wakeup(co)
+                if not ok then
+                    log.error(err)
+                end
+                return
+            end
+            if buf and len then
+                tcp.stop(self.IO)
+                local ok, err = co_wakeup(co, buf, len)
+                if not ok then
+                    log.error(err)
+                end
+            end
+            co_suspend()
         end
     end)
     timer = ti.timeout(self._timeout, function ( ... )
@@ -227,6 +236,7 @@ function TCP:connect(domain, port)
         tcp.stop(self.IO)
         if timer then
             timer:stop()
+            timer = nil
         end
         if connected then
             local ok, msg = co_wakeup(co, true)
@@ -267,6 +277,7 @@ function TCP:ssl_connect(domain, port)
         tcp.stop(self.IO)
         if timer then
             timer:stop()
+            timer = nil
         end
         if connected == nil then
             local ok, msg = co_wakeup(co)

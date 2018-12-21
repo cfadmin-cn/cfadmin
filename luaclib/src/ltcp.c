@@ -225,6 +225,12 @@ tcp_sslread(lua_State *L){
 				lua_pushinteger(L, 0);
 				return 2;
 			}
+			// 暂不支持重协商
+			// if (SSL_ERROR_WANT_WRITE == SSL_get_error(ssl, len)){
+			// 	lua_pushnil(L);
+			// 	lua_pushinteger(L, 0);
+			// 	return 2;
+			// }
 		}
 	} while (0);
 
