@@ -10,7 +10,7 @@
 
 SSL_CTX *ctx = NULL;
 
-int
+static int
 tcp_socket_new(const char *ipaddr, int port, int mode){
 
 	errno = 0;
@@ -62,7 +62,7 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 	return sockfd;
 }
 
-void
+static void
 TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 
 	int status = 0;
@@ -94,7 +94,7 @@ TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 
 }
 
-void
+static void
 IO_CONNECT(CORE_P_ core_io *io, int revents){
 
 	int status = 0;
@@ -124,7 +124,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 	}
 }
 
-void /* 接受链接 */
+static void /* 接受链接 */
 IO_ACCEPT(CORE_P_ core_io *io, int revents){
 
 	if (revents & EV_READ){
@@ -510,7 +510,7 @@ luaopen_tcp(lua_State *L){
 	/* 添加SSL支持 */
     SSL_library_init();
     SSL_load_error_strings();
-    CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
+    // CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
     // OpenSSL_add_ssl_algorithms();
 	/* 添加SSL支持 */
 

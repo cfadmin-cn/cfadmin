@@ -2,13 +2,11 @@ local tcp = require "internal.TCP"
 local HTTP = require "protocol.http"
 local log = require "log"
 
-local tostring = tostring
 local co_new = coroutine.create
 local co_start = coroutine.resume
 local co_wakeup = coroutine.resume
 local co_suspend = coroutine.yield
 local co_self = coroutine.running
-
 
 -- 请求解析
 local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
@@ -23,7 +21,7 @@ local httpd = class("httpd")
 function httpd:ctor(opt)
 	self.cos = {}
     self.routes = {}
-    -- self.IO = nil
+    self.IO = tcp:new()
 end
 
 -- 用来注册接口
@@ -78,6 +76,7 @@ end
 -- 记录日志到文件
 function httpd:log(path)
     self.logpath = path or "cf-httpd.log"
+    log.outfile = self.logpath
 end
 
 function httpd:registery(co, fd, ipaddr)
@@ -93,33 +92,31 @@ function httpd:unregistery(co)
 end
 
 function httpd:listen (ip, port)
-	self.IO = tcp:new()
+    local http_cb = function (fd, ipaddr)
+        -- 注册协程
+        self:registery(co_self(), fd, ipaddr)
+        -- HTTP 生命周期
+        EVENT_DISPATCH(fd, ipaddr, self)
+        -- 清除协程
+        self:unregistery(co_self())
+    end
     self.accept_co = co_new(function (fd, ipaddr)
         while 1 do
         	if fd and ipaddr then
-        		local ok, msg = co_start(co_new(function (fd, ipaddr)
-                    -- 注册协程
-                    self:registery(co_self(), fd, ipaddr)
-                    -- HTTP 生命周期
-                    EVENT_DISPATCH(fd, ipaddr, self)
-                    -- 清除协程
-                    self:unregistery(co_self())
-                end), fd, ipaddr)
+                local ok, msg = co_start(co_new(http_cb), fd, ipaddr)
         		if not ok then
-        			log.error(msg)
+                    log.error(msg)
         		end
         	end
             fd, ipaddr = co_suspend()
         end
     end)
-    log.outfile = self.logpath
-    self.IO:listen(ip, port, self.accept_co)
-    while 1 do co_suspend() end -- 防止被GC
-    return
+    return self.IO:listen(ip, port, self.accept_co)
 end
 
-function httpd:start(ip, port)
-	return self:listen(ip, port)
+-- 正确的运行方式
+function httpd:run()
+    while 1 do co_suspend() end
 end
 
 return httpd

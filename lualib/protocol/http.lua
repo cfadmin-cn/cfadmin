@@ -1,5 +1,6 @@
 local tcp = require "internal.TCP"
 local log = require "log"
+
 local cjson = require "cjson"
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
@@ -434,6 +435,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					statucode = 404
 					sock:send(ERROR_RESPONSE(http, statucode))
 					sock:close()
+					return
 				else
 					statucode = 200
 					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))

@@ -1,5 +1,4 @@
 local ti = require "internal.Timer"
-local class = require "class"
 local tcp = require "tcp"
 local log = require "log"
 
@@ -15,6 +14,9 @@ local EVENT_WRITE = 0x02
 
 local SERVER = 0
 local CLIENT = 1
+
+local class = require "class"
+
 
 local TCP = class("TCP")
 
@@ -40,12 +42,10 @@ end
 
 function TCP:send(buf)
     if self.ssl then
-        log.error("Please use ssl_send method :)")
-        return
+        return log.error("Please use ssl_send method :)")
     end
     if not self.IO then
-        log.error("Can't find IO or Create IO Faild.")
-        return
+        return log.error("Can't find IO or Create IO Faild.")
     end
     while 1 do
         local len = tcp.write(self.fd, buf, #buf)
@@ -80,12 +80,10 @@ end
 
 function TCP:ssl_send(buf)
     if not self.ssl then
-        log.error("Please use send method :)")
-        return
+        return log.error("Please use send method :)")
     end
     if not self.IO then
-        log.error("Can't find IO or Create IO Faild.")
-        return
+        return log.error("Can't find IO or Create IO Faild.")
     end
     while 1 do
         local len = tcp.ssl_write(self.ssl, buf, #buf)
@@ -120,12 +118,10 @@ end
 
 function TCP:recv(bytes)
     if self.ssl then
-        log.error("Please use ssl_recv method :)")
-        return
+        return log.error("Please use ssl_recv method :)")
     end
     if not self.IO then
-        log.error("Create a READ Socket Error! :) ")
-        return
+        return log.error("Create a READ Socket Error! :) ")
     end
     local co = co_self()
     local timer, read_co
@@ -161,12 +157,10 @@ end
 
 function TCP:ssl_recv(bytes)
     if not self.ssl then
-        log.error("Please use recv method :)")
-        return
+        return log.error("Please use recv method :)")
     end
     if not self.IO then
-        log.error("Create a READ Socket Error! :) ")
-        return
+        return log.error("Create a READ Socket Error! :) ")
     end
     local co = co_self()
     local timer, read_co
@@ -209,26 +203,22 @@ end
 
 function TCP:listen(ip, port, co)
     if not self.IO then
-        log.error("Listen Socket Create Error! :) ")
-        return
+        return log.error("Listen Socket Create Error! :) ")
     end
     self.fd = tcp.new_tcp_fd(ip, port, SERVER)
     if not self.fd then
-        log.error("this IP and port Create A bind or listen method Faild! :) ")
-        return
+        return log.error("this IP and port Create A bind or listen method Faild! :) ")
     end
     return tcp.listen(self.IO, self.fd, co)
 end
 
 function TCP:connect(domain, port)
     if not self.IO then
-        log.error("Create a Connect Socket Error! :) ")
-        return
+        return log.error("Create a Connect Socket Error! :) ")
     end
     self.fd = tcp.new_tcp_fd(domain, port, CLIENT)
     if not self.fd then
-        log.error("Connect This IP or Port Faild! :) ")
-        return
+        return log.error("Connect This IP or Port Faild! :) ")
     end
     local co = co_self()
     local connect_co, timer
@@ -263,13 +253,11 @@ end
 
 function TCP:ssl_connect(domain, port)
     if not self.IO then
-        log.error("Create a Connect Socket Error! :) ")
-        return
+        return log.error("Create a Connect Socket Error! :) ")
     end
     self.fd = tcp.new_tcp_fd(domain, port, CLIENT)
     if not self.fd then
-        log.error("Connect This IP or Port Faild! :) ")
-        return
+        return log.error("Connect This IP or Port Faild! :) ")
     end
     local co = co_self()
     local connect_co, timer
