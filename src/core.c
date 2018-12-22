@@ -68,11 +68,11 @@ core_once(core_loop *loop, core_task *task, _TASK_CB cb){
 
 core_loop *
 core_default_loop(){
-	return ev_default_loop(
-		ev_supported_backends() & EVBACKEND_EPOLL  || // Linux   使用 epoll
-		ev_supported_backends() & EVBACKEND_KQUEUE || // mac|BSD 使用 kqueue
-		ev_supported_backends() & EVBACKEND_SELECT || // other   使用 select
-		EVFLAG_AUTO);								  // select  都没有就自动选择
+	// 	ev_supported_backends() & EVBACKEND_EPOLL  || // Linux   使用 epoll
+	// 	ev_supported_backends() & EVBACKEND_KQUEUE || // mac|BSD 使用 kqueue
+	// 	ev_supported_backends() & EVBACKEND_SELECT || // other   使用 select
+	// 	EVFLAG_AUTO								  	  // select  都没有就自动选择
+	return ev_default_loop(ev_embeddable_backends() & ev_supported_backends() || EVFLAG_AUTO);
 }
 
 void
@@ -199,6 +199,7 @@ core_sys_init(){
 
 	/* 初始化Lua脚本 */
 	init_main();
+
 }
 
 int

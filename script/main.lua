@@ -98,5 +98,7 @@ app:use("/", radmin)
 -- 注册静态文件目录
 app:static('static', 10)
 
-app:start("0.0.0.0", 8080)
+app:listen("0.0.0.0", 8080)
+
+app:run()
 
