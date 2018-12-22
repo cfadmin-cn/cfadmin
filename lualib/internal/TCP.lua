@@ -254,7 +254,7 @@ function TCP:connect(domain, port)
             log.error(msg)
         end
     end)
-    tcp.connect(IO, self.fd, self.connect_co)
+    tcp.connect(self.IO, self.fd, self.connect_co)
     return co_suspend()
 end
 
