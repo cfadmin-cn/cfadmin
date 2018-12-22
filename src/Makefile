@@ -13,15 +13,15 @@ LIBS += -L/usr/local/lib
 
 INCLUDES += -I/usr/local/include
 
-# CFLAGS += -Wall -DJEMALLOC -Os -fPIC --shared
+CFLAGS += -Wall -DJEMALLOC -Os -fPIC --shared
 
-# DLL += -ljemalloc -lev -llua
+DLL += -ljemalloc -lev -llua
 
-CFLAGS += -Wall -Os -fPIC --shared
+# CFLAGS += -Wall -Os -fPIC --shared
 
-DLL += -lev -llua
+# DLL += -lev -llua
 
-MACRO += -Wall -Os  -ggdb
+MACRO += -Wall -Os
 
 build :
 

@@ -88,7 +88,7 @@ core_start(core_loop *loop, int mode){
 
 }
 
-void *
+static void *
 EV_ALLOC(void *ptr, long nsize){
 	// 为libev内存hook注入日志;
 	if (ptr && 0 > nsize){
@@ -96,7 +96,7 @@ EV_ALLOC(void *ptr, long nsize){
 		return NULL;
 	}
 
-	if ( nsize == 0 && ptr) return xfree(ptr), NULL;
+	if (nsize == 0 && ptr) return xfree(ptr), NULL;
 
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
@@ -106,10 +106,9 @@ EV_ALLOC(void *ptr, long nsize){
 	}
 }
 
-void *
+static void *
 L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
 	// 为lua内存hook注入日志;
-	// return realloc(ptr, nsize);
 
 	/* 用户自定义数据 */
 	(void)ud;  (void)osize; 
@@ -145,16 +144,28 @@ init_lua_libs(lua_State *L){
 
 }
 
+static lua_State *L;
+
 void
 init_main(){
 
 	int status;
-	lua_State *L = lua_newstate(L_ALLOC, NULL);
+	L = lua_newstate(L_ALLOC, NULL);
 	if (!L) return ;
 
 	init_lua_libs(L);
-	lua_gc(L, LUA_GCSTOP, 0);
+
 	status = luaL_loadfile(L, "script/main.lua");
+
+	/* 停止GC */
+	lua_gc(L, LUA_GCSTOP, 0);
+
+	/* 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200 */
+	lua_gc(L, LUA_GCSETPAUSE, 300);
+
+	/* 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200  */
+	lua_gc(L, LUA_GCSETSTEPMUL, 300);
+
 	if(status != LUA_OK) {
 		switch(status){
 			case LUA_ERRFILE :
@@ -172,12 +183,13 @@ init_main(){
 		}
 		return ;
 	}
+
 	status = lua_resume(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
-		return core_break(CORE_LOOP_ 0);
 	}
-	lua_gc(L, LUA_GCCOLLECT, 0);
+	/* 重启GC */
+	lua_gc(L, LUA_GCRESTART, 0);
 }
 
 void
@@ -185,7 +197,7 @@ core_sys_init(){
 	/* hook libev 内存分配 */
 	ev_set_allocator(EV_ALLOC);
 
-	/* 初始化script */
+	/* 初始化Lua脚本 */
 	init_main();
 }
 
@@ -193,4 +205,5 @@ int
 core_sys_run(){
 
 	return core_start(CORE_LOOP_ 0);
+
 }
