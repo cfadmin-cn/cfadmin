@@ -3,7 +3,7 @@
 #include "../../src/core.h"
 
 /* === 定时器 === */
-void
+static void
 TIMEOUT_CB(CORE_P_ core_timer *timer, int revents){
 
     if (revents & EV_TIMER){

@@ -30,7 +30,7 @@ udp_socket_new(const char *ipaddr, int port){
 	return sockfd;
 }
 
-void
+static void
 UDP_IO_CB(CORE_P_ ev_io *io, int revents){
 
 	int status = 0;
