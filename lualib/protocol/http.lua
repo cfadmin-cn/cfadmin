@@ -7,7 +7,6 @@ local cjson_decode = cjson.decode
 
 local DATE = os.date
 local time = os.time
-local tostring = tostring
 local spliter = string.gsub
 local lower = string.lower
 local upper = string.upper
@@ -232,7 +231,7 @@ function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 			insert(fields, field)
 		end
 	end)
-	local t, class, type
+	local t, class, typ
 	for index, field in ipairs(fields) do
 		if index == 1 then
 			if not routes[field] then
@@ -240,12 +239,12 @@ function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 			end
 			t = routes[field]
 			if #fields == index and t.class then
-				type = t.type
+				typ = t.type
 				class = t.class
 				break
 			end
 			if t.type == HTTP_PROTOCOL.STATIC then
-				type = t.type
+				typ = t.type
 				class = t.class
 				break
 			end
@@ -255,13 +254,13 @@ function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 			end
 			t = t[field]
 			if #fields == index and t.class then
-				type = t.type
+				typ = t.type
 				class = t.class
 				break
 			end
 		end
 	end
-	return class, type
+	return class, typ
 end
 
 local function HTTP_DATE(timestamp)
@@ -276,8 +275,10 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 	if METHOD == "HEAD" or METHOD == "GET" then
 		local spl_pos = find(PATH, '%?')
 		if spl_pos and spl_pos < #PATH then
-			ARGS = {}
 			spliter(PATH, '([^%?&]*)=([^%?&]*)', function (key, value)
+				if not ARGS then
+					ARGS = {}
+				end
 				ARGS[key] = value
 			end)
 		end

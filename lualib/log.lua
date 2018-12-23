@@ -109,11 +109,10 @@ for i, x in ipairs(modes) do
     -- Output to log file
     if log.outfile then
       local fp = open(log.outfile, "a")
-      fp:write(fmt("[%s][%s] %s: %s\n",
-                                nameupper,
-                                date("%Y/%m/%d %H:%M:%S"),
-                                lineinfo,
-                                msg))
+      if not fp then
+        return log.warn("Cant't write info to "..(log.outfile or ""))
+      end
+      fp:write(fmt("[%s][%s] %s: %s\n", nameupper, date("%Y/%m/%d %H:%M:%S"), lineinfo, msg))
       fp:close()
     end
 

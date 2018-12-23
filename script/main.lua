@@ -100,5 +100,7 @@ app:static('static', 10)
 
 app:listen("0.0.0.0", 8080)
 
+app:log("./http.log")
+
 app:run()
 

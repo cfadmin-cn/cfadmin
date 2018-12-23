@@ -25,7 +25,7 @@ MACRO += -Wall -Os
 
 build :
 
-	$(CC) -o core.so core.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
+	$(CC) -o core.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
 	$(CC) core_start.c -o main $(MACRO) core.so
 
@@ -33,7 +33,7 @@ rebuild:
 
 	rm -rf *.o *.so
 
-	$(CC) -o core.so core.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
+	$(CC) -o core.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
 	$(CC) core_start.c -o main $(MACRO) core.so
 

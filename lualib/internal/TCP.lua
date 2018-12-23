@@ -132,9 +132,9 @@ function TCP:recv(bytes)
         local buf, len = tcp.read(self.fd, bytes)
         tcp.stop(self.IO)
         self.read_co = nil
-        if self.read_timer then
-            self.read_timer:stop()
-            self.read_timer = nil
+        if self.timer then
+            self.timer:stop()
+            self.timer = nil
         end
         if not buf then
             local ok, err = co_wakeup(co)
@@ -148,7 +148,7 @@ function TCP:recv(bytes)
             log.error(err)
         end
     end)
-    self.read_timer = ti.timeout(self._timeout, function ( ... )
+    self.timer = ti.timeout(self._timeout, function ( ... )
         tcp.stop(self.IO)
         self.read_co = nil
         local ok, err = co_wakeup(co, nil, "read timeout")
