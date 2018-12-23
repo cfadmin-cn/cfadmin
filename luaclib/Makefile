@@ -17,8 +17,6 @@ build :
 	$(CC) -o crypt.so src/lcrypt.c $(MACRO) ../core.so
 	### 以下为预留第三方库编译位置 ###
 	cd src/lcjson && make build # 增加cjson库
-	cd src/lpeg && make build # 增加lpeg库
-
 
 rebuild :
 	rm -rf *.so
@@ -29,7 +27,6 @@ rebuild :
 	$(CC) -o crypt.so src/lcrypt.c $(MACRO) ../core.so
 	### 以下为预留第三方库编译位置 ###
 	cd src/lcjson && make rebuild # 增加cjson库
-	cd src/lpeg && make rebuild # 增加lpeg库
 
 clean :
 	rm -rf *.so
