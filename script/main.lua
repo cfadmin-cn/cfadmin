@@ -79,28 +79,37 @@
 -- print(redis:ttl("table"))
 
 
-local httpd = require "httpd"
-local app = httpd:new("App")
+-- local httpd = require "httpd"
+-- local app = httpd:new("App")
 
-local r1 = require "r1"
-local r2 = require "r2"
-local radmin = require "r-admin"
+-- local r1 = require "r1"
+-- local r2 = require "r2"
+-- local radmin = require "r-admin"
 
--- 注册html路由r1
-app:api("/a", r1)
+-- -- 注册html路由r1
+-- app:api("/a", r1)
 
--- 注册API路由r2
-app:api("/b", r2)
+-- -- 注册API路由r2
+-- app:api("/b", r2)
 
--- -- 注册API路由admin
-app:use("/", radmin)
+-- -- -- 注册API路由admin
+-- app:use("/", radmin)
 
--- 注册静态文件目录
-app:static('static', 10)
+-- -- 注册静态文件目录
+-- app:static('static', 10)
 
-app:listen("0.0.0.0", 8080)
+-- app:listen("0.0.0.0", 8080)
 
-app:log("./http.log")
+-- app:log("./http.log")
 
-app:run()
+-- app:run()
+
+local task = require "internal.TASK"
+
+for i = 1, 100 do
+	task.start(function ( ... )
+		print(i)
+	end)
+end
+
 

@@ -155,7 +155,9 @@ function TCP:recv(bytes)
         if not ok then
             log.error(err)
         end
+        self.timer = nil
         self.read_co = nil
+
     end)
     tcp.start(self.IO, self.fd, EVENT_READ, self.read_co)
     return co_suspend()
@@ -204,6 +206,7 @@ function TCP:ssl_recv(bytes)
         if not ok then
             log.error(err)
         end
+        self.timer = nil
         self.read_co = nil
     end)
     tcp.start(self.IO, self.fd, EVENT_READ, self.read_co)
@@ -255,6 +258,7 @@ function TCP:connect(domain, port)
         if not ok then
             log.error(msg)
         end
+        self.timer = nil
         self.connect_co = nil
     end)
     tcp.connect(self.IO, self.fd, self.connect_co)
@@ -315,6 +319,7 @@ function TCP:ssl_connect(domain, port)
         if not ok then
             log.error(msg)
         end
+        self.timer = nil
         self.connect_co = nil
     end)
     tcp.connect(self.IO, self.fd, self.connect_co)
@@ -325,22 +330,6 @@ function TCP:close()
 
     if self.IO then
         self.IO = nil
-    end
-
-    if self.read_co then
-        self.read_co = nil
-    end
-
-    if self.write_co then
-        self.write_co = nil
-    end
-
-    if self.connect_co then
-        self.connect_co = nil
-    end
-
-    if self.timer then
-        self.timer = nil
     end
 
     if self.ssl then

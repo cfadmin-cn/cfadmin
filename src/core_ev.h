@@ -4,7 +4,7 @@
 /* 关闭3.x版本兼容选择特性 */
 #define EV_COMPAT3 0
 
-#define EV_FEATURES (1 | 2 | 4 | 8 | 32 | 64)
+// #define EV_FEATURES (1 | 2 | 4 | 8 | 16 | 32 | 64)
 
 #define EV_VERIFY 3
 

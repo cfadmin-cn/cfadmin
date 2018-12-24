@@ -13,13 +13,13 @@ LIBS += -L/usr/local/lib
 
 INCLUDES += -I/usr/local/include
 
-CFLAGS += -Wall -DJEMALLOC -Os -fPIC --shared
+# CFLAGS += -Wall -DJEMALLOC -Os -fPIC --shared
 
-DLL += -ljemalloc -lev -llua
+# DLL += -ljemalloc -lev -llua
 
-# CFLAGS += -Wall -Os -fPIC --shared
+CFLAGS += -Wall -Os -fPIC --shared
 
-# DLL += -lev -llua
+DLL += -lev -llua
 
 MACRO += -Wall -Os
 
@@ -27,7 +27,7 @@ build :
 
 	$(CC) -o core.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	$(CC) core_start.c -o main $(MACRO) core.so
+	$(CC) core_start.c -o main $(MACRO) ./core.so
 
 rebuild:
 
@@ -35,7 +35,7 @@ rebuild:
 
 	$(CC) -o core.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	$(CC) core_start.c -o main $(MACRO) core.so
+	$(CC) core_start.c -o main $(MACRO) ./core.so
 
 clean :
 

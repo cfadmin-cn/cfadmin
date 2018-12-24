@@ -61,10 +61,32 @@ core_io_stop(core_loop *loop, core_io *io){
 }
 /* ===========  IO  =========== */
 
+
+/* ===========  TASK  =========== */
+
 void
-core_once(core_loop *loop, core_task *task, _TASK_CB cb){
-	return ev_once(task->loop, -1, 0, 0, cb, (void*)task);
+core_task_init(core_task *task, _TASK_CB cb){
+
+	ev_idle_init(task, cb);
+
 }
+
+void
+core_task_start(core_loop *loop, core_task *task){
+
+	ev_idle_start(loop ? loop : CORE_LOOP, task);
+
+}
+
+void
+core_task_stop(core_loop *loop, core_task *task){
+
+	ev_idle_stop(loop ? loop : CORE_LOOP, task);
+
+}
+
+/* ===========  TASK  =========== */
+
 
 core_loop *
 core_default_loop(){
