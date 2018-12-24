@@ -150,20 +150,16 @@ init_lua_libs(lua_State *L){
     /* lua 标准库 */
 	luaL_openlibs(L);
 
-	/* 注入搜索域 */
-    char *lib  = "./lualib/?.lua;./script/?.lua;" ;
-    char *clib = "./luaclib/?.so;./script/?.so;" ;
-
+	/* 注入lua搜索域 */
     lua_getglobal(L, "package");
 
-    lua_pushstring(L, lib);
+    lua_pushliteral(L, "./lualib/?.lua;./script/?.lua;");
     lua_setfield(L, 1, "path");
 
-    lua_pushstring(L, clib);
+    lua_pushliteral(L, "./luaclib/?.so;./script/?.so;");
     lua_setfield(L, 1, "cpath");
 
     lua_settop(L, 0);
-
 }
 
 static lua_State *L;
@@ -179,14 +175,14 @@ init_main(){
 
 	status = luaL_loadfile(L, "script/main.lua");
 
-	/* 停止GC */
+	// 停止GC
 	lua_gc(L, LUA_GCSTOP, 0);
 
-	/* 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200 */
-	lua_gc(L, LUA_GCSETPAUSE, 300);
+	// 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
+	lua_gc(L, LUA_GCSETPAUSE, 100);
 
-	/* 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200  */
-	lua_gc(L, LUA_GCSETSTEPMUL, 300);
+	// 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
+	lua_gc(L, LUA_GCSETSTEPMUL, 400);
 
 	if(status != LUA_OK) {
 		switch(status){

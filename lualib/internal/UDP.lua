@@ -1,13 +1,13 @@
 local ti = require "internal.Timer"
+local co = require "internal.Co"
 local log = require "log"
 local udp = require "udp"
 local class = require "class"
 
-local co_new = coroutine.create
-local co_start = coroutine.resume
-local co_wakeup = coroutine.resume
-local co_suspend = coroutine.yield
-local co_self = coroutine.running
+local co_new = co.new
+local co_self = co.self
+local co_wakeup = co.wakeup
+local co_wait = co.wait
 
 local UDP = class("UDP")
 
@@ -26,32 +26,23 @@ function UDP:connect(ip, port)
 	if not ok then
 		return nil, "a peer of connect from udp port maybe closed."
 	end
-	self.ip = ip
-	self.port = port
 	return true
 end
 
 function UDP:recv(...)
 	if self.udp then
-		self.co = co_self()
-		self.recv_co = co_new(function ( ... )
+		local co = co_self()
+		self.read_co = co_new(function ( ... )
 			local data, len = self.udp:recv()
 			self.udp:stop()
+			self.read_co = nil
 			if data then
-				local ok, msg = co_wakeup(self.co, data, len)
-				if not ok then
-					log.error(msg)
-				end
-				return 
+				return co_wakeup(co, data, len)
 			end
-			local ok, msg = co_wakeup(self.co)
-			if not ok then
-				log.error(msg)
-			end
-			return 
+			return co_wakeup(co)
 		end)
-		self.udp:start(self.recv_co)
-		return co_suspend()
+		self.udp:start(self.read_co)
+		return co_wait()
 	end
 end
 
@@ -61,11 +52,12 @@ function UDP:send(data)
 	end
 end
 
-function UDP:close(...)
+function UDP:close()
 	if self.udp then
 		self.udp:close()
 		self.udp = nil
 	end
+	-- var_dump(self)
 end
 
 return UDP

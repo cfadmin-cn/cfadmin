@@ -1,12 +1,6 @@
-local tcp = require "internal.TCP"
 local HTTP = require "protocol.http"
+local tcp = require "internal.TCP"
 local log = require "log"
-
-local co_new = coroutine.create
-local co_start = coroutine.resume
-local co_wakeup = coroutine.resume
-local co_suspend = coroutine.yield
-local co_self = coroutine.running
 
 -- 请求解析
 local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
@@ -19,7 +13,6 @@ local class = require "class"
 local httpd = class("httpd")
 
 function httpd:ctor(opt)
-	self.cos = {}
     self.routes = {}
     self.IO = tcp:new()
 end
@@ -45,6 +38,7 @@ function httpd:static(foldor, ttl)
         if ttl and ttl > 0 then
             self.ttl = ttl
         end
+        local match = string.match
         HTTP_ROUTE_REGISTERY(self.routes, './'..foldor, function (path)
             if path then
                 local FILE = io.open(path, "rb")
@@ -53,7 +47,7 @@ function httpd:static(foldor, ttl)
                 end
                 local file = FILE:read('*a')
                 FILE:close()
-                return file, string.match(path, '.+%.([%a]+)')
+                return file, match(path, '.+%.([%a]+)')
             end
         end, HTTP.STATIC)
     end
@@ -79,44 +73,16 @@ function httpd:log(path)
     log.outfile = self.logpath
 end
 
-function httpd:registery(co, fd, ipaddr)
-	if type(co) == "thread" then
-		self.cos[co] = {fd = fd, ipaddr = ipaddr}
-	end
-end
-
-function httpd:unregistery(co)
-	if type(co) == "thread" then
-		self.cos[co] = nil
-	end
-end
-
+-- 监听请求
 function httpd:listen (ip, port)
-    local http_cb = function (fd, ipaddr)
-        -- 注册协程
-        self:registery(co_self(), fd, ipaddr)
-        -- HTTP 生命周期
-        EVENT_DISPATCH(fd, ipaddr, self)
-        -- 清除协程
-        self:unregistery(co_self())
-    end
-    self.accept_co = co_new(function (fd, ipaddr)
-        while 1 do
-        	if fd and ipaddr then
-                local ok, msg = co_start(co_new(http_cb), fd, ipaddr)
-        		if not ok then
-                    log.error(msg)
-        		end
-        	end
-            fd, ipaddr = co_suspend()
-        end
+    return self.IO:listen(ip, port, function (fd, ipaddr)
+        return EVENT_DISPATCH(fd, ipaddr, self)
     end)
-    return self.IO:listen(ip, port, self.accept_co)
 end
 
 -- 正确的运行方式
 function httpd:run()
-    while 1 do co_suspend() end
+    while 1 do coroutine.yield() end
 end
 
 return httpd

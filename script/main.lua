@@ -1,25 +1,3 @@
--- -- 测试cjson、https、var_dump
--- -- 需要注意cjson 默认没有编译, 需要手动进入luaclib/src/lcjson make编译一下就行了
--- require "utils"
---
--- local httpc = require "httpc"
--- local cjson = require "cjson"
---
--- -- local code, body = httpc.get("https://api.github.com/search/users?q=candymi")
--- local code, body = httpc.get("https://api.github.com/users/candymi")
---
--- if code ~= 200 then
--- 	local f = io.open("error.html", "w")
--- 	if f then
--- 		f:write(body)
--- 		f:close()
--- 	end
--- end
---
--- var_dump(cjson.decode(body))
---
--- print(pcall(cjson.c, body))
-
 
 -- -- 测试魔改后的mysql
 -- require "utils"
@@ -79,37 +57,29 @@
 -- print(redis:ttl("table"))
 
 
--- local httpd = require "httpd"
--- local app = httpd:new("App")
+local httpd = require "httpd"
+local app = httpd:new("App")
 
--- local r1 = require "r1"
--- local r2 = require "r2"
--- local radmin = require "r-admin"
+local r1 = require "r1"
+local r2 = require "r2"
+local radmin = require "r-admin"
 
--- -- 注册html路由r1
--- app:api("/a", r1)
+-- 注册html路由r1
+app:api("/a", r1)
 
--- -- 注册API路由r2
--- app:api("/b", r2)
+-- 注册API路由r2
+app:api("/b", r2)
 
--- -- -- 注册API路由admin
--- app:use("/", radmin)
+-- -- 注册API路由admin
+app:use("/", radmin)
 
--- -- 注册静态文件目录
--- app:static('static', 10)
+-- 注册静态文件目录
+app:static('static', 10)
 
--- app:listen("0.0.0.0", 8080)
+app:listen("0.0.0.0", 8080)
 
--- app:log("./http.log")
+app:log("./http.log")
 
--- app:run()
-
-local task = require "internal.TASK"
-
-for i = 1, 100 do
-	task.start(function ( ... )
-		print(i)
-	end)
-end
+app:run()
 
 

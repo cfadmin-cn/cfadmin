@@ -1,12 +1,10 @@
+local co = require "internal.Co"
 local ti = require "timer"
 local log = require "log"
 
-local co_new = coroutine.create
-local co_start = coroutine.resume
-local co_wakeup = coroutine.resume
-local co_suspend = coroutine.yield
-local co_self = coroutine.running
-
+local co_new = co.new
+local co_wait = co.wait
+local co_self = co.self
 local insert = table.insert
 local remove = table.remove
 

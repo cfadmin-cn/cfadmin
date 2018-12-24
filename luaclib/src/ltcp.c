@@ -168,18 +168,16 @@ tcp_read(lua_State *L){
 	int bytes = lua_tointeger(L, 2);
 	if (0 >= bytes) return 0;
 
-	lua_settop(L, 0);
-
 	do {
 		char str[bytes];
-		int len = read(fd, str, bytes);
+		int rsize = read(fd, str, bytes);
 
-		if (len > 0) {
-			lua_pushlstring(L, str, len);
-			lua_pushinteger(L, len);
+		if (rsize > 0) {
+			lua_pushlstring(L, str, rsize);
+			lua_pushinteger(L, rsize);
 			return 2;
 		}
-		if (0 > len) {
+		if (0 > rsize) {
 			if (errno == EINTR) continue;
 		}
 	} while(0);
@@ -198,29 +196,21 @@ tcp_sslread(lua_State *L){
 	int bytes = lua_tointeger(L, 2);
 	if (0 >= bytes) return 0;
 
-	lua_settop(L, 0);
-
 	do {
 		char str[bytes];
-		int len = SSL_read(ssl, str, bytes);
-		if (0 < len) {
-			lua_pushlstring(L, str, len);
-			lua_pushinteger(L, len);
+		int rsize = SSL_read(ssl, str, bytes);
+		if (0 < rsize) {
+			lua_pushlstring(L, str, rsize);
+			lua_pushinteger(L, rsize);
 			return 2;
 		}
-		if (0 > len){
+		if (0 > rsize){
 			if (errno == EINTR) continue;
-			if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, len)){
+			if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, rsize)){
 				lua_pushnil(L);
 				lua_pushinteger(L, 0);
 				return 2;
 			}
-			// 暂不支持重协商
-			// if (SSL_ERROR_WANT_WRITE == SSL_get_error(ssl, len)){
-			// 	lua_pushnil(L);
-			// 	lua_pushinteger(L, 0);
-			// 	return 2;
-			// }
 		}
 	} while (0);
 
@@ -278,15 +268,18 @@ tcp_sslwrite(lua_State *L){
 
 	do {
 		int wsize = SSL_write(ssl, response, resp_len);
+
 		if (wsize > 0) {
 			lua_pushinteger(L, wsize);
 			break;
 		}
+
 		if (wsize < 0){
 			if (errno == EINTR) continue;
-			if (errno == EAGAIN){
+			if (SSL_ERROR_WANT_WRITE == SSL_get_error(ssl, wsize)){
+				lua_pushnil(L);
 				lua_pushinteger(L, 0);
-				break;
+				return 2;
 			}
 			return 0;
 		}
@@ -336,9 +329,7 @@ tcp_listen(lua_State *L){
 
 	core_io_start(CORE_LOOP_ io);
 
-	lua_settop(L, 1);
-
-	return 1;
+	return 0;
 
 }
 
@@ -362,9 +353,7 @@ tcp_connect(lua_State *L){
 
 	core_io_start(CORE_LOOP_ io);
 
-	lua_settop(L, 1);
-
-	return 1;
+	return 0;
 
 }
 
@@ -417,9 +406,7 @@ tcp_start(lua_State *L){
 
 	core_io_start(CORE_LOOP_ io);
 
-	lua_settop(L, 0);
-
-	return 1;
+	return 0;
 
 }
 

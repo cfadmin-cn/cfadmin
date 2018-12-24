@@ -95,7 +95,10 @@ for i, x in ipairs(modes) do
 
     local msg = tostring(...)
     local info = debug.getinfo(2, "Sl")
-    local lineinfo = info.short_src .. ":" .. info.currentline
+    local lineinfo = "[C]:[-1]"
+    if info then
+      lineinfo = info.short_src .. ":" .. info.currentline
+    end
 
     -- Output to console
     print(fmt("%s[%s][%s]%s %s: %s",
