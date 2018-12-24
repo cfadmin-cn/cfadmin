@@ -21,21 +21,29 @@ CFLAGS += -Wall -Os -fPIC --shared
 
 DLL += -lev -llua
 
-MACRO += -Wall -Os
+MACRO += -Wall -Os -L./ -L../
 
 build :
 
-	$(CC) -o core.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
+	$(CC) -o libcore.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	$(CC) core_start.c -o main $(MACRO) ./core.so
+	mv *.so ../
+
+	$(CC) core_start.c -o main $(MACRO) -ldl -lcore
+
+	mv main ../
 
 rebuild:
 
 	rm -rf *.o *.so
 
-	$(CC) -o core.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
+	$(CC) -o libcore.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	$(CC) core_start.c -o main $(MACRO) ./core.so
+	mv *.so ../
+
+	$(CC) core_start.c -o main $(MACRO) -ldl -lcore
+
+	mv main ../
 
 clean :
 

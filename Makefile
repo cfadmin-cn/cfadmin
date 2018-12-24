@@ -7,12 +7,12 @@ default :
 	@echo "======================================="
 
 build :
-	cd src && make build && mv main ../ && mv *.so ../
-	cd luaclib &&  make build
+	cd src && make build
+	cd luaclib && make build
 
 rebuild :
 	rm -rf main *.so
-	cd src && make rebuild && mv main ../ && mv *.so ../
+	cd src && make rebuild
 	cd luaclib && make rebuild
 
 clean :

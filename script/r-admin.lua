@@ -1,5 +1,5 @@
 local class = require "class"
-local Admin = require "Admin"
+local Admin = require "admin"
 -- require "utils"
 
 local route = class("route")
