@@ -59,13 +59,13 @@ function TCP:send(buf)
                     local len = tcp.write(self.fd, buf, #buf)
                     if not len or len == #buf then
                         tcp.stop(self.IO)
-                        self.write_co = nil
                         -- 这里在发送数据的时候, 客户端可能已经关闭了链接
                         -- if not len then log.error("write error.")
                         local ok, msg = co_wakeup(co)
                         if not ok then
                             log.error(msg)
                         end
+                        self.write_co = nil
                         return
                     end
                     buf = split(buf, len + 1, -1)
@@ -99,13 +99,13 @@ function TCP:ssl_send(buf)
                     local len = tcp.write(self.ssl, buf, #buf)
                     if not len or len == #buf then
                         tcp.stop(self.IO)
-                        self.write_co = nil
                         -- 这里在发送数据的时候, 客户端可能已经关闭了链接
                         -- if not len then log.error("write error.")
                         local ok, msg = co_wakeup(co)
                         if not ok then
                             log.error(msg)
                         end
+                        self.write_co = nil
                         return
                     end
                     buf = split(buf, len + 1, -1)
@@ -131,7 +131,6 @@ function TCP:recv(bytes)
     self.read_co = co_new(function ( ... )
         local buf, len = tcp.read(self.fd, bytes)
         tcp.stop(self.IO)
-        self.read_co = nil
         if self.timer then
             self.timer:stop()
             self.timer = nil
@@ -141,20 +140,22 @@ function TCP:recv(bytes)
             if not ok then
                 log.error(err)
             end
+            self.read_co = nil
             return
         end
         local ok, err = co_wakeup(co, buf, len)
         if not ok then
             log.error(err)
         end
+        self.read_co = nil
     end)
     self.timer = ti.timeout(self._timeout, function ( ... )
         tcp.stop(self.IO)
-        self.read_co = nil
         local ok, err = co_wakeup(co, nil, "read timeout")
         if not ok then
             log.error(err)
         end
+        self.read_co = nil
     end)
     tcp.start(self.IO, self.fd, EVENT_READ, self.read_co)
     return co_suspend()
@@ -177,12 +178,12 @@ function TCP:ssl_recv(bytes)
             end
             if not len and not buf then
                 tcp.stop(self.IO)
-                self.read_co = nil
                 -- 客户端关闭了连接, 返回nil
                 local ok, err = co_wakeup(co)
                 if not ok then
                     log.error(err)
                 end
+                self.read_co = nil
                 return
             end
             if buf and len then
@@ -191,17 +192,19 @@ function TCP:ssl_recv(bytes)
                 if not ok then
                     log.error(err)
                 end
+                self.read_co = nil
+                return
             end
             co_suspend()
         end
     end)
     self.timer = ti.timeout(self._timeout, function ( ... )
         tcp.stop(self.IO)
-        self.read_co = nil
         local ok, err = co_wakeup(co, nil, "read timeout")
         if not ok then
             log.error(err)
         end
+        self.read_co = nil
     end)
     tcp.start(self.IO, self.fd, EVENT_READ, self.read_co)
     return co_suspend()
@@ -229,7 +232,6 @@ function TCP:connect(domain, port)
     local co = co_self()
     self.connect_co = co_new(function (connected)
         tcp.stop(self.IO)
-        self.connect_co = nil
         if self.timer then
             self.timer:stop()
             self.timer = nil
@@ -239,6 +241,7 @@ function TCP:connect(domain, port)
             if not ok then
                 log.error(msg)
             end
+            self.connect_co = nil
             return
         end
         local ok, msg = co_wakeup(co)
@@ -248,11 +251,11 @@ function TCP:connect(domain, port)
     end)
     self.timer = ti.timeout(self._timeout, function ( ... )
         tcp.stop(self.IO)
-        self.connect_co = nil
         local ok, msg = co_wakeup(co, nil, 'connect timeot.')
         if not ok then
             log.error(msg)
         end
+        self.connect_co = nil
     end)
     tcp.connect(self.IO, self.fd, self.connect_co)
     return co_suspend()
@@ -274,32 +277,32 @@ function TCP:ssl_connect(domain, port)
             self.timer = nil
         end
         if connected == nil then
-            self.connect_co = nil
             local ok, msg = co_wakeup(co)
             if not ok then
                 log.error(msg)
             end
+            self.connect_co = nil
             return
         end
         self.ssl = tcp.new_ssl(self.fd)
         if not self.ssl then
-            self.connect_co = nil
             log.error("Create a SSL Error! :) ")
             local ok, msg = co_wakeup(co)
             if not ok then
                 log.error(msg)
             end
+            self.connect_co = nil
             return
         end
         while 1 do
             local ok, EVENT = tcp.ssl_connect(self.ssl)
             tcp.stop(self.IO)
             if ok then
-                self.connect_co = nil
                 local ok, msg = co_wakeup(co, true)
                 if not ok then
                     log.error(msg)
                 end
+                self.connect_co = nil
                 return
             end
             tcp.start(self.IO, self.fd, EVENT, self.connect_co)
@@ -308,11 +311,11 @@ function TCP:ssl_connect(domain, port)
     end)
     self.timer = ti.timeout(self._timeout, function ( ... )
         tcp.stop(self.IO)
-        self.connect_co = nil
         local ok, msg = co_wakeup(co, nil, 'connect timeot.')
         if not ok then
             log.error(msg)
         end
+        self.connect_co = nil
     end)
     tcp.connect(self.IO, self.fd, self.connect_co)
     return co_suspend()

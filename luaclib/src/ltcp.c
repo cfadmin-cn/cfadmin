@@ -181,11 +181,6 @@ tcp_read(lua_State *L){
 		}
 		if (0 > len) {
 			if (errno == EINTR) continue;
-			if (errno == EAGAIN) {
-				lua_pushnil(L);
-				lua_pushinteger(L, 0);
-				return 2;
-			}
 		}
 	} while(0);
 
@@ -215,11 +210,6 @@ tcp_sslread(lua_State *L){
 		}
 		if (0 > len){
 			if (errno == EINTR) continue;
-			if (errno == EAGAIN) {
-				lua_pushnil(L);
-				lua_pushinteger(L, 0);
-				return 2;
-			}
 			if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, len)){
 				lua_pushnil(L);
 				lua_pushinteger(L, 0);
