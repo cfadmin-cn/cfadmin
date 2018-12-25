@@ -1,6 +1,6 @@
 local tcp = require "internal.TCP"
 local log = require "log"
-
+-- require "utils"
 local cjson = require "cjson"
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
@@ -412,7 +412,8 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			if typ ~= HTTP_PROTOCOL.STATIC then
 
 				local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
-				ok, data = pcall(c)
+				-- print("当前内存为", collectgarbage('count'))
+				ok, data = pcall(c[c.__name], c)
 				if not ok then
 					log.error(data)
 					statucode = 500

@@ -2,8 +2,8 @@
 -- 一个精简版的类实现
 function class(cls_name)
     local cls = { }
-    cls.__index = cls
     cls.__name = cls_name
+    -- cls.__index = cls
     cls.__call = function (cls, ...)
         local call = cls[cls.__name]
         if call then
@@ -21,7 +21,7 @@ function class(cls_name)
         else
             c.ctor(t, ...)
         end
-        return setmetatable(t, c)
+        return setmetatable(t, {__index = cls})
     end
     return cls
 end

@@ -2,6 +2,7 @@ local class = require "class"
 local tcp = require "internal.TCP"
 local dns = require "protocol.dns"
 local HTTP = require "protocol.http"
+-- require "utils"
 
 local PARSER_PROTOCOL = HTTP.RESPONSE_PROTOCOL_PARSER
 local PARSER_HEAD = HTTP.RESPONSE_HEAD_PARSER
@@ -18,7 +19,7 @@ local fmt = string.format
 
 local SERVER = "cf/0.1"
 
-local TIMEOUT = 30
+local TIMEOUT = 15
 
 local httpc = {}
 
@@ -30,9 +31,9 @@ function httpc.set_timeout(Invaild)
 end
 
 
-function httpc.get(domain, header)
+function httpc.get(domain, HEADER)
 
-	local PROTOCOL, DOMAIN, PATH, IP, PORT
+	local PROTOCOL, DOMAIN, PATH, PORT
 
 	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
 		PROTOCOL = protocol
@@ -92,20 +93,21 @@ end
 
 function httpc.post(domain, HEADER, BODY)
 
-	local PROTOCOL, DOMAIN, PATH, IP
+	local PROTOCOL, DOMAIN, PATH, PORT
 
-	spliter(domain, '(http[s]?)://([^/]+)([/]?.*)', function (protocol, domain, path)
+	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
 		PROTOCOL = protocol
 		DOMAIN = domain
 		PATH = path
+		PORT = port
 	end)
 
-	if not PROTOCOL or not DOMAIN or not PATH then
-		return nil, "Invaild protocol from http post 1."
+	if not PROTOCOL or not DOMAIN or not PORT or not PATH then
+		return nil, "Invaild protocol from http get 1."
 	end
 
-	if PROTOCOL == '' or DOMAIN == '' or PATH == '' then
-		return nil, "Invaild protocol from http post 2."
+	if not PROTOCOL or not DOMAIN or not PORT or not PATH then
+		return nil, "Invaild protocol from http get 2."
 	end
 
 	local ok, ip = dns.resolve(DOMAIN)
@@ -173,6 +175,7 @@ function httpc.response(IO, SSL)
 			data, len = IO:ssl_recv(4096)
 		end
 		if not data then
+			IO:close()
 			return nil, "A peer of remote close this connection."
 		end
 		insert(content, data)
@@ -186,10 +189,12 @@ function httpc.response(IO, SSL)
 				end
 				local protocol_start, protocol_end = find(DATA, '\r\n')
 				if not protocol_start or not protocol_end then
+					IO:close()
 					return nil, "can't resolvable protocol."
 				end
 				CODE = PARSER_PROTOCOL(split(DATA, 1, protocol_end))
-				HEAD = PARSER_HEAD(split(DATA, 1, posA + 1))
+				HEAD = PARSER_HEAD(split(DATA, protocol_end + 1, posA + 1))
+				-- var_dump(HEAD)
 				if not HEAD['Content-Length'] then
 					BODY = ""
 					break
