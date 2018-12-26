@@ -1,9 +1,10 @@
 local UDP = require "internal.UDP"
 local co = require "internal.Co"
+local log = require "log"
 
 local co_self = co.self
 local co_wait = co.wait
-local co_wakeup = co.co_wakeup
+local co_wakeup = co.wakeup
 
 local LIMIT_HEADER_LEN = 12
 local MAX_THREAD_ID = 65535
@@ -103,7 +104,7 @@ local dns_client_rr = 0
 
 local function get_dns_client()
     dns_client_rr = dns_client_rr % #dns_list + 1
-    local udp = UDP:new()
+    local udp = UDP:new():timeout(dns._timeout or 10) -- 默认情况下是10秒超时
     local ok = udp:connect(dns_list[dns_client_rr], 53)
     if ok then
         return udp
@@ -181,33 +182,48 @@ local function dns_query(domain)
     -- 当前正在查询的协程不需要加入进去
     local wlist = {}
     cos[domain] = wlist
-
+    -- local start = os.time() + os.clock()
+    -- print("开始解析域名:["..domain.."], 开始时间: ", start)
     local header = pack_header()
     local question = pack_question(domain)
     local dns_client = get_dns_client()
     if not dns_client then
         return nil, "No dns client."
     end
-    local ok = dns_client:send(header..question)
-    if not ok then
-        return nil, "Send dns request falt."
+    local dns_resp, len
+    while 1 do   -- 如果一直没收到回应将会反复请求
+        dns_client:send(header..question)
+        dns_resp, len = dns_client:recv()
+        if dns_resp then
+            dns_client:close()
+            dns_client = nil
+            break
+        end
+        if type(len) == "string" then
+            log.info("正在解析["..domain.."]:"..len)
+        end
     end
-    local dns_resp, len = dns_client:recv()
-    dns_client:close()
     if not len or len < LIMIT_HEADER_LEN then
-        return nil, "Malformed dns response package."
+        local err = "Malformed dns response package."
+        log.info("正在解析["..domain.."]:"..err)
+        return nil, log.info("正在解析["..domain.."]:"..err)
     end
     local answer_header, nbyte = unpack_header(dns_resp)
     if answer_header.qdcount ~= 1 then
-        return nil, "Malformed dns response package."
+        local err = "Malformed dns response package."
+        return nil, log.info("正在解析["..domain.."]:"..err)
     end
     if not answer_header.ancount or answer_header.ancount < 1 then
-        return nil, "Can't find ip addr in nameserver."
+        local err = "Can't find ip addr in nameserver."
+        log.info("正在解析["..domain.."]:"..err)
+        return nil, log.info("正在解析["..domain.."]:"..err)
     end
     local question, nbyte = unpack_question(dns_resp, nbyte)
 
     if question.name ~= domain then
-        return nil, "quetions not equal."
+        local err = "quetions not equal."
+        log.info("正在解析["..domain.."]:"..err)
+        return nil, log.info("正在解析["..domain.."]:"..err)
     end
     local answer
     for i = 1, answer_header.ancount do
@@ -216,6 +232,9 @@ local function dns_query(domain)
         dns_cache[domain] = {ip = answer.ip, ttl = now() + answer.ttl}
     end
     local ip = answer.ip
+    -- local e_n_d = os.time() + os.clock()
+    -- print("解析域名["..domain.."]完成, 结束时间:", e_n_d)
+    -- print("解析域名用时: ", tostring(e_n_d - start)..'s')
     -- 如果有其它协程也在等待查询, 那么一起唤醒它们
     if wlist and #wlist > 0 then
         for _, co in ipairs(wlist) do
@@ -230,6 +249,11 @@ end
 function dns.flush()
     dns_cache = {}
     gen_cache()
+end
+
+-- 这里设置每个dns查询请求的timeout与retry时间
+function dns.timeout(timeout)
+    dns._timeout = timeout
 end
 
 function dns.resolve(domain)

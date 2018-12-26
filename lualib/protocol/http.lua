@@ -1,6 +1,6 @@
 local tcp = require "internal.TCP"
 local log = require "log"
-require "utils"
+-- require "utils"
 local cjson = require "cjson"
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode

@@ -17,6 +17,15 @@ function UDP:ctor(opt)
 	self.port = nil
 end
 
+-- 超时时间
+function UDP:timeout(Interval)
+    if Interval and Interval > 0 then
+        self._timeout = Interval
+    end
+    return self
+end
+
+
 function UDP:connect(ip, port)
 	self.udp = udp:new()
 	if not self.udp then
@@ -34,12 +43,21 @@ function UDP:recv(...)
 		local co = co_self()
 		self.read_co = co_new(function ( ... )
 			local data, len = self.udp:recv()
+			if self.timer then
+				self.timer:stop()
+				self.timer = nil
+			end
 			self.udp:stop()
 			self.read_co = nil
 			if data then
 				return co_wakeup(co, data, len)
 			end
-			return co_wakeup(co)
+			return co_wakeup(co, nil, '未知的udp错误')
+		end)
+		self.timer = ti.timeout(self._timeout, function ( ... )
+			self.udp:stop()
+			self.read_co = nil
+			return co_wakeup(co, nil, 'udp_recv timout(超时)..')
 		end)
 		self.udp:start(self.read_co)
 		return co_wait()
