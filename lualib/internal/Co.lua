@@ -1,5 +1,8 @@
 local task = require "task"
 local log  = require "log"
+-- local snapshot = require "snapshot"
+-- require "utils"
+
 
 local co_new = coroutine.create
 local co_start = coroutine.resume
@@ -9,11 +12,20 @@ local co_self = coroutine.running
 local cos = {}
 
 local function f(func, ...)
+	-- local S1 = snapshot()
 	-- log.info("当前内存为:", collectgarbage('count'))
 	local ok, msg = pcall(func, ...)
 	if not ok then
 		log.error(msg)
 	end
+	-- collectgarbage()
+	-- local S2 = snapshot()
+	-- for k, v in pairs(S2) do
+	-- 	if S1[k] == nil then
+	-- 		print("key = ", k)
+	-- 		var_dump(v)
+	-- 	end
+	-- end
 	cos[co_self()] = nil
 	return
 end
