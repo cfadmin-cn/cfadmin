@@ -3,13 +3,16 @@ local log  = require "log"
 -- local snapshot = require "snapshot"
 -- require "utils"
 
-
 local co_new = coroutine.create
 local co_start = coroutine.resume
 local co_wait = coroutine.yield
+local co_status = coroutine.status
 local co_self = coroutine.running
 
 local cos = {}
+
+local main_co = co_self()
+local main_task = task.new()
 
 local function f(func, ...)
 	-- local S1 = snapshot()
@@ -65,9 +68,17 @@ end
 
 -- 唤醒
 function Co.wakeup(co, ...)
-	local t = cos[assert(co, "Attemp to Pass a nil value(co).")]
+	assert(co, "Attemp to Pass a nil value (need a co).")
+	local status = co_status(co)
+	if co == co_self() then
+		return log.error("Can't wakeup current co.")
+	end
+	if main_co == co and status == "suspended" then
+		return task.start(main_task, main_co, ...)
+	end
+	local t = cos[co]
 	if not t then
-		return log.error("Sorry, Can't find task from co list.")
+		return log.error("Can't find co in co list.")
 	end
 	return task.start(t, co, ...)
 end

@@ -29,7 +29,7 @@
 
 -- -- 测试redis
 -- local redis = require "protocol.redis"
---
+
 -- local ok, redis = redis.connect({
 --     host = "localhost",
 --     port = 6379,
@@ -40,22 +40,24 @@
 --     print("not connect")
 --     return
 -- end
---
+
 -- -- hash表
 -- print(redis:hset("table", "username", "Candy"))
---
+
 -- -- 获取username
 -- print(redis:hget("table", "username"))
---
+
 -- -- 检查哈希表是否存在
 -- print(redis:exists("table"))
---
+
 -- -- 设置哈希表生命周期
 -- print(redis:expire("table", 10086))
---
+
 -- -- 查看生命周期
 -- print(redis:ttl("table"))
 
+-- redis:close()
+-- redis:disconnect()
 
 local httpd = require "httpd"
 local app = httpd:new("App")

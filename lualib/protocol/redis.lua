@@ -1,5 +1,6 @@
 local tcp = require "internal.TCP"
 local dns = require "protocol.dns"
+local log = require "log"
 
 local table = table
 local concat = table.concat
@@ -8,8 +9,6 @@ local string = string
 local find = string.find
 local byte = string.byte
 local sub = string.sub
-
-local assert = assert
 
 local redis = {}
 local command = {}
@@ -21,51 +20,42 @@ local meta = {
 ---------- redis response
 local redcmd = {}
 
-redcmd[36] = function(fd, data) -- '$'
-	local bytes = tonumber(data)
-	if bytes < 0 then
-		return true, nil
-	end
-	local firstline = fd:recv(bytes + 2)
-	return true, sub(firstline, 1, -3)
-end
-
-redcmd[43] = function(fd, data) -- '+'
-	return true, data
-end
-
-redcmd[45] = function(fd, data) -- '-'
-	return false, data
-end
-
-redcmd[58] = function(fd, data) -- ':'
-	-- todo: return string later
-	return true, tonumber(data)
-end
-
--- write by Cloudwu
--- local function read_response(fd)
--- 	local result = fd:readline "\r\n"
--- 	local firstchar = byte(result)
--- 	local data = sub(result, 2)
--- 	return redcmd[firstchar](fd, data)
--- end
-
-local function read_response(fd)
+local function read_response(sock)
 	local result = ""
 	while 1 do
-		local data = fd:recv(1)
+		local data = sock:recv(1)
 		result = result .. data
 		if find(result, "\r\n") then
 			break
 		end
 	end
 	local firstchar = byte(result)
-	return redcmd[firstchar](fd, sub(result, 2))
+	return redcmd[firstchar](sock, sub(result, 2))
 end
 
+redcmd[36] = function(sock, data) -- '$'
+	local bytes = tonumber(data)
+	if bytes < 0 then
+		return true, nil
+	end
+	local firstline = sock:recv(bytes + 2)
+	return true, sub(firstline, 1, -3)
+end
 
-redcmd[42] = function(fd, data)	-- '*'
+redcmd[43] = function(sock, data) -- '+'
+	return true, data
+end
+
+redcmd[45] = function(sock, data) -- '-'
+	return false, data
+end
+
+redcmd[58] = function(sock, data) -- ':'
+	-- todo: return string later
+	return true, tonumber(data)
+end
+
+redcmd[42] = function(sock, data)	-- '*'
 	local n = tonumber(data)
 	if n < 0 then
 		return true, nil
@@ -73,7 +63,7 @@ redcmd[42] = function(fd, data)	-- '*'
 	local bulk = {}
 	local noerr = true
 	for i = 1,n do
-		local ok, v = read_response(fd)
+		local ok, v = read_response(sock)
 		if not ok then
 			noerr = false
 		end
@@ -86,6 +76,13 @@ end
 
 function command:disconnect()
 	self[1]:close()
+	self[1] = nil
+	setmetatable(self, nil)
+end
+
+function command:close()
+	self[1]:close()
+	self[1] = nil
 	setmetatable(self, nil)
 end
 
@@ -143,41 +140,49 @@ local function compose_message(cmd, msg)
 	return concat(lines)
 end
 
-local function redis_login(so, auth, db)
-	if auth == nil and db == nil then
-		return
-	end
+local function redis_login(sock, auth, db)
 	if auth then
-		so:send(compose_message("AUTH", auth))
-		read_response(so)
+		sock:send(compose_message("AUTH", auth))
+		local ok, err = read_response(sock)
+		if not ok then
+			return nil, err
+		end
 	end
 	if db then
-		so:send(compose_message("SELECT", db))
-		read_response(so)
+		sock:send(compose_message("SELECT", db))
+		local ok, err = read_response(sock)
+		if not ok then
+			return nil, err
+		end
 	end
+	return true
 end
 
 function redis.connect(db_conf)
 	local sock = tcp:new()
 	if not sock then
-		return nil, "Create redis socket error."
+		log.error("redis 创建 socket 失败")
+		return nil, "Can't Create redis Socket"
 	end
-	-- try connect first only once
 	local ok, ip = dns.resolve(db_conf.host)
 	if not ok then
+		log.error("连接到redis域名解析失败")
 		return nil, "Can't resolve redis domain"
 	end
 	local ok = sock:connect(ip, db_conf.port or 6379)
 	if not ok then
+		log.error("连接到redis ip 或者 端口失败")
 		return nil, "Sorry, Connect redis server error."
 	end
-
-	redis_login(sock, db_conf.auth, db_conf.db)
-
-	return true, setmetatable( { sock }, meta )
+	local ok, err = redis_login(sock, db_conf.auth, db_conf.db)
+	if not ok then
+		log.error(err)
+		return nil, "redis login error."
+	end
+	return true, setmetatable({ sock }, meta)
 end
 
-setmetatable(command, { __index = function(t,k)
+setmetatable(command, { __index = function(t, k)
 	local cmd = string.upper(k)
 	local f = function (self, v, ...)
 		if type(v) == "table" then
@@ -198,27 +203,14 @@ local function read_boolean(so)
 end
 
 function command:exists(key)
-	local fd = self[1]
 	self[1]:send(compose_message ("EXISTS", key))
-	return read_response(self[1])
+	return read_boolean(self[1])
 end
 
 function command:sismember(key, value)
-	local fd = self[1]
 	self[1]:send(compose_message ("SISMEMBER", {key, value}))
-	return read_response(self[1])
+	return read_boolean(self[1])
 end
 
-local function compose_table(lines, msg)
-	local tinsert = table.insert
-	tinsert(lines, count_cache[#msg])
-	for _,v in ipairs(msg) do
-		v = tostring(v)
-		tinsert(lines,header_cache[#v])
-		tinsert(lines,v)
-	end
-	tinsert(lines, "\r\n")
-	return lines
-end
 
 return redis
