@@ -1,6 +1,6 @@
 local tcp = require "internal.TCP"
 local log = require "log"
--- require "utils"
+require "utils"
 local cjson = require "cjson"
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
@@ -404,7 +404,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				sock:close()
 				return 
 			end
-
 			local header = { }
 
 			local ok, data, static, statucode
@@ -425,7 +424,12 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
 			else
 				local file_type
-				ok, data, file_type = pcall(cls, './'..PATH)
+				local path = PATH
+				local pos, _ = find(PATH, '%?')
+				if pos then
+					path = split(path, 1, pos - 1)
+				end
+				ok, data, file_type = pcall(cls, './'..path)
 				if not ok then
 					log.error(data)
 					statucode = 500
