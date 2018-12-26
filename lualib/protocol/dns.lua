@@ -1,4 +1,9 @@
 local UDP = require "internal.UDP"
+local co = require "internal.Co"
+
+local co_self = co.self
+local co_wait = co.wait
+local co_wakeup = co.co_wakeup
 
 local LIMIT_HEADER_LEN = 12
 local MAX_THREAD_ID = 65535
@@ -25,13 +30,13 @@ local function gen_id()
     return thread_id
 end
 
-local function check_cache(name)
-    local query = dns_cache[name]
+local function check_cache(domain)
+    local query = dns_cache[domain]
     if not query then
         return
     end
     if query.ttl and query.ttl < now() then
-        dns_cache[name] = nil
+        dns_cache[domain] = nil
         return
     end
     return query.ip
@@ -42,11 +47,11 @@ local function gen_cache()
     dns_cache['localhost'] = { ip = "127.0.0.1"}
     if file then
         for line in file:lines() do
-            spliter(line, "(%d+%p%d+%p%d+%p%d+) (.-)$", function(ip, name)
-                if not dns_cache[name] then
-                    dns_cache[name] = {ip = ip}
+            spliter(line, "(%d+%p%d+%p%d+%p%d+) (.-)$", function(ip, domain)
+                if not dns_cache[domain] then
+                    dns_cache[domain] = {ip = ip}
                 else
-                    dns_cache[name]["ip"] = ip
+                    dns_cache[domain]["ip"] = ip
                 end
             end)
         end
@@ -169,14 +174,16 @@ local function unpack_rdata(chunk)
     return fmt("%d.%d.%d.%d", unpack(">BBBB", chunk))
 end
 
-function dns.flush()
-    dns_cache = {}
-    gen_cache()
-end
 
-function dns.query(name)
+local cos = {}
+
+local function dns_query(domain)
+    -- 当前正在查询的协程不需要加入进去
+    local wlist = {}
+    cos[domain] = wlist
+
     local header = pack_header()
-    local question = pack_question(name)
+    local question = pack_question(domain)
     local dns_client = get_dns_client()
     if not dns_client then
         return nil, "No dns client."
@@ -199,28 +206,50 @@ function dns.query(name)
     end
     local question, nbyte = unpack_question(dns_resp, nbyte)
 
-    if question.name ~= name then
+    if question.name ~= domain then
         return nil, "quetions not equal."
     end
     local answer
     for i = 1, answer_header.ancount do
         answer, nbyte = unpack_answer(dns_resp, nbyte)
         answer.ip = unpack_rdata(answer.rdata)
-        dns_cache[answer.name] = {ip = answer.ip, ttl = now() + answer.ttl}
+        dns_cache[domain] = {ip = answer.ip, ttl = now() + answer.ttl}
     end
-    return true, answer.ip
+    local ip = answer.ip
+    -- 如果有其它协程也在等待查询, 那么一起唤醒它们
+    if wlist and #wlist > 0 then
+        for _, co in ipairs(wlist) do
+            co_wakeup(co, true, ip)
+        end
+        wlist = nil
+        cos[domain] = nil
+    end
+    return true, ip
 end
 
-function dns.resolve(name)
-    local ok = check_ip(name, 4)
+function dns.flush()
+    dns_cache = {}
+    gen_cache()
+end
+
+function dns.resolve(domain)
+    -- 如果是正确的ipv4地址直接返回
+    local ok = check_ip(domain, 4)
     if ok then
-        return ok, name
+        return ok, domain
     end
-    local ip = check_cache(name)
+    -- 如果有dns缓存直接返回
+    local ip = check_cache(domain)
     if ip then
         return true, ip
     end
-    return dns.query(name)
+    -- 如果有其他协程也正巧在查询这个域名, 那么就加入到等待列表内
+    local wait_list = cos[domain]
+    if wait_list then
+        insert(cos, co_self())
+        return co_wait()
+    end
+    return dns_query(domain)
 end
 
 return dns
