@@ -1,5 +1,6 @@
 local tcp = require "internal.TCP"
 local dns = require "protocol.dns"
+local log = require "log"
 local crypt = require "crypt"
 
 local sub = string.sub
@@ -30,7 +31,7 @@ local SERVER_MORE_RESULTS_EXISTS = 8
 -- 16MB - 1, the default max allowed packet size used by libmysqlclient
 local FULL_PACKET_SIZE = 16777215
 
-local mt = { __index = _M }
+local mt = { __index = _M, __name = "MySQL"}
 
 -- mysql field value type converters
 local converters = new_tab(0, 9)
@@ -108,7 +109,7 @@ local function _send_packet(self, req, size)
 
     local packet = _set_byte3(size) .. strchar(self.packet_no & 255) .. req
 
-    return sock:send(packet)
+    sock:send(packet)
 end
 
 
@@ -555,7 +556,7 @@ function _M.connect(self, opts)
 
     self.state = STATE_CONNECTED
 
-    return 1
+    return true
 end
 
 function _M.close(self)
@@ -566,13 +567,11 @@ function _M.close(self)
 
     self.state = nil
 
-    local bytes, err = _send_packet(self, strchar(COM_QUIT), 1)
-    if not bytes then
-        return nil, err
-    end
+    _send_packet(self, strchar(COM_QUIT), 1)
+
+    sock:close()
 
     setmetatable(self, nil)
-    sock:close()
 end
 
 
@@ -583,8 +582,7 @@ end
 
 local function send_query(self, query)
     if self.state ~= STATE_CONNECTED then
-        return nil, "cannot send query in the current context: "
-                    .. (self.state or "nil")
+        return nil, "cannot send query in the current context: ".. (self.state or "nil")
     end
 
     local sock = self.sock
@@ -597,24 +595,17 @@ local function send_query(self, query)
     local cmd_packet = strchar(COM_QUERY) .. query
     local packet_len = 1 + #query
 
-    local bytes, err = _send_packet(self, cmd_packet, packet_len)
-    if not bytes then
-        return nil, err
-    end
+    _send_packet(self, cmd_packet, packet_len)
 
     self.state = STATE_COMMAND_SENT
 
-    --print("packet sent ", bytes, " bytes")
-
-    return bytes
 end
 _M.send_query = send_query
 
 
 local function read_result(self, est_nrows)
     if self.state ~= STATE_COMMAND_SENT then
-        return nil, "cannot read result in the current context: "
-                    .. (self.state or "nil")
+        return nil, "cannot read result in the current context: ".. (self.state or "nil")
     end
 
     local sock = self.sock
@@ -719,16 +710,20 @@ local function read_result(self, est_nrows)
 
     return rows
 end
+
 _M.read_result = read_result
 
 
 function _M.query(self, query, est_nrows)
-    local bytes, err = send_query(self, query)
-    if not bytes then
-        return nil, "failed to send query: " .. err
+
+    if not query or type(query) ~= "string" then
+        return nil, "Attemp to pass a invaild SQL."
     end
 
+    send_query(self, query)
+
     return read_result(self, est_nrows)
+
 end
 
 

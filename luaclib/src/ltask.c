@@ -27,10 +27,10 @@ task_new(lua_State *L){
 int
 task_start(lua_State *L){
 	core_task *task = (core_task *) luaL_testudata(L, 1, "__Task__");
-	if (!task) return 0;
+	if (!task) return luaL_error(L, "attemp to pass a invaild core_task value.");
 
 	lua_State *co = lua_tothread(L, 2);
-	if (!co) return 0;
+	if (!co) return luaL_error(L, "attemp to pass a invaild lua_State value.");
 
 	/* 这里假设栈大小永远够用, 因为调用与回调都不需要传入那么多参数 */
 	lua_xmove(L, co, lua_gettop(L) - 2);

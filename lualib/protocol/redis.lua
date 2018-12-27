@@ -14,6 +14,7 @@ local redis = {}
 local command = {}
 local meta = {
 	__index = command,
+	__name = "Redis",
 	-- DO NOT close channel in __gc
 }
 
