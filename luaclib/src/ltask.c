@@ -19,6 +19,8 @@ task_new(lua_State *L){
 	core_task *task = lua_newuserdata(L, sizeof(core_task));
 	if (!task) return 0;
 
+	core_task_init(task, TASK_CB);
+
 	luaL_setmetatable(L, "__Task__");
 
 	return 1;
@@ -36,8 +38,6 @@ task_start(lua_State *L){
 	lua_xmove(L, co, lua_gettop(L) - 2);
 
 	core_set_watcher_userdata(task, co);
-
-	core_task_init(task, TASK_CB);
 
 	core_task_start(CORE_LOOP_ task);
 

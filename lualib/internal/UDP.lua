@@ -76,6 +76,7 @@ function UDP:close()
 		self.udp = nil
 	end
 	-- var_dump(self)
+	setmetatable(self, nil)
 end
 
 return UDP

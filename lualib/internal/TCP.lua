@@ -296,6 +296,8 @@ function TCP:close()
         tcp.close(self.fd)
         self.fd = nil
     end
+
+    setmetatable(self, nil)
     -- var_dump(self)
 end
 

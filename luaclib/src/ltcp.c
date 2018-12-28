@@ -99,6 +99,11 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 
 	int status = 0;
 
+	if (revents & EV_ERROR) {
+		LOG("ERROR", "Recevied a core_io object internal error from libev.");
+		return ;
+	}
+
 	if (revents & EV_READ && revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
