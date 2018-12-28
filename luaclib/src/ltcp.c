@@ -31,7 +31,7 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 
 
 	struct sockaddr_in sock_addr;
-	memset(&sock_addr, 0, sizeof(struct sockaddr_in));
+	memset(&sock_addr, 0, sizeof(sock_addr));
 
 	if (mode == SERVER){
 		sock_addr.sin_family = AF_INET;
@@ -136,7 +136,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 		errno = 0;
 
 		struct sockaddr_in addr;
-		memset(&addr, 0, sizeof(struct sockaddr_in));
+		// memset(&addr, 0, sizeof(addr));
 
 		socklen_t slen = sizeof(struct sockaddr_in);
 		int client = accept(io->fd, (struct sockaddr*)&addr, &slen);

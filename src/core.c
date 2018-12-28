@@ -117,9 +117,7 @@ EV_ALLOC(void *ptr, long nsize){
 		LOG("ERROR", "attemp to pass a negative number to malloc or free")
 		return NULL;
 	}
-
-	if (nsize == 0 && ptr) return xfree(ptr), NULL;
-
+	if (nsize == 0) return xfree(ptr), NULL;
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
 		if (newptr) return newptr;
@@ -131,12 +129,9 @@ EV_ALLOC(void *ptr, long nsize){
 static void *
 L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
 	// 为lua内存hook注入日志;
-
 	/* 用户自定义数据 */
 	(void)ud;  (void)osize; 
-
-	if ( nsize == 0 && ptr) return xfree(ptr), NULL;
-
+	if (nsize == 0) return xfree(ptr), NULL;
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
 		if (newptr) return newptr;
@@ -178,11 +173,11 @@ init_main(){
 	// 停止GC
 	lua_gc(L, LUA_GCSTOP, 0);
 
-	// 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
-	lua_gc(L, LUA_GCSETPAUSE, 100);
+	// // 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
+	// lua_gc(L, LUA_GCSETPAUSE, 100);
 
-	// 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
-	lua_gc(L, LUA_GCSETSTEPMUL, 50000);
+	// // 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
+	// lua_gc(L, LUA_GCSETSTEPMUL, 100000);
 
 	if(status != LUA_OK) {
 		switch(status){
@@ -221,23 +216,8 @@ core_sys_init(){
 
 }
 
-// static void
-// TIMER_GC_CB(core_loop *loop, core_timer* timer, int revents){
-// 	if (EV_ERROR & revents){
-// 		LOG("ERROR", "GC ERROR");
-// 		return;
-// 	}
-// 	if (L) {
-// 		LOG("INFO", "定时GC");
-// 		lua_gc(L, LUA_GCCOLLECT, 0);
-// 	}
-// }
-
 int
 core_sys_run(){
-	// core_timer timer;
-	// core_timer_init(&timer, TIMER_GC_CB);
-	// core_timer_start(CORE_LOOP_ &timer, 10);
 	return core_start(CORE_LOOP_ 0);
 
 }

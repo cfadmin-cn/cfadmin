@@ -6,11 +6,13 @@
 
 // #define EV_FEATURES (1 | 2 | 4 | 8 | 16 | 32 | 64)
 
-#define EV_VERIFY 3
+// #define EV_VERIFY 3
 
-#define EV_USE_4HEAP 1
+#define EV_VERIFY 0
 
-#define EV_HEAP_CACHE_AT 1
+// #define EV_USE_4HEAP 1
+
+// #define EV_HEAP_CACHE_AT 1
 
 /* 单进程/单线程模型 */
 #define EV_NO_SMP 1
