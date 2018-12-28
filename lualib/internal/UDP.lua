@@ -12,9 +12,7 @@ local co_wait = co.wait
 local UDP = class("UDP")
 
 function UDP:ctor(opt)
-	self.udp = nil
-	self.ip = nil
-	self.port = nil
+	self.udp = udp.new()
 end
 
 -- 超时时间
@@ -27,12 +25,11 @@ end
 
 
 function UDP:connect(ip, port)
-	self.udp = udp:new()
 	if not self.udp then
 		return nil, "Can't Create a UDP socket."
 	end
-	local ok = self.udp:connect(ip, port)
-	if not ok then
+	self.fd = udp.connect(ip, port)
+	if self.fd < 0 then
 		return nil, "a peer of connect from udp port maybe closed."
 	end
 	return true
@@ -42,12 +39,12 @@ function UDP:recv(...)
 	if self.udp then
 		local co = co_self()
 		self.read_co = co_new(function ( ... )
-			local data, len = self.udp:recv()
+			local data, len = udp.recv(self.fd)
 			if self.timer then
 				self.timer:stop()
 				self.timer = nil
 			end
-			self.udp:stop()
+			udp.stop(self.udp)
 			self.read_co = nil
 			if data then
 				return co_wakeup(co, data, len)
@@ -55,28 +52,37 @@ function UDP:recv(...)
 			return co_wakeup(co, nil, '未知的udp错误')
 		end)
 		self.timer = ti.timeout(self._timeout, function ( ... )
-			self.udp:stop()
+			udp.stop(self.udp)
 			self.read_co = nil
+			self.timer = nil
 			return co_wakeup(co, nil, 'udp_recv timout(超时)..')
 		end)
-		self.udp:start(self.read_co)
+		udp.start(self.udp, self.fd, self.read_co)
 		return co_wait()
 	end
 end
 
 function UDP:send(data)
-	if self.udp then
-		return self.udp:send(data, #data)
-	end
+	assert(not self.udp or self.fd or self.fd < 0, "UDP ERROR 参数不完整.")
+	return udp.send(self.fd, data, #data)
 end
 
 function UDP:close()
+
 	if self.udp then
-		self.udp:close()
 		self.udp = nil
 	end
+
+	if self.fd then
+		udp.close(self.fd)
+		self.fd = nil
+	end
+
+	if self._timeout then
+		self._timeout = nil
+	end
+
 	-- var_dump(self)
-	setmetatable(self, nil)
 end
 
 return UDP

@@ -54,15 +54,15 @@ UDP_IO_CB(CORE_P_ ev_io *io, int revents){
 int
 udp_send(lua_State *L){
 
-	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
-	if(!io) return 0;
+	int fd = lua_tointeger(L, 1);
+	if (fd < 0) return 0;
 
 	const char* data = lua_tostring(L, 2);
 	if (!data) return 0;
 
 	size_t len = lua_tointeger(L, 3);
 
-	int wsize = write(io->fd, data, len);
+	int wsize = write(fd, data, len);
 
 	lua_pushinteger(L, wsize);
 
@@ -73,12 +73,12 @@ udp_send(lua_State *L){
 int
 udp_recv(lua_State *L){
 
-	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
-	if(!io) return 0;
+	int fd = lua_tointeger(L, 1);
+	if (fd < 0) return 0;
 
 	char str[4096] = {0};
 
-	int rsize = read(io->fd, str, 4096);
+	int rsize = read(fd, str, 4096);
 
 	if (rsize < 0) return 0;
 
@@ -93,20 +93,15 @@ udp_recv(lua_State *L){
 int
 udp_connect(lua_State *L){
 
-	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
-	if(!io) return 0;
-
-	const char *ip = lua_tostring(L, 2);
+	const char *ip = lua_tostring(L, 1);
 	if(!ip) {lua_settop(L, 0); return 0;}
 
-	int port = lua_tointeger(L, 3);
+	int port = lua_tointeger(L, 2);
 	if(!port) {lua_settop(L, 0); return 0;}
 
 	int fd = udp_socket_new(ip, port);
 
-	lua_pushboolean(L, fd > 0 ? 1 : 0);
-
-	io->fd = fd > 0 ? fd : 0;
+	lua_pushinteger(L, fd > 0 ? fd : -1);
 
 	return 1;
 
@@ -118,13 +113,16 @@ udp_start(lua_State *L){
 	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
 	if(!io) return 0;
 
+	int fd = lua_tointeger(L, 2);
+	if (fd < 0) return 0;
+
 	/* 回调协程 */
-	lua_State *co = lua_tothread(L, 2);
+	lua_State *co = lua_tothread(L, 3);
 	if (!co) return 0;
 
 	core_set_watcher_userdata(io, co);
 
-	core_io_init (io, UDP_IO_CB, io->fd, EV_READ);
+	core_io_init (io, UDP_IO_CB, fd, EV_READ);
 
 	core_io_start (CORE_LOOP_ io);
 
@@ -147,12 +145,9 @@ udp_stop(lua_State *L){
 int
 udp_close(lua_State *L){
 
-	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
-	if(!io) return 0;
+	int fd = lua_tointeger(L, 1);
 
-	core_io_stop(CORE_LOOP_ io);
-
-	if (io->fd > 0) close(io->fd);
+	if (fd && fd > 0) close(fd);
 
 	return 0;
 

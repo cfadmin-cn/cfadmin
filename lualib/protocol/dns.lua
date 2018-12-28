@@ -206,24 +206,24 @@ local function dns_query(domain)
     if not len or len < LIMIT_HEADER_LEN then
         local err = "Malformed dns response package."
         log.info("正在解析["..domain.."]:"..err)
-        return nil, log.info("正在解析["..domain.."]:"..err)
+        return nil, err
     end
     local answer_header, nbyte = unpack_header(dns_resp)
     if answer_header.qdcount ~= 1 then
         local err = "Malformed dns response package."
-        return nil, log.info("正在解析["..domain.."]:"..err)
+        return nil, err
     end
     if not answer_header.ancount or answer_header.ancount < 1 then
         local err = "Can't find ip addr in nameserver."
         log.info("正在解析["..domain.."]:"..err)
-        return nil, log.info("正在解析["..domain.."]:"..err)
+        return nil, err
     end
     local question, nbyte = unpack_question(dns_resp, nbyte)
 
     if question.name ~= domain then
         local err = "quetions not equal."
         log.info("正在解析["..domain.."]:"..err)
-        return nil, log.info("正在解析["..domain.."]:"..err)
+        return nil, err
     end
     local answer
     for i = 1, answer_header.ancount do
@@ -270,7 +270,7 @@ function dns.resolve(domain)
     -- 如果有其他协程也正巧在查询这个域名, 那么就加入到等待列表内
     local wait_list = cos[domain]
     if wait_list then
-        insert(cos, co_self())
+        insert(wait_list, co_self())
         return co_wait()
     end
     return dns_query(domain)
