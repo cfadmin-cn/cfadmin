@@ -15,24 +15,13 @@ local main_co = co_self()
 local main_task = task.new()
 
 local function f(func, ...)
-	-- local S1 = snapshot()
-	-- log.info("当前内存为:", collectgarbage('count'))
 	local ok, msg = pcall(func, ...)
 	if not ok then
 		log.error(msg)
 	end
-	-- collectgarbage()
-	-- local S2 = snapshot()
-	-- for k, v in pairs(S2) do
-	-- 	if S1[k] == nil then
-	-- 		print("key = ", k)
-	-- 		var_dump(v)
-	-- 	end
-	-- end
 	cos[co_self()] = nil
 	return
 end
-
 
 local Co = {}
 

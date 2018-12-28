@@ -287,6 +287,10 @@ function TCP:close()
         self.IO = nil
     end
 
+    if self._timeout then
+        self._timeout = nil
+    end
+
     if self.ssl then
         tcp.free_ssl(self.ssl)
         self.ssl = nil
@@ -297,7 +301,6 @@ function TCP:close()
         self.fd = nil
     end
 
-    setmetatable(self, nil)
     -- var_dump(self)
 end
 

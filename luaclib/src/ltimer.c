@@ -28,7 +28,7 @@ timer_stop(lua_State *L){
 
 	core_timer_stop(CORE_LOOP_ timer);
 
-	return 1;
+	return 0;
 }
 
 int
@@ -47,9 +47,7 @@ timer_start(lua_State *L){
 
 	core_timer_start(CORE_LOOP, timer, timeout);
 
-	lua_settop(L, 1);
-
-	return 1;
+	return 0;
 
 }
 
@@ -75,6 +73,9 @@ luaopen_timer(lua_State *L){
     luaL_newmetatable(L, "__TIMER__");
     lua_pushstring (L, "__index");
     lua_pushvalue(L, -2);
+    lua_rawset(L, -3);
+    lua_pushliteral(L, "__mode");
+    lua_pushliteral(L, "kv");
     lua_rawset(L, -3);
 
 	luaL_Reg timer_libs[] = {

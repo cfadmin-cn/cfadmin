@@ -50,7 +50,7 @@ core_io_start(core_loop *loop, core_io *io){
 void
 core_io_stop(core_loop *loop, core_io *io){
 
-	if (io->events){
+	if (io->events || io->fd){
 
 		ev_io_stop(loop ? loop : CORE_LOOP, io);
 
@@ -182,7 +182,7 @@ init_main(){
 	lua_gc(L, LUA_GCSETPAUSE, 100);
 
 	// 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
-	lua_gc(L, LUA_GCSETSTEPMUL, 400);
+	lua_gc(L, LUA_GCSETSTEPMUL, 50000);
 
 	if(status != LUA_OK) {
 		switch(status){
@@ -206,6 +206,7 @@ init_main(){
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
 	}
+	// lua_gc(L, LUA_GCCOLLECT, 0);
 	/* 重启GC */
 	lua_gc(L, LUA_GCRESTART, 0);
 }
@@ -220,9 +221,23 @@ core_sys_init(){
 
 }
 
+// static void
+// TIMER_GC_CB(core_loop *loop, core_timer* timer, int revents){
+// 	if (EV_ERROR & revents){
+// 		LOG("ERROR", "GC ERROR");
+// 		return;
+// 	}
+// 	if (L) {
+// 		LOG("INFO", "定时GC");
+// 		lua_gc(L, LUA_GCCOLLECT, 0);
+// 	}
+// }
+
 int
 core_sys_run(){
-
+	// core_timer timer;
+	// core_timer_init(&timer, TIMER_GC_CB);
+	// core_timer_start(CORE_LOOP_ &timer, 10);
 	return core_start(CORE_LOOP_ 0);
 
 }

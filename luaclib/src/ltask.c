@@ -41,7 +41,7 @@ task_start(lua_State *L){
 
 	core_task_start(CORE_LOOP_ task);
 
-	return 1;
+	return 0;
 }
 
 LUAMOD_API int
@@ -53,6 +53,9 @@ luaopen_task(lua_State *L){
 	lua_pushstring (L, "__index");
 	lua_pushvalue(L, -2);
 	lua_rawset(L, -3);
+    lua_pushliteral(L, "__mode");
+    lua_pushliteral(L, "kv");
+    lua_rawset(L, -3);
 
 	luaL_Reg task_libs[] = {
 		{"new", task_new},

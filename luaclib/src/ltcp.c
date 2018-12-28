@@ -16,7 +16,7 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 	errno = 0;
 	/* 建立socket*/
 	int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (0 >= sockfd) return 1;
+	if (0 >= sockfd) return -1;
 
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
@@ -31,7 +31,7 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 
 
 	struct sockaddr_in sock_addr;
-	memset(&sock_addr, 0, sizeof(sock_addr));
+	memset(&sock_addr, 0, sizeof(struct sockaddr_in));
 
 	if (mode == SERVER){
 		sock_addr.sin_family = AF_INET;
@@ -43,7 +43,7 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 			return -1; /* 绑定套接字失败 */
 		}
 
-		int listen_success = listen(sockfd, 512);
+		int listen_success = listen(sockfd, 128);
 		if (0 > listen_success) {
 			return -1; /* 监听套接字失败 */
 		}
@@ -136,7 +136,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 		errno = 0;
 
 		struct sockaddr_in addr;
-		memset(&addr, 0, sizeof(addr));
+		memset(&addr, 0, sizeof(struct sockaddr_in));
 
 		socklen_t slen = sizeof(struct sockaddr_in);
 		int client = accept(io->fd, (struct sockaddr*)&addr, &slen);
@@ -444,7 +444,7 @@ ssl_free(lua_State *L){
 
 	SSL_free(ssl);
 
-	return 1;
+	return 0;
 }
 
 int
@@ -500,6 +500,9 @@ luaopen_tcp(lua_State *L){
 	lua_pushstring (L, "__index");
 	lua_pushvalue(L, -2);
 	lua_rawset(L, -3);
+    lua_pushliteral(L, "__mode");
+    lua_pushliteral(L, "kv");
+    lua_rawset(L, -3);
 
 	luaL_Reg tcp_libs[] = {
 		{"read", tcp_read},

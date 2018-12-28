@@ -177,6 +177,9 @@ luaopen_udp(lua_State *L){
     lua_pushstring (L, "__index");
     lua_pushvalue(L, -2);
     lua_rawset(L, -3);
+    lua_pushliteral(L, "__mode");
+    lua_pushliteral(L, "kv");
+    lua_rawset(L, -3);
 
 	luaL_Reg udp_libs[] = {
 		{"new", udp_new},
