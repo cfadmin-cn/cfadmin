@@ -6,12 +6,20 @@ local co_self = co.self
 local co_wait = co.wait
 local co_wakeup = co.wakeup
 
+local type = type
+local pairs = pairs
+local ipairs = ipairs
+
+local rep = string.rep
+local fmt = string.format
 local lower = string.lower
+local upper = string.upper
 local spliter = string.gsub
 
 local insert = table.insert
 local remove = table.remove
 local concat = table.concat
+local unpack = table.unpack
 
 -- 最大DB连接数量
 local MAX, COUNT
@@ -34,25 +42,31 @@ local wlist = {}
 -- 数据库连接创建函数
 local DB_CREATE
 
-local SELECT = "SELECT "
+local SELECT = "SELECT"
 
-local INSERT = "INSERT INTO "
+local INSERT = "INSERT INTO"
 
-local UPDATE = "UPDATE "
+local UPDATE = "UPDATE"
 
-local FROM = " FROM "
+local SET = "SET"
 
-local WHERE = " WHERE "
+local FROM = "FROM"
+
+local WHERE = "WHERE"
+
+local IN = "IN"
+
+local NOT = "NOT"
+
+local BETWEEN = "BETWEEN"
 
 local AND = " AND "
 
-local ASC = false
+local LIMIT = "LIMIT"
 
-local DESC = true
+local ORDERBY = "ORDER BY"
 
-local LIMIT = "LIMIT "
-
-local ORDERBY = "ORDER BY "
+local COMMA = ", "
 
 local DB = {}
 
@@ -131,34 +145,192 @@ function DB.init(driver, user, passwd, max_pool)
 end
 
 -- 查询语句
-function DB.select(fields, table, conditions, orderby, sort, limit)
-    local db = get_db()
+function DB.select(fields, tablename, conditions, orderby, sort, limit)
+
+    if not tablename or tablename == "" or type(tablename) ~= "string" then
+        return log.error('请输入正确的表名: ', tablename)
+    end
 
     local CONDITIONS = {}
 
     for index, condition in ipairs(conditions) do
-        insert(CONDITIONS, concat(condition, " "))
+        local con = condition[2]
+        if upper(con) == IN or upper(con) == BETWEEN then -- 若条件是IN或BETWEEN, 变量则应该是数组 [1,2,3,4]
+            local LEFT, RIGHT = '', ''
+            local c = AND
+            if upper(con) == IN then
+                c = COMMA
+                LEFT, RIGHT = '(', ')'
+            end
+            for i = 1, #condition[3] do
+                condition[3][i] = '"'..condition[3][i]..'"'
+            end
+            insert(CONDITIONS, concat({condition[1], upper(con), LEFT..concat(condition[3], c)..RIGHT}, " "))
+        elseif upper(con) == NOT then  -- 如果条件为NOT应该有第四个参数, 变量则应该是数组 [1,2,3,4]
+            if upper(condition[3]) == IN or upper(condition[3]) == BETWEEN then
+                local LEFT, RIGHT = '', ''
+                local c = AND
+                if upper(condition[3]) == IN then
+                    c = COMMA
+                    LEFT, RIGHT = '(', ')'
+                end
+                for i = 1, #condition[4] do
+                    condition[4][i] = '"'..condition[4][i]..'"'
+                end
+                insert(CONDITIONS, concat({condition[1], upper(condition[2]), upper(condition[3]), LEFT..concat(condition[4], c)..RIGHT}, " "))
+            else
+                insert(CONDITIONS, fmt("%s %s '%s'", unpack(condition)))
+            end
+        else
+            insert(CONDITIONS, fmt("%s %s '%s'", unpack(condition)))
+        end
     end
 
     local query = {
         SELECT,
-        concat(fields, ", "),
+        concat(fields, COMMA),
         FROM,
-        table,
+        tablename,
         WHERE,
-        concat(CONDITIONS, " AND "),
+        concat(CONDITIONS, AND),
     }
 
     if orderby then
-        insert(query, ORDERBY .. concat(orderby, ", "))
-        if sort then
-            insert(query, tostring(sort) or "")
+        insert(query, ORDERBY ..' '.. concat(orderby, COMMA))
+        if sort and tostring(sort) then
+            insert(query, sort)
         end
     end
 
     if limit then
-        insert(query, LIMIT .. concat(limit, ", "))
+        insert(query, LIMIT ..' '.. concat(limit, COMMA))
     end
+
+    local db = get_db()
+
+    -- print(concat(query, " "))
+    local response, err = db:query(concat(query, " "))
+
+    if #wlist > 0 then
+        co_wakeup(remove(wlist), db)
+    else
+        insert(POOL, db)
+    end
+
+    return response, err
+
+end
+
+-- 插入语句
+function DB.insert(tablename, keys, values)
+
+    if not tablename or tablename == "" or type(tablename) ~= "string" then
+        return log.error('请输入正确的表名: ', tablename)
+    end
+
+    local KEYS = {}
+
+    for _, key in ipairs(keys) do
+        insert(KEYS, fmt('`%s`', tostring(key)))
+    end
+
+    local VALUES = {}
+
+    for index, value in ipairs(values) do
+        local t1 = {}
+        local t2 = {}
+        for i = 1, #value do
+            insert(t1, '"%s"')
+            insert(t2, tostring(value[i]))
+        end
+        insert(VALUES, "("..fmt(concat(t1, ", "), unpack(t2))..")")
+    end
+
+    local query = concat({
+        INSERT,
+        tablename..'('..concat(KEYS, COMMA)..')',
+        "VALUES"..concat(VALUES, COMMA)
+    }, " ")
+
+    local db = get_db()
+
+    -- print(query)
+    local response, err = db:query(query)
+
+    if #wlist > 0 then
+        co_wakeup(remove(wlist), db)
+    else
+        insert(POOL, db)
+    end
+
+    return response, err
+
+end
+
+-- 更新语句
+function DB.update(tablename, values, conditions, limit)
+
+    if not tablename or tablename == "" or type(tablename) ~= "string" then
+        return log.error('请输入正确的表名: ', tablename)
+    end
+
+    local query = {
+        UPDATE,
+        '`'..tablename..'`',
+        SET,
+    }
+
+    local VALUES = {}
+
+    for index, value in ipairs(values) do
+        insert(VALUES, fmt("%s %s '%s'", unpack(value)))
+    end
+
+    insert(query, concat(VALUES, COMMA))
+
+    insert(query, WHERE)
+
+    local CONDITIONS = {}
+
+    for index, condition in ipairs(conditions) do
+        local con = condition[2]
+        if upper(con) == IN or upper(con) == BETWEEN then -- 若条件是IN或BETWEEN, 变量则应该是数组 [1,2,3,4]
+            local LEFT, RIGHT = '', ''
+            local c = AND
+            if upper(con) == IN then
+                c = COMMA
+                LEFT, RIGHT = '(', ')'
+            end
+            for i = 1, #condition[3] do
+                condition[3][i] = '"'..condition[3][i]..'"'
+            end
+            insert(CONDITIONS, concat({condition[1], upper(con), LEFT..concat(condition[3], c)..RIGHT}, " "))
+        elseif upper(con) == NOT then  -- 如果条件为NOT应该有第四个参数, 变量则应该是数组 [1,2,3,4]
+            if upper(condition[3]) == IN or upper(condition[3]) == BETWEEN then
+                local LEFT, RIGHT = '', ''
+                local c = AND
+                if upper(condition[3]) == IN then
+                    c = COMMA
+                    LEFT, RIGHT = '(', ')'
+                end
+                for i = 1, #condition[4] do
+                    condition[4][i] = '"'..condition[4][i]..'"'
+                end
+                insert(CONDITIONS, concat({condition[1], upper(condition[2]), upper(condition[3]), LEFT..concat(condition[4], c)..RIGHT}, " "))
+            else
+                insert(CONDITIONS, fmt("%s %s '%s'", unpack(condition)))
+            end
+        else
+            insert(CONDITIONS, fmt("%s %s '%s'", unpack(condition)))
+        end
+    end
+    insert(query, concat(CONDITIONS, AND))
+
+    if limit then
+        insert(query, concat(limit, COMMA))
+    end
+
+    local db = get_db()
 
     -- print(concat(query, " "))
     local response, err = db:query(concat(query, " "))
