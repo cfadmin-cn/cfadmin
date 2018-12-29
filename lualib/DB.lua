@@ -11,6 +11,7 @@ local spliter = string.gsub
 
 local insert = table.insert
 local remove = table.remove
+local concat = table.concat
 
 -- 最大DB连接数量
 local MAX, COUNT
@@ -150,16 +151,16 @@ function DB.select(fields, table, conditions, orderby, sort, limit)
 
     if orderby then
         insert(query, ORDERBY .. concat(orderby, ", "))
-    end
-
-    if sort then
-        insert(query, tostring(sort) or "")
+        if sort then
+            insert(query, tostring(sort) or "")
+        end
     end
 
     if limit then
         insert(query, LIMIT .. concat(limit, ", "))
     end
 
+    -- print(concat(query, " "))
     local response, err = db:query(concat(query, " "))
 
     if #wlist > 0 then

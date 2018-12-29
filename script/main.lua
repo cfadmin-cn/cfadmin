@@ -10,18 +10,22 @@ end
 
 -- 一个简单的DB使用查询示例
 local ret, err = DB.select(
-    {'host', 'user'}, -- fields
+    {'HOST', 'USER'}, -- fields
     'user',           -- table
     {
-        {"user", "=","root"},
+        {"user", "=","'root'"},
     },      -- conditions
-    nil,    -- orderby
+    {"User"},    -- orderby
     "DESC", -- sort
-    {10},   -- limit
+    {10}    -- limit
 )
 if not ret then
     return print(err)
 end
+
+require "utils"
+var_dump(ret)
+
 
 
 local r1 = require "r1"
