@@ -1,8 +1,6 @@
 local DB = require "DB"
 require "utils"
 
-local app = httpd:new("App")
-
 local ok = DB.init("mysql://localhost:3306/test", "root", "zhugeng")
 if not ok then
     return print("连接mysql 失败")
