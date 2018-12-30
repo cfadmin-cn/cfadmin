@@ -1,62 +1,96 @@
 local DB = require "DB"
 require "utils"
 
-local ok = DB.init("mysql://localhost:3306/test", "root", "zhugeng")
+local ok = DB.init("mysql://localhost:3306/test", "root", "123456789")
 if not ok then
     return print("连接mysql 失败")
 end
 
--- 一个简单的DB插入示例
-local ret, err = DB.insert("user",
-    {  -- 要插入的表字段
-        'name',
-        'user',
-        'passwd',
-    },
-    {  -- 要插入的数据(list)
-        {'candy',  'admin', 'admin'},
-        {'cf/0.1', 'root',  'zhugeng'}
+--[[
+    复制下面语句到任意管理工具即可导入测试表进行测试
+
+    SET NAMES utf8;
+    SET FOREIGN_KEY_CHECKS = 0;
+
+    -- ----------------------------
+    --  Table structure for `user`
+    -- ----------------------------
+    DROP TABLE IF EXISTS `user`;
+    CREATE TABLE `user` (
+      `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+      `name` varchar(255) NOT NULL,
+      `user` varchar(255) NOT NULL,
+      `passwd` varchar(255) NOT NULL,
+      PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4;
+
+    SET FOREIGN_KEY_CHECKS = 1;
+
+--]]
+
+-- 插入语句示例
+local ret, err = DB.insert("user")
+    :fields({"name", "user", "passwd"})
+    :values({
+        {"candy", "root", "123456789"},
+        {"水果糖", "admin", "123456789"},
     })
+    :execute()
+
+-- 查询语句示例
+local ret, err = DB.select({"id", "name", "user", "passwd"})
+    :from({"user"})
+    :where({
+        {"id", "!=", "0"},
+        "AND",
+        {"id", ">=", "1"},
+        "OR",
+        {"user", "!=", "admin"},
+        "AND",
+        {"user", "=", "admin"},
+        "OR",
+        {"user", "IS", "NOT", "NULL"},
+        "AND",
+        {"user", "IS", "NULL"},
+        "AND",
+        {"user", "IN", {1, 2, 3, 4, 5}},
+        "AND",
+        {"user", "NOT", "IN", {1, 2, 3, 4, 5}},
+        "AND",
+        {"user", "BETWEEN", {1, 100}},
+        "AND",
+        {"user", "NOT", "BETWEEN", {1, 100}},
+    })
+    :groupby('id')      -- groupby({"name", "user"})
+    :orderby("id")      -- orderby({"name", "user"})
+    :asc()              -- or desc()
+    :limit(1)           -- limit("1") limit({1, 100})
+    :execute()          -- 所有语句最后必须指定这个方法才会真正执行
+
+-- 更新语句示例
+local ret, err = DB.update("user")
+    :set({
+        {"name", "=", "管理员"},
+        {"user", "=", "Administrator"},
+        {"passwd", "=", "Administrator"},
+    })
+    :where({
+        {"id", "<=", 1},
+    })
+    :limit(1)
+    :execute()
+
+-- 删除语句示例
+local ret, err = DB.delete("user")
+    :where({
+        {"id", ">", 1},
+    })
+    :orderby("id")
+    :limit(1)
+    :execute()
+
 if not ret then
-    return print(err)
-end
-var_dump(ret)
-
--- 一个简单的DB使用查询示例
-local ret, err = DB.select(
-    {
-        'id', 'name', 'user', 'passwd'
-    },                -- fields
-    'user',           -- table
-    {
-        {"id", "=", "2"},
-    },      -- conditions
-    {"id"},    -- orderby
-    "DESC", -- sort
-    {0, 100}    -- limit
-)
-
-if not ret then
-    return print(err)
+   return  print(err)
 end
 
-var_dump(ret)
-
-
--- DB更新查询示例
-local ret, err = DB.update('user',
-    {
-        {'name', '=', 'admin'},
-        {'user', '=', 'root'},
-        {'passwd', '=', 'admin'},
-    },
-    {
-        {'id', '=', '2'},
-        -- {'name', "in", {'root', 'admin'}} 
-        -- {'name', "between", {'1', '100'}} 
-    }
-)
-if not ret then
-    return print(err)
-end
 var_dump(ret)

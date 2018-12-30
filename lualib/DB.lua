@@ -48,6 +48,8 @@ local INSERT = "INSERT INTO"
 
 local UPDATE = "UPDATE"
 
+local DELETE = "DELETE"
+
 local SET = "SET"
 
 local FROM = "FROM"
@@ -55,6 +57,8 @@ local FROM = "FROM"
 local WHERE = "WHERE"
 
 local IN = "IN"
+
+local IS = "IS"
 
 local NOT = "NOT"
 
@@ -64,11 +68,15 @@ local AND = " AND "
 
 local LIMIT = "LIMIT"
 
+local DESC = "DESC"
+
+local ASC = "ASC"
+
 local ORDERBY = "ORDER BY"
 
-local COMMA = ", "
+local GROUPBY = "GROUP BY"
 
-local DB = {}
+local COMMA = ", "
 
 -- 负责创建连接/加入等待队列
 local function get_db()
@@ -86,23 +94,225 @@ local function get_db()
     return co_wait()
 end
 
+
+
+-- 格式化处理函数
+-- 将['field', '=', 'a'] 格式化为 field = a
+-- 将['field', 'NOT', 'IN', '(1, 2, 3)'] 格式化为 field NOT IN (1, 2, 3)
+local function format(t)
+    return fmt(concat({rep("%s ", #t-1), "%s"}), unpack(t))
+end
+
+local function format_value1(t)
+    return fmt("%s %s '%s'", unpack(t))
+end
+
+local function format_value2(t, split)
+    local tmp = {}
+    for i=1, #t do
+        tmp[i] = "'%s'"
+    end
+    return fmt(concat(tmp, split), unpack(t))
+end
+
+local function format_value3(t)
+    return fmt("%s %s '%s'", unpack(t))
+end
+
+local function format_value4(t)
+    return fmt("%s %s %s '%s'", unpack(t))
+end
+
+-- 执行
+local function execute(query)
+    local db = get_db()
+    -- print(concat(query, " "))
+    local ret, err = db:query(concat(query, " "))
+    if #wlist > 0 then
+        co_wakeup(remove(wlist), db)
+    else
+        insert(POOL, db)
+    end
+    return ret, err
+end
+
+local function limit(query, limits)
+    local tpy = type(limits)
+    assert(query and (tpy == "number" or tpy == "string" or tpy == "table"), "错误的限制条件(limit):"..tostring(limits))
+
+    insert(query, LIMIT)
+    if tpy == "number" then
+        insert(query, limits)
+    end
+    if tpy == "string" then
+        insert(query, limits)
+    end
+    if tpy == "table" then
+        insert(query, concat(limits, COMMA))
+    end
+
+    return query
+end
+
+-- 降序
+local function desc(query)
+    insert(query, DESC)
+    return query
+end
+-- 升序
+local function asc(query)
+    insert(query, ASC)
+    return query
+end
+
+-- 聚合字段
+local function groupby(query, fields)
+    local tpy = type(fields)
+    assert(query and (tpy == "string" or tpy == "table"), "错误的聚合字段类型(fields):"..tostring(fields))
+    insert(query, GROUPBY)
+    if tpy == "string" then
+        insert(query, fields)
+    end
+    if tpy == "table" then
+        insert(query, concat(fields, COMMA))
+    end
+    return query
+end
+
+-- 排序字段
+local function orderby(query, orders)
+    local tpy = type(orders)
+    assert(query and (tpy == "string" or tpy == "table"), "错误的排序条件(orders):"..tostring(orders))
+    insert(query, ORDERBY)
+    if tpy == "string" then
+        insert(query, orders)
+    end
+    if tpy == "table" then
+        insert(query, concat(orders, COMMA))
+    end
+    return query
+end
+
+-- 条件
+local function where(query, conditions)
+    local tpy = type(conditions)
+    assert(query and (tpy == "string" or tpy == "table"), "错误的条件类型(where):"..tostring(conditions))
+    insert(query, WHERE)
+    if tpy == "string" then
+        insert(query, conditions)
+    end
+    if tpy == "table" then
+        local CONDITIONS = {}
+        for index, condition in ipairs(conditions) do
+            if type(condition) == "table" and #condition == 3 then
+                local con2 = upper(condition[2])
+                if con2 == IN or con2 == BETWEEN then -- 假设比较符是IN 或者 BETWEEN
+                    local LEFT, RIGHT = '', ''
+                    local c = AND
+                    if con2 == IN then
+                        c = COMMA
+                        LEFT, RIGHT = '(', ')'
+                    end
+                    insert(CONDITIONS, format({condition[1], con2, LEFT..concat(condition[3], c)..RIGHT}))
+                elseif con2 == IS then
+                    insert(CONDITIONS, concat(condition, " "))
+                else
+                    insert(CONDITIONS, format_value3(condition))
+                end
+            elseif type(condition) == "table" and #condition == 4 then
+                local con2 = upper(condition[2])
+                local con3 = upper(condition[3])
+                if con3 == IN or con3 == BETWEEN then -- 假设比较符是IN 或者 BETWEEN
+                    local LEFT, RIGHT = '', ''
+                    local c = AND
+                    if con3 == IN then
+                        c = COMMA
+                        LEFT, RIGHT = '(', ')'
+                    end
+                    insert(CONDITIONS, format({condition[1], con2, con3, LEFT..concat(condition[4], c)..RIGHT}))
+                elseif con2 == IS then
+                    insert(CONDITIONS, concat(condition, " "))
+                else
+                    insert(CONDITIONS, format_value4(condition))
+                end
+            else -- 假设condition为 "AND" 、 "OR"
+                insert(CONDITIONS, upper(condition))
+            end
+        end
+        insert(query, concat(CONDITIONS, " "))
+    end
+    return query
+end
+
+-- 表(s)
+local function from(query, tables)
+    local tpy = type(tables)
+    assert(query and (tpy == "string" or tpy == "table"), "错误的表名:"..tostring(tables))
+    insert(query, FROM)
+    if tpy == "string" then
+        insert(query, tables)
+    end
+    if tpy == "table" then
+        insert(query, concat(tables, COMMA))
+    end
+    return query
+end
+
+-- 插入语句专用函数 --
+local function values(query, values)
+    local tpy = type(values)
+    assert(tpy == "table" and #values > 0 and type(values[1]) == "table" , "错误的值类型(values):"..tostring(values))
+    local VALUES = {}
+    for _, value in ipairs(values) do
+        insert(VALUES, "("..format_value2(value, COMMA)..")")
+    end
+    insert(query, "VALUES")
+    insert(query, concat(VALUES, COMMA))
+    return query
+end
+
+local function fields(query, fields)
+    local tpy = type(fields)
+    assert(tpy == "table" and #fields > 0, "错误的字段类型(values):"..tostring(fields))
+    insert(query, "("..concat(fields, COMMA)..")")
+    return query
+end
+-- 插入语句专用函数 --
+
+
+
+
+
+-- 更新语句专用 --
+local function set(query, values)
+    local tpy = type(values)
+    assert(tpy == "table" and #values > 0 and type(values[1]) == "table" , "错误的值类型(values):"..tostring(values))
+    local VALUES = {}
+    for _, value in ipairs(values) do
+        insert(VALUES, format_value1(value))
+    end
+    insert(query, SET)
+    insert(query, concat(VALUES, COMMA))
+    return query
+end
+-- 更新语句专用 --
+
+
+
+local DB = {}
+
+-- 初始化数据库
 function DB.init(driver, user, passwd, max_pool)
     if not user then
         return log.error("空的数据库用户名")
     end
-
     USER = user
-
     if not passwd then
         return log.error("空的数据库密码")
     end
-
     PASSWD = passwd
-
     COUNT = 0
-
     MAX = max_pool or 100
-
     spliter(driver, '([^:]+)://([^:]+):(%d+)/(.+)', function (db, host, port, database)
         if not db or lower(db) ~= 'mysql' then
             return error("暂不支持其他数据库驱动")
@@ -114,7 +324,6 @@ function DB.init(driver, user, passwd, max_pool)
         PORT = port
         DATABASE = database
     end)
-
     DB_CREATE = function(...)
         local db, err = mysql:new()
         if not db then
@@ -133,216 +342,79 @@ function DB.init(driver, user, passwd, max_pool)
         COUNT = COUNT + 1
         return db
     end
-
     local db = DB_CREATE()
     if not db then
         return false
     end
-
     insert(POOL, db)
-
     return true
 end
 
+
 -- 查询语句
-function DB.select(fields, tablename, conditions, orderby, sort, limit)
-
-    if not tablename or tablename == "" or type(tablename) ~= "string" then
-        return log.error('请输入正确的表名: ', tablename)
-    end
-
-    local CONDITIONS = {}
-
-    for index, condition in ipairs(conditions) do
-        local con = condition[2]
-        if upper(con) == IN or upper(con) == BETWEEN then -- 若条件是IN或BETWEEN, 变量则应该是数组 [1,2,3,4]
-            local LEFT, RIGHT = '', ''
-            local c = AND
-            if upper(con) == IN then
-                c = COMMA
-                LEFT, RIGHT = '(', ')'
-            end
-            for i = 1, #condition[3] do
-                condition[3][i] = '"'..condition[3][i]..'"'
-            end
-            insert(CONDITIONS, concat({condition[1], upper(con), LEFT..concat(condition[3], c)..RIGHT}, " "))
-        elseif upper(con) == NOT then  -- 如果条件为NOT应该有第四个参数, 变量则应该是数组 [1,2,3,4]
-            if upper(condition[3]) == IN or upper(condition[3]) == BETWEEN then
-                local LEFT, RIGHT = '', ''
-                local c = AND
-                if upper(condition[3]) == IN then
-                    c = COMMA
-                    LEFT, RIGHT = '(', ')'
-                end
-                for i = 1, #condition[4] do
-                    condition[4][i] = '"'..condition[4][i]..'"'
-                end
-                insert(CONDITIONS, concat({condition[1], upper(condition[2]), upper(condition[3]), LEFT..concat(condition[4], c)..RIGHT}, " "))
-            else
-                insert(CONDITIONS, fmt("%s %s '%s'", unpack(condition)))
-            end
-        else
-            insert(CONDITIONS, fmt("%s %s '%s'", unpack(condition)))
-        end
-    end
-
-    local query = {
-        SELECT,
-        concat(fields, COMMA),
-        FROM,
-        tablename,
-        WHERE,
-        concat(CONDITIONS, AND),
+function DB.select(fields)
+    local tpy = type(fields)
+    assert(tpy == "string" or tpy == "table", "错误的字段类型(fields):"..tostring(fields))
+    local query = { 
+        [1] = SELECT,
+        from = from,
+        where = where,
+        orderby = orderby,
+        groupby = groupby,
+        desc = desc,
+        asc = asc,
+        limit = limit,
+        execute = execute,
     }
-
-    if orderby then
-        insert(query, ORDERBY ..' '.. concat(orderby, COMMA))
-        if sort and tostring(sort) then
-            insert(query, sort)
-        end
+    if tpy == "string" then 
+        insert(query, fields)
     end
-
-    if limit then
-        insert(query, LIMIT ..' '.. concat(limit, COMMA))
+    if tpy == "table" then
+        insert(query, concat(fields, COMMA))
     end
-
-    local db = get_db()
-
-    -- print(concat(query, " "))
-    local response, err = db:query(concat(query, " "))
-
-    if #wlist > 0 then
-        co_wakeup(remove(wlist), db)
-    else
-        insert(POOL, db)
-    end
-
-    return response, err
-
+    return query
 end
 
 -- 插入语句
-function DB.insert(tablename, keys, values)
-
-    if not tablename or tablename == "" or type(tablename) ~= "string" then
-        return log.error('请输入正确的表名: ', tablename)
-    end
-
-    local KEYS = {}
-
-    for _, key in ipairs(keys) do
-        insert(KEYS, fmt('`%s`', tostring(key)))
-    end
-
-    local VALUES = {}
-
-    for index, value in ipairs(values) do
-        local t1 = {}
-        local t2 = {}
-        for i = 1, #value do
-            insert(t1, '"%s"')
-            insert(t2, tostring(value[i]))
-        end
-        insert(VALUES, "("..fmt(concat(t1, ", "), unpack(t2))..")")
-    end
-
-    local query = concat({
-        INSERT,
-        tablename..'('..concat(KEYS, COMMA)..')',
-        "VALUES"..concat(VALUES, COMMA)
-    }, " ")
-
-    local db = get_db()
-
-    -- print(query)
-    local response, err = db:query(query)
-
-    if #wlist > 0 then
-        co_wakeup(remove(wlist), db)
-    else
-        insert(POOL, db)
-    end
-
-    return response, err
-
+function DB.insert(table_name)
+    local tpy = type(table_name)
+    assert(tpy == "string", "错误的表名(table_name):"..tostring(table_name))
+    return {
+        [1] = INSERT,
+        [2] = table_name,
+        fields = fields,
+        values = values,
+        execute = execute,
+    }
 end
 
 -- 更新语句
-function DB.update(tablename, values, conditions, limit)
-
-    if not tablename or tablename == "" or type(tablename) ~= "string" then
-        return log.error('请输入正确的表名: ', tablename)
-    end
-
-    local query = {
-        UPDATE,
-        '`'..tablename..'`',
-        SET,
+function DB.update(table_name)
+    local tpy = type(table_name)
+    assert(tpy == "string" or tpy == "tables", "错误的表名(table_name):"..tostring(table_name))
+    return {
+        [1] = UPDATE,
+        [2] = table_name,
+        set = set,
+        where = where,
+        limit = limit,
+        execute = execute,
     }
+end
 
-    local VALUES = {}
-
-    for index, value in ipairs(values) do
-        insert(VALUES, fmt("%s %s '%s'", unpack(value)))
-    end
-
-    insert(query, concat(VALUES, COMMA))
-
-    insert(query, WHERE)
-
-    local CONDITIONS = {}
-
-    for index, condition in ipairs(conditions) do
-        local con = condition[2]
-        if upper(con) == IN or upper(con) == BETWEEN then -- 若条件是IN或BETWEEN, 变量则应该是数组 [1,2,3,4]
-            local LEFT, RIGHT = '', ''
-            local c = AND
-            if upper(con) == IN then
-                c = COMMA
-                LEFT, RIGHT = '(', ')'
-            end
-            for i = 1, #condition[3] do
-                condition[3][i] = '"'..condition[3][i]..'"'
-            end
-            insert(CONDITIONS, concat({condition[1], upper(con), LEFT..concat(condition[3], c)..RIGHT}, " "))
-        elseif upper(con) == NOT then  -- 如果条件为NOT应该有第四个参数, 变量则应该是数组 [1,2,3,4]
-            if upper(condition[3]) == IN or upper(condition[3]) == BETWEEN then
-                local LEFT, RIGHT = '', ''
-                local c = AND
-                if upper(condition[3]) == IN then
-                    c = COMMA
-                    LEFT, RIGHT = '(', ')'
-                end
-                for i = 1, #condition[4] do
-                    condition[4][i] = '"'..condition[4][i]..'"'
-                end
-                insert(CONDITIONS, concat({condition[1], upper(condition[2]), upper(condition[3]), LEFT..concat(condition[4], c)..RIGHT}, " "))
-            else
-                insert(CONDITIONS, fmt("%s %s '%s'", unpack(condition)))
-            end
-        else
-            insert(CONDITIONS, fmt("%s %s '%s'", unpack(condition)))
-        end
-    end
-    insert(query, concat(CONDITIONS, AND))
-
-    if limit then
-        insert(query, concat(limit, COMMA))
-    end
-
-    local db = get_db()
-
-    -- print(concat(query, " "))
-    local response, err = db:query(concat(query, " "))
-
-    if #wlist > 0 then
-        co_wakeup(remove(wlist), db)
-    else
-        insert(POOL, db)
-    end
-
-    return response, err
-
+-- 删除语句
+function DB.delete(table_name)
+    local tpy = type(table_name)
+    assert(tpy == "string" or tpy == "tables", "错误的表名(table_name):"..tostring(table_name))
+    return {
+        [1] = DELETE,
+        [2] = FROM,
+        [3] = table_name,
+        where = where,
+        limit = limit,
+        orderby = orderby,
+        execute = execute,
+    }
 end
 
 
