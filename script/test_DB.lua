@@ -1,4 +1,5 @@
 local DB = require "DB"
+local co = require "internal.Co"
 require "utils"
 
 local ok = DB.init("mysql://localhost:3306/test", "root", "123456789")
@@ -29,68 +30,104 @@ end
 --]]
 
 -- 插入语句示例
-local ret, err = DB.insert("user")
-    :fields({"name", "user", "passwd"})
-    :values({
-        {"candy", "root", "123456789"},
-        {"水果糖", "admin", "123456789"},
-    })
-    :execute()
+co.spwan(function ( ... )
+    local ret, err = DB.insert("user")
+        :fields({"name", "user", "passwd"})
+        :values({
+            {"candy", "root", "123456789"},
+            {"水果糖", "admin", "123456789"},
+        })
+        :execute()
+
+    if not ret then
+       return  print(err)
+    end
+
+    var_dump(ret)
+end)
 
 -- 查询语句示例
-local ret, err = DB.select({"id", "name", "user", "passwd"})
-    :from({"user"})
-    :where({
-        {"id", "!=", "0"},
-        "AND",
-        {"id", ">=", "1"},
-        "OR",
-        {"user", "!=", "admin"},
-        "AND",
-        {"user", "=", "admin"},
-        "OR",
-        {"user", "IS", "NOT", "NULL"},
-        "AND",
-        {"user", "IS", "NULL"},
-        "AND",
-        {"user", "IN", {1, 2, 3, 4, 5}},
-        "AND",
-        {"user", "NOT", "IN", {1, 2, 3, 4, 5}},
-        "AND",
-        {"user", "BETWEEN", {1, 100}},
-        "AND",
-        {"user", "NOT", "BETWEEN", {1, 100}},
-    })
-    :groupby('id')      -- groupby({"name", "user"})
-    :orderby("id")      -- orderby({"name", "user"})
-    :asc()              -- or desc()
-    :limit(1)           -- limit("1") limit({1, 100})
-    :execute()          -- 所有语句最后必须指定这个方法才会真正执行
+co.spwan(function ( ... )
+    local ret, err = DB.select({"id", "name", "user", "passwd"})
+        :from({"user"})
+        :where({
+            {"id", "!=", "0"},
+            "AND",
+            {"id", ">=", "1"},
+            "OR",
+            {"user", "!=", "admin"},
+            "AND",
+            {"user", "=", "admin"},
+            "OR",
+            {"user", "IS", "NOT", "NULL"},
+            "AND",
+            {"user", "IS", "NULL"},
+            "AND",
+            {"user", "IN", {1, 2, 3, 4, 5}},
+            "AND",
+            {"user", "NOT", "IN", {1, 2, 3, 4, 5}},
+            "AND",
+            {"user", "BETWEEN", {1, 100}},
+            "AND",
+            {"user", "NOT", "BETWEEN", {1, 100}},
+        })
+        :groupby('id')      -- groupby({"name", "user"})
+        :orderby("id")      -- orderby({"name", "user"})
+        :asc()              -- or desc()
+        :limit(1)           -- limit("1") limit({1, 100})
+        :execute()          -- 所有语句最后必须指定这个方法才会真正执行
+
+    if not ret then
+       return  print(err)
+    end
+
+    var_dump(ret)
+end)
 
 -- 更新语句示例
-local ret, err = DB.update("user")
-    :set({
-        {"name", "=", "管理员"},
-        {"user", "=", "Administrator"},
-        {"passwd", "=", "Administrator"},
-    })
-    :where({
-        {"id", "<=", 1},
-    })
-    :limit(1)
-    :execute()
+co.spwan(function ( ... )
+    local ret, err = DB.update("user")
+        :set({
+            {"name", "=", "管理员"},
+            {"user", "=", "Administrator"},
+            {"passwd", "=", "Administrator"},
+        })
+        :where({
+            {"id", "<=", 1},
+        })
+        :limit(1)
+        :execute()
+
+    if not ret then
+       return  print(err)
+    end
+
+    var_dump(ret)
+end)
 
 -- 删除语句示例
-local ret, err = DB.delete("user")
-    :where({
-        {"id", ">", 1},
-    })
-    :orderby("id")
-    :limit(1)
-    :execute()
+co.spwan(function ( ... )
+    local ret, err = DB.delete("user")
+        :where({
+            {"id", ">", 1},
+        })
+        :orderby("id")
+        :limit(1)
+        :execute()
 
-if not ret then
-   return  print(err)
-end
+    if not ret then
+       return  print(err)
+    end
 
-var_dump(ret)
+    var_dump(ret)
+end)
+
+
+co.spwan(function ( ... )
+    local ret, err = DB.query("show variables like 'wait_timeout'")
+    if not ret then
+       return print(err)
+    end
+
+    var_dump(ret)
+end)
