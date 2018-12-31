@@ -268,9 +268,10 @@ function dns.resolve(domain)
         return true, ip
     end
     -- 如果有其他协程也正巧在查询这个域名, 那么就加入到等待列表内
-    local wait_list = cos[domain]
-    if wait_list then
-        insert(wait_list, co_self())
+    local wlist = cos[domain]
+    if wlist then
+        local co = co_self()
+        insert(wlist, co)
         return co_wait()
     end
     return dns_query(domain)

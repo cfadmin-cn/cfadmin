@@ -21,26 +21,7 @@ local remove = table.remove
 local concat = table.concat
 local unpack = table.unpack
 
--- 最大DB连接数量
-local MAX, COUNT
-
--- 主机名, 端口
-local HOST, PORT
-
--- 用户名、密码
-local USER, PASSWD
-
--- DB
-local DATABASE
-
--- 数据库连接池
-local POOL = {}
-
--- 等待db对象的协程列表
-local wlist = {}
-
--- 数据库连接创建函数
-local DB_CREATE
+local os_time = os.time
 
 local SELECT = "SELECT"
 
@@ -78,10 +59,52 @@ local GROUPBY = "GROUP BY"
 
 local COMMA = ", "
 
+
+
+-- 最大DB连接数量
+local MAX, COUNT
+
+-- 主机名, 端口
+local HOST, PORT
+
+-- 用户名、密码
+local USER, PASSWD
+
+-- DB
+local DATABASE
+
+-- 空闲连接时间
+local WAIT_TIMEOUT
+
+-- 数据库连接池
+local POOL = {}
+
+-- 数据库连接创建函数
+local DB_CREATE
+
+-- 等待db对象的协程列表
+local wlist = {}
+
+local function add_db(db)
+    return insert(POOL, {
+        session = db,
+        ttl = os_time(),
+    })
+end
+
 -- 负责创建连接/加入等待队列
 local function get_db()
     if #POOL > 0 then
-        return remove(POOL)
+        while 1 do
+            local db = remove(POOL)
+            if not db then break end -- 连接池内已经没有连接了
+            if db.ttl > os_time() - WAIT_TIMEOUT then
+                return db.session
+            end
+            COUNT = COUNT - 1
+            db.session:close()
+            db = nil
+        end
     end
     if COUNT < MAX then
         local db = DB_CREATE()
@@ -90,10 +113,10 @@ local function get_db()
         end
         -- 连接失败或者其他情况, 将等待其他协程唤醒; 保证公平竞争数据库连接
     end
-    insert(wlist, co_self())
+    local co = co_self()
+    insert(wlist, co)
     return co_wait()
 end
-
 
 
 -- 格式化处理函数
@@ -131,7 +154,7 @@ local function execute(query)
     if #wlist > 0 then
         co_wakeup(remove(wlist), db)
     else
-        insert(POOL, db)
+        add_db(db)
     end
     return ret, err
 end
@@ -339,6 +362,17 @@ function DB.init(driver, user, passwd, max_pool)
         if not ok then
             return print(err)
         end
+        if not WAIT_TIMEOUT then
+            local ret, err = db:query("show variables like 'wait_timeout'")
+            if ret then
+                for _, value in ipairs(ret) do
+                    if value['Variable_name'] == 'wait_timeout' then
+                        WAIT_TIMEOUT = tonumber(value["Value"])
+                        -- print(WAIT_TIMEOUT)
+                    end
+                end
+            end
+        end
         COUNT = COUNT + 1
         return db
     end
@@ -346,7 +380,7 @@ function DB.init(driver, user, passwd, max_pool)
     if not db then
         return false
     end
-    insert(POOL, db)
+    add_db(db)
     return true
 end
 
@@ -415,6 +449,20 @@ function DB.delete(table_name)
         orderby = orderby,
         execute = execute,
     }
+end
+
+-- 原始SQL
+function DB.query(query)
+    assert(type(query) == 'string', "原始SQL类型错误(query):"..tostring(query))
+    local db = get_db()
+    -- print(query)
+    local ret, err = db:query(query)
+    if #wlist > 0 then
+        co_wakeup(remove(wlist), db)
+    else
+        add_db(db)
+    end
+    return ret, err
 end
 
 
