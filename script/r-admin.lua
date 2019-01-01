@@ -1,5 +1,5 @@
 local class = require "class"
-local Admin = require "admin"
+local Admin = require "Admin"
 -- require "utils"
 
 local route = class("route")
@@ -13,7 +13,7 @@ function route:ctor(opt)
 end
 
 function route:route()
-    return Admin:new():update()
+    return Admin.login()
 end
 
 return route
