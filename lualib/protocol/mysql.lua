@@ -431,13 +431,10 @@ function _M.connect(self, opts)
     end
 
     local ok = sock:connect(ip, port)
-
     if not ok then
+        sock:close()
+        self.sock = nil
         return nil, "Connect failed"
-    end
-
-    if not ok then
-        return nil, 'failed to connect: ' .. err
     end
 
     local packet, typ, err = _recv_packet(self)

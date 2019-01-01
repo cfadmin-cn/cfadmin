@@ -59,8 +59,6 @@ local GROUPBY = "GROUP BY"
 
 local COMMA = ", "
 
-
-
 -- 最大DB连接数量
 local MAX, COUNT
 
@@ -107,10 +105,12 @@ local function get_db()
         end
     end
     if COUNT < MAX then
+        COUNT = COUNT + 1
         local db = DB_CREATE()
         if db then
             return db
         end
+        COUNT = COUNT - 1
         -- 连接失败或者其他情况, 将等待其他协程唤醒; 保证公平竞争数据库连接
     end
     local co = co_self()
@@ -354,7 +354,7 @@ function DB.init(driver, user, passwd, max_pool)
         end
         local ok, err, errno, sqlstate = db:connect({
             host = HOST or "localhost",
-            port = PORT or 3306,
+            port = tonumber(PORT) or 3306,
             database = DATABASE,
             user = USER,
             password = PASSWD,
@@ -373,10 +373,9 @@ function DB.init(driver, user, passwd, max_pool)
                 end
             end
         end
-        COUNT = COUNT + 1
         return db
     end
-    local db = DB_CREATE()
+    local db = get_db()
     if not db then
         return false
     end
@@ -465,5 +464,8 @@ function DB.query(query)
     return ret, err
 end
 
+function DB.len( ... )
+    return #POOL
+end
 
 return DB

@@ -99,6 +99,8 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 
 	int status = 0;
 
+	int CONNECTED = 0;
+
 	if (revents & EV_ERROR) {
 		LOG("ERROR", "Recevied a core_io object internal error from libev.");
 		return ;
@@ -107,7 +109,9 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 	if (revents & EV_READ && revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			lua_pushboolean(co, 0);
+			int error = 0; socklen_t len; /* 可能连接已经成功, 并且有数据发送过来; */
+			if (!getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &error, &len) && !error) CONNECTED = 1;
+			lua_pushboolean(co, CONNECTED);
 			status = lua_resume(co, NULL, 1);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
@@ -119,7 +123,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 	if (revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			lua_pushboolean(co, 1);
+			lua_pushboolean(co, (CONNECTED = 1));
 			status = lua_resume(co, NULL, 1);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));

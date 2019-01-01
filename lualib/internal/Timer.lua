@@ -20,32 +20,34 @@ local function Timer_new()
     return ti.new()
 end
 
+local function Timer_release(t)
+    ti.stop(t)
+    insert(TIMER_LIST, t)
+end
+
 -- 超时器 --
 function Timer.timeout(timeout, cb)
     if not timeout or timeout < 0 then
         return
     end
-    local ti = Timer_new()
-    if not ti then
-        log.error("timeout error: Create timer class error! memory maybe not enough...")
-        return
+    local t = Timer_new()
+    if not t then
+        return log.error("timeout error: Create timer class error! memory maybe not enough...")
     end
-    local t = {
+    local timer = {
         stop = function (...)
-            ti:stop()
-            insert(TIMER_LIST, ti)
+            Timer_release(t)
         end,
         co = co_new(function (...)
+            Timer_release(t)
             local ok, err = pcall(cb)
             if not ok then
                log.error('timeout error:', err)
             end
-            ti:stop()
-            insert(TIMER_LIST, ti)
         end)
     }
-    ti:start(timeout, t.co)
-    return t
+    ti.start(t, timeout, timer.co)
+    return timer
 end
 
 return Timer
