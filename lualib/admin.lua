@@ -1,3 +1,4 @@
+local log = require "log"
 local fmt = string.format
 local insert = table.insert
 local concat = table.concat
@@ -24,15 +25,20 @@ local meta = {
 }
 
 -- 添加元素
-local function add_to(t, txt)
-    return insert(t, txt)
+local function add_string(t, string)
+    return insert(t, string)
+end
+
+-- 添加字段
+local function add_table(t, table)
+    return insert(t, table)
 end
 
 -- 表连接
 local function merge(t)
     local t = {}
     for _, content in ipairs(t) do
-        add_to(t, concat(concat, " "))
+        add_string(t, concat(concat, " "))
     end
     return concat(t, " ")
 end
@@ -172,33 +178,89 @@ local function url(opt)
     }, " ")
 end
 
--- 提交按钮
-local function submit(opt)
-    -- body
-end
+local function table(cb)
+    -- 表单格式
+    local table_lay_data = {"id:'grid'"}
+    -- 字段格式
+    local rows_lay_date = {}
+    -- 工具条
+    local toolbar_lay_data = {}
+    -- 构建js脚本
+    local js = {}
 
--- 重置按钮
-local function reset(opt)
-    -- body
-end
-
-local function form(action, cb)
-    local t = {
-        email = email,
-        url = url,
-        phone = phone,
-        date = date,
-        input = input,
+    -- 注入到回调的内部方法
+    local content = {
+        url = nil,    -- 默认请求连接
+        height = nil, -- 默认高度
+        tool = function (ct, tools)
+            assert(ct == content, "错误的rows方法调用")
+            assert(tools and (type(tools) == "string" or type(tools) == "table"), "错误的tools类型")
+        end,
+        rows = function (ct, row)
+            assert(ct == content, "错误的rows方法调用")
+            assert(row and type(row) == "string", "错误的rows类型")
+            local t, fields = nil, {
+                field = row,
+                name = nil,
+                sorted = nil,
+                align = nil,
+            }
+            t = {
+                -- 字段名
+                name = function (tab, name)
+                    assert(t == tab, "错误的name方法调用")
+                    fields['name'] = name
+                    return t
+                end,
+                -- 是否为该字段排序
+                sorted = function (tab)
+                    assert(t == tab, "错误的sorted方法调用")
+                    fields['sorted'] = true
+                    return t
+                end,
+                -- 单元格内容
+                align = function (tab, style)
+                    assert(t == tab, "错误的sorted方法调用")
+                    fields['align'] = style
+                    return t
+                end,
+            }
+            add_table(rows_lay_date, fields)
+            return t
+        end
     }
-    local ok, err = pcall(cb, t)
+    local ok, err = pcall(cb, content)
     if not ok then
-        return print(err)
+        return err or "table unknown error.", log.error(err)
     end
+
+    add_string(table_lay_data, url or "#")
+
+    add_string(table_lay_data, height or "full-200")
+
+    local ths = {}
+
+    for _, row in ipairs(rows_lay_date) do
+        local th = '<th lay-data="{%s}">%s</th>'
+        local t = {}
+        if row.field then add_string(t, fmt("field:'%'", row.field)) end
+
+        if row.align then add_string(t, fmt("align:'%'", row.align)) end
+
+        if row.sorted then add_string(t, fmt("sort:'%'", row.sorted)) end
+
+        add_string(ths, fmt(th, concat(t, ", "), row.name or row.field or "unknow"))
+    end
+
     return concat({
-        fmt('<form class="layui-form" action="%s">', action), 
-            concat(t, " "),
-        '</form>',
-    })
+        fmt([[<table class="layui-table" lay-data="{%s}" lay-filter="%s">]], concat(table_lay_data, ", "), 'grid'),
+            '<thead>',
+                '<tr>',
+                    concat(ths, " "),
+                '</tr>',
+            '</thead>',
+        '</table>',
+    }, " ")
 end
 
 -- 登录页
