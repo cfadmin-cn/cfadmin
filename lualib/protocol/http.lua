@@ -364,6 +364,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local timeout = http.timeout
 	local routes = http.routes
 	local server = http.server
+	local host = http.host
 	local ttl = http.ttl
 	local sock = tcp:new():set_fd(fd):timeout(timeout or 10)
 	while 1 do
@@ -411,7 +412,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			if typ ~= HTTP_PROTOCOL.STATIC then
 
 				local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
-				-- print("当前内存为", collectgarbage('count'))
 				ok, data = pcall(c[c.__name], c)
 				if not ok then
 					log.error(data)
@@ -450,8 +450,10 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 
 			insert(header, 'Date: ' .. HTTP_DATE())
+			insert(header, 'Accept-Ranges: none')
 			insert(header, 'Allow: GET, POST, HEAD')
-			insert(header, 'Access-Control-Allow-Origin: *')
+			insert(header, fmt('Access-Control-Allow-Origin: %s', host or "*"))
+			insert(header, 'Access-Control-Allow-Methods: GET, POST, HEAD')
 			insert(header, 'server: ' .. (server or 'cf/0.1'))
 
 			local Connection = 'Connection: keep-alive'

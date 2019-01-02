@@ -10,6 +10,8 @@ local HEAD_START = "<head>"
 local HEAD_END   = "</head>"
 local BODY_START = '<body class="%s">'
 local BODY_END   = "</body>"
+local SCRIPT_START = "<script>"
+local SCRIPT_END = "</script>"
 
 local Admin = {}
 
@@ -41,6 +43,16 @@ local function merge(t)
         add_string(t, concat(concat, " "))
     end
     return concat(t, " ")
+end
+
+-- 数组内的元素包是否含此key
+local function key_in_table(key, list)
+    for _, t in ipairs(list) do
+        if t[key] then
+            return true
+        end
+    end
+    return false
 end
 
 -- 标准输入框
@@ -183,22 +195,36 @@ local function table(cb)
     local table_lay_data = {"id:'grid'"}
     -- 字段格式
     local rows_lay_date = {}
-    -- 工具条
-    local toolbar_lay_data = {}
-    -- 构建js脚本
+    -- js模板
+    local js_template = {
+        '<script type="text/html" id="gridbar">',
+        '</script>',
+    }
+    -- js脚本
     local js = {}
 
     -- 注入到回调的内部方法
-    local content = {
-        url = nil,    -- 默认请求连接
-        height = nil, -- 默认高度
-        tool = function (ct, tools)
-            assert(ct == content, "错误的rows方法调用")
-            assert(tools and (type(tools) == "string" or type(tools) == "table"), "错误的tools类型")
-        end,
+    local content
+    content = {
+        url = "#",    -- 默认请求连接
+        height = 'full', -- 默认高度
+        page = 'page:true',
+        limit = 100,
+        tools = nil,
+        -- -- 行尾增加工具方法
+        -- toolbar = function (ct, tools)
+        --     assert(ct == content, "错误的tools方法调用")
+        --     assert(tools and (type(tools) == "string" or type(tools) == "table"), "错误的tools方法调用")
+        --     if type(tools) == "string" then
+        --         content['tools'] = {tools}
+        --     end
+        --     if type(tools) == "table" then
+        --         content['tools'] = tools
+        --     end
+        -- end,
         rows = function (ct, row)
             assert(ct == content, "错误的rows方法调用")
-            assert(row and type(row) == "string", "错误的rows类型")
+            assert(row and type(row) == "string", "错误的row类型")
             local t, fields = nil, {
                 field = row,
                 name = nil,
@@ -209,21 +235,31 @@ local function table(cb)
                 -- 字段名
                 name = function (tab, name)
                     assert(t == tab, "错误的name方法调用")
+                    assert(not content['tools'], "tools方法需要写在所有字段最后")
                     fields['name'] = name
                     return t
                 end,
                 -- 是否为该字段排序
                 sorted = function (tab)
                     assert(t == tab, "错误的sorted方法调用")
+                    assert(not content['tools'], "tools方法需要写在所有字段最后")
                     fields['sorted'] = true
                     return t
                 end,
                 -- 单元格内容
                 align = function (tab, style)
-                    assert(t == tab, "错误的sorted方法调用")
+                    assert(t == tab, "错误的align方法调用")
+                    assert(not content['tools'], "tools方法需要写在所有字段最后")
                     fields['align'] = style
                     return t
                 end,
+                -- 隐藏字段
+                hide = function (tab)
+                    assert(t == tab, "错误的hide方法调用")
+                    assert(not content['tools'], "tools方法需要写在所有字段最后")
+                    fields['hide'] = true
+                    return t
+                end
             }
             add_table(rows_lay_date, fields)
             return t
@@ -234,23 +270,55 @@ local function table(cb)
         return err or "table unknown error.", log.error(err)
     end
 
-    add_string(table_lay_data, url or "#")
+    if content.url then add_string(table_lay_data, fmt("url:'%s'", content.url)) end
 
-    add_string(table_lay_data, height or "full-200")
+    if content.page then add_string(table_lay_data, "page:'true'") end
+
+    if content.limit then add_string(table_lay_data, fmt("limit:'%s'", content.limit)) end
+
+    if content.height then add_string(table_lay_data, fmt("height:'%s'", content.height)) end
 
     local ths = {}
 
     for _, row in ipairs(rows_lay_date) do
         local th = '<th lay-data="{%s}">%s</th>'
         local t = {}
-        if row.field then add_string(t, fmt("field:'%'", row.field)) end
+        if row.field then add_string(t, fmt("field:'%s'", row.field)) end
 
-        if row.align then add_string(t, fmt("align:'%'", row.align)) end
+        if row.align then add_string(t, fmt("align:'%s'", row.align)) end
 
-        if row.sorted then add_string(t, fmt("sort:'%'", row.sorted)) end
+        if row.hide then add_string(t, fmt("hide:'%s'", row.hide)) end
+
+        if row.sorted then add_string(t, fmt("sort:'%s'", row.sorted)) end
 
         add_string(ths, fmt(th, concat(t, ", "), row.name or row.field or "unknow"))
     end
+
+    -- 加入工具行代码
+    -- if content.tools then
+    --     local button = {
+    --         blue   = 'layui-btn-normal',  -- 天蓝
+    --         yellow = 'layui-btn-warm',    -- 暖色
+    --         red    = 'layui-btn-danger',  -- 红色
+    --         normal = 'layui-btn-primary'  -- 急用
+    --     }
+    --     for _, tool in ipairs(content.tools) do
+    --         add_string(ths, fmt('<th lay-data="{%s}">%s</th>',
+    --             concat({
+    --                 "fixed: 'right'",
+    --                 "toolbar:'#gridbar'"
+    --                 fmt("title:'%s'", tool[2]),
+    --             }, ", "), ))
+    --         add_string(js_template, fmt('<a class="layui-btn layui-btn-xs %s" lay-event="%s">%s</a>', 
+    --             button[tool[3] or 'normal'], -- 颜色
+    --             tool[1],       -- 
+    --             tool[2],
+    --         ))
+    --         if tool[4] and type(tool[4]) == "function" then
+    --             add_string(js, tool[4]())
+    --         end
+    --     end
+    -- end
 
     return concat({
         fmt([[<table class="layui-table" lay-data="{%s}" lay-filter="%s">]], concat(table_lay_data, ", "), 'grid'),
@@ -260,6 +328,13 @@ local function table(cb)
                 '</tr>',
             '</thead>',
         '</table>',
+        concat(js_template, " "),
+        SCRIPT_START,
+        [[layui.use("table", function(){
+            var table = layui.table;]],
+        concat(js, "\r\n"),
+        [[});]],
+        SCRIPT_END,
     }, " ")
 end
 
@@ -276,8 +351,15 @@ function Admin.login()
         HEAD_END,
         fmt(BODY_START, 'layui-layout-body'),
             fmt('<div class="message">%s</div>', title),
-            form("/b", function (content)
-                
+            table(function (content)
+                content.url = "/demo"
+                content.height = '500'
+                content.limit = 100,
+                content:rows("id"):name("ID"):align("Center"):sorted()
+                content:rows("username"):name("用户名"):align("Center")
+                content:rows("sex"):name("性别"):align("Center")
+                content:rows("city"):name("城市"):align("Center")
+                -- content:toolbar({"edit", "编辑", "blue"}, {"delete", "删除", "read"})
             end),
         BODY_END,
     }

@@ -52,7 +52,7 @@ function TCP:send(buf)
     while 1 do
         local len = tcp.write(self.fd, buf, #buf)
         if not len or len == #buf then
-            return
+            return len == #buf
         end
         if len == 0 then
             local co = co_self()
@@ -64,7 +64,7 @@ function TCP:send(buf)
                         -- 这里在发送数据的时候, 客户端可能已经关闭了链接
                         -- if not len then log.error("write error.")
                         self.write_co = nil
-                        return co_wakeup(co)
+                        return co_wakeup(co, len == #buf)
                     end
                     buf = split(buf, len + 1, -1)
                     co_wait()
@@ -75,7 +75,6 @@ function TCP:send(buf)
         end
         buf = split(buf, len + 1, -1)
     end
-    -- 客户端关闭了, 连接不由write方法来处理
 end
 
 function TCP:ssl_send(buf)
@@ -88,7 +87,7 @@ function TCP:ssl_send(buf)
     while 1 do
         local len = tcp.ssl_write(self.ssl, buf, #buf)
         if not len or len == #buf then
-            return
+            return len == #buf
         end
         if len == 0 then
             local co = co_self()
@@ -100,7 +99,7 @@ function TCP:ssl_send(buf)
                         -- 这里在发送数据的时候, 客户端可能已经关闭了链接
                         -- if not len then log.error("write error.")
                         self.write_co = nil
-                        return co_wakeup(co)
+                        return co_wakeup(co, len == #buf)
                     end
                     buf = split(buf, len + 1, -1)
                     co_wait()
@@ -111,7 +110,6 @@ function TCP:ssl_send(buf)
         end
         buf = split(buf, len + 1, -1)
     end
-    -- 客户端关闭了连接, 不由write方法来处理
 end
 
 function TCP:recv(bytes)
