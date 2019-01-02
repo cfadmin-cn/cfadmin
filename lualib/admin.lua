@@ -5,7 +5,7 @@ local concat = table.concat
 
 local DOCTYPE    = "<!DOCTYPE html>"
 local HTML_START = "<html>"
-local HTML_END   = "/<html>"
+local HTML_END   = "</html>"
 local HEAD_START = "<head>"
 local HEAD_END   = "</head>"
 local BODY_START = '<body class="%s">'
@@ -27,8 +27,8 @@ local meta = {
 }
 
 -- 添加元素
-local function add_string(t, string)
-    return insert(t, string)
+local function add_string(t, ...)
+    return insert(t, ...)
 end
 
 -- 添加字段
@@ -192,12 +192,12 @@ end
 
 local function table(cb)
     -- 表单格式
-    local table_lay_data = {"id:'grid'"}
+    local table_lay_data = {"id:'table'"}
     -- 字段格式
     local rows_lay_date = {}
     -- js模板
     local js_template = {
-        '<script type="text/html" id="gridbar">',
+        '<script type="text/html" id="toolbar">',
         '</script>',
     }
     -- js脚本
@@ -209,19 +209,15 @@ local function table(cb)
         url = "#",    -- 默认请求连接
         height = 'full', -- 默认高度
         page = 'page:true',
-        limit = 100,
-        tools = nil,
-        -- -- 行尾增加工具方法
-        -- toolbar = function (ct, tools)
-        --     assert(ct == content, "错误的tools方法调用")
-        --     assert(tools and (type(tools) == "string" or type(tools) == "table"), "错误的tools方法调用")
-        --     if type(tools) == "string" then
-        --         content['tools'] = {tools}
-        --     end
-        --     if type(tools) == "table" then
-        --         content['tools'] = tools
-        --     end
-        -- end,
+        limit = nil,
+        limits = nil,
+        tools  = nil,
+        -- 行尾增加工具方法
+        toolbar = function (ct, tools)
+            assert(ct == content, "错误的tools方法调用")
+            assert(tools and type(tools) == "table", "错误的tools方法调用")
+            content['tools'] = tools
+        end,
         rows = function (ct, row)
             assert(ct == content, "错误的rows方法调用")
             assert(row and type(row) == "string", "错误的row类型")
@@ -235,28 +231,24 @@ local function table(cb)
                 -- 字段名
                 name = function (tab, name)
                     assert(t == tab, "错误的name方法调用")
-                    assert(not content['tools'], "tools方法需要写在所有字段最后")
                     fields['name'] = name
                     return t
                 end,
                 -- 是否为该字段排序
                 sorted = function (tab)
                     assert(t == tab, "错误的sorted方法调用")
-                    assert(not content['tools'], "tools方法需要写在所有字段最后")
                     fields['sorted'] = true
                     return t
                 end,
                 -- 单元格内容
                 align = function (tab, style)
                     assert(t == tab, "错误的align方法调用")
-                    assert(not content['tools'], "tools方法需要写在所有字段最后")
                     fields['align'] = style
                     return t
                 end,
                 -- 隐藏字段
                 hide = function (tab)
                     assert(t == tab, "错误的hide方法调用")
-                    assert(not content['tools'], "tools方法需要写在所有字段最后")
                     fields['hide'] = true
                     return t
                 end
@@ -275,6 +267,8 @@ local function table(cb)
     if content.page then add_string(table_lay_data, "page:'true'") end
 
     if content.limit then add_string(table_lay_data, fmt("limit:'%s'", content.limit)) end
+
+    if content.limits then add_string(table_lay_data, fmt("limits:%s", "["..concat(content.limits, ", ").."]")) end
 
     if content.height then add_string(table_lay_data, fmt("height:'%s'", content.height)) end
 
@@ -295,45 +289,51 @@ local function table(cb)
     end
 
     -- 加入工具行代码
-    -- if content.tools then
-    --     local button = {
-    --         blue   = 'layui-btn-normal',  -- 天蓝
-    --         yellow = 'layui-btn-warm',    -- 暖色
-    --         red    = 'layui-btn-danger',  -- 红色
-    --         normal = 'layui-btn-primary'  -- 急用
-    --     }
-    --     for _, tool in ipairs(content.tools) do
-    --         add_string(ths, fmt('<th lay-data="{%s}">%s</th>',
-    --             concat({
-    --                 "fixed: 'right'",
-    --                 "toolbar:'#gridbar'"
-    --                 fmt("title:'%s'", tool[2]),
-    --             }, ", "), ))
-    --         add_string(js_template, fmt('<a class="layui-btn layui-btn-xs %s" lay-event="%s">%s</a>', 
-    --             button[tool[3] or 'normal'], -- 颜色
-    --             tool[1],       -- 
-    --             tool[2],
-    --         ))
-    --         if tool[4] and type(tool[4]) == "function" then
-    --             add_string(js, tool[4]())
-    --         end
-    --     end
-    -- end
+    if content.tools then
+        local button = {
+            blue   = 'layui-btn-normal',  -- 天蓝
+            yellow = 'layui-btn-warm',    -- 暖色
+            red    = 'layui-btn-danger',  -- 红色
+            normal = 'layui-btn-primary'  -- 急用
+        }
+        add_string(ths, fmt('<th lay-data="{%s}"></th>',
+            concat({
+                "fixed:'right'",
+                "toolbar:'#toolbar'",
+                "align:'center'",
+            }, ", ")))
+        local tool_sevent = {
+            "table.on('tool(table)', function(obj){",
+            "   var data = obj.data ",
+            "   switch(obj.event){",
+            '}})',
+        }
+        for _, tool in ipairs(content.tools) do
+            add_string(js_template, #js_template, fmt('<a class="layui-btn layui-btn-xs %s" lay-event="%s">%s</a>',
+                button[tool[3]or'normal'], -- 颜色
+                tool[1],                   -- 事件名称
+                tool[2]                    -- 按钮名字
+            ))
+            if tool[4] and type(tool[4]) == "function" then
+                add_string(tool_sevent, #tool_sevent, tool[4]())
+            end
+        end
+        add_string(js, concat(tool_sevent, "\r\n"))
+    end
 
     return concat({
-        fmt([[<table class="layui-table" lay-data="{%s}" lay-filter="%s">]], concat(table_lay_data, ", "), 'grid'),
+        fmt([[<table class="layui-table" lay-data="{%s}" lay-filter="%s">]], concat(table_lay_data, ", "), 'table'),
             '<thead>',
                 '<tr>',
                     concat(ths, " "),
                 '</tr>',
             '</thead>',
         '</table>',
-        concat(js_template, " "),
+        concat(js_template, "\r\n"),
         SCRIPT_START,
-        [[layui.use("table", function(){
-            var table = layui.table;]],
+        '\r\nlayui.use("table", function(){\r\n\tvar table = layui.table;',
         concat(js, "\r\n"),
-        [[});]],
+        '\r\n});',
         SCRIPT_END,
     }, " ")
 end
@@ -354,14 +354,29 @@ function Admin.login()
             table(function (content)
                 content.url = "/demo"
                 content.height = '500'
-                content.limit = 100,
+                content.limit = 100
+                content.limits = {10, 50, 100, 200, 500, 1000}
                 content:rows("id"):name("ID"):align("Center"):sorted()
                 content:rows("username"):name("用户名"):align("Center")
                 content:rows("sex"):name("性别"):align("Center")
                 content:rows("city"):name("城市"):align("Center")
-                -- content:toolbar({"edit", "编辑", "blue"}, {"delete", "删除", "read"})
+                content:toolbar({
+                    {"edit", "编辑", "blue", function ()
+                        return [[
+                            case "edit":
+                                layer.msg("编辑");
+                                break;
+                        ]]
+                    end}, {"delete", "删除", "red", function ()
+                        return [[
+                            case "delete":
+                                layer.msg("删除");
+                                break;
+                        ]]
+                    end}})
             end),
         BODY_END,
+        HTML_END,
     }
     return concat(html)
 end
