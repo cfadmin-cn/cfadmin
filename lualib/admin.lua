@@ -360,6 +360,8 @@ function Admin.login()
                 content:rows("username"):name("用户名"):align("Center")
                 content:rows("sex"):name("性别"):align("Center")
                 content:rows("city"):name("城市"):align("Center")
+                content:rows("phone"):name("联系电话"):align("Center")
+                content:rows("birthday"):name("生日"):align("Center")
                 content:toolbar({
                     {"edit", "编辑", "blue", function ()
                         return [[
@@ -367,11 +369,15 @@ function Admin.login()
                                 layer.msg("编辑");
                                 break;
                         ]]
-                    end}, {"delete", "删除", "red", function ()
+                    end},
+                    {"delete", "删除", "red", function ()
                         return [[
                             case "delete":
-                                layer.msg("删除");
-                                break;
+                                layer.confirm('真的删除行么', function(index){
+                                    obj.del();
+                                    layer.close(index);
+                                });
+                            break;
                         ]]
                     end}})
             end),

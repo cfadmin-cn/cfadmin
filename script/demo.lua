@@ -2,10 +2,12 @@ local class = require "class"
 local Admin = require "Admin"
 local cjson = require "cjson"
 
+local os_time = os.time
+local os_date = os.date
+local insert = table.insert
+local random = math.random
 local cjson_encode = cjson.encode
-
 local cjson_decode = cjson.decode
--- require "utils"
 
 local demo = class("demo")
 
@@ -21,18 +23,20 @@ end
 function demo:demo()
     local args = self.args
     local total = 5000000
-    if args and args.limit and args.page then
+    if args and tonumber(args.limit) and tonumber(args.page) then
         local t = {}
         for i = (tonumber(args.page) - 1) * tonumber(args.limit), tonumber(args.limit) * tonumber(args.page) - 1 do
             local data = {}
             data.id = i
             data.username = '我是'..tostring(i)
             data.sex = "男"
-            if i % 2 == 0 then
+            if i & 0x01 == 1 then
                 data.sex = "女"
             end
+            data.phone = random(13000000000, 18999999999)
+            data.birthday = os.date("%Y-%m-%d", random(1, os_time()))
             data.city = "China"
-            table.insert(t, data)
+            insert(t, data)
         end
         return cjson_encode({
             code = 0,
@@ -42,7 +46,7 @@ function demo:demo()
     end
     return cjson_encode({
         code = 404,
-        data = cjson.NULL
+        data = cjson.null
     })
 end
 
