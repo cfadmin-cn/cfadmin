@@ -1,6 +1,4 @@
 local class = require "class"
-local Admin = require "Admin"
-
 local cjson = require "cjson"
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
@@ -12,10 +10,10 @@ local insert = table.insert
 local random = math.random
 
 
-local demo = class("demo")
+local API = class("API")
 
 
-function demo:ctor(opt)
+function API:ctor(opt)
     self.args = opt.args
     self.file = opt.file
     self.path = opt.path
@@ -23,7 +21,7 @@ function demo:ctor(opt)
     self.header = opt.header
 end
 
-function demo:demo()
+function API:API()
     local args = self.args
     local total = 5000000
     if args and tonumber(args.limit) and tonumber(args.limit) > total / 500 then
@@ -57,4 +55,4 @@ function demo:demo()
 end
 
 
-return demo
+return API

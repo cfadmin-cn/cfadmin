@@ -2,23 +2,14 @@ local httpd = require "httpd"
 
 local app = httpd:new("App")
 
-local r1 = require "r1"
-local r2 = require "r2"
-local radmin = require "r-admin"
-
-local demo = require "demo"
-
 -- 注册html路由r1
-app:api("/a", r1)
+app:api("/httpc", require "httpc")
 
 -- 注册API路由r2
-app:api("/b", r2)
-
--- 注册API路由admin
-app:use("/", radmin)
+app:api("/echo", require "echo")
 
 -- test
-app:api("/demo", demo)
+app:api("/api", require "api")
 
 -- 注册静态文件目录
 app:static('static', 10)

@@ -1,11 +1,9 @@
 local class = require "class"
 local httpc = require "httpc"
--- require "utils"
 
-local route = class("route")
+local HTTPC = class("HTTPC")
 
-function route:ctor(opt)
-    -- var_dump(opt)
+function HTTPC:ctor(opt)
     self.args = opt.args
     self.file = opt.file
     self.path = opt.path
@@ -13,16 +11,16 @@ function route:ctor(opt)
     self.header = opt.header
 end
 
-function route:route()
+function HTTPC:HTTPC()
     if not self.args then
         return '{"code": 403, "ERROR": "找不到需要查询的用户名"}'
     end
     local code, body = httpc.get(string.format("https://api.github.com/users/%s", self.args['name'] or 'NULL'))
     if code ~= 200 or code ~= 304 then
-        print(body)
+        print(code, body)
         return '{"code": 500, "ERROR":"内部服务器错误"}'
     end
     return body
 end
 
-return route
+return HTTPC

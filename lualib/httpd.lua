@@ -2,6 +2,10 @@ local HTTP = require "protocol.http"
 local tcp = require "internal.TCP"
 local log = require "log"
 
+local fmt = string.format
+local os_date = os.date
+local os_time = os.time
+
 -- 请求解析
 local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
 
@@ -53,24 +57,27 @@ function httpd:static(foldor, ttl)
     end
 end
 
--- 最大http request body长度
-function httpd:set_max_body_size(body_size)
-    if body_size and int(body_size) and int(body_size) > 0 then
-        self._max_body_size = body_size
-    end
-end
-
--- 最大http request header长度
-function httpd:set_max_header_size(header_size)
-    if header_size and int(header_size) and int(header_size) > 0 then
-        self._max_header_size = header_size
-    end
-end
-
 -- 记录日志到文件
 function httpd:log(path)
     self.logpath = path or "cf-httpd.log"
     log.outfile = self.logpath
+end
+
+function httpd:tolog(code, path, ip)
+    if self.logpath then
+        if not self.logfile then
+            local err
+            self.logfile, err = io.open(self.logpath, "a")
+            if not self.logfile then
+                return log.error(self.logpath..":"..err)
+            end
+        end
+        local ok, err = self.logfile:write(fmt("[%s] - %s - %s - %d\r\n", os_date("%Y/%m/%d %H:%M:%S"), ip, path, code))
+        if not ok then
+            return log.error(self.logpath..":"..err)
+        end
+        self.logfile:flush()
+    end
 end
 
 -- 监听请求

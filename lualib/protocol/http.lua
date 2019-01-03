@@ -1,6 +1,6 @@
 local tcp = require "internal.TCP"
 local log = require "log"
--- require "utils"
+
 local cjson = require "cjson"
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
@@ -171,15 +171,10 @@ end
 
 function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 	if route == '' then
-		log.warn('Please Do not add empty string in route registery method :)')
-		return
+		return log.warn('Please Do not add empty string in route registery method :)')
 	end
 	if find(route, '//') then
-		log.warn('Please Do not add [//] in route registery method :)')
-		return
-	end
-	if route == '/' then
-		route = "/___"
+		return log.warn('Please Do not add [//] in route registery method :)')
 	end
 	local fields = {}
 	spliter(route, "/([^/?]*)", function (field)
@@ -222,14 +217,9 @@ function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 end
 
 function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
-	if route == '/' then
-		route = "/___"
-	end
 	local fields = {}
 	spliter(route, "/([^/?]*)", function (field)
-		if field ~= "" then
-			insert(fields, field)
-		end
+		insert(fields, field)
 	end)
 	local t, class, typ
 	for index, field in ipairs(fields) do
@@ -348,7 +338,8 @@ end
 
 
 -- 一些错误返回
-local function ERROR_RESPONSE(http, code)
+local function ERROR_RESPONSE(http, code, path, ip)
+	http:tolog(code, path, ip)
 	return concat({
 		REQUEST_STATUCODE_RESPONSE(code),
 		'Date: ' .. HTTP_DATE(),
@@ -380,28 +371,28 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(split(buffer, 1, PROTOCOL_START + 1))
 			-- 协议有问题返回400
 			if not METHOD or not PATH or not VERSION then
-				sock:send(ERROR_RESPONSE(http, 400))
+				sock:send(ERROR_RESPONSE(http, 400, PATH))
 				sock:close()
 				return 
 			end
 			-- 没有HEADER返回400
 			local HEADER = REQUEST_HEADER_PARSER(split(buffer, PROTOCOL_END + 1, CRLF_START + 2))
 			if not next(HEADER) then
-				sock:send(ERROR_RESPONSE(http, 400))
+				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr))
 				sock:close()
 				return 
 			end
 			-- 这里根据PATH先查找路由, 如果没有直接返回404.
 			local cls, typ = HTTP_PROTOCOL.ROUTE_FIND(routes, PATH)
 			if not cls or not typ then
-				sock:send(ERROR_RESPONSE(http, 404))
+				sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr))
 				sock:close()
 				return 
 			end
 			-- 根据请求方法进行解析, 解析失败返回501
 			local ok, ARGS, FILE = PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 			if not ok then
-				sock:send(ERROR_RESPONSE(http, 501))
+				sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr))
 				sock:close()
 				return 
 			end
@@ -416,7 +407,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				if not ok then
 					log.error(data)
 					statucode = 500
-					sock:send(ERROR_RESPONSE(http, statucode))
+					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr))
 					sock:close()
 					return 
 				end
@@ -433,13 +424,13 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				if not ok then
 					log.error(data)
 					statucode = 500
-					sock:send(ERROR_RESPONSE(http, statucode))
+					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr))
 					sock:close()
 					return
 				end
 				if not data then
 					statucode = 404
-					sock:send(ERROR_RESPONSE(http, statucode))
+					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr))
 					sock:close()
 					return
 				else
@@ -481,6 +472,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				insert(header, 'Transfer-Encoding: identity')
 				insert(header, fmt('Content-Length: %d', #data))
 			end
+			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr)
 			sock:send(concat(header, CRLF) .. CRLF2 .. (data or ''))
 			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
 				return sock:close()

@@ -1,10 +1,9 @@
 local class = require "class"
-local Admin = require "Admin"
--- require "utils"
 
-local route = class("route")
+local ECHO = class("ECHO")
 
-function route:ctor(opt)
+
+function ECHO:ctor(opt)
     self.args = opt.args
     self.file = opt.file
     self.path = opt.path
@@ -12,8 +11,8 @@ function route:ctor(opt)
     self.header = opt.header
 end
 
-function route:route()
-    return Admin.login()
+function ECHO:ECHO( ... )
+    return '{"username":"admin", "password":"admin"}'
 end
 
-return route
+return ECHO
