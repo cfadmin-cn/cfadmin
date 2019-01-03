@@ -468,10 +468,14 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				insert(header, cache)
 				insert(header, static)
 			end
-			if data and type(data) == 'string' and #data > 0 then
-				insert(header, 'Transfer-Encoding: identity')
-				insert(header, fmt('Content-Length: %d', #data))
+			if not data and type(data) ~= 'string' then
+				statucode = 500
+				sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr))
+				sock:close()
+				return
 			end
+			insert(header, 'Transfer-Encoding: identity')
+			insert(header, fmt('Content-Length: %d', #data))
 			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr)
 			sock:send(concat(header, CRLF) .. CRLF2 .. (data or ''))
 			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then

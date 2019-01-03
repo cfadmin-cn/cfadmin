@@ -148,7 +148,7 @@ init_lua_libs(lua_State *L){
 	/* 注入lua搜索域 */
     lua_getglobal(L, "package");
 
-    lua_pushliteral(L, "./lualib/?.lua;./lualib/?/init.lua;./script/?.lua;./script/?/init.lua;./?/init.lua");
+    lua_pushliteral(L, "./script/?.lua;./script/?/init.lua;./lualib/?.lua;./lualib/?/init.lua;./?/init.lua");
     lua_setfield(L, 1, "path");
 
     lua_pushliteral(L, "./luaclib/?.so;./script/?.so;");

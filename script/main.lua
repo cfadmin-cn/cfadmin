@@ -2,14 +2,13 @@ local httpd = require "httpd"
 
 local app = httpd:new("App")
 
--- 注册html路由r1
-app:api("/httpc", require "httpc")
-
--- 注册API路由r2
+-- 注册接口
+app:api("/httpc", require "hc")
 app:api("/echo", require "echo")
-
--- test
 app:api("/api", require "api")
+
+-- 注册html
+app:use("/view", require "view")
 
 -- 注册静态文件目录
 app:static('static', 10)
