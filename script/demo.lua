@@ -26,7 +26,7 @@ end
 function demo:demo()
     local args = self.args
     local total = 5000000
-    if tonumber(args.limit) and tonumber(args.limit) > total / 500 then
+    if args and tonumber(args.limit) and tonumber(args.limit) > total / 500 then
         args.limit = 1000
     end
     if args and tonumber(args.limit) and tonumber(args.page) then
