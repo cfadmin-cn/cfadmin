@@ -1,7 +1,5 @@
 local task = require "task"
 local log  = require "log"
--- local snapshot = require "snapshot"
--- require "utils"
 
 local co_new = coroutine.create
 local co_start = coroutine.resume
@@ -9,18 +7,55 @@ local co_wait = coroutine.yield
 local co_status = coroutine.status
 local co_self = coroutine.running
 
+local insert = table.insert
+local remove = table.remove
+
 local cos = {}
 
 local main_co = co_self()
 local main_task = task.new()
 
-local function f(func, ...)
-	local ok, msg = pcall(func, ...)
-	if not ok then
-		log.error(msg)
+local TASK_POOL = {}
+
+local function task_pop()
+	if #TASK_POOL > 0 then
+		return remove(TASK_POOL)
 	end
-	cos[co_self()] = nil
-	return
+	return task.new()
+end
+
+local function task_push(task)
+	return insert(TASK_POOL, task)
+end
+
+local CO_POOL = {}
+
+local function co_pop(func)
+	if #CO_POOL > 0 then
+		return remove(CO_POOL)
+	end
+	local co = co_new(func)
+	co_start(co)
+	return co
+end
+
+local function co_push(co)
+	return insert(CO_POOL, co)
+end
+
+local function f()
+	while 1 do 
+		local ok, msg = pcall(co_wait())
+		if not ok then
+			log.error(msg)
+		end
+		local co, main = co_self()
+		if not main then
+			task_push(cos[co])
+			co_push(co)
+			cos[co] = nil
+		end
+	end
 end
 
 local Co = {}
@@ -48,8 +83,8 @@ end
 -- 启动
 function Co.spwan(func, ...)
 	if func and type(func) == "function" then
-		local co = co_new(f)
-		cos[co] = task.new()
+		local co = co_pop(f)
+		cos[co] = task_pop()
 		return task.start(cos[co], co, func, ...)
 	end
 	error("Co Just Can Spwan a Coroutine to run in sometimes.")
