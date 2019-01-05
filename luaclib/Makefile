@@ -17,7 +17,8 @@ build :
 	$(CC) -o task.so src/ltask.c $(MACRO) -lcore
 	$(CC) -o crypt.so src/lcrypt.c $(MACRO) -lcore
 	### 以下为预留第三方库编译位置 ###
-	cd src/lcjson && make build # 增加cjson库
+	cd src/lhttpparser && make build # 增加PicoHTTPParser库
+	cd src/lcjson && make build 	 # 增加cjson库
 
 rebuild :
 
@@ -29,6 +30,7 @@ rebuild :
 	$(CC) -o task.so src/ltask.c $(MACRO) -lcore
 	$(CC) -o crypt.so src/lcrypt.c $(MACRO) -lcore
 	### 以下为预留第三方库编译位置 ###
+	cd src/lhttpparser && make build # 增加PicoHTTPParser库
 	cd src/lcjson && make rebuild # 增加cjson库
 
 clean :

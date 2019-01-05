@@ -1,0 +1,132 @@
+#define LUA_LIB
+
+#include <string.h>
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+#include "httpparser.h"
+
+int
+lparser_request_protocol(lua_State *L){
+    size_t buf_len;
+    const char* buf = luaL_checklstring(L, 1, &buf_len);
+    if (!buf) return luaL_error(L, "lparser_request_protocol need a str buf.");
+
+    int min, ret;
+    const char *method;
+    const char *path;
+    size_t method_len, path_len, num_headers;
+
+    struct phr_header headers[32];
+    memset(headers, 0x0, sizeof(headers));
+
+    num_headers = sizeof(headers) / sizeof(headers[0]);
+    ret = phr_parse_request(buf, buf_len, &method, &method_len, &path, &path_len, &min, headers, &num_headers, 0);
+    if (0 > ret) return 0;
+
+    char PATH[path_len];
+    char METHOD[method_len];
+    lua_pushlstring(L, strncpy(METHOD, method, method_len), method_len); // METHOD
+    lua_pushlstring(L, strncpy(PATH, path, path_len), path_len);  // PATH
+    lua_pushnumber(L, min > 0 ? 1.1 : 1.0); // VERSION
+    return 3;
+}
+
+int
+lparser_response_protocol(lua_State *L){
+    size_t buf_len;
+    const char* buf = luaL_checklstring(L, 1, &buf_len);
+    if (!buf) return luaL_error(L, "parser_response_protocol need a str buf.");
+
+    int status, minor_version, ret;
+    size_t msg_len, num_headers;
+    const char* msg;
+
+    struct phr_header headers[32];
+    memset(headers, 0x0, sizeof(headers));
+
+    num_headers = sizeof(headers) / sizeof(headers[0]);
+    ret = phr_parse_response(buf, buf_len, &minor_version, &status, &msg, &msg_len, headers, &num_headers, 0);
+    if (0 > ret) return 0;
+
+    char MSG[msg_len];
+    lua_pushnumber(L, minor_version > 0 ? 1.1 : 1.0); // VERSION
+    lua_pushinteger(L, status); // STATUS CODE
+    lua_pushlstring(L, strncpy(MSG, msg, msg_len), msg_len);  // STATUS MSG
+    return 3;
+}
+
+int
+lparser_request_header(lua_State *L){
+    size_t buf_len;
+    const char* buf = luaL_checklstring(L, 1, &buf_len);
+    if (!buf) return luaL_error(L, "lparser_request_header need a str buf.");
+
+    int minor_version, ret, i;
+    const char *method;
+    const char *path;
+    size_t method_len, path_len, num_headers;
+
+    struct phr_header headers[32];
+    memset(headers, 0x0, sizeof(headers));
+
+    num_headers = sizeof(headers) / sizeof(headers[0]);
+    ret = phr_parse_request(buf, buf_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
+    if (0 > ret) return 0;
+
+    lua_createtable(L, 0, 32);
+    for (i = 0; i < 32; i++){
+        if (headers[i].name && (headers[i].value)){
+            char key[headers[i].name_len];
+            char value[headers[i].value_len];
+            lua_pushlstring(L, strncpy(key, headers[i].name, headers[i].name_len), headers[i].name_len);
+            lua_pushlstring(L, strncpy(value, headers[i].value, headers[i].value_len), headers[i].value_len);
+            lua_rawset(L, lua_gettop(L) - 2);
+        }
+    }
+    return 1;
+}
+
+int
+lparser_response_header(lua_State *L){
+    size_t buf_len;
+    const char* buf = luaL_checklstring(L, 1, &buf_len);
+    if (!buf) return luaL_error(L, "parser_response_protocol need a str buf.");
+
+    int status, minor_version, ret, i;
+    size_t msg_len, num_headers;
+    const char* msg;
+
+    struct phr_header headers[32];
+    memset(headers, 0x0, sizeof(headers));
+
+    num_headers = sizeof(headers) / sizeof(headers[0]);
+    ret = phr_parse_response(buf, buf_len, &minor_version, &status, &msg, &msg_len, headers, &num_headers, 0);
+    if (0 > ret) return 0;
+
+    lua_createtable(L, 0, 32);
+    for (i = 0; i < 32; i++){
+        if (headers[i].name && (headers[i].value)){
+            char key[headers[i].name_len];
+            char value[headers[i].value_len];
+            lua_pushlstring(L, strncpy(key, headers[i].name, headers[i].name_len), headers[i].name_len);
+            lua_pushlstring(L, strncpy(value, headers[i].value, headers[i].value_len), headers[i].value_len);
+            lua_rawset(L, lua_gettop(L) - 2);
+        }
+    }
+    return 1;
+}
+
+LUAMOD_API int
+luaopen_httpparser(lua_State *L) {
+    luaL_checkversion(L);
+    luaL_Reg httpparser_libs[] = {
+        {"parser_request_protocol", lparser_request_protocol},
+        {"parser_response_protocol", lparser_response_protocol},
+        {"parser_request_header", lparser_request_header},
+        {"parser_response_header", lparser_response_header},
+        {NULL, NULL}
+    };
+    luaL_newlib(L, httpparser_libs);
+    return 1;
+}

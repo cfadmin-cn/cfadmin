@@ -5,6 +5,15 @@ local cjson = require "cjson"
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
 
+local httpparser = require "httpparser"
+
+local REQUEST_PROTOCOL_PARSER = httpparser.parser_request_protocol
+local RESPONSE_PROTOCOL_PARSER = httpparser.parser_response_protocol
+
+local REQUEST_HEADER_PARSER = httpparser.parser_request_header
+local RESPONSE_HEADER_PARSER = httpparser.parser_response_header
+
+
 local DATE = os.date
 local time = os.time
 local spliter = string.gsub
@@ -125,48 +134,23 @@ local HTTP_PROTOCOL = {
 	[3] = "STATIC",
 }
 
-
 -- 以下为 HTTP Client 所需所用方法
-
-function HTTP_PROTOCOL.RESPONSE_HEAD_PARSER(head)
-	local HEADER = {}
-	spliter(head, "(.-): (.-)\r\n", function (key, value)
-		if key == 'Content-Length' then
-			HEADER['Content-Length'] = tonumber(value)
-			return
-		end
-		HEADER[key] = value
-	end)
-	return HEADER
+function HTTP_PROTOCOL.RESPONSE_HEADER_PARSER(header)
+	return RESPONSE_HEADER_PARSER(header)
 end
 
 function HTTP_PROTOCOL.RESPONSE_PROTOCOL_PARSER(protocol)
-	local VERSION, CODE, STATUS = match(protocol, "HTTP/([%d%.]+) (%d+) (.+)\r\n")
-	return tonumber(CODE)
+	local VERSION, CODE, STATUS = RESPONSE_PROTOCOL_PARSER(protocol)
+	return CODE
 end
 
-
 -- 以下为 HTTP Server 所需所用方法
-
 local function REQUEST_STATUCODE_RESPONSE(code)
 	return HTTP_CODE[code] or "attempt to Passed A Invaid Code to response message."
 end
 
 local function REQUEST_MIME_RESPONSE(mime)
 	return MIME[mime] or MIME['html']
-end
-
-
-local function REQUEST_HEADER_PARSER(head)
-	local HEADER = {}
-	spliter(head, "(.-): (.-)\r\n", function (key, value)
-		HEADER[key] = value
-	end)
-	return HEADER
-end
-
-local function REQUEST_PROTOCOL_PARSER(protocol)
-	return match(protocol, "(%w+) (.+) HTTP/([%d%.]+)\r\n")
 end
 
 function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
@@ -368,7 +352,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 		local CRLF_START, CRLF_END = find(buffer, CRLF2)
 		if CRLF_START and CRLF_END then
 			local PROTOCOL_START, PROTOCOL_END = find(buffer, CRLF)
-			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(split(buffer, 1, PROTOCOL_START + 1))
+			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(buffer)
 			-- 协议有问题返回400
 			if not METHOD or not PATH or not VERSION then
 				sock:send(ERROR_RESPONSE(http, 400, PATH))
@@ -376,8 +360,8 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				return 
 			end
 			-- 没有HEADER返回400
-			local HEADER = REQUEST_HEADER_PARSER(split(buffer, PROTOCOL_END + 1, CRLF_START + 2))
-			if not next(HEADER) then
+			local HEADER = REQUEST_HEADER_PARSER(buffer)
+			if not HEADER or not next(HEADER) then
 				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr))
 				sock:close()
 				return 

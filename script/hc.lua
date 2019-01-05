@@ -16,8 +16,8 @@ function HTTPC:HTTPC(...)
         return '{"code": 403, "ERROR": "找不到需要查询的用户名"}'
     end
     local code, body = httpc.get(string.format("https://api.github.com/users/%s", self.args['name'] or 'CandyMI'))
-    if code ~= 200 or code ~= 304 then
-        print(code, body)
+    if code ~= 200 then
+        print(code, type(code), body)
         return '{"code": 500, "ERROR":"内部服务器错误"}'
     end
     return body

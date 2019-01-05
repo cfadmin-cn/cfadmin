@@ -145,6 +145,16 @@ init_lua_libs(lua_State *L){
     /* lua 标准库 */
 	luaL_openlibs(L);
 
+	lua_pushglobaltable(L);
+	lua_pushliteral(L, "null");
+	lua_pushlightuserdata(L, NULL);
+	lua_rawset(L, -3);
+	lua_pushliteral(L, "NULL");
+	lua_pushlightuserdata(L, NULL);
+	lua_rawset(L, -3);
+
+	lua_settop(L, 0);
+
 	/* 注入lua搜索域 */
     lua_getglobal(L, "package");
 

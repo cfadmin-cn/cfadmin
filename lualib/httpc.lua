@@ -4,9 +4,9 @@ local dns = require "protocol.dns"
 local HTTP = require "protocol.http"
 -- require "utils"
 
-local PARSER_PROTOCOL = HTTP.RESPONSE_PROTOCOL_PARSER
-local PARSER_HEAD = HTTP.RESPONSE_HEAD_PARSER
-local PARSER_BODY = HTTP.RESPONSE_BODY_PARSER
+local RESPONSE_PROTOCOL_PARSER = HTTP.RESPONSE_PROTOCOL_PARSER
+local RESPONSE_HEADER_PARSER = HTTP.RESPONSE_HEADER_PARSER
+
 
 local find = string.find
 local split = string.sub
@@ -192,8 +192,8 @@ function httpc.response(IO, SSL)
 					IO:close()
 					return nil, "can't resolvable protocol."
 				end
-				CODE = PARSER_PROTOCOL(split(DATA, 1, protocol_end))
-				HEAD = PARSER_HEAD(split(DATA, protocol_end + 1, posA + 1))
+				CODE = RESPONSE_PROTOCOL_PARSER(DATA)
+				HEAD = RESPONSE_HEADER_PARSER(DATA)
 				-- var_dump(HEAD)
 				if not HEAD['Content-Length'] then
 					BODY = ""
@@ -205,7 +205,7 @@ function httpc.response(IO, SSL)
 		end
 		if times > 0 then
 			BODY = concat(content)
-			if #BODY >= Content_Length then
+			if #BODY >= tonumber(Content_Length) then
 				break
 			end
 		end
