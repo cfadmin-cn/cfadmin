@@ -1,9 +1,9 @@
 local tcp = require "internal.TCP"
 local log = require "log"
 
-local cjson = require "cjson"
-local cjson_encode = cjson.encode
-local cjson_decode = cjson.decode
+local json = require "json"
+local json_encode = json.encode
+local json_decode = json.decode
 
 local httpparser = require "httpparser"
 
@@ -299,9 +299,9 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 						end)
 					end
 				elseif format == JSON_ENCODE then
-					local ok, json = pcall(cjson_decode, BODY)
+					local ok, args = pcall(json_decode, BODY)
 					if ok then
-						ARGS = json
+						ARGS = args
 					end
 				elseif format == URL_ENCODE then
 					spliter(BODY, '([^%?&]*)=([^%?&]*)', function (key, value)

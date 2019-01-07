@@ -1,7 +1,7 @@
 local class = require "class"
-local cjson = require "cjson"
-local cjson_encode = cjson.encode
-local cjson_decode = cjson.decode
+local json = require "json"
+local json_encode = json.encode
+local json_decode = json.decode
 
 local tonumber = tonumber
 local os_time = os.time
@@ -42,15 +42,15 @@ function API:API()
             data.city = "China"
             insert(t, data)
         end
-        return cjson_encode({
+        return json_encode({
             code = 0,
             count = total,
             data = t,
         })
     end
-    return cjson_encode({
+    return json_encode({
         code = 404,
-        data = cjson.null
+        data = json.null
     })
 end
 

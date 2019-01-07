@@ -139,7 +139,6 @@ end
 
 -- HTTP GET
 function httpc.get(domain, HEADER)
-
 	local PROTOCOL, DOMAIN, PATH, PORT
 
 	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
@@ -192,7 +191,6 @@ end
 
 -- HTTP POST
 function httpc.post(domain, HEADER, BODY)
-
 	local PROTOCOL, DOMAIN, PATH, PORT
 
 	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
@@ -256,7 +254,65 @@ function httpc.post(domain, HEADER, BODY)
 	if not ok then
 		return ok, err
 	end
-	print(REQ)
+	return httpc_response(IO, PROTOCOL)
+end
+
+function httpc.json(domain, HEADER, json)
+
+	local PROTOCOL, DOMAIN, PATH, PORT
+
+	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
+		PROTOCOL = protocol
+		DOMAIN = domain
+		PATH = path
+		PORT = port
+	end)
+
+	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
+		return nil, "Invaild protocol from http get ."
+	end
+
+	local ok, IP = dns.resolve(DOMAIN)
+	if not ok then
+		return nil, "Can't resolve domain"
+	end
+
+	if not PATH or PATH == '' then
+		PATH = '/'
+	end
+
+	local request = {
+		fmt("POST %s HTTP/1.1\r\n", PATH),
+		fmt("Host: %s\r\n", DOMAIN),
+		fmt("Connection: keep-alive\r\n"),
+		fmt("User-Agent: %s\r\n", SERVER),
+		'Content-Type: application/json\r\n',
+	}
+	if HEADER and type(HEADER) == "table" then
+		for _, header in ipairs(HEADER) do
+			assert(string.lower(header[1]) ~= 'content-length', "please don't give Content-Length")
+			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
+			insert(request, header[1]..': '..header[2]..'\r\n')
+		end
+	end
+	insert(request, '\r\n')
+
+	if json then
+		insert(request, #request-2, fmt("Content-Length: %s\r\n", #json))
+		insert(request, json)
+	end
+
+	local REQ = concat(request)
+
+	local IO = tcp:new():timeout(TIMEOUT)
+	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
+	if not ok then
+		return ok, err
+	end
+	local ok, err = IO_SEND(IO, PROTOCOL, REQ)
+	if not ok then
+		return ok, err
+	end
 	return httpc_response(IO, PROTOCOL)
 end
 
