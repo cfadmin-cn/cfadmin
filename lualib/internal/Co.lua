@@ -1,5 +1,8 @@
-local task = require "task"
 local log  = require "log"
+
+local task = require "task"
+local task_new = task.new
+local task_start = task.start
 
 local co_new = coroutine.create
 local co_start = coroutine.resume
@@ -21,7 +24,7 @@ local function task_pop()
 	if #TASK_POOL > 0 then
 		return remove(TASK_POOL)
 	end
-	return task.new()
+	return task_new()
 end
 
 local function task_push(task)
@@ -65,11 +68,6 @@ function Co.new(f)
 	return co_new(f)
 end
 
--- 启动
-function Co.start(co, ...)
-	return co_start(co, ...)
-end
-
 -- 查找
 function Co.self()
 	return co_self()
@@ -98,7 +96,7 @@ function Co.wakeup(co, ...)
 		return log.error("Can't wakeup current co.")
 	end
 	if main_co == co and status == "suspended" then
-		return task.start(main_task, main_co, ...)
+		return task_start(main_task, main_co, ...)
 	end
 	local t = cos[co]
 	if not t then
