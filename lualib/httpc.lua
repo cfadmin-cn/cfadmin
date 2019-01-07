@@ -138,7 +138,7 @@ function httpc.set_timeout(Invaild)
 end
 
 -- HTTP GET
-function httpc.get(domain, HEADER)
+function httpc.get(domain, HEADER, ARGS)
 	local PROTOCOL, DOMAIN, PATH, PORT
 
 	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
@@ -167,6 +167,14 @@ function httpc.get(domain, HEADER)
 		fmt("Connection: Keep-Alive"),
 		fmt("User-Agent: %s", SERVER),
 	}
+	if ARGS and type(ARGS) == "table" then
+		local args = {}
+		for _, arg in ipairs(ARGS) do
+			assert(#arg == 2, "args need key[1]->value[2] (2 values)")
+			insert(args, arg[1]..'='..arg[2])
+		end
+		request[1] = fmt("GET %s HTTP/1.1", PATH..'?'..concat(args, "&"))
+	end	
 	if HEADER and type(HEADER) == "table" then
 		for _, header in ipairs(HEADER) do
 			assert(string.lower(header[1]) ~= 'content-length', "please don't give Content-Length")
