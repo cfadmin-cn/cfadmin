@@ -24,5 +24,11 @@ local ti = timer.timeout(2, function ( ... )
         -- http json请求示例
         local code, body = httpc.json("http://localhost:8080/api", {{"Auth", "admin"}}, json.encode({page=1, limit=10}))
         print(code, body)
+        -- http 上传文件示例
+        local code, body = httpc.file('http://localhost:8080/view', nil, {
+            {name='1', filename='1.jpg', file='1', type='abc'},
+            {name='2', filename='2.jpg', file='2', type='abc'},
+            })
+        print(code, body)
     end)
 end)

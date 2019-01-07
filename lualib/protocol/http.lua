@@ -1,19 +1,20 @@
-local tcp = require "internal.TCP"
 local log = require "log"
-
 local json = require "json"
+local tcp = require "internal.TCP"
+local httpparser = require "httpparser"
+
 local json_encode = json.encode
 local json_decode = json.decode
 
-local httpparser = require "httpparser"
-
 local REQUEST_PROTOCOL_PARSER = httpparser.parser_request_protocol
 local RESPONSE_PROTOCOL_PARSER = httpparser.parser_response_protocol
-
 local REQUEST_HEADER_PARSER = httpparser.parser_request_header
 local RESPONSE_HEADER_PARSER = httpparser.parser_response_header
 
-
+local type = type
+local next = next
+local pcall = pcall
+local ipairs = ipairs
 local DATE = os.date
 local time = os.time
 local spliter = string.gsub
@@ -21,7 +22,7 @@ local lower = string.lower
 local upper = string.upper
 local match = string.match
 local fmt = string.format
-local int = math.integer
+local toint = math.tointeger
 local find = string.find
 local split = string.sub
 local insert = table.insert
@@ -153,6 +154,10 @@ local function REQUEST_MIME_RESPONSE(mime)
 	return MIME[mime] or MIME['html']
 end
 
+function HTTP_PROTOCOL.FILEMIME(mime)
+	return MIME[mime]
+end
+
 function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 	if route == '' then
 		return log.warn('Please Do not add empty string in route registery method :)')
@@ -257,7 +262,7 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 			end)
 		end
 	elseif METHOD == "POST" then
-		local body_len = tonumber(HEADER['Content-Length'])
+		local body_len = toint(HEADER['Content-Length'])
 		local BODY = ''
 		local RECV_BODY = true
 		local CRLF_START, CRLF_END = find(buffer, '\r\n\r\n')
@@ -355,7 +360,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(buffer)
 			-- 协议有问题返回400
 			if not METHOD or not PATH or not VERSION then
-				sock:send(ERROR_RESPONSE(http, 400, PATH))
+				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr))
 				sock:close()
 				return 
 			end

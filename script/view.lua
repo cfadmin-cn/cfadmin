@@ -1,6 +1,6 @@
 local class = require "class"
 local template = require "template"
-
+-- require "utils"
 
 local VIEW = class("VIEW")
 
@@ -11,6 +11,7 @@ function VIEW:ctor(opt)
     self.path = opt.path
     self.method = opt.method
     self.header = opt.header
+    -- var_dump(opt)
 end
 
 function VIEW:VIEW(...)

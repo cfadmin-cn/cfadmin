@@ -3,15 +3,22 @@ local tcp = require "internal.TCP"
 local dns = require "protocol.dns"
 local HTTP = require "protocol.http"
 
+local FILEMIME = HTTP.FILEMIME
 local RESPONSE_PROTOCOL_PARSER = HTTP.RESPONSE_PROTOCOL_PARSER
 local RESPONSE_HEADER_PARSER = HTTP.RESPONSE_HEADER_PARSER
 
+local random = math.random
 local find = string.find
 local split = string.sub
 local spliter = string.gsub
-
+local lower = string.lower
 local insert = table.insert
 local concat = table.concat
+local toint = math.tointeger
+local type = type
+local assert = assert
+local ipairs = ipairs
+local tostring = tostring
 
 local fmt = string.format
 
@@ -48,7 +55,7 @@ local function httpc_response(IO, SSL)
 				IO:close()
 				return nil, "can't resolvable protocol."
 			end
-			local Content_Length = tonumber(HEADER['Content-Length'])
+			local Content_Length = toint(HEADER['Content-Length'])
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
 					BODY = split(DATA, posB+1, #DATA)
@@ -82,10 +89,10 @@ end
 
 local function IO_CONNECT(IO, PROTOCOL, IP, PORT)
 	if PROTOCOL == "http" then
-		if not tonumber(PORT) or PORT == '' then
+		if not toint(PORT) or PORT == '' then
 			PORT = 80
 		end
-		local ok = IO:connect(IP, tonumber(PORT))
+		local ok = IO:connect(IP, toint(PORT))
 		if not ok then
 			IO:close()
 			return nil, "Can't connect to this IP and Port."
@@ -93,10 +100,10 @@ local function IO_CONNECT(IO, PROTOCOL, IP, PORT)
 		return true
 	end
 	if PROTOCOL == "https" then
-		if tonumber(PORT) or PORT == '' then
+		if toint(PORT) or PORT == '' then
 			PORT = 443
 		end
-		local ok = IO:ssl_connect(IP, tonumber(PORT))
+		local ok = IO:ssl_connect(IP, toint(PORT))
 		if not ok then
 			IO:close()
 			return nil, "Can't ssl connect to this IP and Port."
@@ -174,10 +181,10 @@ function httpc.get(domain, HEADER, ARGS)
 			insert(args, arg[1]..'='..arg[2])
 		end
 		request[1] = fmt("GET %s HTTP/1.1", PATH..'?'..concat(args, "&"))
-	end	
+	end
 	if HEADER and type(HEADER) == "table" then
 		for _, header in ipairs(HEADER) do
-			assert(string.lower(header[1]) ~= 'content-length', "please don't give Content-Length")
+			assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
 			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
 			insert(request, header[1]..': '..header[2]..'\r\n')
 		end
@@ -209,7 +216,7 @@ function httpc.post(domain, HEADER, BODY)
 	end)
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
-		return nil, "Invaild protocol from http get ."
+		return nil, "Invaild protocol from http post ."
 	end
 
 	local ok, IP = dns.resolve(DOMAIN)
@@ -265,7 +272,7 @@ function httpc.post(domain, HEADER, BODY)
 	return httpc_response(IO, PROTOCOL)
 end
 
-function httpc.json(domain, HEADER, json)
+function httpc.json(domain, HEADER, JSON)
 
 	local PROTOCOL, DOMAIN, PATH, PORT
 
@@ -277,7 +284,65 @@ function httpc.json(domain, HEADER, json)
 	end)
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
-		return nil, "Invaild protocol from http get ."
+		return nil, "Invaild protocol from http json ."
+	end
+
+	local ok, IP = dns.resolve(DOMAIN)
+	if not ok then
+		return nil, "Can't resolve domain"
+	end
+
+	if not PATH or PATH == '' then
+		PATH = '/'
+	end
+
+	assert(type(JSON) == "string", "Please passed A vaild json string.")
+
+	local request = {
+		fmt("POST %s HTTP/1.1\r\n", PATH),
+		fmt("Host: %s\r\n", DOMAIN),
+		fmt("Connection: keep-alive\r\n"),
+		fmt("User-Agent: %s\r\n", SERVER),
+		fmt("Content-Length: %s\r\n", #JSON),
+		'Content-Type: application/json\r\n',
+	}
+	if HEADER and type(HEADER) == "table" then
+		for _, header in ipairs(HEADER) do
+			assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
+			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
+			insert(request, header[1]..': '..header[2]..'\r\n')
+		end
+	end
+
+	insert(request, '\r\n')
+	insert(request, JSON)
+
+	local REQ = concat(request)
+
+	local IO = tcp:new():timeout(TIMEOUT)
+	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
+	if not ok then
+		return ok, err
+	end
+	local ok, err = IO_SEND(IO, PROTOCOL, REQ)
+	if not ok then
+		return ok, err
+	end
+	return httpc_response(IO, PROTOCOL)
+end
+
+function httpc.file(domain, HEADER, FILES)
+	local PROTOCOL, DOMAIN, PATH, PORT
+
+	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
+		PROTOCOL = protocol
+		DOMAIN = domain
+		PATH = path
+		PORT = port
+	end)
+
+	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
+		return nil, "Invaild protocol from http file ."
 	end
 
 	local ok, IP = dns.resolve(DOMAIN)
@@ -294,20 +359,38 @@ function httpc.json(domain, HEADER, json)
 		fmt("Host: %s\r\n", DOMAIN),
 		fmt("Connection: keep-alive\r\n"),
 		fmt("User-Agent: %s\r\n", SERVER),
-		'Content-Type: application/json\r\n',
 	}
+
 	if HEADER and type(HEADER) == "table" then
 		for _, header in ipairs(HEADER) do
-			assert(string.lower(header[1]) ~= 'content-length', "please don't give Content-Length")
+			assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
 			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
 			insert(request, header[1]..': '..header[2]..'\r\n')
 		end
 	end
-	insert(request, '\r\n')
 
-	if json then
-		insert(request, #request-2, fmt("Content-Length: %s\r\n", #json))
-		insert(request, json)
+	if FILES then
+		local bd = random(1000000000, 9999999999)
+		local boundary_start = fmt("------CFWebService%d", bd)
+		local boundary_end   = fmt("------CFWebService%d--", bd)
+		insert(request, fmt('Content-Type: multipart/form-data; boundary=----CFWebService%s\r\n', bd))
+		local body = {}
+		for _, file in ipairs(FILES) do
+			insert(body, boundary_start)
+			local header = ""
+			if file.name and file.filename then
+				header = fmt(' name="%s"; filename="%s"', file.name, file.filename)
+			end
+			insert(body, fmt('Content-Disposition: form-data;%s', header))
+			insert(body, fmt('Content-Type: %s\r\n', FILEMIME(file.type or '') or 'application/octet-stream'))
+			insert(body, file.file)
+		end
+		body = concat(body, '\r\n')
+		insert(request, fmt("Content-Length: %s\r\n", #body + 2 + #boundary_end))
+		insert(request, '\r\n')
+		insert(request, body)
+		insert(request, '\r\n')
+		insert(request, boundary_end)
 	end
 
 	local REQ = concat(request)
