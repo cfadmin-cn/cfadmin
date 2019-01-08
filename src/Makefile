@@ -10,17 +10,21 @@ default :
 CC = cc
 
 LIBS += -L/usr/local/lib
-
 INCLUDES += -I/usr/local/include
 
-# CFLAGS += -Wall -DJEMALLOC -Os -fPIC --shared
-
+# 使用jemalloc内存分配器请启用这段
+# CFLAGS += -Wall -Os -fPIC --shared -DJEMALLOC
 # DLL += -ljemalloc -lev -llua
+# MACRO += -Wall -Os -L./ -L../ -DJEMALLOC
 
+# 使用tcmalloc内存分配器请启用这段
+# CFLAGS += -Wall -Os -fPIC --shared -DTCMALLOC
+# DLL += -ltcmalloc -lev -llua
+# MACRO += -Wall -Os -L./ -L../ -DTCMALLOC
+
+# 默认情况下使用系统内存分配器
 CFLAGS += -Wall -Os -fPIC --shared
-
 DLL += -lev -llua
-
 MACRO += -Wall -Os -L./ -L../
 
 build :

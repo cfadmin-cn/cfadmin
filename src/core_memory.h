@@ -1,8 +1,14 @@
 #ifndef __CORE_MEMORY__
 #define __CORE_MEMORY__
 
-#ifdef JEMALLOC
+#if JEMALLOC
 	#include "jemalloc/jemalloc.h"
+#elif TCMALLOC
+	#include "gperftools/tcmalloc.h"
+	#define malloc  tc_malloc
+	#define calloc  tc_calloc
+	#define realloc tc_realloc
+	#define free 	tc_free
 #else
 	#include <stdlib.h>
 #endif
