@@ -6,7 +6,7 @@ cjson.decode_array_with_array_mt(true)
 local CJSON = {
     null = null,
     array_mt = cjson.array_mt, -- 用来确认稀疏数组
-    empty_array = empty_array, -- 如果数组为空, 可以直接用这个设置好原表的空数组
+    empty_array = cjson.empty_array, -- 如果数组为空, 可以直接用这个设置好原表的空数组
     empty_array_mt = cjson.empty_array_mt, -- 这个保留用于适配cjson
 }
 
