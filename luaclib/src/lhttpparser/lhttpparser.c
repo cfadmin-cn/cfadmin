@@ -24,10 +24,8 @@ lparser_request_protocol(lua_State *L){
     ret = phr_parse_request(buf, buf_len, &method, &method_len, &path, &path_len, &min, headers, &num_headers, 0);
     if (0 > ret) return 0;
 
-    char PATH[path_len];
-    char METHOD[method_len];
-    lua_pushlstring(L, strncpy(METHOD, method, method_len), method_len); // METHOD
-    lua_pushlstring(L, strncpy(PATH, path, path_len), path_len);  // PATH
+    lua_pushlstring(L, method, method_len); // METHOD
+    lua_pushlstring(L, path, path_len);  // PATH
     lua_pushnumber(L, min > 0 ? 1.1 : 1.0); // VERSION
     return 3;
 }
@@ -49,10 +47,9 @@ lparser_response_protocol(lua_State *L){
     ret = phr_parse_response(buf, buf_len, &minor_version, &status, &msg, &msg_len, headers, &num_headers, 0);
     if (0 > ret) return 0;
 
-    char MSG[msg_len];
     lua_pushnumber(L, minor_version > 0 ? 1.1 : 1.0); // VERSION
     lua_pushinteger(L, status); // STATUS CODE
-    lua_pushlstring(L, strncpy(MSG, msg, msg_len), msg_len);  // STATUS MSG
+    lua_pushlstring(L, msg, msg_len);  // STATUS MSG
     return 3;
 }
 
@@ -77,10 +74,8 @@ lparser_request_header(lua_State *L){
     lua_createtable(L, 0, 32);
     for (i = 0; i < 32; i++){
         if (headers[i].name && (headers[i].value)){
-            char key[headers[i].name_len];
-            char value[headers[i].value_len];
-            lua_pushlstring(L, strncpy(key, headers[i].name, headers[i].name_len), headers[i].name_len);
-            lua_pushlstring(L, strncpy(value, headers[i].value, headers[i].value_len), headers[i].value_len);
+            lua_pushlstring(L, headers[i].name, headers[i].name_len);
+            lua_pushlstring(L, headers[i].value, headers[i].value_len);
             lua_rawset(L, lua_gettop(L) - 2);
         }
     }
@@ -107,10 +102,8 @@ lparser_response_header(lua_State *L){
     lua_createtable(L, 0, 32);
     for (i = 0; i < 32; i++){
         if (headers[i].name && (headers[i].value)){
-            char key[headers[i].name_len];
-            char value[headers[i].value_len];
-            lua_pushlstring(L, strncpy(key, headers[i].name, headers[i].name_len), headers[i].name_len);
-            lua_pushlstring(L, strncpy(value, headers[i].value, headers[i].value_len), headers[i].value_len);
+            lua_pushlstring(L, headers[i].name, headers[i].name_len);
+            lua_pushlstring(L, headers[i].value, headers[i].value_len);
             lua_rawset(L, lua_gettop(L) - 2);
         }
     }
