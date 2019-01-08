@@ -6,6 +6,11 @@ default :
 	@echo "Please use 'make clean' command to clean all."
 	@echo "======================================="
 
+# 如果需要修改内存分配器,请修改:
+# 1. src/Makefile
+# 2. lualib/Makefile
+# 3. lualib/src/cjson/Makefile
+
 build :
 	cd src && make build
 	cd luaclib && make build

@@ -6,7 +6,8 @@ default :
 	@echo "Please use 'make clean' command to clean all."
 	@echo "======================================="
 
-
+# CFLAGS = -O3 -Wall -DNDEBUG -fPIC -DJEMALLOC -ljemalloc
+# CFLAGS = -O3 -Wall -DNDEBUG -fPIC -DTCMALLOC -ltcmalloc
 CFLAGS = -O3 -Wall -DNDEBUG -fPIC
 CC = cc
 
@@ -19,11 +20,11 @@ strbuf.o: strbuf.c strbuf.h
 OBJS = fpconv.o strbuf.o
 
 build: $(OBJS)
-	$(CC) -o cjson.so lua_cjson.c $(OBJS) $(CFLAGS) $(INCLUDE) $(LIB) -shared -fPIC -lcore
+	$(CC) -o cjson.so lua_cjson.c $(OBJS) $(INCLUDE) $(LIB) $(CFLAGS) -shared -fPIC -lcore
 	mv cjson.so ../../
 
 rebuild: $(OBJS)
-	$(CC) -o cjson.so lua_cjson.c $(OBJS) $(CFLAGS) $(INCLUDE) $(LIB) -shared -fPIC -lcore
+	$(CC) -o cjson.so lua_cjson.c $(OBJS) $(INCLUDE) $(LIB) $(CFLAGS) -shared -fPIC -lcore
 	rm -rf *.o
 	mv cjson.so ../../
 

@@ -4,8 +4,13 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <assert.h>
+#include <math.h>
+#include <limits.h>
 #include <time.h>
 #include <errno.h>
 

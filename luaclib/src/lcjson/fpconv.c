@@ -28,10 +28,7 @@
  * fpconv_* will around these issues with a translation buffer if required.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <string.h>
+#include "../../../src/core.h"
 
 #include "fpconv.h"
 
