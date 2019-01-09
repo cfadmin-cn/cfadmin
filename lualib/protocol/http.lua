@@ -17,7 +17,6 @@ local pcall = pcall
 local ipairs = ipairs
 local DATE = os.date
 local time = os.time
-local spliter = string.gsub
 local lower = string.lower
 local upper = string.upper
 local match = string.match
@@ -25,6 +24,8 @@ local fmt = string.format
 local toint = math.tointeger
 local find = string.find
 local split = string.sub
+local splite = string.gmatch
+local spliter = string.gsub
 local insert = table.insert
 local remove = table.remove
 local concat = table.concat
@@ -166,9 +167,9 @@ function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 		return log.warn('Please Do not add [//] in route registery method :)')
 	end
 	local fields = {}
-	spliter(route, "/([^/?]*)", function (field)
+	for field in splite(route, '/([^/?]*)') do
 		insert(fields, field)
-	end)
+	end
 	local t 
 	for index, field in ipairs(fields) do
 		if index == 1 then
@@ -207,9 +208,9 @@ end
 
 function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 	local fields = {}
-	spliter(route, "/([^/?]*)", function (field)
+	for field in splite(route, '/([^/?]*)') do
 		insert(fields, field)
-	end)
+	end
 	local t, class, typ
 	for index, field in ipairs(fields) do
 		if index == 1 then
@@ -254,12 +255,12 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 	if METHOD == "HEAD" or METHOD == "GET" then
 		local spl_pos = find(PATH, '%?')
 		if spl_pos and spl_pos < #PATH then
-			spliter(PATH, '([^%?&]*)=([^%?&]*)', function (key, value)
+			for key, value in splite(PATH, '([^%?&]*)=([^%?&]*)') do
 				if not ARGS then
 					ARGS = {}
 				end
 				ARGS[key] = value
-			end)
+			end
 		end
 	elseif METHOD == "POST" then
 		local body_len = toint(HEADER['Content-Length'])
@@ -291,32 +292,28 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 			local JSON_ENCODE = 'application/json'
 			local FILE_ENCODE = 'multipart/form-data'
 			local URL_ENCODE = 'application/x-www-form-urlencoded'
-			spliter(HEADER['Content-Type'], '(.-/[^;]*)', function(format)
-				if format == FILE_ENCODE then
-					local BOUNDARY
-					spliter(HEADER['Content-Type'], '^.+=[%-]*(.+)', function (boundary)
-						BOUNDARY = boundary
-					end)
-					if BOUNDARY then
-						FILE = {}
-						spliter(BODY, '\r\n\r\n(.-)\r\n[%-]*'..BOUNDARY, function (file)
-							insert(FILE, file)
-						end)
+			local format = match(HEADER['Content-Type'], '(.-/[^;]*)')
+			if format == FILE_ENCODE then
+				local BOUNDARY = match(HEADER['Content-Type'], '^.+=[%-]*(.+)')
+				if BOUNDARY and BOUNDARY ~= '' then
+					FILE = {}
+					for file in splite(BODY, '\r\n\r\n(.-)\r\n[%-]*'..BOUNDARY) do
+						insert(FILE, file)
 					end
-				elseif format == JSON_ENCODE then
-					local ok, args = pcall(json_decode, BODY)
-					if ok then
-						ARGS = args
-					end
-				elseif format == URL_ENCODE then
-					spliter(BODY, '([^%?&]*)=([^%?&]*)', function (key, value)
-						if not ARGS then
-							ARGS = {}
-						end
-						ARGS[key] = value
-					end)
 				end
-			end)
+			elseif format == JSON_ENCODE then
+				local ok, args = pcall(json_decode, BODY)
+				if ok then
+					ARGS = args
+				end
+			elseif format == URL_ENCODE then
+				for key, value in splite(BODY, '([^%?&]*)=([^%?&]*)') do
+					if not ARGS then
+						ARGS = {}
+					end
+					ARGS[key] = value
+				end
+			end
 		end
 	else
 		-- 暂未支持其他方法

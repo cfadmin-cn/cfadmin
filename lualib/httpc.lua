@@ -9,6 +9,7 @@ local RESPONSE_HEADER_PARSER = HTTP.RESPONSE_HEADER_PARSER
 
 local random = math.random
 local find = string.find
+local match = string.match
 local split = string.sub
 local splite = string.gmatch
 local spliter = string.gsub
@@ -193,14 +194,8 @@ end
 
 -- HTTP GET
 function httpc.get(domain, HEADER, ARGS)
-	local PROTOCOL, DOMAIN, PATH, PORT
 
-	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
-		PROTOCOL = protocol
-		DOMAIN = domain
-		PATH = path
-		PORT = port
-	end)
+	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
 		return nil, "Invaild protocol from http get ."
@@ -254,14 +249,8 @@ end
 
 -- HTTP POST
 function httpc.post(domain, HEADER, BODY)
-	local PROTOCOL, DOMAIN, PATH, PORT
 
-	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
-		PROTOCOL = protocol
-		DOMAIN = domain
-		PATH = path
-		PORT = port
-	end)
+	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
 		return nil, "Invaild protocol from http post ."
@@ -323,14 +312,7 @@ end
 
 function httpc.json(domain, HEADER, JSON)
 
-	local PROTOCOL, DOMAIN, PATH, PORT
-
-	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
-		PROTOCOL = protocol
-		DOMAIN = domain
-		PATH = path
-		PORT = port
-	end)
+	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
 		return nil, "Invaild protocol from http json ."
@@ -382,14 +364,8 @@ function httpc.json(domain, HEADER, JSON)
 end
 
 function httpc.file(domain, HEADER, FILES)
-	local PROTOCOL, DOMAIN, PATH, PORT
 
-	spliter(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)', function (protocol, domain, port, path)
-		PROTOCOL = protocol
-		DOMAIN = domain
-		PATH = path
-		PORT = port
-	end)
+	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
 		return nil, "Invaild protocol from http file ."

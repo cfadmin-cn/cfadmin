@@ -14,9 +14,10 @@ local insert = table.insert
 
 local now = os.time
 local fmt = string.format
+local match = string.match
+local splite = string.gmatch
 local pack = string.pack
 local unpack = string.unpack
-local spliter = string.gsub
 
 local dns = {}
 
@@ -48,13 +49,14 @@ local function gen_cache()
     dns_cache['localhost'] = { ip = "127.0.0.1"}
     if file then
         for line in file:lines() do
-            spliter(line, "(%d+%p%d+%p%d+%p%d+) (.-)$", function(ip, domain)
+            local ip, domain = match(line, '(%d+%p%d+%p%d+%p%d+) -(.-)$')
+            if ip and domain then
                 if not dns_cache[domain] then
                     dns_cache[domain] = {ip = ip}
                 else
                     dns_cache[domain]["ip"] = ip
                 end
-            end)
+            end
         end
         file:close()
     end
@@ -66,16 +68,14 @@ local function check_ip(ip, version)
             return false
         end
         local num_list = {nil, nil, nil, nil}
-        spliter(ip, '(%d+)', function (num)
-            insert(num_list, tonumber(num))
-        end)
-        if #num_list ~= 4 then
-            return false
-        end
-        for _, num in ipairs(num_list) do
-            if num < 0 or num > 255 then
+        for num in splite(ip, '(%d+)') do
+            if tonumber(num) < 0 or tonumber(num) > 255 then
                 return false
             end
+            insert(num_list, tonumber(num))
+        end
+        if #num_list ~= 4 then
+            return false
         end
         return true
     end
@@ -85,12 +85,11 @@ if #dns_list < 1 then
     local file = io.open("/etc/resolv.conf", "r")
     if file then
         for line in file:lines() do
-            spliter(line, "nameserver (.-)$", function(ip)
-                local YES = check_ip(ip)
-                if YES then
-                    insert(dns_list, ip)
-                end
-            end)
+            local ip = match(line, "nameserver (.-)$")
+            local YES = check_ip(ip)
+            if YES then
+                insert(dns_list, ip)
+            end
         end
         file:close()
     end
@@ -123,9 +122,9 @@ local function pack_question(name)
     local Query_Type  = 0x01 -- IPv4
     local Query_Class = 0x01 -- IN internet
     local question = {}
-    spliter(name, "([^%.]*)", function (sp)
+    for sp in splite(name, "([^%.]*)") do
         insert(question, pack(">s1", sp))
-    end)
+    end
     insert(question, "\0")
     insert(question, pack(">HH", Query_Type, Query_Class))
     return concat(question)
