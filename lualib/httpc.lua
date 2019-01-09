@@ -38,9 +38,9 @@ local function httpc_response(IO, SSL)
 	while 1 do
 		local data, len
 		if SSL == "http" then
-			data, len = IO:recv(8192)
+			data, len = IO:recv(1024)
 		else
-			data, len = IO:ssl_recv(8192)
+			data, len = IO:ssl_recv(1024)
 		end
 		if not data then
 			IO:close()
@@ -48,7 +48,7 @@ local function httpc_response(IO, SSL)
 		end
 		insert(content, data)
 		local DATA = concat(content)
-		local _, posB = find(DATA, '\r\n\r\n')
+		local posA, posB = find(DATA, '\r\n\r\n')
 		if posB then
 			CODE = RESPONSE_PROTOCOL_PARSER(split(DATA, 1, posB))
 			HEADER = RESPONSE_HEADER_PARSER(split(DATA, 1, posB))
@@ -60,16 +60,15 @@ local function httpc_response(IO, SSL)
 			local chunked = HEADER['Transfer-Encoding']
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
-					BODY = split(DATA, posB+1, #DATA)
-					break
+					return CODE, split(DATA, posB+1, #DATA)
 				end
-				content = {split(DATA, posB+1, #DATA)}
+				local content = {split(DATA, posB+1, #DATA)}
 				while 1 do
 					local data, len
 					if SSL == "http" then
-						data, len = IO:recv(8192)
+						data, len = IO:recv(1024)
 					else
-						data, len = IO:ssl_recv(8192)
+						data, len = IO:ssl_recv(1024)
 					end
 					if not data then
 						IO:close()
@@ -84,16 +83,30 @@ local function httpc_response(IO, SSL)
 				end
 			end
 			if chunked and chunked == "chunked" then
-				content = {}
+				local content = {}
 				if #DATA > posB then
-					insert(content, split(DATA, posB+1, #DATA))
+					local DATA = split(DATA, posB+1, #DATA)
+					if find(DATA, '\r\n\r\n') then
+						local body = {}
+						for hex, block in splite(DATA, "([%a%d]*)\r\n(.-)\r\n") do
+							local len = toint(fmt("0x%s", hex))
+							if len and len == #block then
+								if len == 0 and block == '' then
+									IO:close()
+									return CODE, concat(body)
+								end
+								insert(body, block)
+							end
+						end
+					end
+					insert(content, DATA)
 				end
 				while 1 do
 					local data, len
 					if SSL == "http" then
-						data, len = IO:recv(8192)
+						data, len = IO:recv(1024)
 					else
-						data, len = IO:ssl_recv(8192)
+						data, len = IO:ssl_recv(1024)
 					end
 					if not data then
 						IO:close()
@@ -103,9 +116,9 @@ local function httpc_response(IO, SSL)
 					local DATA = concat(content)
 					if find(DATA, '\r\n\r\n') then
 						local body = {}
-						for hex, block in splite(concat(content), "([%a%d]*)\r\n(.-)\r\n") do
+						for hex, block in splite(DATA, "([%a%d]*)\r\n(.-)\r\n") do
 							local len = toint(fmt("0x%s", hex))
-							if len == #block then
+							if len and len == #block then
 								if len == 0 and block == '' then
 									IO:close()
 									return CODE, concat(body)
@@ -221,7 +234,7 @@ function httpc.get(domain, HEADER, ARGS)
 		for _, header in ipairs(HEADER) do
 			assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
 			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
-			insert(request, header[1]..': '..header[2]..'\r\n')
+			insert(request, header[1]..': '..header[2])
 		end
 	end
 	insert(request, '\r\n')

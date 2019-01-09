@@ -150,34 +150,35 @@ function TCP:ssl_recv(bytes)
     if not self.IO then
         return log.error("Create a READ Socket Error! :) ")
     end
-    local co = co_self()
-    self.read_co = co_new(function ( ... )
-        while 1 do
-            local buf, len = tcp.ssl_read(self.ssl, bytes)
-            if self.timer then
-                self.timer:stop()
-                self.timer = nil
-            end
-            if not len and not buf then
+    local buf, len = tcp.ssl_read(self.ssl, bytes)
+    if not buf then
+        local co = co_self()
+        self.read_co = co_new(function ( ... )
+            while 1 do
+                local buf, len = tcp.ssl_read(self.ssl, bytes)
+                if self.timer then
+                    self.timer:stop()
+                    self.timer = nil
+                end
+                tcp.stop(self.IO)
+                if buf and len then
+                    self.read_co = nil
+                    return co_wakeup(co, buf, len)
+                end
                 self.read_co = nil
                 return co_wakeup(co)
             end
-            if buf and len then
-                tcp.stop(self.IO)
-                self.read_co = nil
-                return co_wakeup(co, buf, len)
-            end
-            co_wait()
-        end
-    end)
-    self.timer = ti.timeout(self._timeout, function ( ... )
-        tcp.stop(self.IO)
-        self.read_co = nil
-        self.timer = nil
-        return co_wakeup(co, nil, "read timeout")
-    end)
-    tcp.start(self.IO, self.fd, EVENT_READ, self.read_co)
-    return co_wait()
+        end)
+        self.timer = ti.timeout(self._timeout, function ( ... )
+            tcp.stop(self.IO)
+            self.read_co = nil
+            self.timer = nil
+            return co_wakeup(co, nil, "read timeout")
+        end)
+        tcp.start(self.IO, self.fd, EVENT_READ, self.read_co)
+        return co_wait()
+    end
+    return buf, len
 end
 
 function TCP:listen(ip, port, cb)
@@ -232,27 +233,17 @@ function TCP:connect(ip, port)
 end
 
 function TCP:ssl_connect(ip, port)
-    if not self.IO then
-        return log.error("Create a Connect Socket Error! :) ")
+    local ok, err = self:connect(ip, port)
+    if not ok then
+        return nil, "SSL connect error."
     end
-    local _start = os.time() + os.clock()
-    -- print("ssl_connect 开始连接")
-    if not self:connect(ip, port) then
-        -- print("ssl_connect 连接失败")
-        return
-    end
-    -- local _end = os.time() + os.clock()
-    -- print("ssl_connect 端口连接成功! 用时: ", _end - _start)
     self.ssl = tcp.new_ssl(self.fd)
     if not self.ssl then
         log.error("Create a SSL Error! :) ")
         return
     end
-    -- print("ssl创建成功")
     local co = co_self()
     self.connect_co = co_new(function (connected)
-        -- local _start = os.time() + os.clock()
-        -- print("ssl 开始握手!")
         while 1 do
             local ok, EVENT = tcp.ssl_connect(self.ssl)
             if self.timer then
@@ -260,7 +251,6 @@ function TCP:ssl_connect(ip, port)
                 self.timer = nil
             end
             if ok then
-                -- print("ssl 开始握手完成! 用时: ", os.time() + os.clock() - _start)
                 tcp.stop(self.IO)
                 self.connect_co = nil
                 return co_wakeup(co, true)
@@ -269,7 +259,6 @@ function TCP:ssl_connect(ip, port)
         end
     end)
     self.timer = ti.timeout(self._timeout, function ( ... )
-        -- print("ssl_connect 超时")
         tcp.stop(self.IO)
         self.timer = nil
         self.connect_co = nil
