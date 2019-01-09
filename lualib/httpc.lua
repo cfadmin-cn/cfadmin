@@ -10,6 +10,7 @@ local RESPONSE_HEADER_PARSER = HTTP.RESPONSE_HEADER_PARSER
 local random = math.random
 local find = string.find
 local split = string.sub
+local splite = string.gmatch
 local spliter = string.gsub
 local lower = string.lower
 local insert = table.insert
@@ -37,13 +38,13 @@ local function httpc_response(IO, SSL)
 	while 1 do
 		local data, len
 		if SSL == "http" then
-			data, len = IO:recv(4096)
+			data, len = IO:recv(8192)
 		else
-			data, len = IO:ssl_recv(4096)
+			data, len = IO:ssl_recv(8192)
 		end
 		if not data then
 			IO:close()
-			return nil, "A peer of remote close this connection."
+			return nil, "A peer of remote server close this connection."
 		end
 		insert(content, data)
 		local DATA = concat(content)
@@ -56,6 +57,7 @@ local function httpc_response(IO, SSL)
 				return nil, "can't resolvable protocol."
 			end
 			local Content_Length = toint(HEADER['Content-Length'])
+			local chunked = HEADER['Transfer-Encoding']
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
 					BODY = split(DATA, posB+1, #DATA)
@@ -65,13 +67,13 @@ local function httpc_response(IO, SSL)
 				while 1 do
 					local data, len
 					if SSL == "http" then
-						data, len = IO:recv(4096)
+						data, len = IO:recv(8192)
 					else
-						data, len = IO:ssl_recv(4096)
+						data, len = IO:ssl_recv(8192)
 					end
 					if not data then
 						IO:close()
-						return nil, "A peer of remote close this connection."
+						return nil, "A peer of remote server close this connection."
 					end
 					insert(content, data)
 					local DATA = concat(content)
@@ -81,9 +83,41 @@ local function httpc_response(IO, SSL)
 					end
 				end
 			end
+			if chunked and chunked == "chunked" then
+				content = {}
+				if #DATA > posB then
+					insert(content, split(DATA, posB+1, #DATA))
+				end
+				while 1 do
+					local data, len
+					if SSL == "http" then
+						data, len = IO:recv(8192)
+					else
+						data, len = IO:ssl_recv(8192)
+					end
+					if not data then
+						IO:close()
+						return nil, "A peer of remote server close this connection."
+					end
+					insert(content, data)
+					local DATA = concat(content)
+					if find(DATA, '\r\n\r\n') then
+						local body = {}
+						for hex, block in splite(concat(content), "([%a%d]*)\r\n(.-)\r\n") do
+							local len = toint(fmt("0x%s", hex))
+							if len == #block then
+								if len == 0 and block == '' then
+									IO:close()
+									return CODE, concat(body)
+								end
+								insert(body, block)
+							end
+						end
+					end
+				end
+			end
 		end
 	end
-	IO:close()
 	return CODE, BODY
 end
 
@@ -171,6 +205,7 @@ function httpc.get(domain, HEADER, ARGS)
 	local request = {
 		fmt("GET %s HTTP/1.1", PATH),
 		fmt("Host: %s", DOMAIN),
+		'Accept-Encoding: identity',
 		fmt("Connection: Keep-Alive"),
 		fmt("User-Agent: %s", SERVER),
 	}
@@ -231,6 +266,7 @@ function httpc.post(domain, HEADER, BODY)
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
 		fmt("Host: %s\r\n", DOMAIN),
+		'Accept-Encoding: identity',
 		fmt("Connection: keep-alive\r\n"),
 		fmt("User-Agent: %s\r\n", SERVER),
 		'Content-Type: application/x-www-form-urlencoded\r\n',
@@ -301,6 +337,7 @@ function httpc.json(domain, HEADER, JSON)
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
 		fmt("Host: %s\r\n", DOMAIN),
+		'Accept-Encoding: identity',
 		fmt("Connection: keep-alive\r\n"),
 		fmt("User-Agent: %s\r\n", SERVER),
 		fmt("Content-Length: %s\r\n", #JSON),
@@ -357,6 +394,7 @@ function httpc.file(domain, HEADER, FILES)
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
 		fmt("Host: %s\r\n", DOMAIN),
+		'Accept-Encoding: identity',
 		fmt("Connection: keep-alive\r\n"),
 		fmt("User-Agent: %s\r\n", SERVER),
 	}
