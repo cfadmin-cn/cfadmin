@@ -23,6 +23,7 @@
 typedef ev_io core_io;
 typedef ev_idle core_task;
 typedef ev_timer core_timer;
+typedef ev_signal core_signal;
 typedef struct ev_loop core_loop;
 
 typedef void (*_IO_CB)(core_loop *loop, core_io *io, int revents);
@@ -53,6 +54,7 @@ void core_task_start(core_loop *loop, core_task *task);
 
 void core_task_stop(core_loop *loop, core_task *task);
 /* ===========  TASK  =========== */
+
 
 void core_break(core_loop *loop, int mode);
 

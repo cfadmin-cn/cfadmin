@@ -110,6 +110,12 @@ core_start(core_loop *loop, int mode){
 
 }
 
+static void
+SIG_CB(core_loop *loop, core_signal *signal, int signum){
+	printf("信号:%d \n", signum);
+	return ;
+}
+
 static void *
 EV_ALLOC(void *ptr, long nsize){
 	// 为libev内存hook注入日志;
@@ -168,6 +174,34 @@ init_lua_libs(lua_State *L){
 }
 
 static lua_State *L;
+core_signal sighup;
+core_signal sigpipe;
+core_signal sigquit;
+core_signal sigtstp;
+core_signal sigquit;
+void
+signal_init(){
+
+	/* 忽略父进程退出的信号 */
+	ev_signal_init(&sighup, SIG_CB, SIGHUP);
+	ev_signal_start(CORE_LOOP_ &sighup);
+
+	/* 忽略管道信号 */
+	ev_signal_init(&sigpipe, SIG_CB, SIGPIPE);
+	ev_signal_start(CORE_LOOP_ &sigpipe);
+
+	/* 忽略Ctrl-/操作信号 */
+	ev_signal_init(&sigquit, SIG_CB, SIGQUIT);
+	ev_signal_start(CORE_LOOP_ &sigquit);
+
+	/* 忽略Ctrl-Z操作信号 */
+	ev_signal_init(&sigtstp, SIG_CB, SIGTSTP);
+	ev_signal_start(CORE_LOOP_ &sigtstp);
+
+	/* 忽略*/
+	ev_signal_init(&sigquit, SIG_CB, SIGQUIT);
+	ev_signal_start(CORE_LOOP_ &sighup);
+}
 
 void
 init_main(){
@@ -211,13 +245,16 @@ init_main(){
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
 	}
-	// lua_gc(L, LUA_GCCOLLECT, 0);
+	if (status == LUA_YIELD) {
+		signal_init();
+	}
 	/* 重启GC */
 	lua_gc(L, LUA_GCRESTART, 0);
 }
 
 void
 core_sys_init(){
+
 	/* hook libev 内存分配 */
 	ev_set_allocator(EV_ALLOC);
 
@@ -229,5 +266,4 @@ core_sys_init(){
 int
 core_sys_run(){
 	return core_start(CORE_LOOP_ 0);
-
 }
