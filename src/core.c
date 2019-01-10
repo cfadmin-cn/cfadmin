@@ -178,7 +178,7 @@ core_signal sighup;
 core_signal sigpipe;
 core_signal sigquit;
 core_signal sigtstp;
-core_signal sigquit;
+
 void
 signal_init(){
 
@@ -198,9 +198,6 @@ signal_init(){
 	ev_signal_init(&sigtstp, SIG_CB, SIGTSTP);
 	ev_signal_start(CORE_LOOP_ &sigtstp);
 
-	/* 忽略*/
-	ev_signal_init(&sigquit, SIG_CB, SIGQUIT);
-	ev_signal_start(CORE_LOOP_ &sighup);
 }
 
 void
@@ -244,6 +241,7 @@ init_main(){
 	status = lua_resume(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
+		return lua_close(L);
 	}
 	if (status == LUA_YIELD) {
 		signal_init();

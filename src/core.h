@@ -46,7 +46,6 @@ void core_io_start(core_loop *loop, core_io *io);
 void core_io_stop(core_loop *loop, core_io *io);
 /* ===========  IO  =========== */
 
-
 /* ===========  TASK  =========== */
 void core_task_init(core_task *task, _TASK_CB cb);
 
@@ -55,13 +54,11 @@ void core_task_start(core_loop *loop, core_task *task);
 void core_task_stop(core_loop *loop, core_task *task);
 /* ===========  TASK  =========== */
 
-
 void core_break(core_loop *loop, int mode);
 
 int core_start(core_loop *loop, int mode);
 
 core_loop* core_default_loop();
-
 
 void core_sys_init();
 
