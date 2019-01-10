@@ -16,11 +16,11 @@ build :
 	cd luaclib && make build
 
 rebuild :
-	rm -rf main *.so
+	rm -rf main cfadmin *.so
 	cd src && make rebuild
 	cd luaclib && make rebuild
 
 clean :
-	rm -rf main *.so
+	rm -rf main cfadmin *.so
 	cd src && make clean
 	cd luaclib && make clean

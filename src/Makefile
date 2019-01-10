@@ -15,17 +15,17 @@ INCLUDES += -I/usr/local/include
 # 使用jemalloc内存分配器请启用这段
 # CFLAGS += -Wall -Os -fPIC --shared -DJEMALLOC
 # DLL += -ljemalloc -lev -llua
-# MACRO += -Wall -Os -L./ -L../ -DJEMALLOC
+# MACRO += -w -Os -L./ -L../ -DJEMALLOC
 
 # 使用tcmalloc内存分配器请启用这段
 # CFLAGS += -Wall -Os -fPIC --shared -DTCMALLOC
 # DLL += -ltcmalloc -lev -llua
-# MACRO += -Wall -Os -L./ -L../ -DTCMALLOC
+# MACRO += -w -Os -L./ -L../ -DTCMALLOC
 
 # 默认情况下使用系统内存分配器
 CFLAGS += -Wall -Os -fPIC --shared
 DLL += -lev -llua
-MACRO += -Wall -Os -L./ -L../
+MACRO += -w -Os -L./ -L../
 
 build :
 
@@ -33,9 +33,9 @@ build :
 
 	mv *.so ../
 
-	$(CC) core_start.c -o main $(MACRO) -ldl -lcore
+	$(CC) core_start.c -o cfadmin $(MACRO) -ldl -lcore
 
-	mv main ../
+	mv cfadmin ../
 
 rebuild:
 
@@ -45,9 +45,9 @@ rebuild:
 
 	mv *.so ../
 
-	$(CC) core_start.c -o main $(MACRO) -ldl -lcore
+	$(CC) core_start.c -o cfadmin $(MACRO) -ldl -lcore
 
-	mv main ../
+	mv cfadmin ../
 
 clean :
 
