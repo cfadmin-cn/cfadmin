@@ -21,6 +21,13 @@ function httpd:ctor(opt)
     self.IO = tcp:new()
 end
 
+-- 用来注册WebSocket对象
+function httpd:ws(route, class)
+    if route and type(class) == "table" then
+        HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.WS)
+    end
+end
+
 -- 用来注册接口
 function httpd:api(route, class)
     if route and type(class) == "table" then

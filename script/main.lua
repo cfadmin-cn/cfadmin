@@ -7,8 +7,11 @@ app:api("/httpc", require "hc")
 app:api("/echo", require "echo")
 app:api("/api", require "api")
 
--- 注册html
+-- 注册普通路由(html/text)
 app:use("/view", require "view")
+
+-- 注册websocket路由
+app:ws("/ws", require "ws")
 
 -- 注册静态文件目录
 app:static('static', 10)
