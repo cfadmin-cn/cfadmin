@@ -111,8 +111,8 @@ core_start(core_loop *loop, int mode){
 }
 
 static void
-SIG_CB(core_loop *loop, core_signal *signal, int signum){
-	printf("信号:%d \n", signum);
+SIG_CB(core_loop *loop, core_signal *signal, int revents){
+	// printf("~~~~!!!\n");
 	return ;
 }
 
@@ -214,11 +214,11 @@ init_main(){
 	// 停止GC
 	lua_gc(L, LUA_GCSTOP, 0);
 
-	// // 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
-	// lua_gc(L, LUA_GCSETPAUSE, 100);
+	// 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
+	lua_gc(L, LUA_GCSETPAUSE, 200);
 
-	// // 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
-	// lua_gc(L, LUA_GCSETSTEPMUL, 100000);
+	// 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
+	lua_gc(L, LUA_GCSETSTEPMUL, 400);
 
 	if(status != LUA_OK) {
 		switch(status){

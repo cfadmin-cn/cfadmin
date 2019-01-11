@@ -1,5 +1,5 @@
 -- Copyright (C) Yichun Zhang (agentzh)
--- modify by CandyMi in 2019.1.9
+-- modify by CandyMi in 2019.1.12
 
 local byte = string.byte
 local char = string.char
@@ -10,10 +10,7 @@ local rand = math.random
 local tostring = tostring
 local type = type
 
-local ok, new_tab = pcall(require, "table.new")
-if not ok then
-    new_tab = function (narr, nrec) return {} end
-end
+local new_tab = function (narr, nrec) return {} end
 
 
 local _M = new_tab(0, 5)
@@ -35,14 +32,14 @@ local types = {
 function _M.recv_frame(sock, max_payload_len, force_masking)
     local data, err = sock:recv(2)
     if not data then
-        return nil, nil, "failed to receive the first 2 bytes: " .. err
+        return nil, nil, err
     end
 
     local fst, snd = byte(data, 1, 2)
 
     local fin = fst & 0x80 ~= 0
 
-    if fst & 0x70) ~= 0 then
+    if fst & 0x70 ~= 0 then
         return nil, nil, "bad RSV1, RSV2, or RSV3 bits"
     end
 
@@ -70,7 +67,7 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
             return nil, nil, "failed to receive the 2 byte payload length: "
                              .. (err or "unknown")
         end
-        payload_len = byte(data, 1) >> 8) | byte(data, 2)
+        payload_len = (byte(data, 1) >> 8) | byte(data, 2)
 
     elseif payload_len == 127 then
         local data, err = sock:recv(8)
@@ -220,7 +217,7 @@ local function build_frame(fin, opcode, payload_len, payload, masking)
         -- XXX we only support 31-bit length here
         extra_len_bytes = char(0, 0, 0, 0, 
                                 (payload_len >> 24) & 0xff,
-                                (payload_len >> 16) & 0xff
+                                (payload_len >> 16) & 0xff,
                                 (payload_len >> 8) & 0xff,
                                 payload_len & 0xff)
     end
@@ -276,12 +273,7 @@ function _M.send_frame(sock, fin, opcode, payload, max_payload_len, masking)
     if not frame then
         return nil, "failed to build frame: " .. err
     end
-
-    local bytes, err = sock:send(frame)
-    if not bytes then
-        return nil, "failed to send frame: " .. err
-    end
-    return bytes
+    return sock:send(frame)
 end
 
 return _M

@@ -1,25 +1,27 @@
 local class = require "class"
 
-local ws = class("ws")
+local websocket = class("websocket")
 
-function ws:ctor(opt)
+function websocket:ctor(opt)
     
 end
 
-function ws:on_open(...)
-    print('on_open', ...)
+function websocket:on_open(ws)
+    print('on_open', ws)
 end
 
-function ws:on_message(...)
-    print('on_message', ...)
+function websocket:on_message(ws, data)
+    print('on_message', data)
+    ws.send(data)
+    ws.close(data)
 end
 
-function ws:on_error(...)
-    print('on_error', ...)
+function websocket:on_error(ws, error)
+    print('on_error',ws, error)
 end
 
-function ws:on_close(...)
-    print('on_close', ...)
+function websocket:on_close(ws, data)
+    print('on_close', ws, data)
 end
 
-return ws
+return websocket

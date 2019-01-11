@@ -21,7 +21,7 @@ function class(cls_name)
         else
             c.ctor(t, ...)
         end
-        return setmetatable(t, {__name = cls.__name, __index = cls, __gc = function (t) setmetatable(t, nil) end})
+        return setmetatable(t, {__name = cls.__name, __index = cls})
     end
     return cls
 end

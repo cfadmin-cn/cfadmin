@@ -17,7 +17,7 @@ app:ws("/ws", require "ws")
 app:static('static', 10)
 
 -- 需要记录日志, 并且指定日志存放路径
-app:log("./http.log")
+-- app:log("./http.log")
 
 -- http监听端口
 app:listen("0.0.0.0", 8080)

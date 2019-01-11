@@ -24,6 +24,9 @@ local function Timer_release(t)
     ti.stop(t)
     insert(TIMER_LIST, t)
 end
+function Timer.count( ... )
+    return #TIMER_LIST
+end
 
 -- 超时器 --
 function Timer.timeout(timeout, cb)

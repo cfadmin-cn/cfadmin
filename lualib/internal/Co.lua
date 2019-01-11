@@ -105,4 +105,8 @@ function Co.wakeup(co, ...)
 	return task.start(t, co, ...)
 end
 
+function Co.count()
+	return #CO_POOL, #TASK_POOL
+end
+
 return Co

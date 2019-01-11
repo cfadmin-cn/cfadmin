@@ -1,10 +1,24 @@
 local log = require "log"
 local json = require "json"
+local crypt = require "crypt"
+local co = require "internal.Co"
 local tcp = require "internal.TCP"
 local httpparser = require "httpparser"
 
+local wbproto = require "protocol.websocket"
+local _recv_frame = wbproto.recv_frame
+local _send_frame = wbproto.send_frame
+
 local json_encode = json.encode
 local json_decode = json.decode
+
+local sha1 = crypt.sha1
+local base64 = crypt.base64encode
+
+local co_self = co.self
+local co_wait = co.wait
+local co_spwan = co.spwan
+local co_wakeup = co.wakeup
 
 local REQUEST_PROTOCOL_PARSER = httpparser.parser_request_protocol
 local RESPONSE_PROTOCOL_PARSER = httpparser.parser_response_protocol
@@ -12,11 +26,15 @@ local REQUEST_HEADER_PARSER = httpparser.parser_request_header
 local RESPONSE_HEADER_PARSER = httpparser.parser_response_header
 
 local type = type
+local assert = assert
+local setmetatable = setmetatable
+local tostring = tostring
 local next = next
 local pcall = pcall
 local ipairs = ipairs
 local DATE = os.date
 local time = os.time
+local char = string.char
 local lower = string.lower
 local upper = string.upper
 local match = string.match
@@ -134,6 +152,8 @@ local HTTP_PROTOCOL = {
 	[2] = "USE",
 	STATIC = 3,
 	[3] = "STATIC",
+	WS = 4,
+	[4] = "WS",
 }
 
 -- 以下为 HTTP Client 所需所用方法
@@ -159,7 +179,8 @@ function HTTP_PROTOCOL.FILEMIME(mime)
 	return MIME[mime]
 end
 
-function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
+-- 路由注册
+local function ROUTE_REGISTERY(routes, route, class, type)
 	if route == '' then
 		return log.warn('Please Do not add empty string in route registery method :)')
 	end
@@ -203,10 +224,11 @@ function HTTP_PROTOCOL.ROUTE_REGISTERY(routes, route, class, type)
 	t.route = route
 	t.class = class
 	t.type = type
-	return
 end
+HTTP_PROTOCOL.ROUTE_REGISTERY = ROUTE_REGISTERY
 
-function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
+-- 路由查找
+local function ROUTE_FIND(routes, route)
 	local fields = {}
 	for field in splite(route, '/([^/?]*)') do
 		insert(fields, field)
@@ -242,6 +264,7 @@ function HTTP_PROTOCOL.ROUTE_FIND(routes, route)
 	end
 	return class, typ
 end
+HTTP_PROTOCOL.ROUTE_FIND = ROUTE_FIND
 
 local function HTTP_DATE(timestamp)
 	if not timestamp then
@@ -322,7 +345,6 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 	return true, ARGS, FILE
 end
 
-
 -- 一些错误返回
 local function ERROR_RESPONSE(http, code, path, ip)
 	http:tolog(code, path, ip)
@@ -334,6 +356,145 @@ local function ERROR_RESPONSE(http, code, path, ip)
 		'Connection: close',
 		'server: ' .. (http.server or 'cf/0.1'),
 	}, CRLF) .. CRLF2
+end
+
+-- WebSocket
+local function Switch_Protocol(http, cls, sock, header, version, path, ip)
+	if version ~= 1.1 then
+		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+		sock:close()
+		return
+	end
+	if not header['Connection'] == 'Upgrade' then
+		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+		sock:close()
+		return
+	end
+	if not lower(header['Upgrade']) == 'websocket' then
+		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+		sock:close()
+		return
+	end
+	if not header['Sec-WebSocket-Version'] == '13' then
+		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+		sock:close()
+		return
+	end
+	local sec_key = header['Sec-WebSocket-Key']
+	if not sec_key or sec_key == '' then
+		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+		sock:close()
+		return
+	end
+	local ok = sock:send(concat({
+			REQUEST_STATUCODE_RESPONSE(101),
+			'Connection: Upgrade',
+			'Server: '..(http.server or 'cf/0.1'),
+			'Upgrade: WebSocket',
+			'Sec-WebSocket-Accept: '..base64(sha1(sec_key..'258EAFA5-E914-47DA-95CA-C5AB0DC85B11')),
+			CRLF
+	}, CRLF))
+	if not ok then
+		return sock:close() 
+	end
+	local ok, c = pcall(cls.new, cls)
+	if not ok then
+		sock:send(ERROR_RESPONSE(http, 500, path, ip))
+		sock:close()
+		return
+	end
+	sock:timeout(c.timeout or 30)
+	local send_masked = c.sen_masked
+	local send_masked = c.sen_masked
+	local max_payload_len = c.max_payload_len or 65535
+	local on_ping = c.on_ping
+	local on_pong = c.on_pong
+	local on_open = c.on_open
+	local on_message = c.on_message
+	local on_error = c.on_error
+	local on_close = c.on_close
+
+	local current_co = co_self()
+	local write_co, write_co_run
+	local Quit, Continue = true
+
+	local write_list = {}
+	co_spwan(function (...)
+		write_co = co_self()
+		while 1 do
+			write_co_run = true
+			for index, cb in ipairs(write_list) do
+				local ok, err = pcall(cb)
+				if not ok then log.error(err) end
+			end
+			write_co_run = false
+			write_list = {}
+			local ok = co_wait()
+			if ok then
+				return co.wakeup(current_co)
+			end
+		end
+	end)
+
+	local websocket = setmetatable({}, { __name = "WebSocket", __index = function (t, key)
+		return function(data, binary)
+			if key == 'ping' then
+				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x9, data, max_payload_len, send_masked) end
+			end
+			if key == "pong" then
+				write_list[#write_list + 1] = function() _send_frame(sock, true, 0xa, data, max_payload_len, send_masked) end
+			end
+			if key == 'send' then
+				if data and type(data) == 'string' then
+					local code = 0x2
+					if binary then
+						code = 0x1
+					end
+					write_list[#write_list + 1] = function () _send_frame(sock, true, code, data, max_payload_len, send_masked) end
+				end
+			end
+			if key == "close" then
+				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x8, char(((1000 >> 8) & 0xff) & (1000 & 0xff)) .. (data or ""), max_payload_len, send_masked) end
+			end
+			if not write_co_run then
+				return co_wakeup(write_co, Continue)
+			end
+			return
+		end
+	end})
+	local ok, err = pcall(on_open, c, websocket)
+	if not ok then
+		log.error(err)
+		return sock:close()
+	end
+	while 1 do
+		local data, typ, err = _recv_frame(sock, max_payload_len, true)
+		if not data and not typ then
+			if err  and err ~= 'read timeout' then
+				local ok, err = pcall(on_error, c, websocket, data)
+				if not ok then
+					log.error(err)
+				end
+				local ok, err = pcall(on_close, c, websocket)
+				if not ok then
+					log.error(err)
+				end
+			end
+			return co_wakeup(write_co, Quit, sock:close()), co_wait()
+		end
+		if typ == 'close' then
+			local ok, err = pcall(on_close, c, websocket, data)
+			if not ok then
+				log.error(err)
+			end
+		end
+		if typ == 'text' or typ == 'binary' then
+			local ok, err = pcall(on_message, c, websocket, data, typ)
+			if not ok then
+				log.error(err)
+			end
+		end
+	end
 end
 
 function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
@@ -363,13 +524,13 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 			-- 没有HEADER返回400
 			local HEADER = REQUEST_HEADER_PARSER(buffer)
-			if not HEADER or not next(HEADER) then
+			if not HEADER then
 				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr))
 				sock:close()
 				return 
 			end
 			-- 这里根据PATH先查找路由, 如果没有直接返回404.
-			local cls, typ = HTTP_PROTOCOL.ROUTE_FIND(routes, PATH)
+			local cls, typ = ROUTE_FIND(routes, PATH)
 			if not cls or not typ then
 				sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr))
 				sock:close()
@@ -386,8 +547,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 
 			local ok, data, static, statucode
 
-			if typ ~= HTTP_PROTOCOL.STATIC then
-
+			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
 				local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
 				ok, data = pcall(c[c.__name], c)
 				if not ok then
@@ -399,6 +559,8 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				end
 				statucode = 200
 				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+			elseif typ == HTTP_PROTOCOL.WS then
+				return Switch_Protocol(http, cls, sock, HEADER, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr)
 			else
 				local file_type
 				local path = PATH
@@ -442,16 +604,14 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('json'))
 				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
 				insert(header, 'Cache-Control: no-cache')
-			elseif typ == HTTP_PROTOCOL.USE then
+			elseif typ == HTTP_PROTOCOL.USE and METHOD == "GET" then
 				insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8')
 				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
 				insert(header, 'Cache-Control: no-cache')
 			else
-				local cache = 'Cache-Control: no-cache'
 				if ttl then
 					cache = fmt('Expires: %s', HTTP_DATE(time() + ttl))
 				end
-				insert(header, cache)
 				insert(header, static)
 			end
 			if not data and type(data) ~= 'string' then
