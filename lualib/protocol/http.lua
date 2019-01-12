@@ -415,7 +415,7 @@ local function Switch_Protocol(http, cls, sock, header, version, path, ip)
 	local on_pong = c.on_pong
 
 	local current_co = co_self()
-	local write_co, write_co_run
+	local write_co
 	local Continue = true
 
 	local write_list = {}
@@ -435,11 +435,10 @@ local function Switch_Protocol(http, cls, sock, header, version, path, ip)
 					write_list[#write_list + 1] = function () _send_frame(sock, true, code, data, max_payload_len, send_masked) end
 				end
 			elseif key == "close" then
-				print(t, key, data, binary)
 				Continue = nil
 				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x8, char(((1000 >> 8) & 0xff) & (1000 & 0xff)) .. (data or ""), max_payload_len, send_masked) end
 			end
-			if write_co and not write_co_run then
+			if write_co then
 				co_wakeup(write_co)
 			end
 		end
@@ -450,19 +449,17 @@ local function Switch_Protocol(http, cls, sock, header, version, path, ip)
 		return sock:close()
 	end
 	co_spwan(function (...)
+		local sock = sock
 		write_co = co_self()
 		while 1 do
-			write_co_run = true
 			for index, f in ipairs(write_list) do
 				local ok, err = pcall(f)
 				if not ok then
 					log.error(err)
 				end
 			end
-			write_co_run = false
 			write_list = {}
 			if not Continue then
-				co_wait()
 				write_co = nil
 				write_list = nil
 				return sock:close()
@@ -474,7 +471,7 @@ local function Switch_Protocol(http, cls, sock, header, version, path, ip)
 	while 1 do
 		local data, typ, err =_recv_frame(sock, max_payload_len, true)
 		if (not data and not typ) or typ == 'close' then
-			if err and (type(err) ~= 'number' or err ~= 'read timeout') then
+			if err and err ~= 'read timeout' then
 				local ok, err = pcall(on_error, c, websocket, err)
 				if not ok then
 					log.error(err)
@@ -484,8 +481,11 @@ local function Switch_Protocol(http, cls, sock, header, version, path, ip)
 			if not ok then
 				log.error(err)
 			end
-			Continue = nil
-			return co_wakeup(write_co)
+			if write_co then
+				Continue = nil
+				co_wakeup(write_co)
+			end
+			return
 		end
 		if typ == 'ping' then
 			if not on_ping then 

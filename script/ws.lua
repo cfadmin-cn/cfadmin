@@ -7,7 +7,7 @@ function websocket:ctor(opt)
 end
 
 function websocket:on_open(ws)
-    -- print('on_open')
+    print('on_open')
     self.count = 0
     self.timer = timer.at(1, function ( ... )
         -- print('定时器执行第'..tostring(self.count)..'次')
@@ -17,7 +17,7 @@ function websocket:on_open(ws)
 end
 
 function websocket:on_message(ws, data)
-    -- print('on_message', ws, data)
+    print('on_message', ws, data)
     ws.send('welcome')
     -- ws.close(data)
 end
