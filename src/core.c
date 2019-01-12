@@ -116,6 +116,12 @@ SIG_CB(core_loop *loop, core_signal *signal, int revents){
 	return ;
 }
 
+static void
+ERROR_CB(const char *msg){
+	printf("EV_ERROR: [%s]\n", msg);
+	return ;
+}
+
 static void *
 EV_ALLOC(void *ptr, long nsize){
 	// 为libev内存hook注入日志;
@@ -255,6 +261,9 @@ core_sys_init(){
 
 	/* hook libev 内存分配 */
 	ev_set_allocator(EV_ALLOC);
+
+	/* hook 事件循环错误信息 */
+	ev_set_syserr_cb(ERROR_CB);
 
 	/* 初始化Lua脚本 */
 	init_main();

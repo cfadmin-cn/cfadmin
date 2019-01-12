@@ -167,9 +167,8 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
                 end
             end
 
-            return msg, "close", code
+            return msg, "close"
         end
-
         return "", "close", nil
     end
 

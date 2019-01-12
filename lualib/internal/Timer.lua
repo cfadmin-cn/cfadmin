@@ -2,6 +2,9 @@ local co = require "internal.Co"
 local ti = require "timer"
 local log = require "log"
 
+local ti_new = ti.new
+local ti_start = ti.start
+local ti_stop = ti.stop
 local co_new = co.new
 local co_wait = co.wait
 local co_self = co.self
@@ -17,11 +20,11 @@ local function Timer_new()
     if #TIMER_LIST > 0 then
         return remove(TIMER_LIST)
     end
-    return ti.new()
+    return ti_new()
 end
 
 local function Timer_release(t)
-    ti.stop(t)
+    ti_stop(t)
     insert(TIMER_LIST, t)
 end
 function Timer.count( ... )
@@ -49,10 +52,11 @@ function Timer.timeout(timeout, cb)
             end
         end)
     }
-    ti.start(t, timeout, timer.co)
+    ti_start(t, timeout, timer.co)
     return timer
 end
 
+-- 循环定时器 --
 function Timer.at(repeats, cb)
     if not repeats or repeats < 0 then
         return
@@ -71,11 +75,11 @@ function Timer.at(repeats, cb)
                 if not ok then
                    log.error('timeat error:', err)
                 end
-                co_wait(co_self())
+                co_wait()
             end
         end)
     }
-    ti.start(t, repeats, timer.co)
+   ti_start(t, repeats, timer.co)
     return timer
 end
 
