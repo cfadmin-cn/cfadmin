@@ -446,9 +446,9 @@ local function Switch_Protocol(http, cls, sock, header, version, path, ip)
 			end
 			if key == 'send' then
 				if data and type(data) == 'string' then
-					local code = 0x2
+					local code = 0x1
 					if binary then
-						code = 0x1
+						code = 0x2
 					end
 					write_list[#write_list + 1] = function () _send_frame(sock, true, code, data, max_payload_len, send_masked) end
 				end
