@@ -53,4 +53,30 @@ function Timer.timeout(timeout, cb)
     return timer
 end
 
+function Timer.at(repeats, cb)
+    if not repeats or repeats < 0 then
+        return
+    end
+    local t = Timer_new()
+    if not t then
+        return log.error("timeout error: Create timer class error! memory maybe not enough...")
+    end
+    local timer = {
+        stop = function (...)
+            Timer_release(t)
+        end,
+        co = co_new(function (...)
+            while 1 do
+                local ok, err = pcall(cb)
+                if not ok then
+                   log.error('timeat error:', err)
+                end
+                co_wait(co_self())
+            end
+        end)
+    }
+    ti.start(t, repeats, timer.co)
+    return timer
+end
+
 return Timer
