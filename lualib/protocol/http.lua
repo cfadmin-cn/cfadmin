@@ -359,30 +359,35 @@ local function ERROR_RESPONSE(http, code, path, ip)
 end
 
 -- WebSocket
-local function Switch_Protocol(http, cls, sock, header, version, path, ip)
+local function Switch_Protocol(http, cls, sock, header, method, version, path, ip)
 	if version ~= 1.1 then
-		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+		sock:send(ERROR_RESPONSE(http, 505, path, ip))
 		sock:close()
 		return
 	end
-	if not header['Connection'] == 'Upgrade' then
-		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+	if method ~= 'GET' then
+		sock:send(ERROR_RESPONSE(http, 405, path, ip))
 		sock:close()
 		return
 	end
-	if not lower(header['Upgrade']) == 'websocket' then
-		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+	if header['Connection'] ~= 'Upgrade' then
+		sock:send(ERROR_RESPONSE(http, 406, path, ip))
 		sock:close()
 		return
 	end
-	if not header['Sec-WebSocket-Version'] == '13' then
-		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+	if not header['Upgrade'] or lower(header['Upgrade']) ~= 'websocket' then
+		sock:send(ERROR_RESPONSE(http, 406, path, ip))
+		sock:close()
+		return
+	end
+	if header['Sec-WebSocket-Version'] ~= '13' then
+		sock:send(ERROR_RESPONSE(http, 505, path, ip))
 		sock:close()
 		return
 	end
 	local sec_key = header['Sec-WebSocket-Key']
 	if not sec_key or sec_key == '' then
-		sock:send(ERROR_RESPONSE(http, 400, path, ip))
+		sock:send(ERROR_RESPONSE(http, 505, path, ip))
 		sock:close()
 		return
 	end
@@ -403,8 +408,7 @@ local function Switch_Protocol(http, cls, sock, header, version, path, ip)
 		sock:close()
 		return
 	end
-	sock:timeout(c.timeout)
-	local send_masked = c.sen_masked
+	sock._timeout = c.timeout
 	local send_masked = c.sen_masked
 	local max_payload_len = c.max_payload_len or 65535
 	local on_open = assert(type(c.on_open) == 'function' and c.on_open, "Can't find websocket on_open method")
@@ -436,7 +440,7 @@ local function Switch_Protocol(http, cls, sock, header, version, path, ip)
 				end
 			elseif key == "close" then
 				Continue = nil
-				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x8, char(((1000 >> 8) & 0xff) & (1000 & 0xff)) .. (data or ""), max_payload_len, send_masked) end
+				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..(data or ""), max_payload_len, send_masked) end
 			end
 			if write_co then
 				co_wakeup(write_co)
@@ -567,7 +571,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				statucode = 200
 				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
 			elseif typ == HTTP_PROTOCOL.WS then
-				return Switch_Protocol(http, cls, sock, HEADER, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr)
+				return Switch_Protocol(http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr)
 			else
 				local file_type
 				local path = PATH
