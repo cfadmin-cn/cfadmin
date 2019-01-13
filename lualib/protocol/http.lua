@@ -370,7 +370,7 @@ local function Switch_Protocol(http, cls, sock, header, version, path, ip)
 		sock:close()
 		return
 	end
-	if not lower(header['Upgrade']) == 'websocket' then
+	if not header['Upgrade'] or lower(header['Upgrade']) == 'websocket' then
 		sock:send(ERROR_RESPONSE(http, 400, path, ip))
 		sock:close()
 		return
