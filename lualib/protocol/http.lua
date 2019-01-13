@@ -442,9 +442,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 				Continue = nil
 				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..(data or ""), max_payload_len, send_masked) end
 			end
-			if write_co then
-				co_wakeup(write_co)
-			end
+			return co_wakeup(write_co)
 		end
 	end})
 	local ok, err = pcall(on_open, c, websocket)
@@ -463,18 +461,19 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 				end
 			end
 			write_list = {}
-			if not Continue then
+			co_wait()
+			if #write_list == 0 then
 				write_co = nil
 				write_list = nil
-				return sock:close()
+				return
 			end
-			co_wait()
 		end
 	end)
 
 	while 1 do
 		local data, typ, err =_recv_frame(sock, max_payload_len, true)
 		if (not data and not typ) or typ == 'close' then
+			Continue = nil
 			if err and err ~= 'read timeout' then
 				local ok, err = pcall(on_error, c, websocket, err)
 				if not ok then
@@ -485,11 +484,8 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 			if not ok then
 				log.error(err)
 			end
-			if write_co then
-				Continue = nil
-				co_wakeup(write_co)
-			end
-			return
+			co_wakeup(write_co)
+			return sock:close()
 		end
 		if typ == 'ping' then
 			if not on_ping then 
