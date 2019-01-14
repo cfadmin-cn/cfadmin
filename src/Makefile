@@ -25,13 +25,13 @@ INCLUDES += -I/usr/local/include
 # 默认情况下使用系统内存分配器
 CFLAGS += -Wall -Os -fPIC --shared
 DLL += -lev -llua
-MACRO += -w -Os -L./ -L../
+MACRO += -w -Os
 
 build :
 
 	$(CC) -o libcore.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	mv *.so ../
+	mv *.so /usr/local/lib
 
 	$(CC) core_start.c -o cfadmin $(MACRO) -ldl -lcore
 
@@ -43,7 +43,7 @@ rebuild:
 
 	$(CC) -o libcore.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	mv *.so ../
+	mv *.so /usr/local/lib
 
 	$(CC) core_start.c -o cfadmin $(MACRO) -ldl -lcore
 
