@@ -74,7 +74,7 @@ co.spwan(function ( ... )
         :groupby('id')      -- groupby({"name", "user"})
         :orderby("id")      -- orderby({"name", "user"})
         :asc()              -- or desc()
-        :limit(1)           -- limit("1") limit({1, 100})
+        :limit(1)           -- limit("1") limit(1, 100)
         :execute()          -- 所有语句最后必须指定这个方法才会真正执行
 
     if not ret then
