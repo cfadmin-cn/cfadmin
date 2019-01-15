@@ -140,7 +140,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 		errno = 0;
 
 		struct sockaddr_in addr;
-		// memset(&addr, 0, sizeof(addr));
+		memset(&addr, 0, sizeof(addr));
 
 		socklen_t slen = sizeof(struct sockaddr_in);
 		int client = accept(io->fd, (struct sockaddr*)&addr, &slen);

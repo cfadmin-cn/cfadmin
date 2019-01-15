@@ -15,7 +15,7 @@ CC = cc
 CFLAGS = -O3 -Wall -DNDEBUG -fPIC 
 
 INCLUDE = -I/usr/local/include
-LIB = -L/usr/local/lib -L../ -L../../ -L../../../
+LIB = -L/usr/local/lib
 
 httpparser.o: httpparser.c httpparser.h
 lhttpparser.o: lhttpparser.c httpparser.h

@@ -7,10 +7,13 @@ local co_wait = co.wait
 local co_wakeup = co.wakeup
 
 local type = type
-local pairs = pairs
+local tostring = tostring
+local tonumber = tonumber
+local assert = assert
 local ipairs = ipairs
 
 local rep = string.rep
+local find = string.find
 local fmt = string.format
 local lower = string.lower
 local upper = string.upper
@@ -159,20 +162,19 @@ local function execute(query)
     return ret, err
 end
 
-local function limit(query, limits)
-    local tpy = type(limits)
-    assert(query and (tpy == "number" or tpy == "string" or tpy == "table"), "错误的限制条件(limit):"..tostring(limits))
+local function limit(query, limit1, limit2)
+    local t1 = type(limit1)
+    local t2 = type(limit2)
+    assert(query and type(query) == 'table' and (t1 == "number" or t1 == "string" ), "错误的限制条件(limit):"..tostring(limit1))
 
     insert(query, LIMIT)
-    if tpy == "number" then
-        insert(query, limits)
+
+    local limits = {tostring(limit1)}
+    if t2 == "number" or tpy == "string" then
+        insert(limits, tostring(limit2))
     end
-    if tpy == "string" then
-        insert(query, limits)
-    end
-    if tpy == "table" then
-        insert(query, concat(limits, COMMA))
-    end
+
+    insert(query, concat(limits, COMMA))
 
     return query
 end
@@ -236,8 +238,10 @@ local function where(query, conditions)
                         c = COMMA
                         LEFT, RIGHT = '(', ')'
                     end
-                    insert(CONDITIONS, format({condition[1], con2, LEFT..concat(condition[3], c)..RIGHT}))
+                    insert(CONDITIONS, format({condition[1], con2, LEFT..format_value2(condition[3], c)..RIGHT}))
                 elseif con2 == IS then
+                    insert(CONDITIONS, concat(condition, " "))
+                elseif find(condition[3], condition[1]) then
                     insert(CONDITIONS, concat(condition, " "))
                 else
                     insert(CONDITIONS, format_value3(condition))
@@ -252,7 +256,7 @@ local function where(query, conditions)
                         c = COMMA
                         LEFT, RIGHT = '(', ')'
                     end
-                    insert(CONDITIONS, format({condition[1], con2, con3, LEFT..concat(condition[4], c)..RIGHT}))
+                    insert(CONDITIONS, format({condition[1], con2, con3, LEFT..format_value2(condition[4], c)..RIGHT}))
                 elseif con2 == IS then
                     insert(CONDITIONS, concat(condition, " "))
                 else
@@ -454,7 +458,6 @@ end
 function DB.query(query)
     assert(type(query) == 'string', "原始SQL类型错误(query):"..tostring(query))
     local db = get_db()
-    -- print(query)
     local ret, err = db:query(query)
     if #wlist > 0 then
         co_wakeup(remove(wlist), db)

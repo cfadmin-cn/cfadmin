@@ -178,7 +178,7 @@ function TCP:ssl_recv(bytes)
     local buf, len = tcp_sslread(self.ssl, bytes)
     if not buf then
         local co = co_self()
-        self.send_co = co_new(function ( ... )
+        self.read_co = co_new(function ( ... )
             while 1 do
                 local buf, len = tcp_sslread(self.ssl, bytes)
                 if self.timer then
@@ -188,7 +188,7 @@ function TCP:ssl_recv(bytes)
                 tcp_push(self.READ_IO)
                 tcp_stop(self.READ_IO)
                 self.READ_IO = nil
-                self.send_co = nil
+                self.read_co = nil
                 if buf and len then
                     return co_wakeup(co, buf, len)
                 end
@@ -200,10 +200,10 @@ function TCP:ssl_recv(bytes)
             tcp_stop(self.READ_IO)
             self.timer = nil
             self.READ_IO = nil
-            self.send_co = nil
+            self.read_co = nil
             return co_wakeup(co, nil, "read timeout")
         end)
-        tcp_start(self.READ_IO, self.fd, EVENT_READ, self.send_co)
+        tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
         return co_wait()
     end
     return buf, len

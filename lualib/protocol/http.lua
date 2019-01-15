@@ -408,7 +408,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 		sock:close()
 		return
 	end
-	sock._timeout = c.timeout
+	sock._timeout = nil
 	local send_masked = c.sen_masked
 	local max_payload_len = c.max_payload_len or 65535
 	local on_open = assert(type(c.on_open) == 'function' and c.on_open, "Can't find websocket on_open method")
@@ -420,12 +420,11 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 
 	local current_co = co_self()
 	local write_co
-	local Continue = true
 
 	local write_list = {}
 	local websocket = setmetatable({}, { __name = "WebSocket", __index = function (t, key)
 		return function(data, binary)
-			if not Continue then return end -- 如果已经发送了close则不允许再发送任何协议
+			if not t.CLOSE == true then return end -- 如果已经发送了close则不允许再发送任何协议
 			if key == 'ping' then
 				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x9, data, max_payload_len, send_masked) end
 			elseif key == "pong" then
@@ -439,8 +438,10 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 					write_list[#write_list + 1] = function () _send_frame(sock, true, code, data, max_payload_len, send_masked) end
 				end
 			elseif key == "close" then
-				Continue = nil
+				t.CLOSE = true
 				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..(data or ""), max_payload_len, send_masked) end
+				write_list[#write_list + 1] = function() sock:close() end
+				write_list[#write_list + 1] = function() co_wakeup(current_co) end
 			end
 			return co_wakeup(write_co)
 		end
@@ -473,8 +474,11 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 	while 1 do
 		local data, typ, err =_recv_frame(sock, max_payload_len, true)
 		if (not data and not typ) or typ == 'close' then
-			Continue = nil
-			if err and err ~= 'read timeout' then
+			if websocket.CLOSE ~= true then
+				websocket.CLOSE = true
+				sock:close()
+			end
+			if err then
 				local ok, err = pcall(on_error, c, websocket, err)
 				if not ok then
 					log.error(err)
@@ -484,8 +488,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 			if not ok then
 				log.error(err)
 			end
-			co_wakeup(write_co)
-			return sock:close()
+			return co_wakeup(write_co)
 		end
 		if typ == 'ping' then
 			if not on_ping then 
