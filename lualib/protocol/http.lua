@@ -558,8 +558,13 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			local ok, data, static, statucode
 
 			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
-				local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
-				ok, data = pcall(c[c.__name], c)
+				if type(cls) == "table" then
+					local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
+					print(c)
+					ok, data = pcall(c, c)
+				else
+					ok, data = pcall(cls, {args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
+				end
 				if not ok then
 					log.error(data)
 					statucode = 500

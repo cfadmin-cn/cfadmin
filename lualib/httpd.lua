@@ -30,14 +30,14 @@ end
 
 -- 用来注册接口
 function httpd:api(route, class)
-    if route and type(class) == "table" then
+    if route and (type(class) == "table" or type(class) == "function")then
         HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.API)
     end
 end
 
 -- 用来注册普通路由
 function httpd:use(route, class)
-    if route and type(class) == "table" then
+    if route and (type(class) == "table" or type(class) == "function") then
         HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.USE)
     end
 end

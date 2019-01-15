@@ -7,6 +7,10 @@ app:api("/httpc", require "hc")
 app:api("/echo", require "echo")
 app:api("/api", require "api")
 
+app:api("/app", function (opt)
+    return "<html><h1>this is test header</h1></html>"
+end)
+
 -- 注册普通路由(html/text)
 app:use("/view", require "view")
 

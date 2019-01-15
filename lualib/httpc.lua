@@ -207,7 +207,7 @@ function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 		fmt("GET %s HTTP/1.1", PATH),
 		fmt("Host: %s", DOMAIN),
 		'Accept-Encoding: identity',
-		fmt("Connection: Keep-Alive"),
+		fmt("Connection: keep-alive"),
 		fmt("User-Agent: %s", SERVER),
 	}
 	if ARGS and type(ARGS) == "table" then
