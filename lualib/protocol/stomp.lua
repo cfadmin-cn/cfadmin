@@ -5,6 +5,7 @@
 
 local class = require "class"
 local tcp = require "internal.TCP"
+local dns = require "protocol.dns"
 local byte = string.byte
 local concat = table.concat
 local error = error
@@ -27,7 +28,7 @@ local STATE_CONNECTED = 1
 local STATE_COMMAND_SENT = 2
 
 
-function stomp.new(self)
+function stomp.ctor(self)
     self.sock = tcp:new()
 end
 
@@ -81,8 +82,23 @@ local function _receive_frame(self)
     if not sock then
         return nil, "not initialized"
     end
-    local resp = sock:receiveuntil(NULL_BYTE, {inclusive = true})
-    local data, err, partial = resp()
+    local buf_list, err = {} 
+    -- while 1 do
+    --     local buf, len = sock:recv(1024)
+    --     print(buf, len)
+    --     if not buf then
+    --         return nil, "stomp server close this session in connecting."
+    --     end
+    --     print(string.sub(buf, #buf-1, -1) == '\0', buf)
+    --     buf_list[#buf_list+1] = buf
+    --     -- if buf[#buf] == NULL_BYTE then
+    --     if buf[#buf] == NULL_BYTE then
+    --         break
+    --     end
+    -- end
+    -- return concat(buf_list), err
+    -- local resp = sock:receiveuntil(NULL_BYTE, {inclusive = true})
+    local data, err, partial = sock:recv(8192)
     return data, err
 end
 
@@ -108,7 +124,7 @@ local function _logout(self)
         return nil, "not initialized"
     end
 
-    self.state = nil
+    -- self.state = nil
     if self.state == STATE_CONNECTED then
         -- Graceful shutdown
         local headers = {}
@@ -149,15 +165,13 @@ function stomp.connect(self, opts)
     if not vhost then
         vhost = "/"
     end
-
-    local pool = opts.pool
-    if not pool then
-        pool = concat({username, vhost, host, port}, ":")
-    end
-
-    local ok, err = sock:connect(host, port)
+    local ok, ip = dns.resolve(host)
     if not ok then
-        return nil, "failed to connect: " .. err
+        return nil, "can't resolve this host:"..tostring(host)
+    end
+    local ok, err = sock:connect(ip, port)
+    if not ok then
+        return nil, "failed to connect: " .. tostring(err)
     end
 
     return _login(self, username, password, vhost)
@@ -197,4 +211,4 @@ function stomp.close(self)
     return _logout(self)
 end
 
-setmetatable(_M, class_mt)
+return stomp

@@ -26,7 +26,9 @@ local fmt = string.format
 
 local SERVER = "cf/0.1"
 
-local TIMEOUT = 15
+local __TIMEOUT__ = 15
+
+local httpc = {}
 
 local function httpc_response(IO, SSL)
 	if not IO then
@@ -183,17 +185,8 @@ local function IO_SEND(IO, PROTOCOL, DATA)
 	return nil, "IO_SEND error! unknow PROTOCOL: "..tostring(PROTOCOL)
 end
 
-local httpc = {}
-
--- 设置请求超时时间
-function httpc.set_timeout(Invaild)
-	if Invaild > 0 then
-		TIMEOUT = Invaild
-	end
-end
-
 -- HTTP GET
-function httpc.get(domain, HEADER, ARGS)
+function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 
 	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
 
@@ -235,7 +228,7 @@ function httpc.get(domain, HEADER, ARGS)
 	insert(request, '\r\n')
 	local REQ = concat(request, '\r\n')
 
-	local IO = tcp:new():timeout(TIMEOUT)
+	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
 	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
 	if not ok then
 		return ok, err
@@ -248,7 +241,7 @@ function httpc.get(domain, HEADER, ARGS)
 end
 
 -- HTTP POST
-function httpc.post(domain, HEADER, BODY)
+function httpc.post(domain, HEADER, BODY, TIMEOUT)
 
 	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
 
@@ -298,7 +291,7 @@ function httpc.post(domain, HEADER, BODY)
 
 	local REQ = concat(request)
 
-	local IO = tcp:new():timeout(TIMEOUT)
+	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
 	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
 	if not ok then
 		return ok, err
@@ -310,7 +303,7 @@ function httpc.post(domain, HEADER, BODY)
 	return httpc_response(IO, PROTOCOL)
 end
 
-function httpc.json(domain, HEADER, JSON)
+function httpc.json(domain, HEADER, JSON, TIMEOUT)
 
 	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
 
@@ -351,7 +344,7 @@ function httpc.json(domain, HEADER, JSON)
 
 	local REQ = concat(request)
 
-	local IO = tcp:new():timeout(TIMEOUT)
+	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
 	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
 	if not ok then
 		return ok, err
@@ -363,7 +356,7 @@ function httpc.json(domain, HEADER, JSON)
 	return httpc_response(IO, PROTOCOL)
 end
 
-function httpc.file(domain, HEADER, FILES)
+function httpc.file(domain, HEADER, FILES, TIMEOUT)
 
 	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
 
@@ -422,7 +415,7 @@ function httpc.file(domain, HEADER, FILES)
 
 	local REQ = concat(request)
 
-	local IO = tcp:new():timeout(TIMEOUT)
+	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
 	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
 	if not ok then
 		return ok, err
