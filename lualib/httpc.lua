@@ -61,6 +61,7 @@ local function httpc_response(IO, SSL)
 			local chunked = HEADER['Transfer-Encoding']
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
+					IO:close()
 					return CODE, split(DATA, posB+1, #DATA)
 				end
 				local content = {split(DATA, posB+1, #DATA)}
@@ -132,7 +133,6 @@ local function httpc_response(IO, SSL)
 			end
 		end
 	end
-	return CODE, BODY
 end
 
 local function IO_CONNECT(IO, PROTOCOL, IP, PORT)
