@@ -18,6 +18,8 @@ local match = string.match
 local splite = string.gmatch
 local pack = string.pack
 local unpack = string.unpack
+local tonumber = tonumber
+local type = type
 
 local dns = {}
 
@@ -44,26 +46,11 @@ local function check_cache(domain)
     return query.ip
 end
 
-local function gen_cache()
-    local file = io.open("/etc/hosts", "r")
-    dns_cache['localhost'] = { ip = "127.0.0.1"}
-    if file then
-        for line in file:lines() do
-            local ip, domain = match(line, '(%d+%p%d+%p%d+%p%d+) -(.-)$')
-            if ip and domain then
-                if not dns_cache[domain] then
-                    dns_cache[domain] = {ip = ip}
-                else
-                    dns_cache[domain]["ip"] = ip
-                end
-            end
-        end
-        file:close()
-    end
-end
-
 local function check_ip(ip, version)
     if version == 4 then
+        if not ip or type(ip) ~= 'string' then
+            return false
+        end
         if #ip > 15 or #ip < 7 then
             return false
         end
@@ -81,12 +68,30 @@ local function check_ip(ip, version)
     end
 end
 
+local function gen_cache()
+    local file = io.open("/etc/hosts", "r")
+    dns_cache['localhost'] = { ip = "127.0.0.1"}
+    if file then
+        for line in file:lines() do
+            local ip, domain = match(line, '([%d%.]+)[%t ]*(.-)$')
+            if check_ip(ip, 4) then
+                if not dns_cache[domain] then
+                    dns_cache[domain] = {ip = ip}
+                else
+                    dns_cache[domain]["ip"] = ip
+                end
+            end
+        end
+        file:close()
+    end
+end
+
 if #dns_list < 1 then
     local file = io.open("/etc/resolv.conf", "r")
     if file then
         for line in file:lines() do
             local ip = match(line, "nameserver (.-)$")
-            local YES = check_ip(ip)
+            local YES = check_ip(ip, 4)
             if YES then
                 insert(dns_list, ip)
             end
