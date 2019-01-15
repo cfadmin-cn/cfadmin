@@ -174,10 +174,10 @@ function TCP:ssl_recv(bytes)
     if not self.ssl then
         return log.error("Please use recv method :)")
     end
-    self.READ_IO = tcp_pop()
     local buf, len = tcp_sslread(self.ssl, bytes)
     if not buf then
         local co = co_self()
+        self.READ_IO = tcp_pop()
         self.read_co = co_new(function ( ... )
             while 1 do
                 local buf, len = tcp_sslread(self.ssl, bytes)
