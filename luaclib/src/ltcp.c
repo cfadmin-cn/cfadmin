@@ -376,12 +376,12 @@ tcp_sslconnect(lua_State *L){
 		return 1;
 	}
 	if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, status)) {
-		lua_pushboolean(L, 0);
+		lua_pushnil(L);
 		lua_pushinteger(L, EV_READ);
 		return 2;
 	}
 	if (SSL_ERROR_WANT_WRITE == SSL_get_error(ssl, status)){
-		lua_pushboolean(L, 0);
+		lua_pushnil(L);
 		lua_pushinteger(L, EV_WRITE);
 		return 2;
 	}

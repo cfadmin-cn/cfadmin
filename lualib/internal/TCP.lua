@@ -282,7 +282,8 @@ function TCP:ssl_connect(ip, port)
     end
     self.CONNECT_IO = tcp_pop()
     local co = co_self()
-    self.connect_co = co_new(function (connected)
+    self.connect_co = co_new(function ()
+        local EVENTS = EVENT_WRITE
         while 1 do
             local ok, EVENT = tcp_ssl_connect(self.ssl)
             if ok then
@@ -295,6 +296,11 @@ function TCP:ssl_connect(ip, port)
                 self.CONNECT_IO = nil
                 self.connect_co = nil
                 return co_wakeup(co, ok)
+            end
+            if EVENTS ~= EVENT then
+                EVENTS = EVENT
+                tcp_stop(self.CONNECT_IO)
+                tcp_start(self.CONNECT_IO, self.fd, EVENTS, self.connect_co)
             end
             co_wait()
         end

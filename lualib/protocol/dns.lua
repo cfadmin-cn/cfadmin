@@ -39,11 +39,13 @@ local function check_cache(domain)
     if not query then
         return
     end
-    if query.ttl and query.ttl < now() then
+    if query then
+        if not query.ttl or query.ttl > now() then
+            return query.ip
+        end
         dns_cache[domain] = nil
-        return
     end
-    return query.ip
+    return
 end
 
 local function check_ip(ip, version)
@@ -107,8 +109,9 @@ end
 local dns_client_rr = 0
 
 local function get_dns_client()
+    -- 为了防止过于频繁的请求同一ip会丢弃数据, 所以在尽可能的情况下给予多ip轮询发送查询请求
     dns_client_rr = dns_client_rr % #dns_list + 1
-    local udp = UDP:new():timeout(dns._timeout or 10) -- 默认情况下是10秒超时
+    local udp = UDP:new():timeout(dns._timeout or 5) -- 默认情况下是5秒超时
     local ok = udp:connect(dns_list[dns_client_rr], 53)
     if ok then
         return udp
@@ -209,7 +212,6 @@ local function dns_query(domain)
     end
     if not len or len < LIMIT_HEADER_LEN then
         local err = "Malformed dns response package."
-        log.info("正在解析["..domain.."]:"..err)
         return nil, err
     end
     local answer_header, nbyte = unpack_header(dns_resp)
@@ -219,14 +221,12 @@ local function dns_query(domain)
     end
     if not answer_header.ancount or answer_header.ancount < 1 then
         local err = "Can't find ip addr in nameserver."
-        log.info("正在解析["..domain.."]:"..err)
         return nil, err
     end
     local question, nbyte = unpack_question(dns_resp, nbyte)
 
     if question.name ~= domain then
         local err = "quetions not equal."
-        log.info("正在解析["..domain.."]:"..err)
         return nil, err
     end
     local answer
@@ -236,17 +236,18 @@ local function dns_query(domain)
         dns_cache[domain] = {ip = answer.ip, ttl = now() + answer.ttl}
     end
     local ip = answer.ip
-    -- local e_n_d = os.time() + os.clock()
-    -- print("解析域名["..domain.."]完成, 结束时间:", e_n_d)
-    -- print("解析域名用时: ", tostring(e_n_d - start)..'s')
-    -- 如果有其它协程也在等待查询, 那么一起唤醒它们
-    if wlist and #wlist > 0 then
-        for _, co in ipairs(wlist) do
-            co_wakeup(co, true, ip)
-        end
-        wlist = nil
-        cos[domain] = nil
+    if not check_ip(ip, 4) then
+        return nil, "unknown ip in this domain: "..domain
     end
+    -- local e_n_d = os.time() + os.clock()
+    -- print("解析域名["..domain.."]完成, 结束时间:", e_n_d, ip, answer.ttl)
+    -- print("解析域名用时: ", tostring(e_n_d - start)..'s')
+    for _, co in ipairs(wlist) do
+        -- 如果有其它协程也在等待查询, 那么一起唤醒它们
+        co_wakeup(co, true, ip)
+    end
+    wlist = nil
+    cos[domain] = nil
     return true, ip
 end
 
