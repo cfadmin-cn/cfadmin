@@ -25,15 +25,15 @@ A Web light-framework for Lua based Libev
 
 ## 编译方式
 
-> 编译(Only)
+> 编译(build)
 
     make build
 
-> 清理(clien)
+> 清理(clean)
 
     make clean
 
-> 重新编译(Clean And Build)
+> 重新编译(clean and build)
 
     make rebuild
 
@@ -63,7 +63,7 @@ A Web light-framework for Lua based Libev
 
         A. 请使用sudo make rebuild/build 增加加权限, 因为libcore.so需要安装到相关目录下.
 
-    Q4. 其它错误
+    Q6. 其它错误
 
         A. 请提issues或者邮箱知会作者
 
