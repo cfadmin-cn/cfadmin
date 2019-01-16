@@ -181,18 +181,29 @@ function TCP:ssl_recv(bytes)
         self.read_co = co_new(function ( ... )
             while 1 do
                 local buf, len = tcp_sslread(self.ssl, bytes)
-                if self.timer then
-                    self.timer:stop()
-                    self.timer = nil
+                if not buf and not len then
+                    if self.timer then
+                        self.timer:stop()
+                        self.timer = nil
+                    end
+                    tcp_push(self.READ_IO)
+                    tcp_stop(self.READ_IO)
+                    self.READ_IO = nil
+                    self.read_co = nil
+                    return co_wakeup(co)
                 end
-                tcp_push(self.READ_IO)
-                tcp_stop(self.READ_IO)
-                self.READ_IO = nil
-                self.read_co = nil
                 if buf and len then
+                    if self.timer then
+                        self.timer:stop()
+                        self.timer = nil
+                    end
+                    tcp_push(self.READ_IO)
+                    tcp_stop(self.READ_IO)
+                    self.READ_IO = nil
+                    self.read_co = nil
                     return co_wakeup(co, buf, len)
                 end
-                return co_wakeup(co)
+                co_wait()
             end
         end)
         self.timer = ti.timeout(self._timeout, function ( ... )

@@ -76,7 +76,7 @@ local function httpc_response(IO, SSL)
 					end
 					if not data then
 						IO:close()
-						return nil, "A peer of remote server close this connection."
+						return nil, SSL.."[Content_Length] A peer of remote server close this connection."
 					end
 					insert(content, data)
 					local DATA = concat(content)
@@ -114,7 +114,7 @@ local function httpc_response(IO, SSL)
 					end
 					if not data then
 						IO:close()
-						return nil, "A peer of remote server close this connection."
+						return nil, SSL.."[chunked] A peer of remote server close this connection A."
 					end
 					insert(content, data)
 					local DATA = concat(content)

@@ -18,7 +18,7 @@ function HTTPC:HTTPC(...)
     local code, body = httpc.get(string.format("https://api.github.com/users/%s", self.args['name'] or 'CandyMI'))
     if code ~= 200 then
         print(code, type(code), body)
-        return string.format('{"code": 500, responsecode: "%s", "ERROR":"%s"}', tostring(code), tostring(body))
+        return string.format('{"code": 500, "responsecode": "%s", "ERROR":"%s"}', tostring(code), tostring(body))
     end
     return body
 end
