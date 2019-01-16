@@ -75,7 +75,7 @@ local USER, PASSWD
 local DATABASE
 
 -- 空闲连接时间
-local WAIT_TIMEOUT
+local WAIT_TIMEOUT = 2592000
 
 -- 数据库连接池
 local POOL = {}
@@ -366,17 +366,7 @@ function DB.init(driver, user, passwd, max_pool)
         if not ok then
             return print(err)
         end
-        if not WAIT_TIMEOUT then
-            local ret, err = db:query("show variables like 'wait_timeout'")
-            if ret then
-                for _, value in ipairs(ret) do
-                    if value['Variable_name'] == 'wait_timeout' then
-                        WAIT_TIMEOUT = tonumber(value["Value"])
-                        -- print(WAIT_TIMEOUT)
-                    end
-                end
-            end
-        end
+        db:query(fmt('set session wait_timeout=%s', tostring(WAIT_TIMEOUT)))
         return db
     end
     local db = get_db()
