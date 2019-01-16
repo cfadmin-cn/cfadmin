@@ -22,6 +22,9 @@ local assert = assert
 local ipairs = ipairs
 local tostring = tostring
 
+local CRLF = '\x0d\x0a'
+local CRLF2 = '\x0d\x0a\x0d\x0a'
+
 local fmt = string.format
 
 local SERVER = "cf/0.1"
@@ -51,7 +54,7 @@ local function httpc_response(IO, SSL)
 		end
 		insert(content, data)
 		local DATA = concat(content)
-		local posA, posB = find(DATA, '\r\n\r\n')
+		local posA, posB = find(DATA, CRLF2)
 		if posB then
 			CODE = RESPONSE_PROTOCOL_PARSER(split(DATA, 1, posB))
 			HEADER = RESPONSE_HEADER_PARSER(split(DATA, 1, posB))
@@ -59,7 +62,7 @@ local function httpc_response(IO, SSL)
 				IO:close()
 				return nil, "can't resolvable protocol."
 			end
-			local Content_Length = toint(HEADER['Content-Length'])
+			local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
 			local chunked = HEADER['Transfer-Encoding']
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
@@ -90,7 +93,7 @@ local function httpc_response(IO, SSL)
 				local content = {}
 				if #DATA > posB then
 					local DATA = split(DATA, posB+1, #DATA)
-					if find(DATA, '\r\n\r\n') then
+					if find(DATA, CRLF2) then
 						local body = {}
 						for hex, block in splite(DATA, "([%a%d]*)\r\n(.-)\r\n") do
 							local len = toint(fmt("0x%s", hex))
@@ -118,7 +121,7 @@ local function httpc_response(IO, SSL)
 					end
 					insert(content, data)
 					local DATA = concat(content)
-					if find(DATA, '\r\n\r\n') then
+					if find(DATA, CRLF2) then
 						local body = {}
 						for hex, block in splite(DATA, "([%a%d]*)\r\n(.-)\r\n") do
 							local len = toint(fmt("0x%s", hex))
@@ -203,9 +206,17 @@ function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 		PATH = '/'
 	end
 
+	local port = toint(PORT)
+	if port or (port ~= 80 or port ~= 443) then
+		port = ":"..PORT
+	else
+		port = ""
+	end
+
 	local request = {
 		fmt("GET %s HTTP/1.1", PATH),
-		fmt("Host: %s", DOMAIN),
+		fmt("Host: %s", DOMAIN..port),
+		'Accept: */*',
 		'Accept-Encoding: identity',
 		fmt("Connection: keep-alive"),
 		fmt("User-Agent: %s", SERVER),
@@ -225,8 +236,8 @@ function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 			insert(request, header[1]..': '..header[2])
 		end
 	end
-	insert(request, '\r\n')
-	local REQ = concat(request, '\r\n')
+	insert(request, CRLF)
+	local REQ = concat(request, CRLF)
 
 	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
 	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
@@ -258,10 +269,18 @@ function httpc.post(domain, HEADER, BODY, TIMEOUT)
 		PATH = '/'
 	end
 
+	local port = toint(PORT)
+	if port or (port ~= 80 or port ~= 443) then
+		port = ":"..PORT
+	else
+		port = ""
+	end
+
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
-		fmt("Host: %s\r\n", DOMAIN),
-		'Accept-Encoding: identity',
+		fmt("Host: %s\r\n", DOMAIN..port),
+		'Accept: */*\r\n',
+		'Accept-Encoding: identity\r\n',
 		fmt("Connection: keep-alive\r\n"),
 		fmt("User-Agent: %s\r\n", SERVER),
 		'Content-Type: application/x-www-form-urlencoded\r\n',
@@ -270,10 +289,10 @@ function httpc.post(domain, HEADER, BODY, TIMEOUT)
 		for _, header in ipairs(HEADER) do
 			assert(string.lower(header[1]) ~= 'content-length', "please don't give Content-Length")
 			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
-			insert(request, header[1]..': '..header[2]..'\r\n')
+			insert(request, header[1]..': '..header[2]..CRLF)
 		end
 	end
-	insert(request, '\r\n')
+	insert(request, CRLF)
 
 	if BODY and type(BODY) == "table" then
 		local body = {}
@@ -320,12 +339,20 @@ function httpc.json(domain, HEADER, JSON, TIMEOUT)
 		PATH = '/'
 	end
 
+	local port = toint(PORT)
+	if port or (port ~= 80 or port ~= 443) then
+		port = ":"..PORT
+	else
+		port = ""
+	end
+
 	assert(type(JSON) == "string", "Please passed A vaild json string.")
 
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
-		fmt("Host: %s\r\n", DOMAIN),
-		'Accept-Encoding: identity',
+		fmt("Host: %s\r\n", DOMAIN..port),
+		'Accept: */*\r\n',
+		'Accept-Encoding: identity\r\n',
 		fmt("Connection: keep-alive\r\n"),
 		fmt("User-Agent: %s\r\n", SERVER),
 		fmt("Content-Length: %s\r\n", #JSON),
@@ -335,11 +362,11 @@ function httpc.json(domain, HEADER, JSON, TIMEOUT)
 		for _, header in ipairs(HEADER) do
 			assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
 			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
-			insert(request, header[1]..': '..header[2]..'\r\n')
+			insert(request, header[1]..': '..header[2]..CRLF)
 		end
 	end
 
-	insert(request, '\r\n')
+	insert(request, CRLF)
 	insert(request, JSON)
 
 	local REQ = concat(request)
@@ -373,9 +400,17 @@ function httpc.file(domain, HEADER, FILES, TIMEOUT)
 		PATH = '/'
 	end
 
+	local port = toint(PORT)
+	if port or (port ~= 80 or port ~= 443) then
+		port = ":"..PORT
+	else
+		port = ""
+	end
+
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
-		fmt("Host: %s\r\n", DOMAIN),
+		fmt("Host: %s\r\n", DOMAIN..port),
+		'Accept: */*',
 		'Accept-Encoding: identity',
 		fmt("Connection: keep-alive\r\n"),
 		fmt("User-Agent: %s\r\n", SERVER),
@@ -405,11 +440,11 @@ function httpc.file(domain, HEADER, FILES, TIMEOUT)
 			insert(body, fmt('Content-Type: %s\r\n', FILEMIME(file.type or '') or 'application/octet-stream'))
 			insert(body, file.file)
 		end
-		body = concat(body, '\r\n')
+		body = concat(body, CRLF)
 		insert(request, fmt("Content-Length: %s\r\n", #body + 2 + #boundary_end))
-		insert(request, '\r\n')
+		insert(request, CRLF)
 		insert(request, body)
-		insert(request, '\r\n')
+		insert(request, CRLF)
 		insert(request, boundary_end)
 	end
 

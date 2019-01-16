@@ -48,9 +48,8 @@ local insert = table.insert
 local remove = table.remove
 local concat = table.concat
 
-local CRLF = '\r\n'
-local CRLF2 = '\r\n\r\n'
-
+local CRLF = '\x0d\x0a'
+local CRLF2 = '\x0d\x0a\x0d\x0a'
 
 local HTTP_CODE = {
 
