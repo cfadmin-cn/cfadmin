@@ -265,10 +265,9 @@ function TCP:ssl_connect(ip, port)
     if not ok then
         return nil, "SSL connect error."
     end
-    self.ssl = tcp.new_ssl(self.fd)
-    if not self.ssl then
-        log.error("Create a SSL Error! :) ")
-        return
+    self.ssl_ctx, self.ssl = tcp.new_ssl(self.fd)
+    if not self.ssl_ctx or not self.ssl then
+        return log.error("Create a SSL Error! :) ")
     end
     self.CONNECT_IO = tcp_pop()
     local co = co_self()
@@ -337,8 +336,9 @@ function TCP:close()
         self._timeout = nil
     end
 
-    if self.ssl then
-        tcp_free_ssl(self.ssl)
+    if self.ssl and self.ssl_ctx then
+        tcp_free_ssl(self.ssl_ctx, self.ssl)
+        self.ssl_ctx = nil
         self.ssl = nil
     end
 

@@ -64,7 +64,7 @@ lparser_request_header(lua_State *L){
     const char *path;
     size_t method_len, path_len, num_headers;
 
-    struct phr_header headers[32];
+    struct phr_header headers[64];
     memset(headers, 0x0, sizeof(headers));
 
     num_headers = sizeof(headers) / sizeof(headers[0]);
@@ -77,7 +77,7 @@ lparser_request_header(lua_State *L){
             lua_pushlstring(L, headers[i].name, headers[i].name_len);
             lua_pushlstring(L, headers[i].value, headers[i].value_len);
             lua_rawset(L, lua_gettop(L) - 2);
-        }
+        }else break;
     }
     return 1;
 }
@@ -92,7 +92,7 @@ lparser_response_header(lua_State *L){
     size_t msg_len, num_headers;
     const char* msg;
 
-    struct phr_header headers[32];
+    struct phr_header headers[64];
     memset(headers, 0x0, sizeof(headers));
 
     num_headers = sizeof(headers) / sizeof(headers[0]);
@@ -105,7 +105,7 @@ lparser_response_header(lua_State *L){
             lua_pushlstring(L, headers[i].name, headers[i].name_len);
             lua_pushlstring(L, headers[i].value, headers[i].value_len);
             lua_rawset(L, lua_gettop(L) - 2);
-        }
+        }else break;
     }
     return 1;
 }

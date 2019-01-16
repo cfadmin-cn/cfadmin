@@ -8,8 +8,6 @@
 #define SERVER 0
 #define CLIENT 1
 
-SSL_CTX *ctx = NULL;
-
 static int
 tcp_socket_new(const char *ipaddr, int port, int mode){
 
@@ -424,29 +422,31 @@ ssl_new(lua_State *L){
 
 	int fd = lua_tointeger(L, 1);
 
-	if (!ctx) ctx = SSL_CTX_new(SSLv23_method());
+	SSL_CTX *ssl_ctx = SSL_CTX_new(SSLv23_method());
+	if (!ssl_ctx) return 0;
 
-	SSL *ssl = SSL_new(ctx);
+	SSL *ssl = SSL_new(ssl_ctx);
 	if (!ssl) return 0;
 
 	SSL_set_fd(ssl, fd);
 
 	SSL_set_connect_state(ssl);
 
+	lua_pushlightuserdata(L, (void*) ssl_ctx);
+
 	lua_pushlightuserdata(L, (void*) ssl);
 
-	return 1;
+	return 2;
 }
-
 
 int
 ssl_free(lua_State *L){
 
-	SSL *ssl = (SSL*) lua_touserdata(L, 1);
+	SSL_CTX *ssl_ctx = (SSL_CTX*) lua_touserdata(L, 1);
+	if (ssl_ctx) SSL_CTX_free(ssl_ctx); // 销毁ctx上下文;
 
-	if (!ssl) return 0;
-
-	SSL_free(ssl);
+	SSL *ssl = (SSL*) lua_touserdata(L, 2);
+	if (ssl) SSL_free(ssl); // 销毁基于ctx的ssl对象;
 
 	return 0;
 }
