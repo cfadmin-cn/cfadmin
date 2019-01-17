@@ -151,9 +151,10 @@ end
 
 -- 执行
 local function execute(query)
+    local QUERY = concat(query, " ")
     local db = get_db()
     -- print(concat(query, " "))
-    local ret, err = db:query(concat(query, " "))
+    local ret, err = db:query(QUERY)
     if #wlist > 0 then
         co_wakeup(remove(wlist), db)
     else

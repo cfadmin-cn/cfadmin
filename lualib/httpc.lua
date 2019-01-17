@@ -95,7 +95,7 @@ local function httpc_response(IO, SSL)
 					local DATA = split(DATA, posB+1, #DATA)
 					if find(DATA, CRLF2) then
 						local body = {}
-						for hex, block in splite(DATA, "([%a%d]*)\r\n(.-)\r\n") do
+						for hex, block in splite(DATA, "([%w]*)\r\n(.-)\r\n") do
 							local len = toint(fmt("0x%s", hex))
 							if len and len == #block then
 								if len == 0 and block == '' then
