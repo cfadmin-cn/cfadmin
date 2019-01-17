@@ -5,7 +5,7 @@ local co = require "internal.Co"
 local tcp = require "internal.TCP"
 local httpparser = require "httpparser"
 
-local wbproto = require "protocol.websocket"
+local wbproto = require "protocol.websocket.protocol"
 local _recv_frame = wbproto.recv_frame
 local _send_frame = wbproto.send_frame
 
