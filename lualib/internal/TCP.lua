@@ -1,4 +1,5 @@
 local ti = require "internal.Timer"
+local dns = require "protocol.dns"
 local co = require "internal.Co"
 local class = require "class"
 local tcp = require "tcp"
@@ -7,6 +8,7 @@ local log = require "log"
 local split = string.sub
 local insert = table.insert
 local remove = table.remove
+local dns_resolve = dns.resolve
 
 local co_new = co.new
 local co_wakeup = co.wakeup
@@ -234,12 +236,17 @@ function TCP:listen(ip, port, cb)
             end
         end
     end)
-    return tcp.listen(self.listen_IO, self.fd, self.co)
+    tcp.listen(self.listen_IO, self.fd, self.co)
+    return
 end
 
 
 function TCP:connect(ip, port)
-    self.fd = tcp_new_tcp_fd(ip, port, CLIENT)
+    local ok, IP = dns_resolve(ip)
+   if not ok then
+        return nil, "Can't resolve this domain or ip:"..ip
+    end
+    self.fd = tcp_new_tcp_fd(IP, port, CLIENT)
     if not self.fd then
         return log.error("Connect This IP or Port Faild! :) ")
     end

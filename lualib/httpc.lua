@@ -1,6 +1,5 @@
 local class = require "class"
 local tcp = require "internal.TCP"
-local dns = require "protocol.dns"
 local HTTP = require "protocol.http"
 
 local FILEMIME = HTTP.FILEMIME
@@ -140,15 +139,15 @@ local function httpc_response(IO, SSL)
 	end
 end
 
-local function IO_CONNECT(IO, PROTOCOL, IP, PORT)
+local function IO_CONNECT(IO, PROTOCOL, DOAMIN, PORT)
 	if PROTOCOL == "http" then
 		if not toint(PORT) or PORT == '' then
 			PORT = 80
 		end
-		local ok = IO:connect(IP, toint(PORT))
+		local ok, err = IO:connect(DOAMIN, toint(PORT))
 		if not ok then
 			IO:close()
-			return nil, "Can't connect to this IP and Port."
+			return ok, err
 		end
 		return true
 	end
@@ -156,10 +155,10 @@ local function IO_CONNECT(IO, PROTOCOL, IP, PORT)
 		if toint(PORT) or PORT == '' then
 			PORT = 443
 		end
-		local ok = IO:ssl_connect(IP, toint(PORT))
+		local ok = IO:ssl_connect(DOAMIN, toint(PORT))
 		if not ok then
 			IO:close()
-			return nil, "Can't ssl connect to this IP and Port."
+			return ok, err
 		end
 		return true
 	end
@@ -195,11 +194,6 @@ function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
 		return nil, "Invaild protocol from http get ."
-	end
-
-	local ok, IP = dns.resolve(DOMAIN)
-	if not ok then
-		return nil, "Can't resolve domain"
 	end
 
 	if not PATH or PATH == '' then
@@ -240,7 +234,7 @@ function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 	local REQ = concat(request, CRLF)
 
 	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
-	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
+	local ok, err = IO_CONNECT(IO, PROTOCOL, DOMAIN, PORT)
 	if not ok then
 		return ok, err
 	end
@@ -258,11 +252,6 @@ function httpc.post(domain, HEADER, BODY, TIMEOUT)
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
 		return nil, "Invaild protocol from http post ."
-	end
-
-	local ok, IP = dns.resolve(DOMAIN)
-	if not ok then
-		return nil, "Can't resolve domain"
 	end
 
 	if not PATH or PATH == '' then
@@ -311,7 +300,7 @@ function httpc.post(domain, HEADER, BODY, TIMEOUT)
 	local REQ = concat(request)
 
 	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
-	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
+	local ok, err = IO_CONNECT(IO, PROTOCOL, DOMAIN, PORT)
 	if not ok then
 		return ok, err
 	end
@@ -328,11 +317,6 @@ function httpc.json(domain, HEADER, JSON, TIMEOUT)
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
 		return nil, "Invaild protocol from http json ."
-	end
-
-	local ok, IP = dns.resolve(DOMAIN)
-	if not ok then
-		return nil, "Can't resolve domain"
 	end
 
 	if not PATH or PATH == '' then
@@ -372,7 +356,7 @@ function httpc.json(domain, HEADER, JSON, TIMEOUT)
 	local REQ = concat(request)
 
 	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
-	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
+	local ok, err = IO_CONNECT(IO, PROTOCOL, DOMAIN, PORT)
 	if not ok then
 		return ok, err
 	end
@@ -389,11 +373,6 @@ function httpc.file(domain, HEADER, FILES, TIMEOUT)
 
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
 		return nil, "Invaild protocol from http file ."
-	end
-
-	local ok, IP = dns.resolve(DOMAIN)
-	if not ok then
-		return nil, "Can't resolve domain"
 	end
 
 	if not PATH or PATH == '' then
@@ -451,7 +430,7 @@ function httpc.file(domain, HEADER, FILES, TIMEOUT)
 	local REQ = concat(request)
 
 	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
-	local ok, err = IO_CONNECT(IO, PROTOCOL, IP, PORT)
+	local ok, err = IO_CONNECT(IO, PROTOCOL, DOMAIN, PORT)
 	if not ok then
 		return ok, err
 	end

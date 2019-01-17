@@ -159,7 +159,7 @@ local function unpack_name(chunk, nbyte)
         elseif tag == 0 then
             break
         else
-            label, nbyte = unpack("s1", chunk, nbyte - 1)
+            label, nbyte = unpack(">s1", chunk, nbyte - 1)
             domain[#domain+1] = label
         end
     end
@@ -261,7 +261,11 @@ function dns.timeout(timeout)
     dns._timeout = timeout
 end
 
-function dns.resolve(domain)
+function dns.resolve(domain, v6)
+    -- 如果传进来一个空值, 则直接返回false
+    if not domain or domain == '' then
+        return nil, "attemp to resolve a nil or empty host name."
+    end
     -- 如果是正确的ipv4地址直接返回
     local ok = check_ip(domain, 4)
     if ok then

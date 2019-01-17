@@ -1,5 +1,4 @@
 local tcp = require "internal.TCP"
-local dns = require "protocol.dns"
 local log = require "log"
 local crypt = require "crypt"
 
@@ -17,7 +16,7 @@ local error = error
 local tonumber = tonumber
 local new_tab = function (narr, nrec) return {} end
 
-local _M = { _VERSION = '0.21' }
+local MySQL = class("MySQL")
 
 local STATE_CONNECTED = 1
 local STATE_COMMAND_SENT = 2
@@ -30,8 +29,6 @@ local SERVER_MORE_RESULTS_EXISTS = 8
 
 -- 16MB - 1, the default max allowed packet size used by libmysqlclient
 local FULL_PACKET_SIZE = 16777215
-
-local mt = { __index = _M, __name = "MySQL"}
 
 -- mysql field value type converters
 local converters = new_tab(0, 9)
@@ -83,24 +80,15 @@ local function _dumphex(bytes)
 end
 
 local function _compute_token(password, scramble)
-    if password == "" then
-        return ""
-    end
-    --_dumphex(scramble)
-
     local stage1 = sha1(password)
-    --print("stage1:", _dumphex(stage1) )
     local stage2 = sha1(stage1)
     local stage3 = sha1(scramble .. stage2)
-
 	local i = 0
 	return strgsub(stage3,".", function(x)
 		i = i + 1
-		-- ~ is xor in lua 5.3
 		return strchar(strbyte(x) ~ strbyte(stage1, i))
 	end)
 end
-
 
 local function _send_packet(self, req, size)
     local sock = self.sock
@@ -109,7 +97,7 @@ local function _send_packet(self, req, size)
 
     local packet = _set_byte3(size) .. strchar(self.packet_no & 255) .. req
 
-    sock:send(packet)
+    return sock:send(packet)
 end
 
 
@@ -149,9 +137,6 @@ local function _recv_packet(self)
         return nil, nil, "failed to read packet content: " .. err
     end
 
-    --print("packet content: ", _dump(data))
-    --print("packet content (ascii): ", data)
-
     local field_count = strbyte(data, 1)
 
     local typ
@@ -171,8 +156,6 @@ end
 
 local function _from_length_coded_bin(data, pos)
     local first = strbyte(data, pos)
-
-    --print("LCB: first: ", first)
 
     if not first then
         return nil, pos
@@ -248,9 +231,8 @@ end
 
 
 local function _parse_eof_packet(packet)
-    local pos = 2
 
-    local warning_count, pos = _get_byte2(packet, pos)
+    local warning_count, pos = _get_byte2(packet, 2)
     local status_flags = _get_byte2(packet, pos)
 
     return warning_count, status_flags
@@ -268,8 +250,7 @@ local function _parse_err_packet(packet)
         pos = pos + 5
     end
 
-    local message = sub(packet, pos)
-    return errno, message, sqlstate
+    return errno, sub(packet, pos), sqlstate
 end
 
 
@@ -305,17 +286,6 @@ local function _parse_field_packet(data)
     length, pos = _get_byte4(data, pos)
 
     col.type = strbyte(data, pos)
-
-    --[[
-    pos = pos + 1
-    col.flags, pos = _get_byte2(data, pos)
-    col.decimals = strbyte(data, pos)
-    pos = pos + 1
-    local default = sub(data, pos + 2)
-    if default and default ~= "" then
-        col.default = default
-    end
-    --]]
 
     return col
 end
@@ -373,32 +343,23 @@ local function _recv_field_packet(self)
         return nil, "bad field packet type: " .. typ
     end
 
-    -- typ == 'DATA'
-
     return _parse_field_packet(packet)
 end
 
 
-function _M.new(self)
-    local sock, err = tcp:new()
-    if not sock then
-        return nil, err
-    end
-    return setmetatable({ sock = sock }, mt)
+function MySQL.ctor(self)
+    self.state = nil
+    self.sock = tcp:new()
+    self._VERSION = '0.21'
 end
 
 
-function _M.set_timeout(self, timeout)
-    local sock = self.sock
-    if not sock then
-        return nil, "not initialized"
-    end
-
-    return sock:settimeout(timeout)
+function MySQL.set_timeout(self, timeout)
+    return self.sock:settimeout(timeout)
 end
 
 
-function _M.connect(self, opts)
+function MySQL.connect(self, opts)
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
@@ -406,7 +367,7 @@ function _M.connect(self, opts)
 
     local max_packet_size = opts.max_packet_size
     if not max_packet_size then
-        max_packet_size = 1024 * 1024 -- default 1 MB
+        max_packet_size = 4 * 1024 * 1024 -- default 4 MB
     end
     self._max_packet_size = max_packet_size
 
@@ -420,20 +381,14 @@ function _M.connect(self, opts)
         return nil, "not host"
     end
 
-    local ok, ip = dns.resolve(host)
-    if not ok then
-        return nil, "can't resolve host"
-    end
-
     local port = opts.port or 3306
     if not pool then
         pool = user .. ":" .. database .. ":" .. host .. ":" .. port
     end
 
-    local ok = sock:connect(ip, port)
+    local ok = sock:connect(host, port)
     if not ok then
-        sock:close()
-        self.sock = nil
+        self:close()
         return nil, "Connect failed"
     end
 
@@ -556,68 +511,43 @@ function _M.connect(self, opts)
     return true
 end
 
-function _M.close(self)
+function MySQL.close(self)
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
     end
-
+    if self.state then
+        _send_packet(self, strchar(COM_QUIT), 1)
+    end
     self.state = nil
-
-    _send_packet(self, strchar(COM_QUIT), 1)
-
-    sock:close()
-
+    self.sock = nil
     setmetatable(self, nil)
+    return sock:close()
 end
 
-
-function _M.server_ver(self)
-    return self._server_ver
-end
-
-
-local function send_query(self, query)
+function MySQL.send_query(self, query)
     if self.state ~= STATE_CONNECTED then
         return nil, "cannot send query in the current context: ".. (self.state or "nil")
-    end
-
-    local sock = self.sock
-    if not sock then
-        return nil, "not initialized"
     end
 
     self.packet_no = -1
 
     local cmd_packet = strchar(COM_QUERY) .. query
-    local packet_len = 1 + #query
 
-    _send_packet(self, cmd_packet, packet_len)
-
-    self.state = STATE_COMMAND_SENT
+    _send_packet(self, cmd_packet, 1 + #query)
 
 end
-_M.send_query = send_query
 
 
-local function read_result(self, est_nrows)
-    if self.state ~= STATE_COMMAND_SENT then
-        return nil, "cannot read result in the current context: ".. (self.state or "nil")
-    end
-
-    local sock = self.sock
-    if not sock then
-        return nil, "not initialized"
-    end
+function MySQL.read_result(self, est_nrows)
 
     local packet, typ, err = _recv_packet(self)
     if not packet then
+        self.state = nil
         return nil, err
     end
 
     if typ == "ERR" then
-        self.state = STATE_CONNECTED
-
         local errno, msg, sqlstate = _parse_err_packet(packet)
         return nil, msg, errno, sqlstate
     end
@@ -627,24 +557,15 @@ local function read_result(self, est_nrows)
         if res and (res.server_status & SERVER_MORE_RESULTS_EXISTS) ~= 0 then
             return res, "again"
         end
-
-        self.state = STATE_CONNECTED
         return res
     end
 
     if typ ~= 'DATA' then
-        self.state = STATE_CONNECTED
-
-        return nil, "packet type " .. typ .. " not supported"
+        self.state = nil
+        return nil, "this type: " .. typ .. " is not supported 1"
     end
 
-    -- typ == 'DATA'
-
-    --print("read the result set header packet")
-
     local field_count, extra = _parse_result_set_header_packet(packet)
-
-    --print("field count: ", field_count)
 
     local cols = new_tab(field_count, 0)
     for i = 1, field_count do
@@ -658,75 +579,54 @@ local function read_result(self, est_nrows)
 
     local packet, typ, err = _recv_packet(self)
     if not packet then
+        self.state = nil
         return nil, err
     end
 
     if typ ~= 'EOF' then
-        return nil, "unexpected packet type " .. typ .. " while eof packet is "
-            .. "expected"
+        self.state = nil
+        return nil, "this type: " .. typ .. " is not supported 2"
     end
-
-    -- typ == 'EOF'
-
     local compact = self.compact
-
     local rows = new_tab(est_nrows or 4, 0)
     local i = 0
     while true do
-        --print("reading a row")
-
         packet, typ, err = _recv_packet(self)
         if not packet then
+            self.state = nil
             return nil, err
         end
-
         if typ == 'EOF' then
             local warning_count, status_flags = _parse_eof_packet(packet)
-
-            --print("status flags: ", status_flags)
-
             if (status_flags & SERVER_MORE_RESULTS_EXISTS) ~= 0 then
                 return rows, "again"
             end
-
             break
         end
-
-        -- if typ ~= 'DATA' then
-            -- return nil, 'bad row packet type: ' .. typ
-        -- end
-
-        -- typ == 'DATA'
-
         local row = _parse_row_data_packet(packet, cols, compact)
         i = i + 1
         rows[i] = row
     end
-
-    self.state = STATE_CONNECTED
-
     return rows
 end
 
-_M.read_result = read_result
 
-
-function _M.query(self, query, est_nrows)
+function MySQL.query(self, query, est_nrows)
 
     if not query or type(query) ~= "string" then
         return nil, "Attemp to pass a invaild SQL."
     end
 
-    send_query(self, query)
+    self:send_query(query)
 
-    return read_result(self, est_nrows)
+    return self:read_result(est_nrows)
 
 end
 
 
-function _M.set_compact_arrays(self, value)
+function MySQL.set_compact_arrays(self, value)
     self.compact = value
 end
 
 
-return _M
+return MySQL

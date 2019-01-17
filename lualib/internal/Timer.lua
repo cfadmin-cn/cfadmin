@@ -5,9 +5,12 @@ local log = require "log"
 local ti_new = ti.new
 local ti_start = ti.start
 local ti_stop = ti.stop
+
 local co_new = co.new
 local co_wait = co.wait
+local co_wakeup = co.wakeup
 local co_self = co.self
+
 local insert = table.insert
 local remove = table.remove
 
@@ -33,7 +36,7 @@ end
 
 -- 超时器 --
 function Timer.timeout(timeout, cb)
-    if not timeout or timeout < 0 then
+    if not timeout or timeout <= 0 then
         return
     end
     local t = Timer_new()
@@ -58,7 +61,7 @@ end
 
 -- 循环定时器 --
 function Timer.at(repeats, cb)
-    if not repeats or repeats < 0 then
+    if not repeats or repeats <= 0 then
         return
     end
     local t = Timer_new()
@@ -79,8 +82,26 @@ function Timer.at(repeats, cb)
             end
         end)
     }
-   ti_start(t, repeats, timer.co)
+    ti_start(t, repeats, timer.co)
     return timer
+end
+
+-- 循环定时器 --
+function Timer.sleep(repeats)
+    if not repeats or repeats <= 0 then
+        return
+    end
+    local t = Timer_new()
+    if not t then
+        return log.error("timeout error: Create timer class error! memory maybe not enough...")
+    end
+    local current_co = co_self()
+    local co = co_new(function (...)
+        Timer_release(t)
+        return co_wakeup(current_co)
+    end)
+    ti_start(t, repeats, co)
+    return co_wait()
 end
 
 return Timer

@@ -1,5 +1,4 @@
 local tcp = require "internal.TCP"
-local dns = require "protocol.dns"
 local log = require "log"
 
 local table = table
@@ -162,22 +161,14 @@ end
 function redis.connect(db_conf)
 	local sock = tcp:new()
 	if not sock then
-		log.error("redis 创建 socket 失败")
 		return nil, "Can't Create redis Socket"
 	end
-	local ok, ip = dns.resolve(db_conf.host)
+	local ok = sock:connect(db_conf.host, db_conf.port or 6379)
 	if not ok then
-		log.error("连接到redis域名解析失败")
-		return nil, "Can't resolve redis domain"
-	end
-	local ok = sock:connect(ip, db_conf.port or 6379)
-	if not ok then
-		log.error("连接到redis ip 或者 端口失败")
 		return nil, "Sorry, Connect redis server error."
 	end
 	local ok, err = redis_login(sock, db_conf.auth, db_conf.db)
 	if not ok then
-		log.error(err)
 		return nil, "redis login error."
 	end
 	return true, setmetatable({ sock }, meta)

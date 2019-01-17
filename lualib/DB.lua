@@ -1,4 +1,5 @@
 local mysql = require "protocol.mysql"
+local timer = require "internal.Timer"
 local co = require "internal.Co"
 local log = require "log"
 
@@ -17,7 +18,7 @@ local find = string.find
 local fmt = string.format
 local lower = string.lower
 local upper = string.upper
-local spliter = string.gsub
+local match = string.match
 
 local insert = table.insert
 local remove = table.remove
@@ -87,10 +88,7 @@ local DB_CREATE
 local wlist = {}
 
 local function add_db(db)
-    return insert(POOL, {
-        session = db,
-        ttl = os_time(),
-    })
+    POOL[#POOL + 1] = {session = db, ttl = os_time() }
 end
 
 -- 负责创建连接/加入等待队列
@@ -151,10 +149,32 @@ end
 
 -- 执行
 local function execute(query)
+    if query.SELECT then
+        assert(query.FROM and query.WHERE, "查询语句必须使用from方法与where条件.")
+    end
+    if query.DELETE then
+        assert(query.WHERE, "删除语句请加上where条件")
+    end
+    if query.INSERT then
+        assert(query.FILEDS and query.VALUES, "插入语句请加上fields与values")
+    end
+    if query.UPDATE then
+        assert(query.WHERE, "更新语句请加上where条件")
+    end
     local QUERY = concat(query, " ")
-    local db = get_db()
-    -- print(concat(query, " "))
-    local ret, err = db:query(QUERY)
+    -- print(QUERY)
+    local db, ret, err
+    while 1 do
+        local db = get_db()
+        if db then
+            ret, err = db:query(QUERY)
+            if db.state then
+                break
+            end
+            log.error(err)
+            db:close()
+        end
+    end
     if #wlist > 0 then
         co_wakeup(remove(wlist), db)
     else
@@ -269,6 +289,7 @@ local function where(query, conditions)
         end
         insert(query, concat(CONDITIONS, " "))
     end
+    query.WHERE = true
     return query
 end
 
@@ -283,6 +304,7 @@ local function from(query, tables)
     if tpy == "table" then
         insert(query, concat(tables, COMMA))
     end
+    query.FROM = true
     return query
 end
 
@@ -296,6 +318,7 @@ local function values(query, values)
     end
     insert(query, "VALUES")
     insert(query, concat(VALUES, COMMA))
+    query.VALUES = true
     return query
 end
 
@@ -303,6 +326,7 @@ local function fields(query, fields)
     local tpy = type(fields)
     assert(tpy == "table" and #fields > 0, "错误的字段类型(values):"..tostring(fields))
     insert(query, "("..concat(fields, COMMA)..")")
+    query.FILEDS = true
     return query
 end
 -- 插入语句专用函数 --
@@ -332,42 +356,49 @@ local DB = {}
 -- 初始化数据库
 function DB.init(driver, user, passwd, max_pool)
     if not user then
-        return log.error("空的数据库用户名")
+        return log.error("请填写数据库用户名")
     end
     USER = user
     if not passwd then
-        return log.error("空的数据库密码")
+        return log.error("请填写数据库密码")
     end
     PASSWD = passwd
     COUNT = 0
     MAX = max_pool or 100
-    spliter(driver, '([^:]+)://([^:]+):(%d+)/(.+)', function (db, host, port, database)
-        if not db or lower(db) ~= 'mysql' then
-            return error("暂不支持其他数据库驱动")
-        end
-        if not host or not port then
-            return error("请输入正确的主机名或端口")
-        end
-        HOST = host
-        PORT = port
-        DATABASE = database
-    end)
+    local DB, HOST, PORT, DATABASE = match(driver, '([^:]+)://([^:]+):(%d+)/(.+)')
+    if not DB or lower(DB) ~= 'mysql' then
+        return error("暂不支持其他数据库驱动")
+    end
+    if (not HOST or HOST == '') or (not PORT or PORT == '') then
+        return error("请输入正确的主机名或端口")
+    end
     DB_CREATE = function(...)
-        local db, err = mysql:new()
-        if not db then
-            return log.error(err)
+        local times = 1
+        local db, err
+        while 1 do
+            db, err = mysql:new()
+            if not db then
+                return log.error(err)
+            end
+            local ok, err, errno, sqlstate = db:connect({
+                host = HOST or "localhost",
+                port = tonumber(PORT) or 3306,
+                database = DATABASE,
+                user = USER,
+                password = PASSWD,
+            })
+            if ok then
+                break
+            end
+            if times > 5 then
+                error("超过最大重试次数, 请检查网络连接后重启MySQL与本服务")
+            end
+            log.error('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
+            times = times + 1
+            timer.sleep(3)
         end
-        local ok, err, errno, sqlstate = db:connect({
-            host = HOST or "localhost",
-            port = tonumber(PORT) or 3306,
-            database = DATABASE,
-            user = USER,
-            password = PASSWD,
-        })
-        if not ok then
-            return print(err)
-        end
-        db:query(fmt('set session wait_timeout=%s', tostring(WAIT_TIMEOUT)))
+        db:query(fmt('set wait_timeout=%s', tostring(WAIT_TIMEOUT)))
+        db:query(fmt('set interactive_timeout=%s', tostring(WAIT_TIMEOUT)))
         return db
     end
     local db = get_db()
@@ -383,8 +414,9 @@ end
 function DB.select(fields)
     local tpy = type(fields)
     assert(tpy == "string" or tpy == "table", "错误的字段类型(fields):"..tostring(fields))
-    local query = { 
+    local query = {
         [1] = SELECT,
+        SELECT = true,
         from = from,
         where = where,
         orderby = orderby,
@@ -410,6 +442,7 @@ function DB.insert(table_name)
     return {
         [1] = INSERT,
         [2] = table_name,
+        INSERT = true,
         fields = fields,
         values = values,
         execute = execute,
@@ -423,6 +456,7 @@ function DB.update(table_name)
     return {
         [1] = UPDATE,
         [2] = table_name,
+        UPDATE = true,
         set = set,
         where = where,
         limit = limit,
@@ -438,6 +472,7 @@ function DB.delete(table_name)
         [1] = DELETE,
         [2] = FROM,
         [3] = table_name,
+        DELETE = true,
         where = where,
         limit = limit,
         orderby = orderby,
@@ -447,9 +482,19 @@ end
 
 -- 原始SQL
 function DB.query(query)
-    assert(type(query) == 'string', "原始SQL类型错误(query):"..tostring(query))
-    local db = get_db()
-    local ret, err = db:query(query)
+    assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
+    local db, ret, err
+    while 1 do
+        local db = get_db()
+        if db then
+            ret, err = db:query(query)
+            if db.state then
+                break
+            end
+            log.error(err)
+            db:close()
+        end
+    end
     if #wlist > 0 then
         co_wakeup(remove(wlist), db)
     else
