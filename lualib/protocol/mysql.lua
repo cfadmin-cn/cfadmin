@@ -106,7 +106,8 @@ local function _recv_packet(self)
 
     local data, err = sock:recv(4) -- packet header
     if not data then
-        return nil, nil, "failed to receive packet header: " .. err
+        self.state = nil
+        return nil, nil, "failed to receive packet header: "..(err or "nil")
     end
 
     --print("packet header: ", _dump(data))
@@ -134,7 +135,8 @@ local function _recv_packet(self)
     --print("receive returned")
 
     if not data then
-        return nil, nil, "failed to read packet content: " .. err
+        self.state = nil
+        return nil, nil, "failed to read packet content: "..(err or "nil")
     end
 
     local field_count = strbyte(data, 1)
@@ -539,7 +541,6 @@ function MySQL.read_result(self, est_nrows)
 
     local packet, typ, err = _recv_packet(self)
     if not packet then
-        self.state = nil
         return nil, err
     end
 
@@ -575,12 +576,10 @@ function MySQL.read_result(self, est_nrows)
 
     local packet, typ, err = _recv_packet(self)
     if not packet then
-        self.state = nil
         return nil, err
     end
 
     if typ ~= 'EOF' then
-        self.state = nil
         return nil, "this type: " .. typ .. " is not supported 2"
     end
     local compact = self.compact
@@ -589,7 +588,6 @@ function MySQL.read_result(self, est_nrows)
     while true do
         packet, typ, err = _recv_packet(self)
         if not packet then
-            self.state = nil
             return nil, err
         end
         if typ == 'EOF' then

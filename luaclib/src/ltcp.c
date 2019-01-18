@@ -241,23 +241,16 @@ tcp_write(lua_State *L){
 
 		int wsize = write(fd, response, resp_len);
 
-		if (wsize > 0) {
-			lua_pushinteger(L, wsize);
-			break;
-		}
+		if (wsize > 0) { lua_pushinteger(L, wsize); return 1; }
 
 		if (wsize < 0){
 			if (errno == EINTR) continue;
-			if (errno == EAGAIN){
-				lua_pushinteger(L, 0);
-				break;
-			}
-			return 0;
+			if (errno == EAGAIN){ lua_pushinteger(L, 0); return 1;}
 		}
 
 	} while (0);
 
-	return 1;
+	return 0;
 }
 
 int
@@ -275,24 +268,14 @@ tcp_sslwrite(lua_State *L){
 
 	do {
 		int wsize = SSL_write(ssl, response, resp_len);
-
-		if (wsize > 0) {
-			lua_pushinteger(L, wsize);
-			break;
-		}
-
+		if (wsize > 0) { lua_pushinteger(L, wsize); return 1; }
 		if (wsize < 0){
 			if (errno == EINTR) continue;
-			if (SSL_ERROR_WANT_WRITE == SSL_get_error(ssl, wsize)){
-				lua_pushnil(L);
-				lua_pushinteger(L, 0);
-				return 2;
-			}
-			return 0;
+			if (SSL_ERROR_WANT_WRITE == SSL_get_error(ssl, wsize)){ lua_pushinteger(L, 0); return 1; }
 		}
 	} while (0);
 
-	return 1;
+	return 0;
 }
 
 int
