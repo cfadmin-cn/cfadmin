@@ -1,23 +1,18 @@
 local tcp = require "internal.TCP"
-local log = require "log"
 
 local table = table
 local concat = table.concat
+local unpack = table.unpack
 
+local sub = string.sub
 local string = string
+local fmt = string.format
 local find = string.find
 local byte = string.byte
-local sub = string.sub
+local upper = string.upper
 
-local redis = {}
-local command = {}
-local meta = {
-	__index = command,
-	__name = "Redis",
-	-- DO NOT close channel in __gc
-}
+local CRLF = '\x0d\x0a'
 
----------- redis response
 local redcmd = {}
 
 local function read_response(sock)
@@ -25,7 +20,7 @@ local function read_response(sock)
 	while 1 do
 		local data = sock:recv(1)
 		result = result .. data
-		if find(result, "\r\n") then
+		if find(result, CRLF) then
 			break
 		end
 	end
@@ -74,18 +69,6 @@ end
 
 -------------------
 
-function command:disconnect()
-	self[1]:close()
-	self[1] = nil
-	setmetatable(self, nil)
-end
-
-function command:close()
-	self[1]:close()
-	self[1] = nil
-	setmetatable(self, nil)
-end
-
 -- msg could be any type of value
 
 local function make_cache(f)
@@ -95,46 +78,44 @@ local function make_cache(f)
 	})
 end
 
-local header_cache = make_cache(function(t,k)
-		local s = "\r\n$" .. k .. "\r\n"
+local header_cache = make_cache(function(t, k)
+		local s = "\r\n$" .. k .. CRLF
 		t[k] = s
 		return s
 	end)
 
-local command_cache = make_cache(function(t,cmd)
-		local s = "\r\n$"..#cmd.."\r\n"..cmd:upper()
+local command_cache = make_cache(function(t, cmd)
+		local s = "\r\n$"..#cmd..CRLF..cmd:upper()
 		t[cmd] = s
 		return s
 	end)
 
-local count_cache = make_cache(function(t,k)
+local count_cache = make_cache(function(t, k)
 		local s = "*" .. k
 		t[k] = s
 		return s
 	end)
 
 local function compose_message(cmd, msg)
-	local t = type(msg)
 	local lines = {}
-
-	if t == "table" then
+	if type(msg) == "table" then
 		lines[1] = count_cache[#msg+1]
 		lines[2] = command_cache[cmd]
 		local idx = 3
 		for _,v in ipairs(msg) do
-			v= tostring(v)
+			v = tostring(v)
 			lines[idx] = header_cache[#v]
 			lines[idx+1] = v
 			idx = idx + 2
 		end
-		lines[idx] = "\r\n"
+		lines[idx] = CRLF
 	else
 		msg = tostring(msg)
 		lines[1] = "*2"
 		lines[2] = command_cache[cmd]
 		lines[3] = header_cache[#msg]
 		lines[4] = msg
-		lines[5] = "\r\n"
+		lines[5] = CRLF
 	end
 
 	return concat(lines)
@@ -158,51 +139,97 @@ local function redis_login(sock, auth, db)
 	return true
 end
 
-function redis.connect(db_conf)
-	local sock = tcp:new()
-	if not sock then
-		return nil, "Can't Create redis Socket"
-	end
-	local ok = sock:connect(db_conf.host, db_conf.port or 6379)
-	if not ok then
-		return nil, "Sorry, Connect redis server error."
-	end
-	local ok, err = redis_login(sock, db_conf.auth, db_conf.db)
-	if not ok then
-		return nil, "redis login error."
-	end
-	return true, setmetatable({ sock }, meta)
-end
-
-setmetatable(command, { __index = function(t, k)
-	local cmd = string.upper(k)
+-- redis
+local command = setmetatable({ __name = "Redis"}, {__index = function(t, k)
+	local cmd = upper(k)
 	local f = function (self, v, ...)
+		local sock = self.sock
 		if type(v) == "table" then
-			self[1]:send(compose_message(cmd, v))
-			return read_response(self[1])
+			sock:send(compose_message(cmd, v))
+			return read_response(sock)
 		else
-			self[1]:send(compose_message(cmd, {v, ...}))
-			return read_response(self[1])
+			sock:send(compose_message(cmd, {v, ...}))
+			return read_response(sock)
 		end
 	end
 	t[k] = f
 	return f
 end})
 
-local function read_boolean(so)
-	local ok, result = read_response(so)
+function command:connect(opt)
+	local sock = self.sock
+	if not sock then
+		return nil, "Can't Create redis Socket"
+	end
+	local ok, err = sock:connect(opt.host, opt.port or 6379)
+	if not ok then
+		return nil, "redis connect error: please check network"
+	end
+	local ok, err = redis_login(sock, opt.auth, opt.db)
+	if not ok then
+		return nil, "redis login error:"..(err or 'close')
+	end
+	self.state = true
+	return true
+end
+
+local function read_boolean(sock)
+	local ok, result = read_response(sock)
 	return ok, result ~= 0
 end
 
+-- 查询键是否存在
 function command:exists(key)
-	self[1]:send(compose_message ("EXISTS", key))
-	return read_boolean(self[1])
+	local sock = self.sock
+	sock:send(compose_message ("EXISTS", key))
+	return read_boolean(sock)
 end
 
+-- 查询键
 function command:sismember(key, value)
-	self[1]:send(compose_message ("SISMEMBER", {key, value}))
-	return read_boolean(self[1])
+	local sock = self.sock
+	sock:send(compose_message ("SISMEMBER", {key, value}))
+	return read_response(sock)
 end
 
+-- 执行指定普通脚本
+function command:eval(script, ...)
+	local sock = self.sock
+	local t = {'EVAL', '"'..script..'"', #{...}, ...}
+	sock:send(concat(t, " ")..CRLF)
+	return read_response(sock)
+end
 
-return redis
+-- 执行指定sha1脚本()
+function command:evalsha(sha, ...)
+	local values = {...}
+	local sock = self.sock
+	local t = {'EVALSHA', sha, #{...}, ...}
+	sock:send(concat(t, " ")..CRLF)
+	return read_response(sock)
+end
+
+-- 批量注册事务脚本到redis
+function command:loadscripts(scripts)
+	local Cache = {}
+	local sock = self.sock
+	for index, script in ipairs(scripts) do
+		local t = {'SCRIPT', 'LOAD', '"'..script..'"', CRLF}
+		sock:send(concat(t, " "))
+		local ok, result = read_response(sock)
+		if not ok then
+			return nil, fmt("complite index:%d script error: %", index, err)
+		end
+		Cache[index] = result
+	end
+	return true, Cache
+end
+
+function command:close()
+	self.sock:close()
+	self.close = nil
+	setmetatable(self, nil)
+end
+
+-- new_tab -> command -> __index
+return {new = function () return setmetatable({sock = tcp:new()}, {__index = command}) end }

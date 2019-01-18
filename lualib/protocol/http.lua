@@ -310,7 +310,7 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 				end
 			end
 		end
-		if HEADER['Content-Type'] then
+		if HEADER['Content-Type'] or HEADER['content-type'] then
 			local JSON_ENCODE = 'application/json'
 			local FILE_ENCODE = 'multipart/form-data'
 			local URL_ENCODE = 'application/x-www-form-urlencoded'
