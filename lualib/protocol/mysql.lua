@@ -388,7 +388,6 @@ function MySQL.connect(self, opts)
 
     local ok = sock:connect(host, port)
     if not ok then
-        self:close()
         return nil, "Connect failed"
     end
 
@@ -526,9 +525,6 @@ function MySQL.close(self)
 end
 
 function MySQL.send_query(self, query)
-    if self.state ~= STATE_CONNECTED then
-        return nil, "cannot send query in the current context: ".. (self.state or "nil")
-    end
 
     self.packet_no = -1
 

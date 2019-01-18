@@ -165,7 +165,7 @@ local function execute(query)
     -- print(QUERY)
     local db, ret, err
     while 1 do
-        local db = get_db()
+        db = get_db()
         if db then
             ret, err = db:query(QUERY)
             if db.state then
@@ -173,6 +173,7 @@ local function execute(query)
             end
             log.error(err)
             db:close()
+            db, ret, err = nil
         end
     end
     if #wlist > 0 then
@@ -374,26 +375,25 @@ function DB.init(driver, user, passwd, max_pool)
     end
     DB_CREATE = function(...)
         local times = 1
-        local db, err
+        local db
         while 1 do
-            db, err = mysql:new()
-            if not db then
-                return log.error(err)
-            end
-            local ok, err, errno, sqlstate = db:connect({
+            db = mysql:new()
+            local OK, CONNECTED, ERR = pcall(db.connect, db, {
                 host = HOST or "localhost",
                 port = tonumber(PORT) or 3306,
                 database = DATABASE,
                 user = USER,
                 password = PASSWD,
             })
-            if ok then
+            if OK and CONNECTED then
                 break
             end
             if times > 5 then
+                db:close()
                 error("超过最大重试次数, 请检查网络连接后重启MySQL与本服务")
             end
-            log.error('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
+            log.error('第'..tostring(times)..'次连接失败:'..ERR.." 3 秒后尝试再次连接")
+            db:close()
             times = times + 1
             timer.sleep(3)
         end
@@ -485,7 +485,7 @@ function DB.query(query)
     assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
     local db, ret, err
     while 1 do
-        local db = get_db()
+        db = get_db()
         if db then
             ret, err = db:query(query)
             if db.state then
@@ -493,6 +493,7 @@ function DB.query(query)
             end
             log.error(err)
             db:close()
+            db, ret, err = nil
         end
     end
     if #wlist > 0 then
