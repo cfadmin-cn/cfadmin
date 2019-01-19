@@ -13,8 +13,8 @@ local protocol4 = {}
 
 -- required modules
 local string = require("string")
-local bit = require("mqtt.bit")
-local protocol = require("mqtt.protocol")
+local bit = require("protocol.mqtt.bit")
+local protocol = require("protocol.mqtt.protocol")
 
 
 -- cache to locals
