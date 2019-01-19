@@ -36,7 +36,7 @@ end
 
 -- 超时器 --
 function Timer.timeout(timeout, cb)
-    if not timeout or timeout <= 0 then
+    if type(timeout) ~= 'number' or timeout <= 0 then
         return
     end
     local t = Timer_new()
@@ -61,7 +61,7 @@ end
 
 -- 循环定时器 --
 function Timer.at(repeats, cb)
-    if not repeats or repeats <= 0 then
+    if type(repeats) ~= 'number' or repeats <= 0 then
         return
     end
     local t = Timer_new()
@@ -88,7 +88,7 @@ end
 
 -- 循环定时器 --
 function Timer.sleep(repeats)
-    if not repeats or repeats <= 0 then
+    if type(repeats) ~= 'number' or repeats <= 0 then
         return
     end
     local t = Timer_new()
