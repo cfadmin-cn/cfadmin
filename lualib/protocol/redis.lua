@@ -19,6 +19,9 @@ local function read_response(sock)
 	local result = ""
 	while 1 do
 		local data = sock:recv(1)
+		if not data then
+			return nil, "server close"
+		end
 		result = result .. data
 		if find(result, CRLF) then
 			break
@@ -193,18 +196,17 @@ function command:sismember(key, value)
 end
 
 -- 执行指定普通脚本
-function command:eval(script, ...)
+function command:eval(script, numbers, ...)
 	local sock = self.sock
-	local t = {'EVAL', '"'..script..'"', #{...}, ...}
+	local t = {'EVAL', '"'..script..'"', numbers, ...}
 	sock:send(concat(t, " ")..CRLF)
 	return read_response(sock)
 end
 
--- 执行指定sha1脚本()
-function command:evalsha(sha, ...)
-	local values = {...}
+-- 执行指定sha1脚本
+function command:evalsha(sha, numbers, ...)
 	local sock = self.sock
-	local t = {'EVALSHA', sha, #{...}, ...}
+	local t = {'EVALSHA', sha, numbers, ...}
 	sock:send(concat(t, " ")..CRLF)
 	return read_response(sock)
 end
@@ -223,6 +225,25 @@ function command:loadscripts(scripts)
 		Cache[index] = result
 	end
 	return true, Cache
+end
+
+function command:get_config(key)
+	local t = {"CONFIG", "GET"}
+	if key then
+		t[#t+1] = key
+	else
+		t[#t+1] = '*'
+	end
+	local sock = self.sock
+	sock:send(concat(t, " ")..CRLF)
+	return read_response(sock)
+end
+
+function command:set_config(key, value)
+	local t = {"CONFIG", "SET", key, value, CRLF}
+	local sock = self.sock
+	sock:send(concat(t, " "))
+	return read_response(sock)
 end
 
 function command:close()

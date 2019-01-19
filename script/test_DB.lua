@@ -2,9 +2,15 @@ local DB = require "DB"
 local co = require "internal.Co"
 require "utils"
 
-local ok = DB.init("mysql://localhost:3306/test", "root", "123456789")
+local ok, err = DB.init({
+    host = "localhost",
+    port = 3306,
+    database = "test",
+    user = "root",
+    password = "123456789"
+    })
 if not ok then
-    return print("连接mysql 失败")
+    return print("连接mysql 失败: "..err)
 end
 
 --[[

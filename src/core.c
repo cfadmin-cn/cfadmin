@@ -22,7 +22,7 @@ core_timer_start(core_loop *loop, core_timer *timer, ev_tstamp timeout){
 void
 core_timer_stop(core_loop *loop, core_timer *timer){
 
-	timer->repeat = timer->at = 0;
+	timer->repeat = timer->at = 0x0;
 
 	ev_timer_again(loop ? loop : CORE_LOOP, timer);
 

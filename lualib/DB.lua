@@ -63,23 +63,13 @@ local GROUPBY = "GROUP BY"
 
 local COMMA = ", "
 
+local INITIALIZATION
+
 -- 最大DB连接数量
-local MAX, COUNT
-
--- 主机名, 端口
-local HOST, PORT
-
--- 用户名、密码
-local USER, PASSWD
-
--- DB
-local DATABASE
+local MAX, COUNT = 50, 0
 
 -- 空闲连接时间
 local WAIT_TIMEOUT = 2592000
-
--- 数据库连接池
-local POOL = {}
 
 -- 数据库连接创建函数
 local DB_CREATE
@@ -87,8 +77,19 @@ local DB_CREATE
 -- 等待db对象的协程列表
 local wlist = {}
 
+local function add_wait(co)
+    wlist[#wlist+1] = co
+end
+
+local function pop_wait()
+    return remove(wlist)
+end
+
+-- 数据库连接池
+local POOL = {}
+
 local function add_db(db)
-    POOL[#POOL + 1] = {session = db, ttl = os_time() }
+    POOL[#POOL + 1] = { session = db, ttl = os_time() }
 end
 
 -- 负责创建连接/加入等待队列
@@ -100,9 +101,8 @@ local function get_db()
             if db.ttl > os_time() - WAIT_TIMEOUT then
                 return db.session
             end
-            COUNT = COUNT - 1
             db.session:close()
-            db = nil
+            COUNT = COUNT - 1
         end
     end
     if COUNT < MAX then
@@ -114,8 +114,7 @@ local function get_db()
         COUNT = COUNT - 1
         -- 连接失败或者其他情况, 将等待其他协程唤醒; 保证公平竞争数据库连接
     end
-    local co = co_self()
-    insert(wlist, co)
+    add_wait(co_self())
     return co_wait()
 end
 
@@ -177,7 +176,7 @@ local function execute(query)
         end
     end
     if #wlist > 0 then
-        co_wakeup(remove(wlist), db)
+        co_wakeup(pop_wait(), db)
     else
         add_db(db)
     end
@@ -355,44 +354,37 @@ end
 local DB = {}
 
 -- 初始化数据库
-function DB.init(driver, user, passwd, max_pool)
-    if not user then
-        return log.error("请填写数据库用户名")
+function DB.init(opt)
+    if INITIALIZATION then
+        return nil, "DB已经初始化."
     end
-    USER = user
-    if not passwd then
-        return log.error("请填写数据库密码")
+    if type(opt) ~= 'table' then
+        return nil, '错误的DB配置文件.'
     end
-    PASSWD = passwd
-    COUNT = 0
-    MAX = max_pool or 100
-    local DB, HOST, PORT, DATABASE = match(driver, '([^:]+)://([^:]+):(%d+)/(.+)')
-    if not DB or lower(DB) ~= 'mysql' then
-        return error("暂不支持其他数据库驱动")
+    if type(opt.max) == 'number' then
+        MAX = opt.max
     end
-    if (not HOST or HOST == '') or (not PORT or PORT == '') then
-        return error("请输入正确的主机名或端口")
-    end
+    local config = {
+        host = opt.host or 'localhost',
+        port = opt.port or 3306,
+        database = opt.database,
+        user = opt.user,
+        password = opt.password,
+    }
     DB_CREATE = function(...)
         local times = 1
         local db
         while 1 do
             db = mysql:new()
-            local OK, CONNECTED, ERR = pcall(db.connect, db, {
-                host = HOST or "localhost",
-                port = tonumber(PORT) or 3306,
-                database = DATABASE,
-                user = USER,
-                password = PASSWD,
-            })
-            if OK and CONNECTED then
+            local OK, connect, err = pcall(db.connect, db, config)
+            if OK and connect then
                 break
             end
             if times > 5 then
                 db:close()
                 error("超过最大重试次数, 请检查网络连接后重启MySQL与本服务")
             end
-            log.error('第'..tostring(times)..'次连接失败:'..ERR.." 3 秒后尝试再次连接")
+            log.error('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
             db:close()
             times = times + 1
             timer.sleep(3)
@@ -401,17 +393,17 @@ function DB.init(driver, user, passwd, max_pool)
         db:query(fmt('set interactive_timeout=%s', tostring(WAIT_TIMEOUT)))
         return db
     end
-    local db = get_db()
-    if not db then
-        return false
-    end
-    add_db(db)
+    add_db(get_db())
+    INITIALIZATION = true
     return true
 end
 
 
 -- 查询语句
 function DB.select(fields)
+    if not INITIALIZATION then
+        return nil, "DB尚未初始化"
+    end
     local tpy = type(fields)
     assert(tpy == "string" or tpy == "table", "错误的字段类型(fields):"..tostring(fields))
     local query = {
@@ -437,6 +429,9 @@ end
 
 -- 插入语句
 function DB.insert(table_name)
+    if not INITIALIZATION then
+        return nil, "DB尚未初始化"
+    end
     local tpy = type(table_name)
     assert(tpy == "string", "错误的表名(table_name):"..tostring(table_name))
     return {
@@ -451,6 +446,9 @@ end
 
 -- 更新语句
 function DB.update(table_name)
+    if not INITIALIZATION then
+        return nil, "DB尚未初始化"
+    end
     local tpy = type(table_name)
     assert(tpy == "string" or tpy == "tables", "错误的表名(table_name):"..tostring(table_name))
     return {
@@ -466,6 +464,9 @@ end
 
 -- 删除语句
 function DB.delete(table_name)
+    if not INITIALIZATION then
+        return nil, "DB尚未初始化"
+    end
     local tpy = type(table_name)
     assert(tpy == "string" or tpy == "tables", "错误的表名(table_name):"..tostring(table_name))
     return {
@@ -482,6 +483,9 @@ end
 
 -- 原始SQL
 function DB.query(query)
+    if not INITIALIZATION then
+        return nil, "DB尚未初始化"
+    end
     assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
     local db, ret, err
     while 1 do
@@ -497,14 +501,14 @@ function DB.query(query)
         end
     end
     if #wlist > 0 then
-        co_wakeup(remove(wlist), db)
+        co_wakeup(pop_wait(), db)
     else
         add_db(db)
     end
     return ret, err
 end
 
-function DB.len( ... )
+function DB.count( ... )
     return #POOL
 end
 
