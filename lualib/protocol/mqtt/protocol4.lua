@@ -12,7 +12,6 @@ local protocol4 = {}
 
 
 -- required modules
-local string = require("string")
 local bit = require("protocol.mqtt.bit")
 local protocol = require("protocol.mqtt.protocol")
 

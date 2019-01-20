@@ -1,6 +1,6 @@
 local log  = require "log"
-
 local task = require "task"
+
 local task_new = task.new
 local task_start = task.start
 
@@ -16,7 +16,7 @@ local remove = table.remove
 local cos = {}
 
 local main_co = co_self()
-local main_task = task.new()
+local main_task = task_new()
 
 local TASK_POOL = {}
 
@@ -83,7 +83,7 @@ function Co.spwan(func, ...)
 	if func and type(func) == "function" then
 		local co = co_pop(f)
 		cos[co] = task_pop()
-		return task.start(cos[co], co, func, ...)
+		return task_start(cos[co], co, func, ...)
 	end
 	error("Co Just Can Spwan a Coroutine to run in sometimes.")
 end
@@ -102,7 +102,7 @@ function Co.wakeup(co, ...)
 	if not t then
 		return log.error("Can't find co in co list.")
 	end
-	return task.start(t, co, ...)
+	return task_start(t, co, ...)
 end
 
 function Co.count()
