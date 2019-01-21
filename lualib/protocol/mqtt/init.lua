@@ -5,35 +5,35 @@ local protocol_version = '3.1.1'
 
 local library_version = "1.4.2"
 
-
 local require = require
+local string = require "string"
+local calss = require "class"
+local tcp = require "internal.TCP"
+local protocol = require "protocol.mqtt.protocol"
+local protocol4 = require "protocol.mqtt.protocol4"
 
--- required modules
-local string = require("string")
-local calss = require("class")
-local tcp = require("internal.TCP")
-local protocol = require("protocol.mqtt.protocol")
-local protocol4 = require("protocol.mqtt.protocol4")
-
+local packet_type = protocol.packet_type
+local next_packet_id = protocol.next_packet_id
+local packet_id_required = protocol.packet_id_required
+local packet_tostring = protocol.packet_tostring
+local make_packet4 = protocol4.make_packet
+local parse_packet4 = protocol4.parse_packet
+local connack_return_code = protocol4.connack_return_code
 
 -- cache to locals
+local type = type
+local pairs = pairs
+local assert = assert
+local tostring = tostring
 local setmetatable = setmetatable
+
+local os_time = os.time
 local str_match = string.match
 local str_format = string.format
 local str_gsub = string.gsub
 local tbl_remove = table.remove
 local math_random = math.random
 local math_randomseed = math.randomseed
-local os_time = os.time
-local packet_type = protocol.packet_type
-local make_packet4 = protocol4.make_packet
-local parse_packet4 = protocol4.parse_packet
-local connack_return_code = protocol4.connack_return_code
-local next_packet_id = protocol.next_packet_id
-local packet_id_required = protocol.packet_id_required
-local packet_tostring = protocol.packet_tostring
-
-
 -- Empty function to do nothing on MQTT client events
 local empty_func = function() end
 
@@ -49,7 +49,7 @@ function client:ctor(opt)
 	self.auth = opt.auth
 	self.will = opt.will
 	self.handlers = empty_func
-	print(self.id)
+	self.queue = {}
 end
 
 function client:on(event, func)
@@ -190,7 +190,7 @@ function client:connect()
 	-- wait for CONNACK with return code == 0
 	local packet, err = self:_wait_packet()
 	if not packet then
-		return false, "waiting for CONNACK failed"
+		return false, "waiting for CONNACK failed: "..tostring(err)
 	end
 	-- check received packet type and return code
 	if packet.type ~= packet_type.CONNACK then
@@ -218,7 +218,6 @@ function client:_wait_packet( ... )
 end
 
 function client:_wait_packet_exact(args)
-	self.queue = {}
 	while true do
 		-- receive next packet
 		local packet, err = self:_wait_packet()

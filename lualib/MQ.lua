@@ -22,6 +22,7 @@ function MQ:ctor(opt)
     self.host = opt.host
     self.port = opt.port
     self.auth = opt.auth
+    self.ssl = opt.ssl
     self.TOPIC = {}
     self.init = true
 end
