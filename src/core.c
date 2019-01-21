@@ -112,13 +112,13 @@ core_start(core_loop *loop, int mode){
 
 static void
 SIG_CB(core_loop *loop, core_signal *signal, int revents){
-	// printf("~~~~!!!\n");
+	LOG("WARN", "RECV SIGNAL...");
 	return ;
 }
 
 static void
 ERROR_CB(const char *msg){
-	printf("EV_ERROR: [%s]\n", msg);
+	LOG("ERROR", msg);
 	return ;
 }
 
@@ -230,16 +230,16 @@ init_main(){
 		switch(status){
 			case LUA_ERRFILE :
 				LOG("ERROR", "Can't find file or load file Error.");
-				break;
+				exit(-1);
 			case LUA_ERRSYNTAX:
 				LOG("ERROR", lua_tostring(L, -1));
-				break;
+				exit(-1);
 			case LUA_ERRMEM:
 				LOG("ERROR", "Memory Allocated faild.");
-				break;
+				exit(-1);
 			case LUA_ERRGCMM:
 				LOG("ERROR", "An Error from lua GC Machine.");
-				break;
+				exit(-1);
 		}
 		return ;
 	}
@@ -247,7 +247,7 @@ init_main(){
 	status = lua_resume(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
-		return lua_close(L);
+		return lua_close(L), exit(-1);
 	}
 	if (status == LUA_YIELD) {
 		signal_init();

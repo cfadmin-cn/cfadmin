@@ -207,7 +207,19 @@ function client:_wait_packet( ... )
 		return false, "network connection is not opened"
 	end
 	local recv_func = function(size)
-		return self:recv(size)
+		local size = size
+		local buf = ''
+		while 1 do
+			local data, len = self:recv(size)
+			if not data then
+				return
+			end
+			buf = buf..data
+			if len == size then
+				return buf
+			end
+			size = size - len
+		end
 	end
 	-- parse packet
 	local packet, err = parse_packet4(recv_func)

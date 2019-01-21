@@ -581,7 +581,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 							return sock:close()
 						end
 						if code == 302 or code == 301 then -- 重定向必须给出完整url
-							sock:send(concat({REQUEST_STATUCODE_RESPONSE(statucode), 'Date: ' .. HTTP_DATE(), 'Allow: GET, POST, HEAD', 'Access-Control-Allow-Origin: *',
+							sock:send(concat({REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(), 'Allow: GET, POST, HEAD', 'Access-Control-Allow-Origin: *',
 							'server: ' .. (server or 'cf/0.1'), "Location: "..(url or "https://github.com/CandyMi/core_framework")}, CRLF)..CRLF2)
 							return sock:close()
 						end
