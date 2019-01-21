@@ -287,4 +287,6 @@ function client:close( ... )
 	self.sock:close()
 end
 
+math_randomseed(os_time())
+
 return client

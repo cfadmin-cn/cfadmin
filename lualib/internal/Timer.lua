@@ -110,8 +110,8 @@ function Timer.sleep(repeats)
     local timer = {}
     timer.current_co = co_self()
     timer.co = co_new(function (...)
-        Timer[timer] = nil
         local current_co = timer.current_co
+        Timer[timer] = nil
         timer.current_co, timer.co = nil
         Timer_release(t)
         return co_wakeup(current_co)
