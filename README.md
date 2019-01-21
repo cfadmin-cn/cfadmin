@@ -2,6 +2,48 @@
 A Web light-framework for Lua based Libev
 
 ---
+## 介绍
+
+cf技术点相关整理:
+
+    1. 网络层
+
+        1.1 TCP
+
+        1.2 UDP
+
+    2. 协议
+
+        2.1 DNS
+
+        2.2 Websocket
+
+        2.3 HTTP
+
+        2.4 MQTT
+
+        2.5 MySQL
+
+        2.6 Redis
+
+    3. 工具
+
+        3.1 Timer(定时器)
+
+        3.2 task(异步协程)
+
+        3.3 DB(MySQL封装)
+
+        3.4 Cache(Redis封装)
+
+    4. 测试文件
+
+        script文件夹内
+
+    5. 文档(TODO)
+
+        暂无
+
 
 ## 安装要求
 
