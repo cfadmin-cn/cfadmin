@@ -272,7 +272,7 @@ local function HTTP_DATE(timestamp)
 	return DATE("%a, %d %b %Y %X GMT", timestamp)
 end
 
-local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
+local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
 	local ARGS, FILE
 	if METHOD == "HEAD" or METHOD == "GET" then
 		local spl_pos = find(PATH, '%?')
@@ -284,7 +284,7 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 				ARGS[key] = value
 			end
 		end
-	elseif METHOD == "POST" then
+	elseif METHOD == "POST" or METHOD == "PUT" then
 		local body_len = toint(HEADER['Content-Length'])
 		local BODY = ''
 		local RECV_BODY = true
@@ -298,12 +298,15 @@ local function PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
 		if RECV_BODY then
 			local buffers = {BODY}
 			while 1 do
-				local buf = sock:recv(8192)
+				local buf = sock:recv(1024)
 				if not buf then
 					return
 				end
 				insert(buffers, buf)
 				local buffer = concat(buffers)
+				if #buffer >= (max_body_size or 1024 * 1024) then
+					return nil, 413
+				end
 				if #buffer == body_len then
 					BODY = buffer
 					break
@@ -508,14 +511,17 @@ end
 
 function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local buffers = {}
-	local timeout = http.timeout
-	local routes = http.routes
-	local server = http.server
-	local host = http.host
 	local ttl = http.ttl
+	local routes = http.routes
+	local server = http.__server
+	local timeout = http.__timeout
+	local before_func = http._before_func
+	local max_path_size = http.__max_path_size
+	local max_header_size = http.__max_header_size
+	local max_body_size = http.__max_body_size
 	local sock = tcp:new():set_fd(fd):timeout(timeout or 15)
 	while 1 do
-		local buf = sock:recv(8192)
+		local buf = sock:recv(1024)
 		if not buf then
 			return sock:close()
 		end
@@ -528,38 +534,76 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			-- 协议有问题返回400
 			if not METHOD or not PATH or not VERSION then
 				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr))
-				sock:close()
-				return 
+				return sock:close()
+			end
+			-- 超过自定义最大PATH长度限制
+			if PATH and #PATH > (max_path_size or 65535) then
+				sock:send(ERROR_RESPONSE(http, 414, PATH, ipaddr))
+				return sock:close()
 			end
 			-- 没有HEADER返回400
 			local HEADER = REQUEST_HEADER_PARSER(buffer)
 			if not HEADER then
 				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr))
-				sock:close()
-				return 
+				return sock:close()
+			end
+			-- 超过自定义最大HEADER长度限制
+			if #buffer - CRLF_START > (max_header_size or 65535) then
+				sock:send(ERROR_RESPONSE(http, 431, PATH, ipaddr))
+				return sock:close()
 			end
 			-- 这里根据PATH先查找路由, 如果没有直接返回404.
 			local cls, typ = ROUTE_FIND(routes, PATH)
 			if not cls or not typ then
 				sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr))
-				sock:close()
-				return 
+				return sock:close()
 			end
 			-- 根据请求方法进行解析, 解析失败返回501
-			local ok, ARGS, FILE = PASER_METHOD(http, sock, buffer, METHOD, PATH, HEADER)
+			local ok, ARGS, FILE = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
 			if not ok then
+				if ARGS == 413 then
+					sock:send(ERROR_RESPONSE(http, 413, PATH, HEADER['X-Real-IP'] or ipaddr))
+					return sock:close()
+				end
 				sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr))
-				sock:close()
-				return 
+				return sock:close()
 			end
+			-- before 函数只影响接口与view
+			if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
+				local ok, code, url = pcall(before_func, {args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
+				if not ok then -- before 函数执行出错
+					sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr))
+					return sock:close()
+				else
+					if code ~= 200 then -- 不允许的情况下走这条规则
+						if not code or type(code) ~= 'number' then
+							sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr))
+							return sock:close()
+						end
+						if code == 302 or code == 301 then -- 重定向必须给出完整url
+							sock:send(concat({REQUEST_STATUCODE_RESPONSE(statucode), 'Date: ' .. HTTP_DATE(), 'Allow: GET, POST, HEAD', 'Access-Control-Allow-Origin: *',
+							'server: ' .. (server or 'cf/0.1'), "Location: "..(url or "https://github.com/CandyMi/core_framework")}, CRLF)..CRLF2)
+							return sock:close()
+						end
+						sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr))
+						return sock:close()
+					end
+				end
+			end
+
 			local header = { }
 
 			local ok, data, static, statucode
 
 			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
 				if type(cls) == "table" then
+					local method = cls[lower(METHOD)]
+					if not method or type(method) ~= 'function' then -- 注册的路由未实现这个方法
+						sock:send(ERROR_RESPONSE(http, 405, PATH, HEADER['X-Real-IP'] or ipaddr))
+						return sock:close()
+					end
 					local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
-					ok, data = pcall(c, c)
+					ok, data = pcall(method, c)
 				else
 					ok, data = pcall(cls, {args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
 				end
@@ -567,8 +611,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					log.error(data)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr))
-					sock:close()
-					return 
+					return sock:close()
 				end
 				statucode = 200
 				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
@@ -586,14 +629,12 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					log.error(data)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr))
-					sock:close()
-					return
+					return sock:close()
 				end
 				if not data then
 					statucode = 404
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr))
-					sock:close()
-					return
+					return sock:close()
 				else
 					statucode = 200
 					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
@@ -602,9 +643,8 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 
 			insert(header, 'Date: ' .. HTTP_DATE())
-			insert(header, 'Accept-Ranges: none')
 			insert(header, 'Allow: GET, POST, HEAD')
-			insert(header, fmt('Access-Control-Allow-Origin: %s', host or "*"))
+			insert(header, 'Access-Control-Allow-Origin: *')
 			insert(header, 'Access-Control-Allow-Methods: GET, POST, HEAD')
 			insert(header, 'server: ' .. (server or 'cf/0.1'))
 
@@ -630,13 +670,12 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			if not data and type(data) ~= 'string' then
 				statucode = 500
 				sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr))
-				sock:close()
-				return
+				return sock:close()
 			end
 			insert(header, 'Transfer-Encoding: identity')
 			insert(header, fmt('Content-Length: %d', #data))
 			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr)
-			sock:send(concat(header, CRLF) .. CRLF2 .. (data or ''))
+			sock:send(concat(header, CRLF) .. CRLF2 ..data)
 			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
 				return sock:close()
 			end

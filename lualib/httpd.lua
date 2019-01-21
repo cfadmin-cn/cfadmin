@@ -42,6 +42,47 @@ function httpd:use(route, class)
     end
 end
 
+-- 最大URI长度
+function httpd:max_path_size(path_size)
+    if type(path_size) == 'number' then
+        self.__max_path_size = path_size
+    end
+end
+
+-- 最大Header长度
+function httpd:max_header_size(header_size)
+    if type(header_size) == 'number' then
+        self.__max_header_size = header_size
+    end
+end
+
+-- 最大Body长度
+function httpd:max_body_size(body_size)
+    if type(body_size) == 'number' then
+        self.__max_body_size = body_size
+    end
+end
+
+-- 在路由函数被执行之后执行此方法
+function httpd:before(func)
+    if type(func) == 'function' then
+        self._before_func = func
+    end
+end
+
+-- 可自定义Server Name
+function httpd:server_name(server)
+    if type(server) == "string" then
+        self.__server = server
+    end
+end
+
+function httpd:timeout(timeout)
+    if type(timeout) == "number" then
+        self.__timeout = timeout
+    end
+end
+
 -- 注册静态文件读取路径, foldor是一个目录, ttl是静态文件缓存周期
 function httpd:static(foldor, ttl)
     if foldor and type(foldor) == 'string' and #foldor > 0 then
