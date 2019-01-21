@@ -1,6 +1,7 @@
 local log = require "log"
 local class = require "class"
 local co = require "internal.Co"
+local Timer = require "internal.Timer"
 local mqtt = require "protocol.mqtt"
 
 local co_spwan = co.spwan
@@ -25,6 +26,37 @@ function MQ:ctor(opt)
     self.init = true
 end
 
+function MQ:publish(topic, payload, retain)
+    if not self.queue then
+        self.queue = {{topic = topic, payload = payload, retain = retain}}
+        co_spwan(function ( ... )
+            local queue = self.queue
+            local index = 1
+            while 1 do
+                self.client = self.client or self:create_session()
+                if self.client then
+                    while 1 do
+                        local ok, err = self.client:publish(queue[index])
+                        if not ok then
+                            break
+                        end
+                        index = index + 1
+                        if index >= #queue then
+                            self.queue = nil
+                            return
+                        end
+                    end
+                    self.client:close()
+                    self.client = nil
+                end
+                log.error('[publish]: MQTT-Server断开了链接, 3秒后尝试重连..')
+                Timer.sleep(3)
+            end
+        end)
+    end
+    self.queue[#self.queue+1] = {topic = topic, payload = payload, retain = retain}
+end
+
 -- 注册感兴趣的消息主题
 function MQ:on(topic, func)
     assert(self and self.init, "调用on失败, 尚未初始化")
@@ -42,7 +74,8 @@ function MQ:create_session()
     local mq = mqtt:new {host = self.host, port = self.port, clean = true, ssl = self.ssl, auth = self.auth}
     local ok, err = mq:connect()
     if not ok then
-        return error("连接到MQ失败, 请检查网络与端口后重启本服务."..tostring(err))
+        mq:close()
+        return nil, log.error("连接到MQ失败, 请检查网络与端口后重启本服务."..tostring(err))
     end
     return mq
 end
@@ -52,13 +85,22 @@ function MQ:start()
     assert(self and self.init, "调用start失败, 尚未初始化")
     for _, t in ipairs(self.TOPIC) do
         co_spwan(function ()
+            local topic = t.topic
+            local func  = t.func
             while 1 do
                 local mq = self:create_session()
-                mq:subscribe { topic = t.topic }
-                mq:on("message", function (msg)
-                    return co_spwan(t.func, msg)
-                end)
-                mq:message_dispatch()
+                if mq then
+                    mq:subscribe { topic = topic }
+                    mq:on("message", function (msg)
+                        if topic == msg.topic then
+                            return co_spwan(func, msg)
+                        end
+                    end)
+                    mq:message_dispatch()
+                    mq:close()
+                end
+                log.error('[start]: MQTT-Server断开了链接, 3秒后尝试重连..')
+                Timer.sleep(3)
             end
         end)
     end

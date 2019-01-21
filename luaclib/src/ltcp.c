@@ -76,6 +76,7 @@ TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 			status = lua_resume(co, NULL, 0);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
+				core_io_stop(CORE_LOOP_ io);
 			}
 		}
 	}
@@ -86,6 +87,7 @@ TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 			status = lua_resume(co, NULL, 0);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
+				core_io_stop(CORE_LOOP_ io);
 			}
 		}
 	}
@@ -113,6 +115,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 			status = lua_resume(co, NULL, 1);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
+				core_io_stop(CORE_LOOP_ io);
 			}
 		}
 		return ;
@@ -125,6 +128,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 			status = lua_resume(co, NULL, 1);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
+				core_io_stop(CORE_LOOP_ io);
 			}
 		}
 		return ;
@@ -158,6 +162,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 			if (status != LUA_YIELD && status != LUA_OK) {
 				LOG("ERROR", lua_tostring(co, -1));
 				LOG("ERROR", "Error Lua Accept Method");
+				core_io_stop(CORE_LOOP_ io);
 			}
 		}
 	}

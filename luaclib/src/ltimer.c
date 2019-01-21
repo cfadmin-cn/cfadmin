@@ -16,6 +16,8 @@ TIMEOUT_CB(CORE_P_ core_timer *timer, int revents){
 
         	LOG( "ERROR", lua_tostring(co, -1));
 
+			core_timer_stop(CORE_LOOP_ timer);
+
         }
     }
 }

@@ -28,7 +28,7 @@ local os_time = os.time
 local packet_type = protocol.packet_type
 local make_packet4 = protocol4.make_packet
 local parse_packet4 = protocol4.parse_packet
-local connack_return_code = protocol.connack_return_code
+local connack_return_code = protocol4.connack_return_code
 local next_packet_id = protocol.next_packet_id
 local packet_id_required = protocol.packet_id_required
 local packet_tostring = protocol.packet_tostring
@@ -49,6 +49,7 @@ function client:ctor(opt)
 	self.auth = opt.auth
 	self.will = opt.will
 	self.handlers = empty_func
+	print(self.id)
 end
 
 function client:on(event, func)
@@ -149,12 +150,7 @@ function client:_send_packet(args)
 		return false, "network connection is not opened"
 	end
 	self:_assign_packet_id(args)
-	local data = tostring(make_packet4(args))
-	local len = data:len()
-	if len <= 0 then
-		return false, "sending empty packet"
-	end
-	return self:send(data)
+	return self:send(tostring(make_packet4(args)))
 end
 
 function client:_send_connect( ... )
