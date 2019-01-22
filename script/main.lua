@@ -3,16 +3,16 @@ local httpd = require "httpd"
 local app = httpd:new("App")
 
 -- 注册接口
-app:api("/httpc", require "hc")
-app:api("/echo", require "echo")
 app:api("/api", require "api")
 
 app:api("/app", function (opt)
-    return "<html><h1>this is test header</h1></html>"
+    return "<html><h1 align=center>this is test header<hr>cf/0.1</h1></html>"
 end)
 
 -- 注册普通路由(html/text)
-app:use("/view", require "view")
+app:use("/view", function (opt)
+    return "<html><h1 align=center>This is text/html content-type<hr></h1><body align=center>Server: cf/0.1</body></html>"
+end)
 
 -- 注册websocket路由
 app:ws("/ws", require "ws")

@@ -171,7 +171,7 @@ local function REQUEST_STATUCODE_RESPONSE(code)
 end
 
 local function REQUEST_MIME_RESPONSE(mime)
-	return MIME[mime] or MIME['html']
+	return MIME[mime]
 end
 
 function HTTP_PROTOCOL.FILEMIME(mime)
@@ -285,35 +285,35 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 			end
 		end
 	elseif METHOD == "POST" or METHOD == "PUT" then
-		local body_len = toint(HEADER['Content-Length'])
-		local BODY = ''
-		local RECV_BODY = true
-		local CRLF_START, CRLF_END = find(buffer, '\r\n\r\n')
-		if #buffer > CRLF_END then
-			BODY = split(buffer, CRLF_END + 1, -1)
-			if #BODY == body_len then
-				RECV_BODY = false
-			end
-		end
-		if RECV_BODY then
-			local buffers = {BODY}
-			while 1 do
-				local buf = sock:recv(1024)
-				if not buf then
-					return
-				end
-				insert(buffers, buf)
-				local buffer = concat(buffers)
-				if #buffer >= (max_body_size or 1024 * 1024) then
-					return nil, 413
-				end
-				if #buffer == body_len then
-					BODY = buffer
-					break
+		local body_len = toint(HEADER['Content-Length'] or HEADER['content-type'])
+		if body_len then
+			local BODY = ''
+			local RECV_BODY = true
+			local CRLF_START, CRLF_END = find(buffer, CRLF2)
+			if #buffer > CRLF_END then
+				BODY = split(buffer, CRLF_END + 1, -1)
+				if #BODY == body_len then
+					RECV_BODY = false
 				end
 			end
-		end
-		if HEADER['Content-Type'] or HEADER['content-type'] then
+			if RECV_BODY then
+				local buffers = {BODY}
+				while 1 do
+					local buf = sock:recv(1024)
+					if not buf then
+						return
+					end
+					insert(buffers, buf)
+					local buffer = concat(buffers)
+					if #buffer >= (max_body_size or 1024 * 1024) then
+						return nil, 413
+					end
+					if #buffer == body_len then
+						BODY = buffer
+						break
+					end
+				end
+			end
 			local JSON_ENCODE = 'application/json'
 			local FILE_ENCODE = 'multipart/form-data'
 			local URL_ENCODE = 'application/x-www-form-urlencoded'
@@ -638,7 +638,13 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				else
 					statucode = 200
 					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
-					static = fmt('Content-Type: %s', REQUEST_MIME_RESPONSE(lower(file_type or '')))
+					local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
+					if not conten_type then
+						insert(header, 'Content-Disposition: attachment') -- 确保浏览器提示需要下载
+						static = fmt('Content-Type: %s', 'application/octet-stream')
+					else
+						static = fmt('Content-Type: %s', conten_type)
+					end
 				end
 			end
 
