@@ -393,14 +393,20 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 		sock:close()
 		return
 	end
-	local ok = sock:send(concat({
-			REQUEST_STATUCODE_RESPONSE(101),
-			'Connection: Upgrade',
-			'Server: '..(http.server or 'cf/0.1'),
-			'Upgrade: WebSocket',
-			'Sec-WebSocket-Accept: '..base64(sha1(sec_key..'258EAFA5-E914-47DA-95CA-C5AB0DC85B11')),
-			CRLF
-	}, CRLF))
+	local protocol = header['Sec-Websocket-Protocol']
+	local response = {
+		REQUEST_STATUCODE_RESPONSE(101),
+		'Date: ' .. HTTP_DATE(),
+		'Connection: Upgrade',
+		'Server: '..(http.server or 'cf/0.1'),
+		'Upgrade: WebSocket',
+		'Sec-WebSocket-Accept: '..base64(sha1(sec_key..'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))
+	}
+	if protocol then -- 仅支持协议回传, 具体实现由用户实现
+		insert(response, "Sec-Websocket-Protocol: "..tostring(protocol))
+	end
+	print(concat(response, CRLF)..CRLF2)
+	local ok = sock:send(concat(response, CRLF)..CRLF2)
 	if not ok then
 		return sock:close() 
 	end
