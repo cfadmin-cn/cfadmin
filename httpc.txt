@@ -1,5 +1,0 @@
-# 测试发送json请求解析到args内
-curl -X POST -d '{"a":"a","b":"b"}' http://localhost:8080/a/b -H 'Content-Type: application/json'
-
-# 测试发送urlencoded 内容发送到cjson内
-curl -X POST -d 'a=a&b=b' http://localhost:8080/a/b
