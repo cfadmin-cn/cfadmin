@@ -19,10 +19,12 @@ function MQ:ctor(opt)
     assert(type(opt.host) == 'string', '创建MQ失败: 错误的host')
     assert(type(opt.port) == 'number', '创建MQ失败: 错误的port')
     assert(not opt.auth or type(opt.auth) == 'table', '创建MQ失败: 错误的auth')
+    self.id = opt.id
     self.host = opt.host
     self.port = opt.port
     self.auth = opt.auth
     self.ssl = opt.ssl
+    self.clean = opt.clean
     self.TOPIC = {}
     self.init = true
 end
@@ -59,20 +61,20 @@ function MQ:publish(topic, payload, retain)
 end
 
 -- 注册感兴趣的消息主题
-function MQ:on(topic, func)
+function MQ:on(opt, func)
     assert(self and self.init, "调用on失败, 尚未初始化")
     for _, t in ipairs(self.TOPIC) do
-        if t.topic == topic then
+        if t.topic == opt.topic then
             return nil, log.error("多次注册同样的topic是无意义的")
         end
     end
-    self.TOPIC[#self.TOPIC+1] = {topic = topic, func = func}
+    self.TOPIC[#self.TOPIC+1] = {topic = opt.topic, queue = opt.queue, func = func}
 end
 
 -- 内部使用
 function MQ:create_session()
     assert(self and self.init, "调用create_session失败")
-    local mq = mqtt:new {host = self.host, port = self.port, clean = true, ssl = self.ssl, auth = self.auth}
+    local mq = mqtt:new {host = self.host, port = self.port, clean = self.clean, ssl = self.ssl, auth = self.auth, id = self.id}
     local ok, err = mq:connect()
     if not ok then
         mq:close()
@@ -88,13 +90,17 @@ function MQ:start()
         co_spwan(function ()
             local topic = t.topic
             local func  = t.func
+            local queue = t.queue
             while 1 do
                 local mq = self:create_session()
                 if mq then
                     mq:subscribe { topic = topic }
                     mq:on("message", function (msg)
                         if topic == msg.topic then
-                            return co_spwan(func, msg)
+                            if not queue then
+                                return co_spwan(func, msg) -- 异步
+                            end
+                            return func(msg) -- 同步
                         end
                     end)
                     mq:message_dispatch()

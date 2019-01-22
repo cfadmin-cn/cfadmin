@@ -6,6 +6,7 @@ local unpack = table.unpack
 
 local sub = string.sub
 local string = string
+local match = string.match
 local fmt = string.format
 local find = string.find
 local byte = string.byte
@@ -41,7 +42,7 @@ redcmd[36] = function(sock, data) -- '$'
 end
 
 redcmd[43] = function(sock, data) -- '+'
-	return true, data
+	return true, match(data, '(.+)'..CRLF)
 end
 
 redcmd[45] = function(sock, data) -- '-'
@@ -178,7 +179,52 @@ end
 
 local function read_boolean(sock)
 	local ok, result = read_response(sock)
-	return ok, result ~= 0
+	if ok then
+		return ok, result ~= 0 or result == "OK"
+	end
+	return ok, result
+end
+
+local function read_KV(sock)
+	local ok, array = read_response(sock)
+	if ok and #array & 0x1 == 0 then
+		local t = {}
+		for i=1, #array, 2 do
+			t[array[i]] = array[i+1]
+		end
+		return ok, t
+	end
+	return ok, array
+end
+
+function command:hgetall(map)
+	local sock = self.sock
+	sock:send(compose_message ("HGETALL", map))
+	return read_KV(sock)
+end
+
+function command:hmget(map, ...)
+	local sock = self.sock
+	sock:send(compose_message ("HMGET", {map, ...}))
+	return read_response(sock)
+end
+
+function command:hset(map, key, value)
+	local sock = self.sock
+	sock:send(compose_message ("HSET", {map, key, value}))
+	return read_boolean(sock) -- HSET 永远返回(true, false)
+end
+
+function command:hmset(map, ...)
+	local sock = self.sock
+	sock:send(compose_message ("HMSET", {map, ...}))
+	return read_boolean(sock) -- HSET 永远返回(true, false)
+end
+
+function command:set(key, value)
+	local sock = self.sock
+	sock:send(compose_message ("SET", {key, value}))
+	return read_boolean(sock)
 end
 
 -- 查询键是否存在

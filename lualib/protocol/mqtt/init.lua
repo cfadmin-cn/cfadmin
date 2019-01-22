@@ -43,7 +43,7 @@ function client:ctor(opt)
 	self.host = opt.host
 	self.port = opt.port
 	self.sock = tcp:new()
-	self.id = str_format("luamqtt-cf-v%s-%07X", library_version, math_random(1, 0xFFFFFFF))
+	self.id = opt.id or str_format("luamqtt-cf-v%s-%07X", library_version, math_random(1, 0xFFFFFFF))
 	self.ssl = opt.ssl
 	self.clean = opt.clean
 	self.auth = opt.auth
