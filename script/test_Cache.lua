@@ -26,7 +26,7 @@ end
 
 local t = timer.at(1, function ( ... )
     print('当前Cache连接数为:', Cache.count())
-    print('当前协程数连接数为:', Co.count())
+    print('当前协程数量为:', Co.count())
 end)
 
 Co.wait()

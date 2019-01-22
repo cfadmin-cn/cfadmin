@@ -5,6 +5,7 @@ local redis = require "protocol.redis"
 
 local type = type
 local error = error
+local pcall = pcall
 local toint = math.tointeger
 local tostring = tostring
 local setmetatable = setmetatable

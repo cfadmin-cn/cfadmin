@@ -405,7 +405,6 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 	if protocol then -- 仅支持协议回传, 具体实现由用户实现
 		insert(response, "Sec-Websocket-Protocol: "..tostring(protocol))
 	end
-	print(concat(response, CRLF)..CRLF2)
 	local ok = sock:send(concat(response, CRLF)..CRLF2)
 	if not ok then
 		return sock:close() 

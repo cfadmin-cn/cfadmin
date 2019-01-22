@@ -1,5 +1,6 @@
 local HTTP = require "protocol.http"
 local tcp = require "internal.TCP"
+local Co = require "internal.Co"
 local log = require "log"
 
 local fmt = string.format
@@ -137,7 +138,7 @@ end
 
 -- 正确的运行方式
 function httpd:run()
-    while 1 do coroutine.yield() end
+    return Co.wait()
 end
 
 return httpd

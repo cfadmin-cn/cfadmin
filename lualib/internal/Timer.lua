@@ -3,6 +3,7 @@ local ti = require "timer"
 local log = require "log"
 
 local type = type
+local pcall = pcall
 local ti_new = ti.new
 local ti_start = ti.start
 local ti_stop = ti.stop

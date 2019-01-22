@@ -26,6 +26,16 @@ log.level
 
 --]]
 
+local debug_getinfo = debug.getinfo
+
+local tostring = tostring
+
+local select = select
+
+local ipairs = ipairs
+
+local type = type
+
 local concat = table.concat
 
 local date = os.date
@@ -94,7 +104,7 @@ for i, x in ipairs(modes) do
     end
 
     local msg = tostring(...)
-    local info = debug.getinfo(2, "Sl")
+    local info = debug_getinfo(2, "Sl")
     local lineinfo = "[C]:[-1]"
     if info then
       lineinfo = info.short_src .. ":" .. info.currentline
