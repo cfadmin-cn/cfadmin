@@ -112,7 +112,7 @@ core_start(core_loop *loop, int mode){
 
 static void
 SIG_CB(core_loop *loop, core_signal *signal, int revents){
-	LOG("WARN", "RECV SIGNAL...");
+	// LOG("WARN", "RECV SIGNAL...");
 	return ;
 }
 

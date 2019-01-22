@@ -1,24 +1,16 @@
 local log = require "log"
 local json = require "json"
 local crypt = require "crypt"
-local co = require "internal.Co"
 local tcp = require "internal.TCP"
 local httpparser = require "httpparser"
 
-local wbproto = require "protocol.websocket.protocol"
-local _recv_frame = wbproto.recv_frame
-local _send_frame = wbproto.send_frame
+local wsserver = require "protocol.websocket.server"
 
 local json_encode = json.encode
 local json_decode = json.decode
 
 local sha1 = crypt.sha1
 local base64 = crypt.base64encode
-
-local co_self = co.self
-local co_wait = co.wait
-local co_spwan = co.spwan
-local co_wakeup = co.wakeup
 
 local REQUEST_PROTOCOL_PARSER = httpparser.parser_request_protocol
 local RESPONSE_PROTOCOL_PARSER = httpparser.parser_response_protocol
@@ -415,103 +407,8 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 		sock:close()
 		return
 	end
-	sock._timeout = nil
-	local send_masked = c.sen_masked
-	local max_payload_len = c.max_payload_len or 65535
-	local on_open = assert(type(c.on_open) == 'function' and c.on_open, "Can't find websocket on_open method")
-	local on_message = assert(type(c.on_message) == 'function' and c.on_message, "Can't find websocket on_message method")
-	local on_error = assert(type(c.on_error) == 'function' and c.on_error, "Can't find websocket on_error method")
-	local on_close = assert(type(c.on_close) == 'function' and c.on_close, "Can't find websocket on_close method")
-	local on_ping = c.on_ping
-	local on_pong = c.on_pong
-
-	local current_co = co_self()
-	local write_co
-
-	local write_list = {}
-	local websocket = setmetatable({}, { __name = "WebSocket", __index = function (t, key)
-		return function(data, binary)
-			if not t.CLOSE == true then return end -- 如果已经发送了close则不允许再发送任何协议
-			if key == 'ping' then
-				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x9, data, max_payload_len, send_masked) end
-			elseif key == "pong" then
-				write_list[#write_list + 1] = function() _send_frame(sock, true, 0xa, data, max_payload_len, send_masked) end
-			elseif key == 'send' then
-				if data and type(data) == 'string' then
-					local code = 0x1
-					if binary then
-						code = 0x2
-					end
-					write_list[#write_list + 1] = function () _send_frame(sock, true, code, data, max_payload_len, send_masked) end
-				end
-			elseif key == "close" then
-				t.CLOSE = true
-				write_list[#write_list + 1] = function() _send_frame(sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..(data or ""), max_payload_len, send_masked) end
-				write_list[#write_list + 1] = function() sock:close() end
-				write_list[#write_list + 1] = function() co_wakeup(current_co) end
-			end
-			return co_wakeup(write_co)
-		end
-	end})
-	local ok, err = pcall(on_open, c, websocket)
-	if not ok then
-		log.error(err)
-		return sock:close()
-	end
-	co_spwan(function (...)
-		local sock = sock
-		write_co = co_self()
-		while 1 do
-			for index, f in ipairs(write_list) do
-				local ok, err = pcall(f)
-				if not ok then
-					log.error(err)
-				end
-			end
-			write_list = {}
-			co_wait()
-			if #write_list == 0 then
-				write_co = nil
-				write_list = nil
-				return
-			end
-		end
-	end)
-
-	while 1 do
-		local data, typ, err =_recv_frame(sock, max_payload_len, true)
-		if (not data and not typ) or typ == 'close' then
-			if websocket.CLOSE ~= true then
-				websocket.CLOSE = true
-				sock:close()
-			end
-			if err then
-				local ok, err = pcall(on_error, c, websocket, err)
-				if not ok then
-					log.error(err)
-				end
-			end
-			local ok, err = pcall(on_close, c, websocket, data)
-			if not ok then
-				log.error(err)
-			end
-			return co_wakeup(write_co)
-		end
-		if typ == 'ping' then
-			if not on_ping then 
-				write_list[#write_list + 1] = {f = websocket.pong(data)} 
-			else
-				co_spwan(on_ping, c, websocket, data, typ == 'binary')
-			end
-		elseif typ == 'pong' then
-			if on_open then
-				co_spwan(on_pong, c, websocket, data, typ == 'binary')
-			end
-		elseif typ == 'text' or typ == 'binary' then
-			co_spwan(on_message, c, websocket, data, typ == 'binary')
-		else -- 其他情况与不支持的协议什么都不做.
-		end
-	end
+	local ws = wsserver:new({cls = cls, sock = sock})
+	return ws:start()
 end
 
 function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
