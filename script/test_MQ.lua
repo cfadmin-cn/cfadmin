@@ -20,16 +20,8 @@ local timer = Timer.at(0.01, function ( ... )
     rr = rr % #topics + 1
 end)
 
-mq:on("luamqtt/login", function (msg)
+mq:on({topic = "LUAMQTT/login", queue = false, qos = 1, retain = true}, function (msg)
     print("recv from [luamqtt/login] msg:", msg)
-end)
-
-mq:on("luamqtt/user", function (msg)
-    print("recv from [luamqtt/user] msg:", msg)
-end)
-
-mq:on("luamqtt/log", function (msg)
-    print("recv from [luamqtt/log] msg:", msg)
 end)
 
 -- var_dump(mq)
