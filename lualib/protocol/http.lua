@@ -589,6 +589,10 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 			buffers = {}
 		end
+		if #buffers ~= 0 and #buffer > (max_header_size or 65535) then
+			sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER['X-Real-IP'] or ipaddr))
+			return sock:close()
+		end
 	end
 end
 
