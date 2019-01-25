@@ -6,8 +6,9 @@ local API = class("API")
 function API:ctor(opt)
     self.args = opt.args
     self.method = opt.method
-    self.header = opt.header
-    self.file = opt.file
+    self.headers = opt.headers
+    self.files = opt.files
+    self.body = opt.body
 end
 
 function API:get()

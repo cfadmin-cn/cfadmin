@@ -389,8 +389,8 @@ function httpc.file(domain, HEADER, FILES, TIMEOUT)
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
 		fmt("Host: %s\r\n", DOMAIN..port),
-		'Accept: */*',
-		'Accept-Encoding: identity',
+		'Accept: */*\r\n',
+		'Accept-Encoding: identity\r\n',
 		fmt("Connection: keep-alive\r\n"),
 		fmt("User-Agent: %s\r\n", SERVER),
 	}

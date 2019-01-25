@@ -1,14 +1,9 @@
 local log = require "log"
-local json = require "json"
-local crypt = require "crypt"
 local tcp = require "internal.TCP"
 local httpparser = require "httpparser"
-
 local wsserver = require "protocol.websocket.server"
 
-local json_encode = json.encode
-local json_decode = json.decode
-
+local crypt = require "crypt"
 local sha1 = crypt.sha1
 local base64 = crypt.base64encode
 
@@ -265,19 +260,19 @@ local function HTTP_DATE(timestamp)
 end
 
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
-	local ARGS, FILE
+	local content = {}
 	if METHOD == "HEAD" or METHOD == "GET" then
 		local spl_pos = find(PATH, '%?')
 		if spl_pos and spl_pos < #PATH then
 			for key, value in splite(PATH, '([^%?&]*)=([^%?&]*)') do
-				if not ARGS then
-					ARGS = {}
+				if not content['args'] then
+					content['args'] = {}
 				end
-				ARGS[key] = value
+				content['args'][key] = value
 			end
 		end
 	elseif METHOD == "POST" or METHOD == "PUT" then
-		local body_len = toint(HEADER['Content-Length'] or HEADER['content-type'])
+		local body_len = toint(HEADER['Content-Length']) or toint(HEADER['content-type'])
 		if body_len then
 			local BODY = ''
 			local RECV_BODY = true
@@ -306,37 +301,42 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 					end
 				end
 			end
-			local JSON_ENCODE = 'application/json'
 			local FILE_ENCODE = 'multipart/form-data'
-			local URL_ENCODE = 'application/x-www-form-urlencoded'
+			local XML_ENCODE  = 'application/xml'
+			local JSON_ENCODE = 'application/json'
+			local URL_ENCODE  = 'application/x-www-form-urlencoded'
 			local format = match(HEADER['Content-Type'], '(.-/[^;]*)')
 			if format == FILE_ENCODE then
 				local BOUNDARY = match(HEADER['Content-Type'], '^.+=[%-]*(.+)')
 				if BOUNDARY and BOUNDARY ~= '' then
-					FILE = {}
+					local FILES = {}
 					for file in splite(BODY, '\r\n\r\n(.-)\r\n[%-]*'..BOUNDARY) do
-						insert(FILE, file)
+						insert(FILES, file)
 					end
+					content['files'] = FILES
 				end
 			elseif format == JSON_ENCODE then
-				local ok, args = pcall(json_decode, BODY)
-				if ok then
-					ARGS = args
-				end
+				content['json'] = true
+				content['body'] = BODY
+			elseif format == XML_ENCODE then
+				content['xml'] = true
+				content['body'] = BODY
 			elseif format == URL_ENCODE then
 				for key, value in splite(BODY, '([^%?&]*)=([^%?&]*)') do
-					if not ARGS then
-						ARGS = {}
+					if not content['args'] then
+						content['args'] = {}
 					end
-					ARGS[key] = value
+					content['args'][key] = value
 				end
+			else
+				content['body'] = BODY
 			end
 		end
 	else
 		-- 暂未支持其他方法
 		return
 	end
-	return true, ARGS, FILE
+	return true, content
 end
 
 -- 一些错误返回
@@ -461,18 +461,19 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				return sock:close()
 			end
 			-- 根据请求方法进行解析, 解析失败返回501
-			local ok, ARGS, FILE = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
+			local ok, content = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
 			if not ok then
-				if ARGS == 413 then
+				if content == 413 then
 					sock:send(ERROR_RESPONSE(http, 413, PATH, HEADER['X-Real-IP'] or ipaddr))
 					return sock:close()
 				end
 				sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr))
 				return sock:close()
 			end
+			content['method'], content['path'], content['headers'] = METHOD, PATH, HEADER
 			-- before 函数只影响接口与view
 			if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
-				local ok, code, url = pcall(before_func, {args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
+				local ok, code, url = pcall(before_func, content)
 				if not ok then -- before 函数执行出错
 					sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr))
 					return sock:close()
@@ -483,8 +484,13 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 							return sock:close()
 						end
 						if code == 302 or code == 301 then -- 重定向必须给出完整url
-							sock:send(concat({REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(), 'Allow: GET, POST, HEAD', 'Access-Control-Allow-Origin: *',
-							'server: ' .. (server or 'cf/0.1'), "Location: "..(url or "https://github.com/CandyMi/core_framework")}, CRLF)..CRLF2)
+							sock:send(concat({
+								REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
+								'Allow: GET, POST, HEAD',
+								'Access-Control-Allow-Origin: *',
+								'server: ' .. (server or 'cf/0.1'),
+								"Location: "..(url or "https://github.com/CandyMi/core_framework")
+							}, CRLF)..CRLF2)
 							return sock:close()
 						end
 						sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr))
@@ -504,10 +510,10 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 						sock:send(ERROR_RESPONSE(http, 405, PATH, HEADER['X-Real-IP'] or ipaddr))
 						return sock:close()
 					end
-					local c = cls:new({args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
+					local c = cls:new(content)
 					ok, data = pcall(method, c)
 				else
-					ok, data = pcall(cls, {args = ARGS, file = FILE, method = METHOD, path = PATH, header = HEADER})
+					ok, data = pcall(cls, content)
 				end
 				if not ok then
 					log.error(data)
