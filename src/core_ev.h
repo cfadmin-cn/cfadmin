@@ -10,9 +10,9 @@
 
 #define EV_VERIFY 0
 
-// #define EV_USE_4HEAP 1
+#define EV_USE_4HEAP 1
 
-// #define EV_HEAP_CACHE_AT 1
+#define EV_HEAP_CACHE_AT 1
 
 /* 单进程/单线程模型 */
 #define EV_NO_SMP 1

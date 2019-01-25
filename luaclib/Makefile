@@ -15,7 +15,6 @@ CFLAGS = -Wall -Os -fPIC --shared
 build :
 
 	$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore
-	$(CC) -o snapshot.so src/lsnapshot.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o udp.so src/ludp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o task.so src/ltask.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
@@ -28,7 +27,6 @@ rebuild :
 
 	rm -rf *.so
 	$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore
-	$(CC) -o snapshot.so src/lsnapshot.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o udp.so src/ludp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o task.so src/ltask.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore

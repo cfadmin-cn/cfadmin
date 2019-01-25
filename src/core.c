@@ -99,7 +99,7 @@ core_default_loop(){
 
 void
 core_break(core_loop *loop, int mode){
-	ev_break(loop ? loop : CORE_LOOP, mode);
+	return ev_break(loop ? loop : CORE_LOOP, mode);
 }
 
 
