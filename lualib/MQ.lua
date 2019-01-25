@@ -21,8 +21,8 @@ math_randomseed(os_time())
 local MQ = class("MQ")
 
 function MQ:ctor(opt)
-    self.host = opt.host
-    self.port = opt.port
+    self.host = opt.host or 'localhost'
+    self.port = opt.port or 1883
     self.auth = opt.auth
     self.ssl = opt.ssl
     self.keep_alive = opt.keep_alive
@@ -46,7 +46,7 @@ function MQ:on(opt, func)
             return nil, log.error("多次注册同样的topic是无意义的")
         end
     end
-    self.TOPIC[#self.TOPIC+1] = {id = opt.id, topic = opt.topic, queue = opt.queue, qos = opt.qos, func = func}
+    self.TOPIC[#self.TOPIC+1] = { id = opt.id, clean = opt.clean, topic = opt.topic, queue = opt.queue, qos = opt.qos, func = func }
 end
 
 -- 内部创建使用
@@ -70,7 +70,7 @@ function MQ:start()
             local mq
             if type(qos) ~= "number" and (qos < 0 or qos > 2 ) then qos = 0 end
             while 1 do
-                mq = self:create_session { id = id, clean = clean }
+                mq = self:create_session { id = tostring(id), clean = clean }
                 if mq then
                     mq:subscribe { topic = topic, qos = qos, payload = ''}
                     mq:on("message", function (msg)
@@ -79,10 +79,12 @@ function MQ:start()
                         end
                         return func(msg) -- 同步处理消息
                     end)
+                    log.info(tostring(id).." 已连接到 MQTT Server, "..'正在订阅:'..topic)
                     mq:message_dispatch()
+                    log.warn("MQTT Server 主动关闭了["..tostring(id).."]的连接.")
                     mq:close()
-                    log.warn("服务端断开了连接")
                 end
+                log.warn("1秒后将尝试重新连接MQTT Server: ", self.host, ' port: ', self.port)
                 Timer.sleep(1)
             end
         end)

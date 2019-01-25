@@ -46,6 +46,8 @@ local ceil = math.ceil
 
 local floor = math.floor
 
+local toint = math.tointeger
+
 local fmt = string.format
 
 
@@ -68,29 +70,32 @@ local modes = {
 
 local levels = {}
 for i, v in ipairs(modes) do
-  levels[v.name] = i
+    levels[v.name] = i
 end
 
 
 local round = function(x, increment)
-  increment = increment or 1
-  x = x / increment
-  return (x > 0 and floor(x + .5) or ceil(x - .5)) * increment
+    if not toint(x) then
+      increment = increment or 1
+      x = x / increment
+      return (x > 0 and floor(x + .5) or ceil(x - .5)) * increment
+    end
+    return x
 end
 
 
 local _tostring = tostring
 
 local tostring = function(...)
-  local t = {}
-  for i = 1, select('#', ...) do
-    local x = select(i, ...)
-    if type(x) == "number" then
-      x = round(x, .01)
+    local t = {}
+    for i = 1, select('#', ...) do
+      local x = select(i, ...)
+      if type(x) == "number" then
+        x = round(x, .01)
+      end
+      t[#t + 1] = _tostring(x)
     end
-    t[#t + 1] = _tostring(x)
-  end
-  return concat(t, " ")
+    return concat(t, " ")
 end
 
 

@@ -40,7 +40,7 @@ local client = class("mqtt")
 function client:ctor(opt)
 	self.host = opt.host
 	self.port = opt.port
-	self.sock = tcp:new()
+	self.sock = tcp:new():timeout(15) -- 超时时间将会再tcp连接后被清除
 	self.id = opt.id
 	self.ssl = opt.ssl
 	self.clean = opt.clean
@@ -325,10 +325,15 @@ function client:recv(size)
 end
 
 function client:connection(ip, port)
+	local ok, err
 	if self.ssl then
-		return self.sock:ssl_connect(ip, port)
+		ok, err = self.sock:ssl_connect(ip, port)
+		self.sock._timeout = nil
+		return ok, err
 	end
-	return self.sock:connect(ip, port)
+	ok, err = self.sock:connect(ip, port)
+	self.sock._timeout = nil
+	return ok, err
 end
 
 function client:close( ... )
