@@ -59,8 +59,11 @@ function Timer.timeout(timeout, cb)
         Timer_release(t)
         local ok, err = pcall(cb)
         if not ok then
-           log.error('timeout error:', err)
+            log.error('timeout error:', err)
         end
+        Timer[timer] = nil
+        timer.STOP = true
+        timer.co = nil
     end)
     Timer[timer] = timer
     ti_start(t, timeout, timer.co)

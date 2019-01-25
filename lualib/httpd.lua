@@ -3,7 +3,11 @@ local tcp = require "internal.TCP"
 local Co = require "internal.Co"
 local log = require "log"
 
+local type = type
+
 local fmt = string.format
+local match = string.match
+local io_open = io.open
 local os_date = os.date
 local os_time = os.time
 
@@ -91,10 +95,9 @@ function httpd:static(foldor, ttl)
         if ttl and ttl > 0 then
             self.ttl = ttl
         end
-        local match = string.match
         HTTP_ROUTE_REGISTERY(self.routes, './'..foldor, function (path)
             if path then
-                local FILE = io.open(path, "rb")
+                local FILE = io_open(path, "rb")
                 if not FILE then
                     return
                 end
@@ -116,7 +119,7 @@ function httpd:tolog(code, path, ip)
     if self.logpath then
         if not self.logfile then
             local err
-            self.logfile, err = io.open(self.logpath, "a")
+            self.logfile, err = io_open(self.logpath, "a")
             if not self.logfile then
                 return log.error(self.logpath..":"..err)
             end
@@ -130,7 +133,7 @@ function httpd:tolog(code, path, ip)
 end
 
 -- 监听请求
-function httpd:listen (ip, port)
+function httpd:listen(ip, port)
     return self.IO:listen(ip, port, function (fd, ipaddr)
         return EVENT_DISPATCH(fd, ipaddr, self)
     end)
