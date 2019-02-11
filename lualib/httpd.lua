@@ -1,9 +1,11 @@
 local HTTP = require "protocol.http"
 local tcp = require "internal.TCP"
 local Co = require "internal.Co"
+local class = require "class"
 local log = require "log"
 
 local type = type
+local ipairs = ipairs
 
 local fmt = string.format
 local match = string.match
@@ -17,11 +19,11 @@ local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
 -- 注册HTTP路由
 local HTTP_ROUTE_REGISTERY = HTTP.ROUTE_REGISTERY
 
-local class = require "class"
-
 local httpd = class("httpd")
 
 function httpd:ctor(opt)
+    self.API = HTTP.API
+    self.USE = HTTP.USE
     self.routes = {}
     self.IO = tcp:new()
 end
@@ -44,6 +46,19 @@ end
 function httpd:use(route, class)
     if route and (type(class) == "table" or type(class) == "function") then
         HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.USE)
+    end
+end
+
+-- 批量路由注册
+function httpd:group(target, prefix, array)
+    assert((target == self.API or target == self.USE) and type(prefix) == 'string' and type(array) == 'table' , "注册路由组失败")
+    for _, route in ipairs(array) do
+        local r, c = route['route'], route['class']
+        if target == self.USE then
+            self:use(prefix..r, c)
+        else
+            self:api(prefix..r, c)
+        end
     end
 end
 

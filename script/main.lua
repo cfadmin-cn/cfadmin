@@ -14,6 +14,12 @@ app:use("/view", function (opt)
     return "<html><h1 align=center>This is text/html content-type<hr></h1><body align=center>Server: cf/0.1</body></html>"
 end)
 
+-- 批量路由注册
+app:group(app.API, '/admin', require "admin")
+
+-- 批量路由注册
+app:group(app.USE, '/login', require "admin")
+
 -- 注册websocket路由
 app:ws("/ws", require "ws")
 
