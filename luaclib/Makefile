@@ -14,6 +14,7 @@ CFLAGS = -Wall -Os -fPIC --shared
 
 build :
 
+	$(CC) -o ip.so src/lip.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore
 	$(CC) -o udp.so src/ludp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
@@ -26,6 +27,7 @@ build :
 rebuild :
 
 	rm -rf *.so
+	$(CC) -o ip.so src/lip.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore
 	$(CC) -o udp.so src/ludp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore

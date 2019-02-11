@@ -1,10 +1,14 @@
 local UDP = require "internal.UDP"
 local co = require "internal.Co"
+local ip = require "ip"
 local log = require "log"
 
 local co_self = co.self
 local co_wait = co.wait
 local co_wakeup = co.wakeup
+
+local check_ipv4 = ip.ipv4
+local check_ipv6 = ip.ipv6
 
 local LIMIT_HEADER_LEN = 12
 local MAX_THREAD_ID = 65535
@@ -48,25 +52,14 @@ local function check_cache(domain)
     return
 end
 
-local function check_ip(ip, version)
-    if version == 4 then
-        if not ip or type(ip) ~= 'string' then
-            return false
+local function check_ip(ip, v6)
+    if ip then
+        if check_ipv4(ip) then
+            return true, 'ipv4'
         end
-        if #ip > 15 or #ip < 7 then
-            return false
+        if v6 and check_ipv6(ip) then
+            return true, 'ipv6'
         end
-        local num_list = {nil, nil, nil, nil}
-        for num in splite(ip, '(%d+)') do
-            if tonumber(num) < 0 or tonumber(num) > 255 then
-                return false
-            end
-            insert(num_list, tonumber(num))
-        end
-        if #num_list ~= 4 then
-            return false
-        end
-        return true
     end
 end
 
@@ -75,8 +68,8 @@ local function gen_cache()
     dns_cache['localhost'] = { ip = "127.0.0.1"}
     if file then
         for line in file:lines() do
-            local ip, domain = match(line, '([%d%.]+)[%t ]*(.-)$')
-            if check_ip(ip, 4) then
+            local ip, domain = match(line, '([%d%.:]+)[%t ]*(.-)$')
+            if check_ip(ip) then
                 if not dns_cache[domain] then
                     dns_cache[domain] = {ip = ip}
                 else
@@ -93,7 +86,7 @@ if #dns_list < 1 then
     if file then
         for line in file:lines() do
             local ip = match(line, "nameserver (.-)$")
-            local YES = check_ip(ip, 4)
+            local YES = check_ip(ip)
             if YES then
                 insert(dns_list, ip)
             end
@@ -236,7 +229,7 @@ local function dns_query(domain)
         dns_cache[domain] = {ip = answer.ip, ttl = now() + answer.ttl}
     end
     local ip = answer.ip
-    if not check_ip(ip, 4) then
+    if not check_ip(ip) then
         return nil, "unknown ip in this domain: "..domain
     end
     -- local e_n_d = os.time() + os.clock()
@@ -266,7 +259,7 @@ function dns.resolve(domain, v6)
         return nil, "attemp to resolve a nil or empty host name."
     end
     -- 如果是正确的ipv4地址直接返回
-    local ok = check_ip(domain, 4)
+    local ok = check_ip(domain, v6)
     if ok then
         return ok, domain
     end
