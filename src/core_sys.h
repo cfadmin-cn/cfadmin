@@ -29,6 +29,12 @@
     #define EWOULDBLOCK EAGAIN
 #endif
 
+union {
+    struct sockaddr s;
+    struct sockaddr_in v4;
+    struct sockaddr_in6 v6;
+}SOCKADDR;
+
 #define non_blocking(socket) (fcntl(socket, F_SETFL, fcntl(socket, F_GETFL, 0) | O_NONBLOCK));
 
 /* [datetime][level][file][function][line][具体打印内容] */
