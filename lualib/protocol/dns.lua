@@ -52,12 +52,12 @@ local function check_cache(domain)
     return
 end
 
-local function check_ip(ip, v6)
+local function check_ip(ip)
     if ip then
         if check_ipv4(ip) then
             return true, 'ipv4'
         end
-        if v6 and check_ipv6(ip) then
+        if check_ipv6(ip) then
             return true, 'ipv6'
         end
     end
@@ -253,13 +253,13 @@ function dns.timeout(timeout)
     dns._timeout = timeout
 end
 
-function dns.resolve(domain, v6)
+function dns.resolve(domain)
     -- 如果传进来一个空值, 则直接返回false
     if not domain or domain == '' then
         return nil, "attemp to resolve a nil or empty host name."
     end
     -- 如果是正确的ipv4地址直接返回
-    local ok = check_ip(domain, v6)
+    local ok = check_ip(domain)
     if ok then
         return ok, domain
     end
