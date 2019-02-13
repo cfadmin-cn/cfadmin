@@ -147,7 +147,7 @@ local function IO_CONNECT(IO, PROTOCOL, DOAMIN, PORT)
 		local ok, err = IO:connect(DOAMIN, toint(PORT))
 		if not ok then
 			IO:close()
-			return ok, err
+			return false, 'httpc 连接失败'
 		end
 		return true
 	end
@@ -158,7 +158,7 @@ local function IO_CONNECT(IO, PROTOCOL, DOAMIN, PORT)
 		local ok = IO:ssl_connect(DOAMIN, toint(PORT))
 		if not ok then
 			IO:close()
-			return ok, err
+			return false, 'httpc ssl连接失败'
 		end
 		return true
 	end
@@ -187,21 +187,40 @@ local function IO_SEND(IO, PROTOCOL, DATA)
 	return nil, "IO_SEND error! unknow PROTOCOL: "..tostring(PROTOCOL)
 end
 
--- HTTP GET
-function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 
-	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
-
+local function splite_protocol(domain)
+	local PROTOCOL, DOMAIN, PATH = match(domain, '(http[s]?)://([^/]+)([/]?.*)')
 	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
-		return nil, "Invaild protocol from http get ."
+		return nil, "Invaild protocol"
 	end
-
 	if not PATH or PATH == '' then
 		PATH = '/'
 	end
 
-	local port = toint(PORT)
-	if port or (port ~= 80 or port ~= 443) then
+	local times = 0
+	for colon in splite(DOMAIN, ":") do
+		times = times + 1
+	end
+
+	local PORT
+	if times == 1 then
+		DOMAIN, PORT = match(DOMAIN, "(.+):([%d]+)")
+	elseif times > 1 then
+		local domain, port = match(DOMAIN, "%[(.+)%][:]?([%d]*)")
+		if domain and port then
+			DOMAIN, PORT = domain, port
+		end
+	end
+	return PROTOCOL, DOMAIN, PORT, PATH
+end
+
+
+-- HTTP GET
+function httpc.get(domain, HEADER, ARGS, TIMEOUT)
+
+	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
+
+	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
 		port = ":"..PORT
 	else
 		port = ""
@@ -248,18 +267,9 @@ end
 -- HTTP POST
 function httpc.post(domain, HEADER, BODY, TIMEOUT)
 
-	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
+	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
 
-	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
-		return nil, "Invaild protocol from http post ."
-	end
-
-	if not PATH or PATH == '' then
-		PATH = '/'
-	end
-
-	local port = toint(PORT)
-	if port or (port ~= 80 or port ~= 443) then
+	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
 		port = ":"..PORT
 	else
 		port = ""
@@ -313,18 +323,9 @@ end
 
 function httpc.json(domain, HEADER, JSON, TIMEOUT)
 
-	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
+	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
 
-	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
-		return nil, "Invaild protocol from http json ."
-	end
-
-	if not PATH or PATH == '' then
-		PATH = '/'
-	end
-
-	local port = toint(PORT)
-	if port or (port ~= 80 or port ~= 443) then
+	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
 		port = ":"..PORT
 	else
 		port = ""
@@ -369,18 +370,9 @@ end
 
 function httpc.file(domain, HEADER, FILES, TIMEOUT)
 
-	local PROTOCOL, DOMAIN, PORT, PATH = match(domain, '(http[s]?)://([^/":]+)[:]?([%d]*)([/]?.*)')
+	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
 
-	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
-		return nil, "Invaild protocol from http file ."
-	end
-
-	if not PATH or PATH == '' then
-		PATH = '/'
-	end
-
-	local port = toint(PORT)
-	if port or (port ~= 80 or port ~= 443) then
+	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
 		port = ":"..PORT
 	else
 		port = ""

@@ -5,17 +5,8 @@
 #include <openssl/crypto.h>
 #include "../../src/core.h"
 
-#define SERVER 0
-#define CLIENT 1
-
-static int
-tcp_socket_new(const char *ipaddr, int port, int mode){
-
-	errno = 0;
-	/* 建立socket*/
-	int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (0 >= sockfd) return -1;
-
+static inline
+void SETSOCKETOPT(int sockfd){
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
 
@@ -26,17 +17,44 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 
      /* 关闭小包延迟合并算法 */
 	setsockopt(sockfd, SOL_SOCKET, TCP_NODELAY, &ENABLE, sizeof(ENABLE));
+}
 
+/* server fd */
+static int
+create_server_fd(int port, int v6){
+	errno = 0;
+	int PROTOCOL_FAMILY = AF_INET;
+	if (V6 == v6) PROTOCOL_FAMILY = AF_INET6;
 
-	struct sockaddr_in sock_addr;
-	memset(&sock_addr, 0, sizeof(sock_addr));
+	/* 建立socket*/
+	int sockfd = socket(PROTOCOL_FAMILY, SOCK_STREAM, IPPROTO_TCP);
+	if (0 >= sockfd) return -1;
 
-	if (mode == SERVER){
-		sock_addr.sin_family = AF_INET;
-		sock_addr.sin_port = htons(port);
-		sock_addr.sin_addr.s_addr = INADDR_ANY;
+	SETSOCKETOPT(sockfd);
 
-		int bind_siccess = bind(sockfd, (struct sockaddr *)&sock_addr, sizeof(struct sockaddr));
+	if (V6 == v6) {
+		struct sockaddr_in6 SA;
+		SA.sin6_family = PROTOCOL_FAMILY;
+		SA.sin6_port = htons(port);
+		SA.sin6_addr = in6addr_any;
+
+		int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(SA));
+		if (0 > bind_siccess) {
+			return -1; /* 绑定套接字失败 */
+		}
+
+		int listen_success = listen(sockfd, 128);
+		if (0 > listen_success) {
+			return -1; /* 监听套接字失败 */
+		}
+
+	}else{
+		struct sockaddr_in SA;
+		SA.sin_family = PROTOCOL_FAMILY;
+		SA.sin_port = htons(port);
+		SA.sin_addr.s_addr = INADDR_ANY;
+
+		int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(SA));
 		if (0 > bind_siccess) {
 			return -1; /* 绑定套接字失败 */
 		}
@@ -46,12 +64,39 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 			return -1; /* 监听套接字失败 */
 		}
 	}
-	if(mode == CLIENT){
-		sock_addr.sin_family = AF_INET;
-		sock_addr.sin_port = htons(port);
-		sock_addr.sin_addr.s_addr = inet_addr(ipaddr);
+	return sockfd;
+}
 
-		connect(sockfd, (struct sockaddr*)&sock_addr, sizeof(struct sockaddr));
+/* client fd */
+static int
+create_client_fd(const char *ipaddr, int port, int v6){
+	errno = 0;
+	int PROTOCOL_FAMILY = AF_INET;
+	if (V6 == v6) PROTOCOL_FAMILY = AF_INET6;
+
+	/* 建立socket*/
+	int sockfd = socket(PROTOCOL_FAMILY, SOCK_STREAM, IPPROTO_TCP);
+	if (0 >= sockfd) return -1;
+
+	SETSOCKETOPT(sockfd);
+
+	if (V6 == v6) {
+		struct sockaddr_in6 SA;
+		SA.sin6_family = PROTOCOL_FAMILY;
+		SA.sin6_port = htons(port);
+		inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
+		connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
+		if (errno != EINPROGRESS){
+			close(sockfd);
+			return -1;
+		}
+
+	}else{
+		struct sockaddr_in SA;
+		SA.sin_family = PROTOCOL_FAMILY;
+		SA.sin_port = htons(port);
+		SA.sin_addr.s_addr = inet_addr(ipaddr);
+		connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
 		if (errno != EINPROGRESS){
 			close(sockfd);
 			return -1;
@@ -59,6 +104,8 @@ tcp_socket_new(const char *ipaddr, int port, int mode){
 	}
 	return sockfd;
 }
+
+
 
 static void
 TCP_IO_CB(CORE_P_ core_io *io, int revents) {
@@ -136,28 +183,50 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 }
 
 static void /* 接受链接 */
-IO_ACCEPT(CORE_P_ core_io *io, int revents){
+IO_ACCEPT4(CORE_P_ core_io *io, int revents){
 
 	if (revents & EV_READ){
 		errno = 0;
-
-		struct sockaddr_in addr;
-		memset(&addr, 0, sizeof(addr));
-
+		struct sockaddr_in SA;
 		socklen_t slen = sizeof(struct sockaddr_in);
-		int client = accept(io->fd, (struct sockaddr*)&addr, &slen);
+		int client = accept(io->fd, (struct sockaddr*)&SA, &slen);
 		if (0 >= client) {
-			LOG("INFO", strerror(errno));
-			return ;
+			LOG("INFO", strerror(errno)); return ;
 		}
 
 		lua_State *co = (lua_State *) core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-
 			lua_pushinteger(co, client);
+			lua_pushlstring(co, inet_ntoa(SA.sin_addr), strlen(inet_ntoa(SA.sin_addr)));
+			int status = lua_resume(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
+			if (status != LUA_YIELD && status != LUA_OK) {
+				LOG("ERROR", lua_tostring(co, -1));
+				LOG("ERROR", "Error Lua Accept Method");
+				core_io_stop(CORE_LOOP_ io);
+			}
+		}
+	}
 
-			lua_pushlstring(co, inet_ntoa(addr.sin_addr), strlen(inet_ntoa(addr.sin_addr)));
+}
 
+static void /* 接受链接 */
+IO_ACCEPT6(CORE_P_ core_io *io, int revents){
+
+	if (revents & EV_READ){
+		errno = 0;
+		struct sockaddr_in6 SA;
+		socklen_t slen = sizeof(struct sockaddr_in6);
+		int client = accept(io->fd, (struct sockaddr*)&SA, &slen);
+		if (0 >= client) {
+			LOG("INFO", strerror(errno)); return ;
+		}
+
+		lua_State *co = (lua_State *) core_get_watcher_userdata(io);
+		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+			char buf[INET6_ADDRSTRLEN];
+			inet_ntop(AF_INET6, &SA.sin6_addr, buf, INET6_ADDRSTRLEN);
+			lua_pushinteger(co, client);
+			lua_pushlstring(co, buf, strlen(buf));
 			int status = lua_resume(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
 			if (status != LUA_YIELD && status != LUA_OK) {
 				LOG("ERROR", lua_tostring(co, -1));
@@ -284,29 +353,48 @@ tcp_sslwrite(lua_State *L){
 }
 
 int
-new_tcp_fd(lua_State *L){
-
+new_server_fd(lua_State *L){
 	const char *ip = lua_tostring(L, 1);
 	if(!ip) return 0;
 
 	int port = lua_tointeger(L, 2);
 	if(!port) return 0;
 
-	int type = lua_tointeger(L, 3);
-	if(type != SERVER && type != CLIENT) return 0;
+	int v4 = create_server_fd(port, V4);
+	if (0 >= v4) return 0;
 
-	int fd = tcp_socket_new(ip, port, type);
+	int v6 = create_server_fd(port, V6);
+	if (0 >= v6) return 0;
+
+	lua_pushinteger(L, v4);
+
+	lua_pushinteger(L, v6);
+
+	return 2;
+}
+
+int
+new_client_fd(lua_State *L){
+	const char *ip = lua_tostring(L, 1);
+	if(!ip) return 0;
+
+	int port = lua_tointeger(L, 2);
+	if(!port) return 0;
+
+	struct in6_addr addr;
+	int v = V4;
+	if (inet_pton(AF_INET6, ip, &addr) == 1) v = V6;
+
+	int fd = create_client_fd(ip, port, v);
 	if (0 >= fd) return 0;
 
 	lua_pushinteger(L, fd);
 
 	return 1;
-
 }
 
-int
-tcp_listen(lua_State *L){
-
+static inline
+int check_arguments(lua_State *L){
 	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
 	if(!io) return 0;
 
@@ -318,9 +406,38 @@ tcp_listen(lua_State *L){
 	lua_State *co = lua_tothread(L, 3);
 	if (!co) return 0;
 
-	core_set_watcher_userdata(io, co);
+	return 1;
+}
 
-	core_io_init(io, IO_ACCEPT, fd, EV_READ);
+int
+tcp_listen4(lua_State *L){
+
+	int ok = check_arguments(L);
+	if (!ok) return luaL_error(L, "listen4 arguments error!");
+
+	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
+
+	core_set_watcher_userdata(io, lua_tothread(L, 3));
+
+	core_io_init(io, IO_ACCEPT4, lua_tointeger(L, 2), EV_READ);
+
+	core_io_start(CORE_LOOP_ io);
+
+	return 0;
+
+}
+
+int
+tcp_listen6(lua_State *L){
+
+	int ok = check_arguments(L);
+	if (!ok) return luaL_error(L, "listen6 arguments error!");
+
+	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
+
+	core_set_watcher_userdata(io, lua_tothread(L, 3));
+
+	core_io_init(io, IO_ACCEPT6, lua_tointeger(L, 2), EV_READ);
 
 	core_io_start(CORE_LOOP_ io);
 
@@ -478,16 +595,13 @@ tcp_close(lua_State *L){
 
 LUAMOD_API int
 luaopen_tcp(lua_State *L){
-
 	luaL_checkversion(L);
-
 	/* 添加SSL支持 */
     SSL_library_init();
     SSL_load_error_strings();
     // CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
     // OpenSSL_add_ssl_algorithms();
 	/* 添加SSL支持 */
-
 	luaL_newmetatable(L, "__TCP__");
 	lua_pushstring (L, "__index");
 	lua_pushvalue(L, -2);
@@ -504,13 +618,15 @@ luaopen_tcp(lua_State *L){
 		{"stop", tcp_stop},
 		{"start", tcp_start},
 		{"close", tcp_close},
-		{"listen", tcp_listen},
+		{"listen4", tcp_listen4},
+		{"listen6", tcp_listen6},
 		{"connect", tcp_connect},
 		{"ssl_connect", tcp_sslconnect},
 		{"new", tcp_new},
 		{"new_ssl", ssl_new},
 		{"free_ssl", ssl_free},
-		{"new_tcp_fd", new_tcp_fd},
+		{"new_server_fd", new_server_fd},
+		{"new_client_fd", new_client_fd},
 		{NULL, NULL}
 	};
 	luaL_setfuncs(L, tcp_libs, 0);
