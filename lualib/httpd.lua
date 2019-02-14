@@ -130,7 +130,7 @@ function httpd:log(path)
     log.outfile = self.logpath
 end
 
-function httpd:tolog(code, path, ip)
+function httpd:tolog(code, path, ip, ip_list)
     if self.logpath then
         if not self.logfile then
             local err
@@ -139,7 +139,7 @@ function httpd:tolog(code, path, ip)
                 return log.error(self.logpath..":"..err)
             end
         end
-        local ok, err = self.logfile:write(fmt("[%s] - %s - %s - %d\r\n", os_date("%Y/%m/%d %H:%M:%S"), ip, path, code))
+        local ok, err = self.logfile:write(fmt("[%s] - %s - %s - %s - %d\r\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, code))
         if not ok then
             return log.error(self.logpath..":"..err)
         end
