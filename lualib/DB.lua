@@ -376,8 +376,8 @@ function DB.init(opt)
         local db
         while 1 do
             db = mysql:new()
-            local OK, connect, err = pcall(db.connect, db, config)
-            if OK and connect then
+            local connect, err = db:connect(config)
+            if connect then
                 break
             end
             if times > 5 then

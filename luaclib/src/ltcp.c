@@ -38,7 +38,7 @@ create_server_fd(int port, int v6){
 		SA.sin6_port = htons(port);
 		SA.sin6_addr = in6addr_any;
 
-		int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(SA));
+		int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(struct sockaddr_in6));
 		if (0 > bind_siccess) {
 			return -1; /* 绑定套接字失败 */
 		}
@@ -54,7 +54,7 @@ create_server_fd(int port, int v6){
 		SA.sin_port = htons(port);
 		SA.sin_addr.s_addr = INADDR_ANY;
 
-		int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(SA));
+		int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(struct sockaddr));
 		if (0 > bind_siccess) {
 			return -1; /* 绑定套接字失败 */
 		}

@@ -264,7 +264,7 @@ function TCP:connect(ip, port)
         if connected then
             return co_wakeup(co, true)
         end
-        return co_wakeup(co)
+        return co_wakeup(co, false, '连接失败')
     end)
     self.timer = ti.timeout(self._timeout, function ( ... )
         tcp_push(self.CONNECT_IO)

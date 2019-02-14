@@ -65,15 +65,13 @@ end
 
 local function gen_cache()
     local file = io.open("/etc/hosts", "r")
-    dns_cache['localhost'] = { ip = "127.0.0.1"}
+    dns_cache['localhost'] = {ip = "127.0.0.1"}
     if file then
         for line in file:lines() do
-            local ip, domain = match(line, '([%d%.:]+)[%t ]*(.-)$')
+            local ip, domain = match(line, '([^# %t]*)[%t ]*(.*)$')
             if check_ip(ip) then
                 if not dns_cache[domain] then
                     dns_cache[domain] = {ip = ip}
-                else
-                    dns_cache[domain]["ip"] = ip
                 end
             end
         end
@@ -277,5 +275,6 @@ function dns.resolve(domain)
     end
     return dns_query(domain)
 end
-
+-- require "utils"
+-- var_dump(dns_cache)
 return dns
