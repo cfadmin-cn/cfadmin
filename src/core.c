@@ -221,10 +221,10 @@ init_main(){
 	lua_gc(L, LUA_GCSTOP, 0);
 
 	// 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
-	lua_gc(L, LUA_GCSETPAUSE, 200);
+	// lua_gc(L, LUA_GCSETPAUSE, 200);
 
 	// 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
-	lua_gc(L, LUA_GCSETSTEPMUL, 400);
+	// lua_gc(L, LUA_GCSETSTEPMUL, 200);
 
 	if(status != LUA_OK) {
 		switch(status){

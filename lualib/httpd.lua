@@ -145,6 +145,7 @@ function httpd:tolog(code, path, ip, ip_list)
         end
         self.logfile:flush()
     end
+    print(fmt("[%s] - %s - %s - %s - %d\r\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, code))
 end
 
 -- 监听请求
