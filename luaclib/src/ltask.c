@@ -44,6 +44,17 @@ task_start(lua_State *L){
 	return 0;
 }
 
+int
+task_stop(lua_State *L){
+	core_task *task = (core_task *) luaL_testudata(L, 1, "__Task__");
+	if (!task) return luaL_error(L, "attemp to pass a invaild core_task value.");
+
+	core_task_stop(CORE_LOOP_ task);
+
+	return 0;
+}
+
+
 LUAMOD_API int
 luaopen_task(lua_State *L){
 
@@ -60,6 +71,7 @@ luaopen_task(lua_State *L){
 	luaL_Reg task_libs[] = {
 		{"new", task_new},
 		{"start", task_start},
+		{"stop", task_stop},
 		{NULL, NULL}
 	};
 	luaL_setfuncs(L, task_libs, 0);
