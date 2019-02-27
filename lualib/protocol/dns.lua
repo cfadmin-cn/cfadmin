@@ -1,14 +1,14 @@
 local UDP = require "internal.UDP"
 local co = require "internal.Co"
-local ip = require "ip"
+local sys = require "sys"
 local log = require "log"
 
 local co_self = co.self
 local co_wait = co.wait
 local co_wakeup = co.wakeup
 
-local check_ipv4 = ip.ipv4
-local check_ipv6 = ip.ipv6
+local check_ipv4 = sys.ipv4
+local check_ipv6 = sys.ipv6
 
 local LIMIT_HEADER_LEN = 12
 local MAX_THREAD_ID = 65535
@@ -22,7 +22,6 @@ local match = string.match
 local splite = string.gmatch
 local pack = string.pack
 local unpack = string.unpack
-local tonumber = tonumber
 local type = type
 
 local dns = {}
