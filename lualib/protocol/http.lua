@@ -586,7 +586,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('json'))
 				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
 				insert(header, 'Cache-Control: no-cache')
-			elseif typ == HTTP_PROTOCOL.USE and METHOD == "GET" then
+			elseif typ == HTTP_PROTOCOL.USE then
 				insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8')
 				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
 				insert(header, 'Cache-Control: no-cache')
