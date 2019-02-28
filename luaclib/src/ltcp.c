@@ -6,7 +6,7 @@
 #include "../../src/core.h"
 
 static inline
-void SETSOCKETOPT(int sockfd){
+void SETSOCKETOPT(int sockfd, int v6){
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
 
@@ -17,6 +17,9 @@ void SETSOCKETOPT(int sockfd){
 
      /* 关闭小包延迟合并算法 */
 	setsockopt(sockfd, SOL_SOCKET, TCP_NODELAY, &ENABLE, sizeof(ENABLE));
+
+	if (v6) setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &ENABLE, sizeof(ENABLE));
+
 }
 
 /* server fd */
@@ -30,7 +33,7 @@ create_server_fd(int port, int v6){
 	int sockfd = socket(PROTOCOL_FAMILY, SOCK_STREAM, IPPROTO_TCP);
 	if (0 >= sockfd) return -1;
 
-	SETSOCKETOPT(sockfd);
+	SETSOCKETOPT(sockfd, v6);
 
 	if (V6 == v6) {
 		struct sockaddr_in6 SA;
@@ -78,7 +81,7 @@ create_client_fd(const char *ipaddr, int port, int v6){
 	int sockfd = socket(PROTOCOL_FAMILY, SOCK_STREAM, IPPROTO_TCP);
 	if (0 >= sockfd) return -1;
 
-	SETSOCKETOPT(sockfd);
+	SETSOCKETOPT(sockfd, v6);
 
 	if (V6 == v6) {
 		struct sockaddr_in6 SA;
