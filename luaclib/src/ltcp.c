@@ -6,7 +6,7 @@
 #include "../../src/core.h"
 
 static inline
-void SETSOCKETOPT(int sockfd, int v6){
+void SETSOCKETOPT(int sockfd){
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
 
@@ -18,92 +18,67 @@ void SETSOCKETOPT(int sockfd, int v6){
      /* 关闭小包延迟合并算法 */
 	setsockopt(sockfd, SOL_SOCKET, TCP_NODELAY, &ENABLE, sizeof(ENABLE));
 
-	if (v6) setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &ENABLE, sizeof(ENABLE));
-
 }
 
 /* server fd */
 static int
-create_server_fd(int port, int v6){
+create_server_fd(int port){
 	errno = 0;
-	int PROTOCOL_FAMILY = AF_INET;
-	if (V6 == v6) PROTOCOL_FAMILY = AF_INET6;
 
-	/* 建立socket*/
-	int sockfd = socket(PROTOCOL_FAMILY, SOCK_STREAM, IPPROTO_TCP);
+	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 	if (0 >= sockfd) return -1;
 
-	SETSOCKETOPT(sockfd, v6);
+	SETSOCKETOPT(sockfd);
 
-	if (V6 == v6) {
-		struct sockaddr_in6 SA;
-		SA.sin6_family = PROTOCOL_FAMILY;
-		SA.sin6_port = htons(port);
-		SA.sin6_addr = in6addr_any;
+	struct sockaddr_in6 SA;
+	SA.sin6_family = AF_INET6;
+	SA.sin6_port = htons(port);
+	SA.sin6_addr = in6addr_any;
 
-		int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(struct sockaddr_in6));
-		if (0 > bind_siccess) {
-			return -1; /* 绑定套接字失败 */
-		}
+	int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(struct sockaddr_in6));
+	if (0 > bind_siccess) {
+		return -1; /* 绑定套接字失败 */
+	}
 
-		int listen_success = listen(sockfd, 128);
-		if (0 > listen_success) {
-			return -1; /* 监听套接字失败 */
-		}
-
-	}else{
-		struct sockaddr_in SA;
-		SA.sin_family = PROTOCOL_FAMILY;
-		SA.sin_port = htons(port);
-		SA.sin_addr.s_addr = INADDR_ANY;
-
-		int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(struct sockaddr));
-		if (0 > bind_siccess) {
-			return -1; /* 绑定套接字失败 */
-		}
-
-		int listen_success = listen(sockfd, 128);
-		if (0 > listen_success) {
-			return -1; /* 监听套接字失败 */
-		}
+	int listen_success = listen(sockfd, 256);
+	if (0 > listen_success) {
+		return -1; /* 监听套接字失败 */
 	}
 	return sockfd;
 }
 
 /* client fd */
 static int
-create_client_fd(const char *ipaddr, int port, int v6){
+create_client_fd(const char *ipaddr, int port){
 	errno = 0;
-	int PROTOCOL_FAMILY = AF_INET;
-	if (V6 == v6) PROTOCOL_FAMILY = AF_INET6;
+
+	int PROTOCOL_FAMILY;
+	if (ipv4(ipaddr)) PROTOCOL_FAMILY = AF_INET;
+	else if (ipv6(ipaddr)) PROTOCOL_FAMILY = AF_INET6;
+	else return -1;
 
 	/* 建立socket*/
 	int sockfd = socket(PROTOCOL_FAMILY, SOCK_STREAM, IPPROTO_TCP);
 	if (0 >= sockfd) return -1;
 
-	SETSOCKETOPT(sockfd, v6);
+	SETSOCKETOPT(sockfd);
 
-	if (V6 == v6) {
+	if (PROTOCOL_FAMILY == AF_INET6) {
 		struct sockaddr_in6 SA;
 		SA.sin6_family = PROTOCOL_FAMILY;
 		SA.sin6_port = htons(port);
 		inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
 		connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
-		if (errno != EINPROGRESS){
-			close(sockfd);
-			return -1;
-		}
-
 	}else{
 		struct sockaddr_in SA;
 		SA.sin_family = PROTOCOL_FAMILY;
 		SA.sin_port = htons(port);
 		SA.sin_addr.s_addr = inet_addr(ipaddr);
 		connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
-		if (errno != EINPROGRESS){
-			close(sockfd);
-			return -1;
-		}
+	}
+	if (errno != EINPROGRESS){
+		close(sockfd);
+		return -1;
 	}
 	return sockfd;
 }
@@ -186,34 +161,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 }
 
 static void /* 接受链接 */
-IO_ACCEPT4(CORE_P_ core_io *io, int revents){
-
-	if (revents & EV_READ){
-		errno = 0;
-		struct sockaddr_in SA;
-		socklen_t slen = sizeof(struct sockaddr_in);
-		int client = accept(io->fd, (struct sockaddr*)&SA, &slen);
-		if (0 >= client) {
-			LOG("INFO", strerror(errno)); return ;
-		}
-
-		lua_State *co = (lua_State *) core_get_watcher_userdata(io);
-		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			lua_pushinteger(co, client);
-			lua_pushlstring(co, inet_ntoa(SA.sin_addr), strlen(inet_ntoa(SA.sin_addr)));
-			int status = lua_resume(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
-			if (status != LUA_YIELD && status != LUA_OK) {
-				LOG("ERROR", lua_tostring(co, -1));
-				LOG("ERROR", "Error Lua Accept Method");
-				core_io_stop(CORE_LOOP_ io);
-			}
-		}
-	}
-
-}
-
-static void /* 接受链接 */
-IO_ACCEPT6(CORE_P_ core_io *io, int revents){
+IO_ACCEPT(CORE_P_ core_io *io, int revents){
 
 	if (revents & EV_READ){
 		errno = 0;
@@ -238,7 +186,6 @@ IO_ACCEPT6(CORE_P_ core_io *io, int revents){
 			}
 		}
 	}
-
 }
 
 int
@@ -363,17 +310,12 @@ new_server_fd(lua_State *L){
 	int port = lua_tointeger(L, 2);
 	if(!port) return 0;
 
-	int v4 = create_server_fd(port, V4);
-	if (0 >= v4) return 0;
+	int fd = create_server_fd(port);
+	if (0 >= fd) return 0;
 
-	int v6 = create_server_fd(port, V6);
-	if (0 >= v6) return 0;
+	lua_pushinteger(L, fd);	
 
-	lua_pushinteger(L, v4);
-
-	lua_pushinteger(L, v6);
-
-	return 2;
+	return 1;
 }
 
 int
@@ -384,11 +326,7 @@ new_client_fd(lua_State *L){
 	int port = lua_tointeger(L, 2);
 	if(!port) return 0;
 
-	struct in6_addr addr;
-	int v = V4;
-	if (inet_pton(AF_INET6, ip, &addr) == 1) v = V6;
-
-	int fd = create_client_fd(ip, port, v);
+	int fd = create_client_fd(ip, port);
 	if (0 >= fd) return 0;
 
 	lua_pushinteger(L, fd);
@@ -396,8 +334,8 @@ new_client_fd(lua_State *L){
 	return 1;
 }
 
-static inline
-int check_arguments(lua_State *L){
+int
+tcp_listen(lua_State *L){
 	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
 	if(!io) return 0;
 
@@ -409,43 +347,13 @@ int check_arguments(lua_State *L){
 	lua_State *co = lua_tothread(L, 3);
 	if (!co) return 0;
 
-	return 1;
-}
+	core_set_watcher_userdata(io, co);
 
-int
-tcp_listen4(lua_State *L){
-
-	int ok = check_arguments(L);
-	if (!ok) return luaL_error(L, "listen4 arguments error!");
-
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-
-	core_set_watcher_userdata(io, lua_tothread(L, 3));
-
-	core_io_init(io, IO_ACCEPT4, lua_tointeger(L, 2), EV_READ);
+	core_io_init(io, IO_ACCEPT, fd, EV_READ);
 
 	core_io_start(CORE_LOOP_ io);
 
 	return 0;
-
-}
-
-int
-tcp_listen6(lua_State *L){
-
-	int ok = check_arguments(L);
-	if (!ok) return luaL_error(L, "listen6 arguments error!");
-
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-
-	core_set_watcher_userdata(io, lua_tothread(L, 3));
-
-	core_io_init(io, IO_ACCEPT6, lua_tointeger(L, 2), EV_READ);
-
-	core_io_start(CORE_LOOP_ io);
-
-	return 0;
-
 }
 
 int
@@ -621,8 +529,7 @@ luaopen_tcp(lua_State *L){
 		{"stop", tcp_stop},
 		{"start", tcp_start},
 		{"close", tcp_close},
-		{"listen4", tcp_listen4},
-		{"listen6", tcp_listen6},
+		{"listen", tcp_listen},
 		{"connect", tcp_connect},
 		{"ssl_connect", tcp_sslconnect},
 		{"new", tcp_new},

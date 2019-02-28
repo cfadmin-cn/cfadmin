@@ -26,6 +26,7 @@ local tcp_read = tcp.read
 local tcp_sslread = tcp.ssl_read
 local tcp_write = tcp.write
 local tcp_ssl_write = tcp.ssl_write
+local tcp_listen = tcp.listen
 
 local tcp_new_client_fd = tcp.new_client_fd
 local tcp_new_server_fd = tcp.new_server_fd
@@ -222,10 +223,9 @@ function TCP:ssl_recv(bytes)
 end
 
 function TCP:listen(ip, port, cb)
-    self.V4_IO = tcp_pop()
-    self.V6_IO = tcp_pop()
-    self.v4fd, self.v6fd = tcp_new_server_fd(ip, port)
-    if not self.v4fd or not self.v6fd then
+    self.LISTEN_IO = tcp_pop()
+    self.fd = tcp_new_server_fd(ip, port)
+    if not self.fd then
         return log.error("this IP and port Create A bind or listen method Faild! :) ")
     end
     self.co = co_new(function (fd, ipaddr)
@@ -236,9 +236,7 @@ function TCP:listen(ip, port, cb)
             end
         end
     end)
-    tcp.listen4(self.V4_IO, self.v4fd, self.co)
-    tcp.listen6(self.V6_IO, self.v6fd, self.co)
-    return
+    return tcp.listen(self.LISTEN_IO, self.fd, self.co)
 end
 
 function TCP:connect(ip, port)

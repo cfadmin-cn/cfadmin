@@ -26,9 +26,6 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#define V4 0
-#define V6 1
-
 #ifndef EWOULDBLOCK
     #define EWOULDBLOCK EAGAIN
 #endif
@@ -45,5 +42,14 @@
     	log_level, \
     	__FILE__, __FUNCTION__, __LINE__, \
     	content);}
+
+/* 毫秒级double时间戳 */
+double now();
+
+/* 检查是否为有效ipv4地址 */
+int ipv4(const char *IP);
+
+/* 检查是否为有效ipv6地址 */
+int ipv6(const char *IP);
 
 #endif

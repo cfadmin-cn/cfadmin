@@ -2,7 +2,11 @@ local HTTP = require "protocol.http"
 local tcp = require "internal.TCP"
 local Co = require "internal.Co"
 local class = require "class"
+local sys = require "sys"
 local log = require "log"
+
+local is_ipv4 = sys.ipv4
+local is_ipv6 = sys.ipv6
 
 local type = type
 local ipairs = ipairs
@@ -151,6 +155,11 @@ end
 -- 监听请求
 function httpd:listen(ip, port)
     return self.IO:listen(ip, port, function (fd, ipaddr)
+        if not is_ipv4(ipaddr) then
+            if is_ipv6(ipaddr) then
+                ipaddr = match(ipaddr, '^::[f]+:(.*)') or ipaddr
+            end
+        end
         return EVENT_DISPATCH(fd, ipaddr, self)
     end)
 end

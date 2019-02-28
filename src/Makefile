@@ -29,7 +29,7 @@ MACRO += -w -Os
 
 build :
 
-	$(CC) -o libcore.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
+	$(CC) -o libcore.so core.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
 	mv *.so /usr/local/lib
 
@@ -41,7 +41,7 @@ rebuild:
 
 	rm -rf *.o *.so
 
-	$(CC) -o libcore.so core.c core_memory.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
+	$(CC) -o libcore.so core.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
 	mv *.so /usr/local/lib
 
