@@ -1,4 +1,13 @@
 # core_framework
+<p>
+  <a href="https://github.com/CandyMi/core_framework/blob/master/LICENSE">
+  <img src="https://img.shields.io/badge/license-BSD-brightgreen.svg"></a>
+  <a href="https://www.lua.org/">
+  <img src="https://img.shields.io/badge/Language-Lua-blue.svg"></a>
+  <a href="https://github.com/CandyMi">
+  <img src="https://img.shields.io/badge/Author-CandyMi-red.svg"></a>
+</p>
+
 A Web light-framework for Lua based Libev
 
 ---
@@ -122,4 +131,4 @@ cf技术点相关整理:
 
 # LICENSE
 
-[BSD LICENSE](https://github.com/CandyMi/core_framework/blob/dev/LICENSE)
+[BSD LICENSE](https://github.com/CandyMi/core_framework/blob/master/LICENSE)
