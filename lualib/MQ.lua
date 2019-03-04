@@ -1,95 +1,112 @@
 local log = require "log"
 local class = require "class"
-local co = require "internal.Co"
-local Timer = require "internal.Timer"
+local Timer = require "Internal.Timer"
 local mqtt = require "protocol.mqtt"
-local co_spwan = co.spwan
-local co_wait = co.wait
+local redis = require "protocol.redis"
 
 local type = type
-local error = error
-local ipairs = ipairs
+local math = math
+local random = math.random
+local stirng = string
+local fmt = string.format
 local assert = assert
-local tostring = tostring
 
+local mq = class("mq")
 
-local os_time = os.time
-local math_random = math.random
-local math_randomseed = math.randomseed
-math_randomseed(os_time())
-
-local MQ = class("MQ")
-
-function MQ:ctor(opt)
-    self.host = opt.host or 'localhost'
-    self.port = opt.port or 1883
-    self.auth = opt.auth
-    self.ssl = opt.ssl
-    self.keep_alive = opt.keep_alive
-    self.TOPIC = {}
-    self.init = true
+function mq:ctor(opt)
+	self.id   = opt.id	 -- mqtt需要id可以指定
+	self.host = opt.host -- 地址
+	self.port = opt.port -- 端口
+	self.type = opt.type -- 消息队列种类
+	self.auth = opt.auth -- redis需要auth可以指定
+	self.clean = opt.clean or true   -- mqtt 默认清除会话
+	self.username = opt.username -- mqtt只支持用户名+密码认证
+	self.password = opt.password -- mqtt只支持用户名+密码认证
 end
 
--- 传入授权Key 与 GroupID后得到passwd
-function MQ.AliKey(accessKey, GroupID)
-    local crypt = require "crypt"
-    local hmac_sha1 = crypt.hmac_sha1
-    local base64encode = crypt.base64encode
-    return base64encode(hmac_sha1(accessKey, GroupID))
+local function mq_login(self)
+	local times = 1
+	while 1 do
+		if self.type == 'redis' then
+			local rds = redis:new {auth = self.auth, host = self.host, port = self.port}
+			local ok, err = rds:connect()
+			if ok then
+				return rds
+			end
+			log.error('第'..times..'次连接mq(redis)失败:'..(err or "unknow"))
+			if times >= 3 then
+				log.error("超过最大尝试次数, 请检查mq(redis)网络或者服务是否正常.")
+				return nil, "超过最大尝试次数, 请检查mq(redis)网络或者服务是否正常."
+			end
+			Timer.sleep(3)
+			times = times + 1
+		elseif self.type == 'mqtt' then
+			local mqtt = mqtt:new {
+				host = self.host,
+				port = self.port,
+				auth = {
+					username = self.username,
+					password = self.password
+				},
+				id = self.id or fmt('luamqtt-cf-v1-%X', random(1, 0xFFFFFFFF)),
+			}
+			local ok, err = mqtt:connect()
+			if ok then
+				return mqtt
+			end
+			log.error('第'..times..'次连接mq(mqtt)失败:'..(err or "unknow"))
+			if times >= 3 then
+				log.error("超过最大尝试次数, 请检查mq(mqtt)网络或者服务是否正常.")
+				return nil, "超过最大尝试次数, 请检查mq(mqtt)网络或者服务是否正常."
+			end
+			Timer.sleep(3)
+			times = times + 1
+		end
+	end
 end
 
--- 注册感兴趣的消息主题
-function MQ:on(opt, func)
-    assert(self and self.init, "调用on失败, 尚未初始化")
-    for _, t in ipairs(self.TOPIC) do
-        if t.topic == opt.topic or opt.id == t.id then
-            return nil, log.error("多次注册同样的topic是无意义的")
-        end
-    end
-    self.TOPIC[#self.TOPIC+1] = { id = opt.id, clean = opt.clean, topic = opt.topic, queue = opt.queue, qos = opt.qos, func = func }
+local function redis_subscribe(self)
+	local mq, err = mq_login(self)
+	if not mq then
+		return nil, err
+	end
+	self.mq = mq
+	return mq:subscribe(self.pattern, self.func)
 end
 
--- 内部创建使用
-function MQ:create_session(opt)
-    assert(self and self.init, "调用create_session失败")
-    local mq = mqtt:new {host = self.host, port = self.port, ssl = self.ssl, auth = self.auth, id = opt.id, clean = opt.clean, keep_alive = self.keep_alive}
-    local ok, err = mq:connect()
-    if not ok then
-        mq:close()
-        return nil, log.error("连接到MQ失败, 请检查网络与端口后重启本服务."..tostring(err))
-    end
-    return mq
+local function mqtt_subscribe(self)
+	local mq, err = mq_login(self)
+	if not mq then
+		return nil, err
+	end
+	self.mq = mq
+	return mq:subscribe({qos = 2, topic = self.pattern, clean = self.clean}, self.func)
 end
 
--- 启动事件循环
-function MQ:start()
-    assert(self and self.init, "启动失败, 尚未初始化")
-    for _, t in ipairs(self.TOPIC) do
-        co_spwan(function ()
-            local topic, func, queue, qos, id, clean = t.topic, t.func, t.queue, t.qos, t.id, t.clean
-            local mq
-            if type(qos) ~= "number" and (qos < 0 or qos > 2 ) then qos = 0 end
-            while 1 do
-                mq = self:create_session { id = tostring(id), clean = clean }
-                if mq then
-                    mq:subscribe { topic = topic, qos = qos, payload = ''}
-                    mq:on("message", function (msg)
-                        if not queue then
-                            return co_spwan(func, msg) --  异步处理消息
-                        end
-                        return func(msg) -- 同步处理消息
-                    end)
-                    log.info(tostring(id).." 已连接到 MQTT Server, "..'正在订阅:'..topic)
-                    mq:message_dispatch()
-                    log.warn("MQTT Server 主动关闭了["..tostring(id).."]的连接.")
-                    mq:close()
-                end
-                log.warn("1秒后将尝试重新连接MQTT Server: ", self.host, ' port: ', self.port)
-                Timer.sleep(1)
-            end
-        end)
-    end
-    return co_wait()
+-- 订阅消息
+function mq:on(pattern, func)
+	if type(pattern) ~= 'string' or pattern == '' then
+		return nil, "subscribe pattern error."
+	end
+	if type(func) ~= 'function' then
+		return nil, "subscribe func error."
+	end
+	self.func = func 	   -- 回调处理函数
+	self.pattern = pattern -- 监听规则
+	if self.type == 'redis' then
+		return redis_subscribe(self)
+	elseif self.type == 'mqtt' then
+		return mqtt_subscribe(self)
+	end
+	return error("mq subscribe error: 目前仅支持redis/mqtt协议.")
 end
 
-return MQ
+-- 关闭消息队列监听
+function mq:close()
+	if self.mq then
+		self.mq:close()
+		self.mq = nil
+	end
+end
+
+return mq

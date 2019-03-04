@@ -9,6 +9,8 @@ local require = require
 local string = require "string"
 local calss = require "class"
 local tcp = require "internal.TCP"
+local Co = require "internal.Co"
+local log = require "log"
 local protocol = require "protocol.mqtt.protocol"
 local protocol4 = require "protocol.mqtt.protocol4"
 local co = require "internal.Co"
@@ -32,6 +34,7 @@ local str_match = string.match
 local str_format = string.format
 local str_gsub = string.gsub
 local tbl_remove = table.remove
+local co_spwan = Co.spwan
 -- Empty function to do nothing on MQTT client events
 local empty_func = function() end
 
@@ -46,39 +49,56 @@ function client:ctor(opt)
 	self.clean = opt.clean
 	self.auth = opt.auth
 	self.will = opt.will
-	self.handlers = empty_func
 	self.keep_alive = opt.keep_alive or 300
 	self.queue = {}
 end
 
-function client:on(event, func)
-	assert(event == "message" and type(func) == "function", "监听事件必须是一个字符串并且事件回调函数必须有效")
-	self.handlers = func
-end
-
-function client:subscribe(...)
-	local args = {
-		type = packet_type.SUBSCRIBE,
-		subscriptions = {...},
-	}
+function client:subscribe(opt, func)
+	local args = { type = packet_type.SUBSCRIBE, subscriptions = {opt} }
+	self.handle = func
 	self:_send_packet(args)
 	local ok, err = self:_wait_packet_exact{type=packet_type.SUBACK, packet_id=args.packet_id}
 	if not ok then
 		return false, 'SUBSCRIBE wait for SUBACK failed'
 	end
-	return true
-end
-
-function client:unsubscribe(args, ...)
-	local args = {
-		type = packet_type.UNSUBSCRIBE,
-		subscriptions = {...},
-	}
-	self:_send_packet(args)
-	local ok, err = self:_wait_packet_exact{type=packet_type.UNSUBACK, packet_id=args.packet_id}
-	if not ok then
-		return false, 'UNSUBSCRIBE wait for UNSUBACK failed'
-	end
+	co_spwan(function ( ... )
+		local co_current = Co.self()
+		local time = os_time()
+		local timer = Timer.at(self.keep_alive, function ( ... )
+			if os_time() >= time + self.keep_alive then
+				return co.wakeup(co_current)
+			end
+			return self:ping()
+		end)
+		while 1 do
+			local packet, perr = self:_wait_packet_queue()
+			if not packet then
+				if timer then
+					timer:stop()
+					timer = nil
+				end
+				local ok, err = pcall(self.handle, nil)
+				if not ok then
+					log.error(err)
+				end
+				return false, 'waiting for the next packet failed'
+			end
+			time = os_time()
+			if packet.type == packet_type.PUBLISH then
+				local ok, err = pcall(self.handle, packet)
+				if not ok then
+					log.error(err)
+				end
+				self:acknowledge(packet)
+			elseif packet.type == packet_type.PUBACK then
+				self:acknowledge(packet)
+			-- elseif packet.type == packet_type.PINGRESP then
+			-- 	-- pass
+			-- else
+			-- 	return false, "unexpected packet received: "..tostring(packet)
+			end
+		end
+	end)
 	return true
 end
 
@@ -277,39 +297,6 @@ function client:_wait_packet_queue()
 	return self:_wait_packet()
 end
 
-function client:message_dispatch()
-	local co_current = co.self()
-	local time = os_time()
-	self.timer = Timer.at(self.keep_alive / 2, function ( ... )
-		if os_time() >= time + self.keep_alive then
-			return co.wakeup(co_current)
-		end
-		return self:ping()
-	end)
-	while 1 do
-		local packet, perr = self:_wait_packet_queue()
-		if not packet then
-			if self.timer then
-				self.timer:stop()
-				self.timer = nil
-			end
-			return false, 'waiting for the next packet failed'
-		end
-		time = os_time()
-		if packet.type == packet_type.PUBLISH then
-			self.handlers(packet)
-			self:acknowledge(packet)
-		elseif packet.type == packet_type.PUBACK then
-			self:acknowledge(packet)
-		elseif packet.type == packet_type.PINGRESP then
-			-- pass
-		else
-			return false, "unexpected packet received: "..tostring(packet)
-		end
-	end
-	return true
-end
-
 function client:send(buf)
 	if self.ssl then
 		return self.sock:ssl_send(buf)
@@ -338,6 +325,7 @@ end
 
 function client:close( ... )
 	self.sock:close()
+	self.sock = nil
 end
 
 return client
