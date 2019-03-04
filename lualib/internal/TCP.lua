@@ -81,6 +81,7 @@ function TCP:send(buf)
         if len == 0 then
             self.SEND_IO = tcp_pop()
             local co = co_self()
+            self.send_current_co = co_self()
             self.send_co = co_new(function ( ... )
                 while 1 do
                     local len = tcp_write(self.fd, buf, #buf)
@@ -89,9 +90,8 @@ function TCP:send(buf)
                         tcp_stop(self.SEND_IO)
                         self.SEND_IO = nil
                         self.send_co = nil
-                        -- 这里在发送数据的时候, 客户端可能已经关闭了链接
-                        -- if not len then log.error("write error.")
-                        return co_wakeup(co, len == #buf)
+                        self.send_current_co = nil
+                        return co_wakeup(send_current_co, len == #buf)
                     end
                     buf = split(buf, len + 1, -1)
                     co_wait()
@@ -116,6 +116,7 @@ function TCP:ssl_send(buf)
         if len == 0 then
             self.SEND_IO = tcp_pop()
             local co = co_self()
+            self.send_current_co = co_self()
             self.send_co = co_new(function ( ... )
                 while 1 do
                     local len = tcp_ssl_write(self.ssl, buf, #buf)
@@ -124,6 +125,7 @@ function TCP:ssl_send(buf)
                         tcp_stop(self.SEND_IO)
                         self.SEND_IO = nil
                         self.send_co = nil
+                        self.send_current_co = nil
                         -- 这里在发送数据的时候, 客户端可能已经关闭了链接
                         -- if not len then log.error("write error.")
                         return co_wakeup(co, len == #buf)
@@ -145,6 +147,7 @@ function TCP:recv(bytes)
     end
     self.READ_IO = tcp_pop()
     local co = co_self()
+    self.read_current_co = co_self()
     self.read_co = co_new(function ( ... )
         local buf, len = tcp_read(self.fd, bytes)
         if self.timer then
@@ -155,6 +158,7 @@ function TCP:recv(bytes)
         tcp_stop(self.READ_IO)
         self.READ_IO = nil
         self.read_co = nil
+        self.read_current_co =nil
         if not buf then
             return co_wakeup(co)
         end
@@ -166,6 +170,7 @@ function TCP:recv(bytes)
         self.timer = nil
         self.read_co = nil
         self.READ_IO = nil
+        self.read_current_co = nil
         return co_wakeup(co, nil, "read timeout")
     end)
     tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
@@ -179,6 +184,7 @@ function TCP:ssl_recv(bytes)
     local buf, len = tcp_sslread(self.ssl, bytes)
     if not buf then
         local co = co_self()
+        self.read_current_co = co_self()
         self.READ_IO = tcp_pop()
         self.read_co = co_new(function ( ... )
             while 1 do
@@ -192,6 +198,7 @@ function TCP:ssl_recv(bytes)
                     tcp_stop(self.READ_IO)
                     self.READ_IO = nil
                     self.read_co = nil
+                    self.read_current_co = nil
                     return co_wakeup(co)
                 end
                 if buf and len then
@@ -203,6 +210,7 @@ function TCP:ssl_recv(bytes)
                     tcp_stop(self.READ_IO)
                     self.READ_IO = nil
                     self.read_co = nil
+                    self.read_current_co = nil
                     return co_wakeup(co, buf, len)
                 end
                 co_wait()
@@ -214,6 +222,7 @@ function TCP:ssl_recv(bytes)
             self.timer = nil
             self.READ_IO = nil
             self.read_co = nil
+            self.read_current_co = nil
             return co_wakeup(co, nil, "read timeout")
         end)
         tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
@@ -248,8 +257,9 @@ function TCP:connect(ip, port)
     if not self.fd then
         return log.error("Connect This IP or Port Faild! :) ")
     end
-    self.CONNECT_IO = tcp_pop()
     local co = co_self()
+    self.CONNECT_IO = tcp_pop()
+    self.connect_current_co = co_self()
     self.connect_co = co_new(function (connected)
         if self.timer then
             self.timer:stop()
@@ -257,6 +267,7 @@ function TCP:connect(ip, port)
         end
         tcp_push(self.CONNECT_IO)
         tcp_stop(self.CONNECT_IO)
+        self.connect_current_co = nil
         self.CONNECT_IO = nil
         self.connect_co = nil
         if connected then
@@ -270,7 +281,8 @@ function TCP:connect(ip, port)
         self.timer = nil
         self.CONNECT_IO = nil
         self.connect_co = nil
-        return co_wakeup(co, nil, 'connect timeot.')
+        self.connect_current_co = nil
+        return co_wakeup(self.connect_current_co, nil, 'connect timeot.')
     end)
     tcp_connect(self.CONNECT_IO, self.fd, self.connect_co)
     return co_wait()
@@ -286,7 +298,7 @@ function TCP:ssl_connect(ip, port)
         return log.error("Create a SSL Error! :) ")
     end
     self.CONNECT_IO = tcp_pop()
-    local co = co_self()
+    self.connect_current_co = co_self()
     self.connect_co = co_new(function ()
         local EVENTS = EVENT_WRITE
         while 1 do
@@ -300,6 +312,7 @@ function TCP:ssl_connect(ip, port)
                 tcp_stop(self.CONNECT_IO)
                 self.CONNECT_IO = nil
                 self.connect_co = nil
+                self.connect_current_co = nil
                 return co_wakeup(co, ok)
             end
             if EVENTS ~= EVENT then
@@ -316,7 +329,8 @@ function TCP:ssl_connect(ip, port)
         self.timer = nil
         self.CONNECT_IO = nil
         self.connect_co = nil
-        return co_wakeup(co, nil, 'ssl_connect timeot.')
+        self.connect_current_co = nil
+        return co_wakeup(self.co, nil, 'ssl_connect timeot.')
     end)
     tcp_start(self.CONNECT_IO, self.fd, EVENT_WRITE, self.connect_co)
     return co_wait()
@@ -352,6 +366,21 @@ function TCP:close()
         tcp_pop(self.CONNECT_IO)
         self.CONNECT_IO = nil
         self.connect_co = nil
+    end
+
+    if self.connect_current_co then
+        co_wakeup(self.connect_current_co)
+        self.connect_current_co = nil
+    end
+
+    if self.send_current_co then
+        co_wakeup(self.send_current_co)
+        self.send_current_co = nil
+    end
+
+    if self.read_current_co then
+        co_wakeup(self.read_current_co)
+        self.self.read_current_co = nil
     end
 
     if self._timeout then

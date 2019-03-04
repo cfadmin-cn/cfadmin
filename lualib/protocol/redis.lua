@@ -1,4 +1,8 @@
+local log = require "log"
+local Co = require "internal.Co"
 local tcp = require "internal.TCP"
+
+local co_spwan = Co.spwan
 
 local table = table
 local concat = table.concat
@@ -145,6 +149,9 @@ end
 
 -- redis
 local command = setmetatable({ __name = "Redis"}, {__index = function(t, k)
+	if k == 'auth' or k == 'db' then
+		return
+	end
 	local cmd = upper(k)
 	local f = function (self, v, ...)
 		local sock = self.sock
@@ -160,16 +167,16 @@ local command = setmetatable({ __name = "Redis"}, {__index = function(t, k)
 	return f
 end})
 
-function command:connect(opt)
+function command:connect()
 	local sock = self.sock
 	if not sock then
 		return nil, "Can't Create redis Socket"
 	end
-	local ok, err = sock:connect(opt.host, opt.port or 6379)
+	local ok, err = sock:connect(self.host, self.port or 6379)
 	if not ok then
 		return nil, "redis connect error: please check network"
 	end
-	local ok, err = redis_login(sock, opt.auth, opt.db)
+	local ok, err = redis_login(sock, self.auth, self.db)
 	if not ok then
 		return nil, "redis login error:"..(err or 'close')
 	end
@@ -185,7 +192,7 @@ local function read_boolean(sock)
 	return ok, result
 end
 
-local function read_KV(sock)
+local function read_kv(sock)
 	local ok, array = read_response(sock)
 	if ok and #array & 0x1 == 0 then
 		local t = {}
@@ -200,7 +207,7 @@ end
 function command:hgetall(map)
 	local sock = self.sock
 	sock:send(compose_message ("HGETALL", map))
-	return read_KV(sock)
+	return read_kv(sock)
 end
 
 function command:hmget(map, ...)
@@ -266,7 +273,7 @@ function command:loadscripts(scripts)
 		sock:send(concat(t, " "))
 		local ok, result = read_response(sock)
 		if not ok then
-			return nil, fmt("complite index:%d script error: %", index, err)
+			return nil, fmt("complite index:%d script error: %", index, errresult)
 		end
 		Cache[index] = result
 	end
@@ -292,11 +299,66 @@ function command:set_config(key, value)
 	return read_response(sock)
 end
 
+-- 订阅
+function command:psubscribe(pattern, func)
+	local sock = self.sock
+	sock:send(compose_message("PSUBSCRIBE", pattern))
+	local ok, msg = read_response(sock)
+	if not ok or not msg[2] then
+		return nil, "PSUBSCRIBE error: 订阅"..tostring(pattern).."失败."
+	end
+	co_spwan(function ( ... )
+		while 1 do
+			local ok, msg = read_response(sock)
+			if not ok or not msg or not self.sock then
+				local ok, err = pcall(func, nil)
+				if not ok then
+					log.error(err)
+				end
+				return
+			end
+			local data = {type = msg[1], source = msg[2], pattern = pattern, payload = msg[3]}
+			if #msg > 3 then
+				data = {type = msg[1], source = msg[3], pattern = pattern, payload = msg[4]}
+			end
+			local ok, err = pcall(func, data)
+			if not ok then
+				return log.error(err)
+			end
+		end
+	end)
+	return ok, msg
+end
+
+function command:subscribe(pattern, func)
+	return self:psubscribe(pattern, func)
+end
+
+-- 发布
+function command:publish(pattern)
+	local sock = self.sock
+	sock:send(compose_message("PUBLISH", pattern))
+	return not read_response(sock)
+end
+
+-- 关闭连接
 function command:close()
-	self.sock:close()
-	self.close = nil
+	if self.sock then
+		self.sock:close()
+		self.sock = nil
+	end
 	setmetatable(self, nil)
 end
 
 -- new_tab -> command -> __index
-return {new = function () return setmetatable({sock = tcp:new()}, {__index = command}) end }
+return {
+	new = function (self, opt)
+		return setmetatable({
+			sock = tcp:new(),
+			host = opt.host,
+			port = opt.port,
+			db = opt.db,
+			auth = opt.auth,
+			}, {__index = command})
+	end,
+}

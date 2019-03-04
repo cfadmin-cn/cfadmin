@@ -116,8 +116,8 @@ function Cache.init(opt)
         local times = 1
         local cache
         while 1 do
-            cache = redis:new()
-            local ok, connect, err = pcall(cache.connect, cache, opt)
+            cache = redis:new(opt)
+            local ok, connect, err = pcall(cache.connect, cache)
             if ok and connect then
                 break
             end
