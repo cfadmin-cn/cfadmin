@@ -71,7 +71,7 @@ local function redis_subscribe(self)
 		return nil, err
 	end
 	self.mq = mq
-	return mq:subscribe(self.pattern, self.func)
+	return mq:psubscribe(self.pattern, self.func)
 end
 
 local function mqtt_subscribe(self)
