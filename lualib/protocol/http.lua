@@ -9,6 +9,11 @@ local sha1 = crypt.sha1
 local base64 = crypt.base64encode
 local now = sys.now
 
+local form = require "form"
+local form_file = form.file
+local form_urlencode = form.urlencode
+
+
 local REQUEST_PROTOCOL_PARSER = httpparser.parser_request_protocol
 local RESPONSE_PROTOCOL_PARSER = httpparser.parser_response_protocol
 local REQUEST_HEADER_PARSER = httpparser.parser_request_header
@@ -266,12 +271,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 	if METHOD == "HEAD" or METHOD == "GET" then
 		local spl_pos = find(PATH, '%?')
 		if spl_pos and spl_pos < #PATH then
-			for key, value in splite(PATH, '([^%?&]*)=([^%?&]*)') do
-				if not content['args'] then
-					content['args'] = {}
-				end
-				content['args'][key] = value
-			end
+			content['args'] = form_parser(PATH)
 		end
 	elseif METHOD == "POST" or METHOD == "PUT" then
 		local body_len = toint(HEADER['Content-Length']) or toint(HEADER['content-type'])
@@ -311,11 +311,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 			if format == FILE_ENCODE then
 				local BOUNDARY = match(HEADER['Content-Type'], '^.+=[%-]*(.+)')
 				if BOUNDARY and BOUNDARY ~= '' then
-					local FILES = {}
-					for file in splite(BODY, '\r\n\r\n(.-)\r\n[%-]*'..BOUNDARY) do
-						insert(FILES, file)
-					end
-					content['files'] = FILES
+					content['files'] = form_file(BODY, BOUNDARY)
 				end
 			elseif format == JSON_ENCODE then
 				content['json'] = true
@@ -324,12 +320,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 				content['xml'] = true
 				content['body'] = BODY
 			elseif format == URL_ENCODE then
-				for key, value in splite(BODY, '([^%?&]*)=([^%?&]*)') do
-					if not content['args'] then
-						content['args'] = {}
-					end
-					content['args'][key] = value
-				end
+				content['args'] = form_urlencode(BODY)
 			else
 				content['body'] = BODY
 			end
