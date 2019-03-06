@@ -380,7 +380,7 @@ function TCP:close()
 
     if self.read_current_co then
         co_wakeup(self.read_current_co)
-        self.self.read_current_co = nil
+        self.read_current_co = nil
     end
 
     if self._timeout then

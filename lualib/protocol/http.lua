@@ -409,14 +409,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 	if not ok then
 		return sock:close() 
 	end
-	local ok, c = pcall(cls.new, cls)
-	if not ok then
-		sock:send(ERROR_RESPONSE(http, 500, path, ip, header['X-Forwarded-For'] or ip, now() - start_time))
-		sock:close()
-		return
-	end
-	local ws = wsserver:new({cls = cls, sock = sock})
-	return ws:start()
+	return wsserver:new({cls = cls, sock = sock}):start()
 end
 
 function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
@@ -534,7 +527,12 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				statucode = 200
 				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
 			elseif typ == HTTP_PROTOCOL.WS then
-				return Switch_Protocol(http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
+				local ok, msg = pcall(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
+				if not ok then
+					log.error(msg)
+					return sock:close()
+				end
+				return 
 			else
 				local file_type
 				local path = PATH

@@ -14,6 +14,7 @@ local type = type
 local assert = assert
 local setmetatable = setmetatable
 local tostring = tostring
+local char = string.char
 local next = next
 local pcall = pcall
 local ipairs = ipairs
@@ -21,36 +22,26 @@ local ipairs = ipairs
 local websocket = class("websocket-server")
 
 function websocket:ctor(opt)
-    local c = opt.cls
-    self.on_open = assert(type(c.on_open) == 'function' and c.on_open, "Can't find websocket on_open method")
-    self.on_message = assert(type(c.on_message) == 'function' and c.on_message, "Can't find websocket on_message method")
-    self.on_error = assert(type(c.on_error) == 'function' and c.on_error, "Can't find websocket on_error method")
-    self.on_close = assert(type(c.on_close) == 'function' and c.on_close, "Can't find websocket on_close method")
-    self.on_ping = c.on_ping
-    self.on_pong = c.on_pong
     self.sock = opt.sock
-    self.cls = c
+    self.cls = opt.cls:new()
     self.sock._timeout = nil
-    self.send_masked = self.cls.sen_masked or false
-    self.max_payload_len = self.cls.max_payload_len or 65535
 end
 
 function websocket:start()
-    local on_open = self.on_open
-    local on_message = self.on_message
-    local on_error = self.on_error
-    local on_close = self.on_close
-    local on_ping = self.on_ping
-    local on_pong = self.on_pong
+    local on_open = self.cls.on_open
+    local on_message = self.cls.on_message
+    local on_error = self.cls.on_error
+    local on_close = self.cls.on_close
+    local on_ping = self.cls.on_ping
+    local on_pong = self.cls.on_pong
     local sock = self.sock
-    local write_co
-    local cls = self.cls
     local current_co = co_self()
-    local send_masked = cls.sen_masked
-    local max_payload_len = cls.max_payload_len or 65535
+    local cls = self.cls
+    local send_masked = self.cls.sen_masked or false
+    local max_payload_len = self.cls.max_payload_len or 65535
     local write_list = {}
+    local write_co
     co_spwan(function (...)
-        local sock = sock
         write_co = co_self()
         while 1 do
             for index, f in ipairs(write_list) do
@@ -97,9 +88,8 @@ function websocket:start()
         log.error(err)
         return sock:close()
     end
-
     while 1 do
-        local data, typ, err =_recv_frame(sock, max_payload_len, true)
+        local data, typ, err = _recv_frame(sock, max_payload_len, true)
         if (not data and not typ) or typ == 'close' then
             if ws.CLOSE ~= true then
                 ws.CLOSE = true

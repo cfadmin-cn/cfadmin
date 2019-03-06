@@ -1,18 +1,23 @@
 local class = require "class"
 local timer = require 'internal.Timer'
+local json = require "json"
+local MQ = require "MQ"
 local websocket = class("websocket")
 
 function websocket:ctor(opt)
     self.timeout = 15
+    self.count = 0
+    self.mq = MQ:new({host = 'localhost', port = 6379, type = 'redis'})
 end
 
 function websocket:on_open(ws)
     print('on_open')
-    self.count = 0
-    self.timer = timer.at(1, function ( ... )
-        -- print('定时器执行第'..tostring(self.count)..'次')
-        ws.send(tostring(self.count))
+    self.timer = timer.at(1, function ( ... ) -- 定时器
         self.count = self.count + 1
+        ws.send(tostring(self.count))
+    end)
+    self.mq:on('/test/*', function (msg) -- 消息队列
+        ws.send(json.encode(msg))
     end)
 end
 
@@ -28,7 +33,14 @@ end
 
 function websocket:on_close(ws, data)
     print('on_close', ws, data)
-    self.timer:stop()
+    if self.mq then     -- 清理消息队列
+        self.mq:close()
+        self.mq = nil
+    end
+    if self.timer then  -- 清理定时器
+        self.timer:stop()
+        self.timer = nil
+    end
 end
 
 return websocket

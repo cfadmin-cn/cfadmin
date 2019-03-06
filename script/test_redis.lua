@@ -9,8 +9,8 @@ local opt = {
 }
 
 print('开始测试redis脚本缓存/编译')
-local rds = redis:new()
-local ok, err = rds:connect(opt)
+local rds = redis:new(opt)
+local ok, err = rds:connect()
 if not ok then
     return print('error:', err)
 end
@@ -39,8 +39,8 @@ print('redis脚本缓存/编译测试完成')
 
 local times = 100
 for i = 1, times do
-    local rds = redis:new()
-    local ok, err = rds:connect(opt)
+    local rds = redis:new(opt)
+    local ok, err = rds:connect()
     if not ok then
         return print('error:'..err)
     end
@@ -67,8 +67,8 @@ print("测试100次redis创建->操作->关闭成功")
 local pool = {}
 
 for i = 1, times do
-    local rds = redis:new()
-    local ok, err = rds:connect(opt)
+    local rds = redis:new(opt)
+    local ok, err = rds:connect()
     if not ok then
         return print('error:'..err)
     end
