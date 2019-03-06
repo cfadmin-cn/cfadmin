@@ -273,7 +273,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 	if METHOD == "HEAD" or METHOD == "GET" then
 		local spl_pos = find(PATH, '%?')
 		if spl_pos and spl_pos < #PATH then
-			content['args'] = form_parser(PATH)
+			content['args'] = form_urlencode(PATH)
 		end
 	elseif METHOD == "POST" or METHOD == "PUT" then
 		local body_len = toint(HEADER['Content-Length']) or toint(HEADER['content-type'])

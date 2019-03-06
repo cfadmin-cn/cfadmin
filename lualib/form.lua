@@ -15,11 +15,11 @@ function form.urlencode(body)
 	if type(body) ~= 'string' then
 		return
 	end
-	local tab = {}
-	for key, value in splite(body, "([^%?&]+)=([^%?&]+)") do
-		tab[key] = value
+	local ARGS = {}
+	for key, value in splite(body, "([^%?&]-)=([^%?&]+)") do
+		ARGS[key] = value
 	end
-	return tab
+	return ARGS
 end
 
 -- 将body解析为multipart-form
