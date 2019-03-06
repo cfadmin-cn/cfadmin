@@ -17,6 +17,10 @@ function websocket:on_open(ws)
         ws.send(tostring(self.count))
     end)
     self.mq:on('/test/*', function (msg) -- 消息队列
+        if not msg then
+            ws.send('{"code":500,"message":"无法连接到mq(reds)"}')
+            return ws.close()
+        end
         ws.send(json.encode(msg))
     end)
 end
