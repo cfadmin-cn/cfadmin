@@ -5,7 +5,10 @@ local splite = string.gmatch
 local insert = table.insert
 -- require "utils"
 
-local form = {}
+local form = {
+	FILE = 0,
+	ARGS = 1,
+}
 
 -- 将body解析为x-www-form-urlencoded
 function form.urlencode(body)
@@ -19,22 +22,35 @@ function form.urlencode(body)
 	return tab
 end
 
--- 将body解析为file-upload
--- [ {filename = filename1, file = file1 }, {filename = filename2, file = file2 } ]
-function form.file(body, BOUNDARY)
+-- 将body解析为multipart-form
+-- 目前支持2种格式:
+-- 1 : [ {filename = filename1, file = file1 }, {filename = filename2, file = file2 } ]
+-- 2 : [ [1] = {[1] = key1, [2] = value1}, [2] = {[1] = key2, [2] = value2} ]
+function form.multipart(body, BOUNDARY)
 	if type(body) ~= 'string' or type(BOUNDARY) ~= 'string' then
 		return
 	end
 	local FILES = {}
-	for name, file in splite(body, 'name="([^"]-)"\r\n[^\r\n]-\r\n\r\n(.-)\r\n[%-]-'..BOUNDARY) do
+	for name, file in splite(body, 'filename="([^"]*)"\r\n[^\r\n]-\r\n\r\n(.-)\r\n[%-]-'..BOUNDARY) do
 		if file and file ~= '' then
 			insert(FILES, {filename = name, file = file})
 		end
 	end
-	if #FILES == 0 then
-		return 
+	if #FILES > 0 then
+		-- return form.FILE, FILE
+		return 0, FILES
 	end
-	return FILES
+	local ARGS = {}
+	for key, value in splite(body, 'name="([^"]*)"\r\n\r\n([^%-]-)\r\n[%-]-'..BOUNDARY) do
+		if (key and key ~= '' ) and (value and value ~= '') then
+			insert(ARGS, {key, value})
+		end
+	end
+	if #ARGS > 0 then
+		-- return form.ARGS, ARGS
+		return 1, ARGS
+	end
+	return
 end
 
 

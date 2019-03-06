@@ -10,7 +10,9 @@ local base64 = crypt.base64encode
 local now = sys.now
 
 local form = require "form"
-local form_file = form.file
+local FILE_TYPE = form.FILE
+local ARGS_TYPE = form.ARGS
+local form_multipart = form.multipart
 local form_urlencode = form.urlencode
 
 
@@ -311,7 +313,15 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 			if format == FILE_ENCODE then
 				local BOUNDARY = match(HEADER['Content-Type'], '^.+=[%-]*(.+)')
 				if BOUNDARY and BOUNDARY ~= '' then
-					content['files'] = form_file(BODY, BOUNDARY)
+					local typ, data = form_multipart(BODY, BOUNDARY)
+					if typ == FILE_TYPE then
+						content['files'] = data
+					elseif typ == ARGS_TYPE then
+						content['args'] = {}
+						for _, args in ipairs(data) do
+							content['args'][args[1]] = args[2]
+						end
+					end
 				end
 			elseif format == JSON_ENCODE then
 				content['json'] = true
