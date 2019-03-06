@@ -33,6 +33,7 @@ local function mq_login(self)
 			if ok then
 				return rds
 			end
+			rds:close()
 			log.error('第'..times..'次连接mq(redis)失败:'..(err or "unknow"))
 			if times >= 3 then
 				log.error("超过最大尝试次数, 请检查mq(redis)网络或者服务是否正常.")
@@ -54,6 +55,7 @@ local function mq_login(self)
 			if ok then
 				return mqtt
 			end
+			mqtt:close()
 			log.error('第'..times..'次连接mq(mqtt)失败:'..(err or "unknow"))
 			if times >= 3 then
 				log.error("超过最大尝试次数, 请检查mq(mqtt)网络或者服务是否正常.")
