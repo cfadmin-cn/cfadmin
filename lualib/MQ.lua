@@ -1,6 +1,6 @@
 local log = require "log"
 local class = require "class"
-local Timer = require "Internal.Timer"
+local Timer = require "internal.Timer"
 local mqtt = require "protocol.mqtt"
 local redis = require "protocol.redis"
 
