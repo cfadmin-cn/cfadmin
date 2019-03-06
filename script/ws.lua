@@ -5,38 +5,41 @@ local MQ = require "MQ"
 local websocket = class("websocket")
 
 function websocket:ctor(opt)
+    self.ws = opt.ws             -- websocket对象
+    self.send_masked = false     -- 掩码(默认为false, 不建议修改或者使用)
+    self.max_payload_len = 65535 -- 最大有效载荷长度(默认为65535, 不建议修改或者使用)
     self.timeout = 15
     self.count = 0
     self.mq = MQ:new({host = 'localhost', port = 6379, type = 'redis'})
 end
 
-function websocket:on_open(ws)
+function websocket:on_open()
     print('on_open')
-    self.timer = timer.at(1, function ( ... ) -- 定时器
+    self.timer = timer.at(0.01, function ( ... ) -- 定时器
         self.count = self.count + 1
-        ws.send(tostring(self.count))
+        self.ws:send(tostring(self.count))
     end)
     self.mq:on('/test/*', function (msg) -- 消息队列
         if not msg then
-            ws.send('{"code":500,"message":"无法连接到mq(reds)"}')
-            return ws.close()
+            self.ws:send('{"code":500,"message":"无法连接到mq(reds)"}')
+            return self.ws:close()
         end
-        ws.send(json.encode(msg))
+        self.ws:send(json.encode(msg))
     end)
 end
 
-function websocket:on_message(ws, data)
-    print('on_message', ws, data)
-    ws.send('welcome')
-    -- ws.close(data)
+function websocket:on_message(data, typ)
+    print('on_message', self.ws, data)
+    self.ws:send('welcome')
+    self.ws:close(data)
 end
 
-function websocket:on_error(ws, error)
-    print('on_error',ws, error)
+function websocket:on_error(error)
+    print('on_error', self.ws, error)
 end
 
-function websocket:on_close(ws, data)
-    print('on_close', ws, data)
+function websocket:on_close(data)
+    print('on_close', self.ws, data)
     if self.mq then     -- 清理消息队列
         self.mq:close()
         self.mq = nil

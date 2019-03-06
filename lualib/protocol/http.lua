@@ -403,7 +403,6 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 		sock:close()
 		return
 	end
-	local protocol = header['Sec-Websocket-Protocol']
 	local response = {
 		REQUEST_STATUCODE_RESPONSE(101),
 		'Date: ' .. HTTP_DATE(),
@@ -412,6 +411,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 		'Upgrade: WebSocket',
 		'Sec-WebSocket-Accept: '..base64(sha1(sec_key..'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))
 	}
+	local protocol = header['Sec-Websocket-Protocol']
 	if protocol then -- 仅支持协议回传, 具体实现由用户实现
 		insert(response, "Sec-Websocket-Protocol: "..tostring(protocol))
 	end

@@ -41,7 +41,7 @@ task_start(lua_State *L){
 
 	core_task_start(CORE_LOOP_ task);
 
-	return 0;
+	return 1;
 }
 
 int
