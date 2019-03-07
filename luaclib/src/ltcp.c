@@ -95,47 +95,33 @@ TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 		return ;
 	}
 
-	if (revents & EV_WRITE){
-		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
-		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			status = lua_resume(co, NULL, 0);
-			if (status != LUA_YIELD && status != LUA_OK){
-				LOG("ERROR", lua_tostring(co, -1));
-				core_io_stop(CORE_LOOP_ io);
-			}
+	lua_State *co = (lua_State *)core_get_watcher_userdata(io);
+	if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+		status = lua_resume(co, NULL, 0);
+		if (status != LUA_YIELD && status != LUA_OK){
+			LOG("ERROR", lua_tostring(co, -1));
+			core_io_stop(CORE_LOOP_ io);
 		}
 	}
-
-	if (revents & EV_READ){
-		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
-		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			status = lua_resume(co, NULL, 0);
-			if (status != LUA_YIELD && status != LUA_OK){
-				LOG("ERROR", lua_tostring(co, -1));
-				core_io_stop(CORE_LOOP_ io);
-			}
-		}
-	}
-
 }
 
 static void
 IO_CONNECT(CORE_P_ core_io *io, int revents){
-
-	int status = 0;
-
-	int CONNECTED = 0;
 
 	if (revents & EV_ERROR) {
 		LOG("ERROR", "Recevied a core_io object internal error from libev.");
 		return ;
 	}
 
-	if (revents & EV_READ && revents & EV_WRITE){
+	if (revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			int err = 0; socklen_t len; /* 可能连接已经成功, 并且有数据发送过来; */
-			if (0 == getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, &len) && !errno) CONNECTED = 1;
+			int status = 0;
+			int CONNECTED = 1;
+			if (revents & EV_READ){
+				int err = 0; socklen_t len; /* 可能连接已经成功, 并且有数据发送过来; */
+				getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0 && !errno ? (CONNECTED = 1): (CONNECTED = 0);
+			}
 			lua_pushboolean(co, CONNECTED);
 			status = lua_resume(co, NULL, 1);
 			if (status != LUA_YIELD && status != LUA_OK){
@@ -143,21 +129,8 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 				core_io_stop(CORE_LOOP_ io);
 			}
 		}
-		return ;
 	}
 
-	if (revents & EV_WRITE){
-		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
-		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			lua_pushboolean(co, (CONNECTED = 1));
-			status = lua_resume(co, NULL, 1);
-			if (status != LUA_YIELD && status != LUA_OK){
-				LOG("ERROR", lua_tostring(co, -1));
-				core_io_stop(CORE_LOOP_ io);
-			}
-		}
-		return ;
-	}
 }
 
 static void /* 接受链接 */
