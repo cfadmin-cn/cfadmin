@@ -7,25 +7,22 @@ udp_socket_new(const char *ipaddr, int port){
 
 	errno = 0;
 	/* 建立socket*/
-	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
 	if (0 >= sockfd) return -1;
 
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
 
     int ENABLE = 1;
-
-     /* 地址/端口重用 */
+     /* 端口重用 */
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &ENABLE, sizeof(ENABLE));
 
-	struct sockaddr_in sock_addr;
-	memset(&sock_addr, 0, sizeof(sock_addr));
+	struct sockaddr_in6 SA;
+	SA.sin6_family = AF_INET6;
+	SA.sin6_port = htons(port);
+	inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
 
-	sock_addr.sin_family = AF_INET;
-	sock_addr.sin_port = htons(port);
-	sock_addr.sin_addr.s_addr = inet_addr(ipaddr);
-
-	connect(sockfd, (struct sockaddr*)&sock_addr, sizeof(struct sockaddr));
+	connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
 
 	return sockfd;
 }

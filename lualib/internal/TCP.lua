@@ -248,10 +248,10 @@ function TCP:listen(ip, port, cb)
     return tcp.listen(self.LISTEN_IO, self.fd, self.co)
 end
 
-function TCP:connect(ip, port)
-    local ok, IP = dns_resolve(ip)
+function TCP:connect(domain, port)
+    local ok, IP = dns_resolve(domain)
    if not ok then
-        return nil, "Can't resolve this domain or ip:"..ip
+        return nil, "Can't resolve this domain or ip:"..domain
     end
     self.fd = tcp_new_client_fd(IP, port)
     if not self.fd then
@@ -288,8 +288,8 @@ function TCP:connect(ip, port)
     return co_wait()
 end
 
-function TCP:ssl_connect(ip, port)
-    local ok, err = self:connect(ip, port)
+function TCP:ssl_connect(domain, port)
+    local ok, err = self:connect(domain, port)
     if not ok then
         return nil, "SSL connect error."
     end

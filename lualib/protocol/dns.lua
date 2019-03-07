@@ -3,6 +3,8 @@ local co = require "internal.Co"
 local sys = require "sys"
 local log = require "log"
 
+local prefix = '::ffff:'
+
 local co_self = co.self
 local co_wait = co.wait
 local co_wakeup = co.wakeup
@@ -54,23 +56,30 @@ end
 local function check_ip(ip)
     if ip then
         if check_ipv4(ip) then
-            return true, 'ipv4'
+            return true, 4
         end
         if check_ipv6(ip) then
-            return true, 'ipv6'
+            return true, 6
         end
     end
 end
 
 local function gen_cache()
     local file = io.open("/etc/hosts", "r")
-    dns_cache['localhost'] = {ip = "127.0.0.1"}
+    dns_cache['localhost'] = {ip = '::1'}
     if file then
         for line in file:lines() do
             local ip, domain = match(line, '([^# %t]*)[%t ]*(.*)$')
-            if check_ip(ip) then
-                if not dns_cache[domain] then
-                    dns_cache[domain] = {ip = ip}
+            local ok, v = check_ip(ip)
+            if ok then
+                if v == 4 then
+                    if not dns_cache[domain] then
+                        dns_cache[domain] = {ip = prefix..ip}
+                    end
+                else
+                    if not dns_cache[domain] then
+                        dns_cache[domain] = {ip = ip}
+                    end
                 end
             end
         end
@@ -83,9 +92,12 @@ if #dns_list < 1 then
     if file then
         for line in file:lines() do
             local ip = match(line, "nameserver (.-)$")
-            local YES = check_ip(ip)
-            if YES then
-                insert(dns_list, ip)
+            local ok, v = check_ip(ip)
+            if ok then
+                if v == 6 then
+                    insert(dns_list, ip)
+                end
+                insert(dns_list, prefix..ip)
             end
         end
         file:close()
@@ -234,10 +246,10 @@ local function dns_query(domain)
     -- print("解析域名用时: ", tostring(e_n_d - start)..'s')
     for i = #wlist, 1, -1 do
         -- 如果有其它协程也在等待查询, 那么一起唤醒它们
-        co_wakeup(wlist[i], true, ip)
+        co_wakeup(wlist[i], true, prefix..ip)
     end
     cos[domain] = nil
-    return true, ip
+    return true, '::ffff:'..ip
 end
 
 function dns.flush()
@@ -256,14 +268,20 @@ function dns.resolve(domain)
         return nil, "attemp to resolve a nil or empty host name."
     end
     -- 如果是正确的ipv4地址直接返回
-    local ok = check_ip(domain)
+    local ok, v = check_ip(domain)
     if ok then
-        return ok, domain
+        if 6 == v then
+            return ok, domain
+        end
+        return prefix..domain
     end
     -- 如果有dns缓存直接返回
     local ip = check_cache(domain)
     if ip then
-        return true, ip
+        if check_ipv6(ip) then
+            return true, domain
+        end
+        return true, prefix..ip
     end
     -- 如果有其他协程也正巧在查询这个域名, 那么就加入到等待列表内
     local wlist = cos[domain]

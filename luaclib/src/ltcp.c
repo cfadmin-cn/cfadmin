@@ -52,30 +52,17 @@ static int
 create_client_fd(const char *ipaddr, int port){
 	errno = 0;
 
-	int PROTOCOL_FAMILY;
-	if (ipv4(ipaddr)) PROTOCOL_FAMILY = AF_INET;
-	else if (ipv6(ipaddr)) PROTOCOL_FAMILY = AF_INET6;
-	else return -1;
-
-	/* 建立socket*/
-	int sockfd = socket(PROTOCOL_FAMILY, SOCK_STREAM, IPPROTO_TCP);
+	/* 建立socket */
+	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 	if (0 >= sockfd) return -1;
 
 	SETSOCKETOPT(sockfd);
 
-	if (PROTOCOL_FAMILY == AF_INET6) {
-		struct sockaddr_in6 SA;
-		SA.sin6_family = PROTOCOL_FAMILY;
-		SA.sin6_port = htons(port);
-		inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
-		connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
-	}else{
-		struct sockaddr_in SA;
-		SA.sin_family = PROTOCOL_FAMILY;
-		SA.sin_port = htons(port);
-		SA.sin_addr.s_addr = inet_addr(ipaddr);
-		connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
-	}
+	struct sockaddr_in6 SA;
+	SA.sin6_family = AF_INET6;
+	SA.sin6_port = htons(port);
+	inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
+	connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
 	if (errno != EINPROGRESS){
 		close(sockfd);
 		return -1;
