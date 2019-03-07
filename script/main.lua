@@ -2,11 +2,17 @@ local httpd = require "httpd"
 
 local app = httpd:new("App")
 
+local httpc = require "httpc"
+
 -- 注册接口
 app:api("/api", require "api")
 
 app:api("/app", function (opt)
-    return "<html><h1 align=center>this is test header<hr>cf/0.1</h1></html>"
+	local code, resp = httpc.get('http://t.weather.sojson.com/api/weather/city/101030100')
+	if code == 200 then
+		return resp
+	end
+	return '{"code":500,"message":"请求失败."}'
 end)
 
 -- 注册普通路由(html/text)
