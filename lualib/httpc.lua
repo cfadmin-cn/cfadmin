@@ -140,25 +140,30 @@ local function httpc_response(IO, SSL)
 end
 
 local function IO_CONNECT(IO, PROTOCOL, DOAMIN, PORT)
+	local PORT = tonumber(PORT)
 	if PROTOCOL == "http" then
-		if not toint(PORT) or PORT == '' then
+		if PORT and PORT < 65536 and PORT > 1 then
+			PORT = tonumber(PORT)
+		else
 			PORT = 80
 		end
-		local ok, err = IO:connect(DOAMIN, toint(PORT))
+		local ok, err = IO:connect(DOAMIN, PORT)
 		if not ok then
 			IO:close()
-			return false, 'httpc 连接失败'
+			return false, 'httpc 连接失败:'.. DOAMIN ..',' .. PORT
 		end
 		return true
 	end
 	if PROTOCOL == "https" then
-		if toint(PORT) or PORT == '' then
-			PORT = 443
+		if PORT and PORT < 65536 and PORT > 1 then
+			PORT = tonumber(PORT)
+		else
+			PORT = 80
 		end
-		local ok = IO:ssl_connect(DOAMIN, toint(PORT))
+		local ok = IO:ssl_connect(DOAMIN, PORT)
 		if not ok then
 			IO:close()
-			return false, 'httpc ssl连接失败'
+			return false, 'httpc ssl连接失败'.. DOAMIN ..',' .. PORT
 		end
 		return true
 	end
@@ -211,6 +216,7 @@ local function splite_protocol(domain)
 			DOMAIN, PORT = domain, port
 		end
 	end
+
 	return PROTOCOL, DOMAIN, PORT, PATH
 end
 
@@ -219,7 +225,7 @@ end
 function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 
 	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
-
+	local port
 	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
 		port = ":"..PORT
 	else
@@ -228,7 +234,7 @@ function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 
 	local request = {
 		fmt("GET %s HTTP/1.1", PATH),
-		fmt("Host: %s", DOMAIN..port),
+		fmt("Host: %s", DOMAIN..':'..port),
 		'Accept: */*',
 		'Accept-Encoding: identity',
 		fmt("Connection: keep-alive"),
@@ -268,7 +274,7 @@ end
 function httpc.post(domain, HEADER, BODY, TIMEOUT)
 
 	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
-
+	local port
 	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
 		port = ":"..PORT
 	else
@@ -277,7 +283,7 @@ function httpc.post(domain, HEADER, BODY, TIMEOUT)
 
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
-		fmt("Host: %s\r\n", DOMAIN..port),
+		fmt("Host: %s\r\n", DOMAIN..':'..port),
 		'Accept: */*\r\n',
 		'Accept-Encoding: identity\r\n',
 		fmt("Connection: keep-alive\r\n"),
@@ -324,7 +330,7 @@ end
 function httpc.json(domain, HEADER, JSON, TIMEOUT)
 
 	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
-
+	local port
 	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
 		port = ":"..PORT
 	else
@@ -335,7 +341,7 @@ function httpc.json(domain, HEADER, JSON, TIMEOUT)
 
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
-		fmt("Host: %s\r\n", DOMAIN..port),
+		fmt("Host: %s\r\n", DOMAIN..':'..port),
 		'Accept: */*\r\n',
 		'Accept-Encoding: identity\r\n',
 		fmt("Connection: keep-alive\r\n"),
@@ -371,7 +377,7 @@ end
 function httpc.file(domain, HEADER, FILES, TIMEOUT)
 
 	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
-
+	local port
 	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
 		port = ":"..PORT
 	else
@@ -380,7 +386,7 @@ function httpc.file(domain, HEADER, FILES, TIMEOUT)
 
 	local request = {
 		fmt("POST %s HTTP/1.1\r\n", PATH),
-		fmt("Host: %s\r\n", DOMAIN..port),
+		fmt("Host: %s\r\n", DOMAIN..':'..port),
 		'Accept: */*\r\n',
 		'Accept-Encoding: identity\r\n',
 		fmt("Connection: keep-alive\r\n"),

@@ -9,10 +9,11 @@ app:api("/api", require "api")
 
 app:api("/app", function (opt)
 	local code, resp = httpc.get('http://t.weather.sojson.com/api/weather/city/101030100')
-	if code == 200 then
-		return resp
+	if code ~= 200 then
+		print(code, resp)
+		return '{"code":500,"message":"请求失败."}'
 	end
-	return '{"code":500,"message":"请求失败."}'
+	return resp
 end)
 
 -- 注册普通路由(html/text)

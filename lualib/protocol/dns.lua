@@ -28,6 +28,11 @@ local type = type
 
 local dns = {}
 
+local QTYPE = {
+    A = 1,
+    AAAA = 28,
+}
+
 local dns_cache = {}
 
 local dns_list = {}
@@ -92,12 +97,9 @@ if #dns_list < 1 then
     if file then
         for line in file:lines() do
             local ip = match(line, "nameserver (.-)$")
-            local ok, v = check_ip(ip)
+            local ok = check_ip(ip)
             if ok then
-                if v == 6 then
-                    insert(dns_list, ip)
-                end
-                insert(dns_list, prefix..ip)
+                insert(dns_list, ip)
             end
         end
         file:close()
@@ -108,16 +110,21 @@ if #dns_list < 1 then
     gen_cache()
 end
 
-local dns_client_rr = 0
-
 local function get_dns_client()
-    -- 为了防止过于频繁的请求同一ip会丢弃数据, 所以在尽可能的情况下给予多ip轮询发送查询请求
-    dns_client_rr = dns_client_rr % #dns_list + 1
-    local udp = UDP:new():timeout(dns._timeout or 5) -- 默认情况下是5秒超时
-    local ok = udp:connect(dns_list[dns_client_rr], 53)
-    if ok then
-        return udp
+    if #dns_list >= 1 then
+        local ip = dns_list[1]
+        local udp = UDP:new():timeout(dns._timeout or 5)
+        local ok, v = check_ip(ip)
+        if v == 4 then
+            ip = prefix..ip
+        end
+        local ok = udp:connect(ip, 53)
+        if not ok then
+            return nil, 'Create UDP Socket error.'
+        end
+        return udp, v
     end
+    return nil, "Can't find system dns in /etc/resolve.conf."
 end
 
 local function pack_header()
@@ -128,8 +135,14 @@ local function pack_header()
     return pack(">HHHHHH", tid, flag, QCOUNT, 0, 0, 0)
 end
 
-local function pack_question(name)
-    local Query_Type  = 0x01 -- IPv4
+local function pack_question(name, version)
+    -- local Query_Type  = QTYPE.A -- IPv4
+    -- local Query_Type  = QTYPE.AAAA -- IPv6
+    local qtype = QTYPE.A
+    if version == 6 then
+        qtype = QTYPE.AAAA
+    end
+    local Query_Type  = qtype
     local Query_Class = 0x01 -- IN internet
     local question = {}
     for sp in splite(name, "([^%.]*)") do
@@ -180,7 +193,10 @@ local function unpack_answer(chunk, nbyte)
     return { name = name, atype = atype, class = class, ttl = ttl, rdata = rdata }, nbyte
 end
 
-local function unpack_rdata(chunk)
+local function unpack_rdata(chunk, qtype)
+    if qtype == QTYPE.AAAA then
+        return fmt('%x:%x:%x:%x:%x:%x:%x:%x', unpack(">HHHHHHHH", chunk))
+    end
     return fmt("%d.%d.%d.%d", unpack(">BBBB", chunk))
 end
 
@@ -188,18 +204,18 @@ end
 local cos = {}
 
 local function dns_query(domain)
-    -- 当前正在查询的协程不需要加入进去
     local wlist = {}
     cos[domain] = wlist
     -- local start = os.time() + os.clock()
     -- print("开始解析域名:["..domain.."], 开始时间: ", start)
-    local header = pack_header()
-    local question = pack_question(domain)
-    local dns_client = get_dns_client()
-    if not dns_client then
-        return nil, "No dns client."
-    end
     local dns_resp, len
+    local dns_client, msg = get_dns_client()
+    if not dns_client then
+        dns_client:close()
+        return nil, msg
+    end
+    local header = pack_header()
+    local question = pack_question(domain, msg)
     while 1 do   -- 如果一直没收到回应将会反复请求
         dns_client:send(header..question)
         dns_resp, len = dns_client:recv()
@@ -234,22 +250,27 @@ local function dns_query(domain)
     local answer
     for i = 1, answer_header.ancount do
         answer, nbyte = unpack_answer(dns_resp, nbyte)
-        answer.ip = unpack_rdata(answer.rdata)
-        dns_cache[domain] = {ip = answer.ip, ttl = now() + answer.ttl}
+        if answer.atype == QTYPE.A or answer.atype == QTYPE.AAAA then
+            answer.ip = unpack_rdata(answer.rdata, answer.atype)
+            dns_cache[domain] = {ip = answer.ip, ttl = now() + answer.ttl}
+        end
     end
-    local ip = answer.ip
-    if not check_ip(ip) then
+    local ip, v = check_ip(answer.ip)
+    if not ip then
         return nil, "unknown ip in this domain: "..domain
+    end
+    if ip and v == 4 then
+        ip = prefix..ip
     end
     -- local e_n_d = os.time() + os.clock()
     -- print("解析域名["..domain.."]完成, 结束时间:", e_n_d, ip, answer.ttl)
     -- print("解析域名用时: ", tostring(e_n_d - start)..'s')
     for i = #wlist, 1, -1 do
         -- 如果有其它协程也在等待查询, 那么一起唤醒它们
-        co_wakeup(wlist[i], true, prefix..ip)
+        co_wakeup(wlist[i], true, ip)
     end
     cos[domain] = nil
-    return true, '::ffff:'..ip
+    return true, ip
 end
 
 function dns.flush()
@@ -273,13 +294,13 @@ function dns.resolve(domain)
         if 6 == v then
             return ok, domain
         end
-        return prefix..domain
+        return ok, prefix..domain
     end
     -- 如果有dns缓存直接返回
     local ip = check_cache(domain)
     if ip then
         if check_ipv6(ip) then
-            return true, domain
+            return true, ip
         end
         return true, prefix..ip
     end

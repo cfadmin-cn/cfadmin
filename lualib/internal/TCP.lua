@@ -255,7 +255,8 @@ function TCP:connect(domain, port)
     end
     self.fd = tcp_new_client_fd(IP, port)
     if not self.fd then
-        return log.error("Connect This IP or Port Faild! :) ")
+        log.error("Connect This IP or Port Faild!"..domain, IP)
+        return nil, "Connect This host fault! :"
     end
     local co = co_self()
     self.CONNECT_IO = tcp_pop()
