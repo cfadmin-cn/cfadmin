@@ -250,7 +250,7 @@ end
 
 function TCP:connect(domain, port)
     local ok, IP = dns_resolve(domain)
-   if not ok then
+    if not ok then
         return nil, "Can't resolve this domain or ip:"..domain
     end
     self.fd = tcp_new_client_fd(IP, port)
@@ -282,7 +282,7 @@ function TCP:connect(domain, port)
         self.CONNECT_IO = nil
         self.connect_co = nil
         self.connect_current_co = nil
-        return co_wakeup(self.connect_current_co, nil, 'connect timeot.')
+        return co_wakeup(co, nil, 'connect timeot.')
     end)
     tcp_connect(self.CONNECT_IO, self.fd, self.connect_co)
     return co_wait()
@@ -297,8 +297,9 @@ function TCP:ssl_connect(domain, port)
     if not self.ssl_ctx or not self.ssl then
         return log.error("Create a SSL Error! :) ")
     end
+    local co = co_self()
     self.CONNECT_IO = tcp_pop()
-    self.connect_current_co = co_self()
+    self.connect_current_co = co
     self.connect_co = co_new(function ()
         local EVENTS = EVENT_WRITE
         while 1 do
@@ -330,7 +331,7 @@ function TCP:ssl_connect(domain, port)
         self.CONNECT_IO = nil
         self.connect_co = nil
         self.connect_current_co = nil
-        return co_wakeup(self.co, nil, 'ssl_connect timeot.')
+        return co_wakeup(co, nil, 'ssl_connect timeot.')
     end)
     tcp_start(self.CONNECT_IO, self.fd, EVENT_WRITE, self.connect_co)
     return co_wait()
