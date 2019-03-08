@@ -255,22 +255,22 @@ local function dns_query(domain)
             dns_cache[domain] = {ip = answer.ip, ttl = now() + answer.ttl}
         end
     end
-    local ip, v = check_ip(answer.ip)
-    if not ip then
+    local ok, v = check_ip(answer.ip)
+    if not ok then
         return nil, "unknown ip in this domain: "..domain
     end
-    if ip and v == 4 then
-        ip = prefix..ip
+    if ok and v == 4 then
+        answer.ip = prefix..answer.ip
     end
     -- local e_n_d = os.time() + os.clock()
     -- print("解析域名["..domain.."]完成, 结束时间:", e_n_d, ip, answer.ttl)
     -- print("解析域名用时: ", tostring(e_n_d - start)..'s')
     for i = #wlist, 1, -1 do
         -- 如果有其它协程也在等待查询, 那么一起唤醒它们
-        co_wakeup(wlist[i], true, ip)
+        co_wakeup(wlist[i], true, answer.ip)
     end
     cos[domain] = nil
-    return true, ip
+    return true, answer.ip
 end
 
 function dns.flush()
