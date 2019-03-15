@@ -69,6 +69,15 @@ function TCP:set_fd(fd)
     return self
 end
 
+-- 设置backlog
+
+function TCP:set_backlog(backlog)
+    if type(backlog) == 'number' and backlog > 0 then
+        self._backlog = backlog
+    end
+    return self
+end
+
 function TCP:send(buf)
     if self.ssl then
         return log.error("Please use ssl_send method :)")
@@ -245,7 +254,7 @@ function TCP:listen(ip, port, cb)
             end
         end
     end)
-    return tcp.listen(self.LISTEN_IO, self.fd, self.co)
+    return tcp.listen(self.LISTEN_IO, self.fd, self.co, self._backlog)
 end
 
 function TCP:connect(domain, port)

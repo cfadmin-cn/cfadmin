@@ -22,7 +22,7 @@ void SETSOCKETOPT(int sockfd){
 
 /* server fd */
 static int
-create_server_fd(int port){
+create_server_fd(int port, int backlog){
 	errno = 0;
 
 	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
@@ -40,7 +40,7 @@ create_server_fd(int port){
 		return -1; /* 绑定套接字失败 */
 	}
 
-	int listen_success = listen(sockfd, 256);
+	int listen_success = listen(sockfd, backlog);
 	if (0 > listen_success) {
 		return -1; /* 监听套接字失败 */
 	}
@@ -124,25 +124,27 @@ static void /* 接受链接 */
 IO_ACCEPT(CORE_P_ core_io *io, int revents){
 
 	if (revents & EV_READ){
-		errno = 0;
-		struct sockaddr_in6 SA;
-		socklen_t slen = sizeof(struct sockaddr_in6);
-		int client = accept(io->fd, (struct sockaddr*)&SA, &slen);
-		if (0 >= client) {
-			LOG("INFO", strerror(errno)); return ;
-		}
-
-		lua_State *co = (lua_State *) core_get_watcher_userdata(io);
-		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			char buf[INET6_ADDRSTRLEN];
-			inet_ntop(AF_INET6, &SA.sin6_addr, buf, INET6_ADDRSTRLEN);
-			lua_pushinteger(co, client);
-			lua_pushlstring(co, buf, strlen(buf));
-			int status = lua_resume(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
-			if (status != LUA_YIELD && status != LUA_OK) {
-				LOG("ERROR", lua_tostring(co, -1));
-				LOG("ERROR", "Error Lua Accept Method");
-				core_io_stop(CORE_LOOP_ io);
+		for(;;) {
+			errno = 0;
+			struct sockaddr_in6 SA;
+			socklen_t slen = sizeof(struct sockaddr_in6);
+			int client = accept(io->fd, (struct sockaddr*)&SA, &slen);
+			if (0 >= client) {
+				if (errno != EAGAIN)
+					LOG("INFO", strerror(errno));
+				return ;
+			}
+			lua_State *co = (lua_State *) core_get_watcher_userdata(io);
+			if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+				char buf[INET6_ADDRSTRLEN];
+				inet_ntop(AF_INET6, &SA.sin6_addr, buf, INET6_ADDRSTRLEN);
+				lua_pushinteger(co, client);
+				lua_pushlstring(co, buf, strlen(buf));
+				int status = lua_resume(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
+				if (status != LUA_YIELD && status != LUA_OK) {
+					LOG("ERROR", lua_tostring(co, -1));
+					LOG("ERROR", "Error Lua Accept Method");
+				}
 			}
 		}
 	}
@@ -270,7 +272,9 @@ new_server_fd(lua_State *L){
 	int port = lua_tointeger(L, 2);
 	if(!port) return 0;
 
-	int fd = create_server_fd(port);
+	int backlog = lua_tointeger(L, 3);
+
+	int fd = create_server_fd(port, 0 >= backlog ? 128 : backlog);
 	if (0 >= fd) return 0;
 
 	lua_pushinteger(L, fd);	
