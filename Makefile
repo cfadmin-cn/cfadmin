@@ -12,13 +12,13 @@ default :
 # 3. lualib/src/cjson/Makefile
 
 build :
-	cd src && make build
-	cd luaclib && make build
+	cd src && rm -rf *.so *.o && make build
+	cd luaclib && rm -rf *.so *.o && make build
 
 rebuild :
 	rm -rf main cfadmin *.so
-	cd src && make rebuild
-	cd luaclib && make rebuild
+	cd src && rm -rf *.so *.o && make rebuild
+	cd luaclib && rm -rf *.so *.o && make rebuild
 
 clean :
 	rm -rf main cfadmin *.so

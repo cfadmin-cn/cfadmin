@@ -28,7 +28,6 @@ build: $(OBJS)
 
 rebuild: $(OBJS)
 	$(CC) -o httpparser.so $(OBJS) $(INCLUDE) $(LIB) -O3 -shared -fPIC -lcore
-	rm -rf *.o
 	mv httpparser.so ../../
 
 clean:
