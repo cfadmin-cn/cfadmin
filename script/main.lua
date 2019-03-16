@@ -1,11 +1,32 @@
+local httpc = require "httpc"
+
 local httpd = require "httpd"
 
 local app = httpd:new("App")
 
-local httpc = require "httpc"
+-- 单个连接最大保持时间
+app:timeout(5)
+
+-- before
+app:before(function (content)
+	return 200
+end)
+
+-- 最大URI长度
+app:max_path_size(1024)
+
+-- 最大Header长度
+app:max_header_size(2048)
+
+-- 最大Body长度
+app:max_body_size(1024 * 1024)
+
+-- 可自定义Server Name
+app:server_name('Candy Server/1.0')
 
 -- 注册接口
 app:api("/api", require "api")
+
 
 app:api("/app", function (opt)
 	local code, resp = httpc.get('http://t.weather.sojson.com/api/weather/city/101030100')
