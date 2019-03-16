@@ -73,11 +73,10 @@ lparser_request_header(lua_State *L){
 
     lua_createtable(L, 0, 32);
     for (i = 0; i < 32; i++){
-        if (headers[i].name && (headers[i].value)){
-            lua_pushlstring(L, headers[i].name, headers[i].name_len);
-            lua_pushlstring(L, headers[i].value, headers[i].value_len);
-            lua_rawset(L, lua_gettop(L) - 2);
-        }else break;
+        if (!headers[i].name || !headers[i].value) break;
+        lua_pushlstring(L, headers[i].name, headers[i].name_len);
+        lua_pushlstring(L, headers[i].value, headers[i].value_len);
+        lua_rawset(L, lua_gettop(L) - 2);
     }
     return 1;
 }
@@ -101,11 +100,10 @@ lparser_response_header(lua_State *L){
 
     lua_createtable(L, 0, 32);
     for (i = 0; i < 32; i++){
-        if (headers[i].name && (headers[i].value)){
-            lua_pushlstring(L, headers[i].name, headers[i].name_len);
-            lua_pushlstring(L, headers[i].value, headers[i].value_len);
-            lua_rawset(L, lua_gettop(L) - 2);
-        }else break;
+        if (!headers[i].name || !headers[i].value) break;
+        lua_pushlstring(L, headers[i].name, headers[i].name_len);
+        lua_pushlstring(L, headers[i].value, headers[i].value_len);
+        lua_rawset(L, lua_gettop(L) - 2);
     }
     return 1;
 }
