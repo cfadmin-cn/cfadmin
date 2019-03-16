@@ -451,7 +451,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				return sock:close()
 			end
 			-- 超过自定义最大PATH长度限制
-			if PATH and #PATH > (max_path_size or 65535) then
+			if PATH and #PATH > (max_path_size or 1024) then
 				sock:send(ERROR_RESPONSE(http, 414, PATH, ipaddr, now() - start))
 				return sock:close()
 			end
@@ -483,19 +483,22 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				return sock:close()
 			end
 			content['method'], content['path'], content['headers'] = METHOD, PATH, HEADER
+
 			-- before 函数只影响接口与view
 			if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
 				local ok, code, url = pcall(before_func, content)
 				if not ok then -- before 函数执行出错
+					log.error(code)
 					sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
 					return sock:close()
-				else
-					if code ~= 200 then -- 不允许的情况下走这条规则
-						if not code or type(code) ~= 'number' then
+				end
+				if code then
+					if type(code) == "number" then
+						if code < 200 or code > 500 then
+							log.error("before function: Illegal return value")
 							sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
 							return sock:close()
-						end
-						if code == 302 or code == 301 then -- 重定向必须给出完整url
+						elseif code == 301 or code == 302 then
 							http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr, now() - start))
 							sock:send(concat({
 								REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
@@ -505,15 +508,15 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 								"Location: "..(url or "https://github.com/CandyMi/core_framework")
 							}, CRLF)..CRLF2)
 							return sock:close()
+						elseif code ~= 200 then
+							sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
+							return sock:close()
 						end
-						sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
-						return sock:close()
 					end
 				end
 			end
 
 			local header = { }
-
 			local ok, data, static, statucode
 
 			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
@@ -561,16 +564,15 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					statucode = 404
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
 					return sock:close()
+				end
+				statucode = 200
+				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+				local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
+				if not conten_type then
+					insert(header, 'Content-Disposition: attachment') -- 确保浏览器提示需要下载
+					static = fmt('Content-Type: %s', 'application/octet-stream')
 				else
-					statucode = 200
-					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
-					local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
-					if not conten_type then
-						insert(header, 'Content-Disposition: attachment') -- 确保浏览器提示需要下载
-						static = fmt('Content-Type: %s', 'application/octet-stream')
-					else
-						static = fmt('Content-Type: %s', conten_type)
-					end
+					static = fmt('Content-Type: %s', conten_type)
 				end
 			end
 
@@ -599,15 +601,21 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				end
 				insert(header, static)
 			end
-			if not data and type(data) ~= 'string' then
-				statucode = 500
-				sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
-				return sock:close()
+			if data then
+				if type(data) == 'string' then
+					if #data >= 1 then
+						insert(header, 'Transfer-Encoding: identity')
+						insert(header, fmt('Content-Length: %d', #data))
+					end
+				else
+					log.warn('response body not a string type.'..'('..tostring(data)..')')
+					data = ''
+				end
+			else
+				data = ''
 			end
-			insert(header, 'Transfer-Encoding: identity')
-			insert(header, fmt('Content-Length: %d', #data))
 			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
-			sock:send(concat(header, CRLF) .. CRLF2 ..data)
+			sock:send(concat(header, CRLF) .. CRLF2 .. data)
 			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
 				return sock:close()
 			end
