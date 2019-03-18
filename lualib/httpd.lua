@@ -143,13 +143,13 @@ function httpd:tolog(code, path, ip, ip_list, speed)
                 return log.error(self.logpath..":"..err)
             end
         end
-        local ok, err = self.logfile:write(fmt("[%s] - %s - %s - %s - %d - time: %f/Sec\r\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, code, tostring(speed)))
+        local ok, err = self.logfile:write(fmt("[%s] - %s - %s - %s - %d - time: %0.6f/Sec\r\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, code, speed))
         if not ok then
             return log.error(self.logpath..":"..err)
         end
         self.logfile:flush()
     end
-    print(fmt("[%s] - %s - %s - %s - %d - time: %f/Sec\r\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, code, tostring(speed)))
+    print(fmt("[%s] - %s - %s - %s - %d - time: %0.6f/Sec\r\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, code, speed))
 end
 
 -- 监听请求

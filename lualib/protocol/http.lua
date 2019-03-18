@@ -486,7 +486,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 
 			-- before 函数只影响接口与view
 			if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
-				local ok, code, url = pcall(before_func, content)
+				local ok, code, data = pcall(before_func, content)
 				if not ok then -- before 函数执行出错
 					log.error(code)
 					sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
@@ -499,20 +499,39 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 							sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
 							return sock:close()
 						elseif code == 301 or code == 302 then
-							http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr, now() - start))
+							http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
 							sock:send(concat({
 								REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
 								'Allow: GET, POST, HEAD',
 								'Access-Control-Allow-Origin: *',
 								'server: ' .. (server or 'cf/0.1'),
-								"Location: "..(url or "https://github.com/CandyMi/core_framework")
+								'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
 							}, CRLF)..CRLF2)
 							return sock:close()
 						elseif code ~= 200 then
+							if data then
+								if type(data) == 'string' and data ~= '' then
+									http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
+									sock:send(concat({
+										REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
+										'Allow: GET, POST, HEAD',
+										'Access-Control-Allow-Origin: *',
+										'server: ' .. (server or 'cf/0.1'),
+										'Content-Length: '..tostring(#data),
+									}, CRLF)..CRLF2..data)
+									return sock:close()
+								end
+							end
 							sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
 							return sock:close()
 						end
+					else
+						sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
+						return sock:close()
 					end
+				else
+					sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
+					return sock:close()
 				end
 			end
 

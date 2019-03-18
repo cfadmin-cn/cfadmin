@@ -1,14 +1,25 @@
+local http = require "http"
 local httpc = require "httpc"
-
 local httpd = require "httpd"
 
 local app = httpd:new("App")
 
 
--- 每次http请求在处理函数之前将调用此方法
--- 第三方中间件可以在此针对回调函数设计.
+-- 每次http请求在处理函数之前将调用此方法, 第三方中间件可以在此针对回调函数设计.
+-- 需要注意的是: 如果路由不存在, 则不会经过此回调!
+-- 以下为使用示例:
+-- 如果未使用before回调进行中间件设计或进行header验证, 请不要注册before回调
+-- 只要注册了before回调, 即使不做任何操作(返回非法值(nil))也会返回http 401 code.
 app:before(function (content)
-	return 200
+	if true then
+		return http.ok()
+	end
+	-- if true then
+	-- 	return http.redirect('https://github.com/CandyMi/core_framework')
+	-- end
+	-- if true then
+	-- 	return http.throw(431, '<h1> This is 413 Error, too long request header</h1>')
+	-- end
 end)
 
 -- 单个连接最大保持时间

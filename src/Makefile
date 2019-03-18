@@ -33,7 +33,7 @@ build :
 
 	mv *.so /usr/local/lib
 
-	$(CC) core_start.c -o cfadmin $(MACRO) -ldl -lcore
+	$(CC) core_start.c -o cfadmin $(MACRO) -lcore -ldl
 
 	mv cfadmin ../
 
@@ -45,7 +45,7 @@ rebuild:
 
 	mv *.so /usr/local/lib
 
-	$(CC) core_start.c -o cfadmin $(MACRO) -ldl -lcore
+	$(CC) core_start.c -o cfadmin $(MACRO) -lcore -ldl
 
 	mv cfadmin ../
 
