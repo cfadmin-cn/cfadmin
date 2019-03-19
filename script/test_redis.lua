@@ -22,13 +22,13 @@ end
 var_dump(data)
 
 
-local ok, data = rds:evalsha('9c8545b8579e405965831fc6d1e3d0b3ac248d51', "admin")
+local ok, data = rds:evalsha('9c8545b8579e405965831fc6d1e3d0b3ac248d51', 1, "admin")
 if not ok then
     return print(data)
 end
 var_dump(data)
 
-local ok, data = rds:eval("return {1}", "admin")
+local ok, data = rds:eval("return {1}", 1, "admin")
 if not ok then
     return print(data)
 end

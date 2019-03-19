@@ -107,7 +107,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 			int CONNECTED = 1;
 			if (revents & EV_READ){
 				int err = 0; socklen_t len; /* 可能连接已经成功, 并且有数据发送过来; */
-				getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0 && !errno ? (CONNECTED = 1): (CONNECTED = 0);
+				getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0 && errno == 0 ? (CONNECTED = 1): (CONNECTED = 0);
 			}
 			lua_pushboolean(co, CONNECTED);
 			status = lua_resume(co, NULL, 1);

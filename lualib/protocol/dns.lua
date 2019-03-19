@@ -71,7 +71,7 @@ end
 
 local function gen_cache()
     local file = io.open("/etc/hosts", "r")
-    dns_cache['localhost'] = {ip = '::1'}
+    dns_cache['localhost'] = {ip = '127.0.0.1'}
     if file then
         for line in file:lines() do
             local ip, domain = match(line, '([^# %t]*)[%t ]*(.*)$')

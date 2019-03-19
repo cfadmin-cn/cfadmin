@@ -8,7 +8,7 @@ local opt = {
     port = 6379,
     auth = nil,
     db = nil,
-    max = 5,
+    max = 100,
 }
 
 -- 测试海量协程竞争opt.max个协程
@@ -16,11 +16,12 @@ local ok, err = Cache.init(opt)
 if not ok then
     return print(err)
 end
-
+local count = 0
 for i = 1, 10000 do 
     Co.spwan( function ( ... )
         local ok, ret = Cache:hget('user', 'candy')
-        print(ok, i, ret)
+        count = count + 1
+        print(ok, ret, count)
     end)
 end
 
