@@ -103,6 +103,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 	if (revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+			errno = 0;
 			int status = 0;
 			int CONNECTED = 1;
 			if (revents & EV_READ){
