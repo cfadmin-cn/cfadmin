@@ -358,8 +358,7 @@ local function X_Forwarded_FORMAT(tab)
 end
 -- 一些错误返回
 local function ERROR_RESPONSE(http, code, path, ip, forword, speed)
-	local ip_list = X_Forwarded_FORMAT(forword)
-	http:tolog(code, path, ip, ip_list or ip, speed)
+	http:tolog(code, path, ip, X_Forwarded_FORMAT(forword) or ip, speed)
 	return concat({
 		REQUEST_STATUCODE_RESPONSE(code),
 		'Date: ' .. HTTP_DATE(),
@@ -517,6 +516,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 										'Allow: GET, POST, HEAD',
 										'Access-Control-Allow-Origin: *',
 										'server: ' .. (server or 'cf/0.1'),
+										'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
 										'Content-Length: '..tostring(#data),
 									}, CRLF)..CRLF2..data)
 									return sock:close()
@@ -606,20 +606,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				Connection = 'Connection: close'
 			end
 			insert(header, Connection)
-			if typ == HTTP_PROTOCOL.API then
-				insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('json'))
-				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
-				insert(header, 'Cache-Control: no-cache')
-			elseif typ == HTTP_PROTOCOL.USE then
-				insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8')
-				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
-				insert(header, 'Cache-Control: no-cache')
-			else
-				if ttl then
-					cache = fmt('Expires: %s', HTTP_DATE(time() + ttl))
-				end
-				insert(header, static)
-			end
 			if data then
 				if type(data) == 'string' then
 					if #data >= 1 then
@@ -632,6 +618,24 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				end
 			else
 				data = ''
+			end
+			if typ == HTTP_PROTOCOL.API then
+				if #data > 0 then
+					insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('json'))
+				end
+				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
+				insert(header, 'Cache-Control: no-cache')
+			elseif typ == HTTP_PROTOCOL.USE then
+				if #data > 0 then
+					insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8')
+				end
+				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
+				insert(header, 'Cache-Control: no-cache')
+			else
+				if ttl then
+					cache = fmt('Expires: %s', HTTP_DATE(time() + ttl))
+				end
+				insert(header, static)
 			end
 			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
 			sock:send(concat(header, CRLF) .. CRLF2 .. data)
