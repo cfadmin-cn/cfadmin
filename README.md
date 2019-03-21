@@ -1,4 +1,4 @@
-# core_framework
+## core_framework 一个基于libev的轻量级lua web快速后端开发框架
 <p>
   <a href="https://github.com/CandyMi/core_framework/blob/master/LICENSE">
   <img src="https://img.shields.io/badge/license-BSD-brightgreen.svg"></a>
@@ -8,127 +8,35 @@
   <img src="https://img.shields.io/badge/Author-CandyMi-red.svg"></a>
 </p>
 
-A Web light-framework for Lua based Libev
+>   大道至简, 返璞归真
 
 ---
-## 介绍
+## 介绍一下CF
 
-cf技术点相关整理:
+>文档在这里:
 
-    1. 网络层
+*   [CF是什么?](https://github.com/CandyMi/core_framework/wiki/home)
 
-        1.1 TCP
+*   [CF使用到的技术栈?](https://github.com/CandyMi/core_framework/wiki/MAP)
 
-        1.2 UDP
+## 第一次安装CF
 
-    2. 协议
+>   [CF如何安装?](https://github.com/CandyMi/core_framework/wiki/install)
 
-        2.1 DNS
+## 第一次运行CF
 
-        2.2 Websocket(server)
+>   [CF如何运行?](https://github.com/CandyMi/core_framework/wiki/RUN)
 
-        2.3 HTTP
+## 第一次使用CF的问题
 
-        2.4 MQTT(client)
+>   [Q & A](https://github.com/CandyMi/core_framework/wiki/QA)
 
-        2.5 MySQL
+## 联系作者
 
-        2.6 Redis
+>   [issues](https://github.com/CandyMi/core_framework/issues)
 
-    3. 工具
+>   <a href="mailto:869646063@qq.com">作者邮箱</a>
 
-        3.1 Timer(定时器)
-
-        3.2 task(异步协程)
-
-        3.3 DB(MySQL封装)
-
-        3.4 Cache(Redis封装)
-
-    4. 测试文件
-
-        script文件夹内
-
-    5. 文档(TODO)
-
-        暂无
-
-
-## 安装要求
-
->  支持的操作系统 
-
-    1. linux (most of)
-
-    2. BSD (most of)
-
-    3. Mac OSX
-
-> 依赖库
-
-    1. libev > 4.24
-
-    2. ssl(openssl/libressl) > 1.0.1
-
-    3. jemalloc/tcmalloc(可选(默认未使用), 建议长期运行的程序手动修改一下相关makefile开启) > 5.0.0
-
-    4. lua > 5.3
-
-## 编译方式
-
-> 编译(build)
-
-    make build
-
-> 清理(clean)
-
-    make clean
-
-> 重新编译(clean and build)
-
-    make rebuild
-
-## 测试运行
-
-    bash#: ./cfadmin
-
-## 后台运行
-
-    bash#: ./cfadmin -d
-    
-## 已知遇到的问题
-
-    Q1. linux下链接lua出错
-
-        A. 请重新编译并且使用make linux MYCFLAGS=-fPIC宏.
-
-    Q2. 运行的时候提示找不到动态链接库。
-
-        A. 请使用export 将/usr/local/lib导入到LD_LIBRARY_PATH内.
-
-    Q3. linux自己编译的openssl/libressl即使添加到/usr/local/include也提示找不到头文件
-
-        A. 最简单的办法是使用yum/apt等包管理工具安装openssl-devel开发包, 然后尝试重新make rebuild编译;
-
-    Q5. make rebuild/build未报错, 但是提示找不到libcore.so或load libcore.so出错.
-
-        A. 请使用sudo make rebuild/build 增加加权限, 因为libcore.so需要安装到相关目录下.
-
-    Q6. 关于使用-d参数后台运行后, 一次读取海量数据(size > ulimit -s)后可能造成的崩溃(coredump)的情况.
-
-        A. 默认情况下Linux/BSD/Unix/Mac等操作系统的2M(2048)-8M(8192)不等, 可以考虑建议手动修改一下limits.d/launched改为32M(32768).
-           请注意: 这不是一个bug! 虽然你90%的情况下不会遇到这个问题. 如果想知道为什么, 建议看一下ltcp.c的实现.
-
-    Q7. 其它错误
-
-        A. 请提issues或者邮箱知会作者
-
-# 联系方式
-
-    1. issues
-
-    2. 869646063@qq.com
-
-# LICENSE
+## 授权协议
 
 [BSD LICENSE](https://github.com/CandyMi/core_framework/blob/master/LICENSE)
