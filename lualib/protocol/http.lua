@@ -270,7 +270,7 @@ end
 
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
 	local content = {}
-	if METHOD == "HEAD" or METHOD == "GET" then
+	if METHOD == "GET" then
 		local spl_pos = find(PATH, '%?')
 		if spl_pos and spl_pos < #PATH then
 			content['args'] = form_urlencode(PATH)
@@ -335,6 +335,8 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 				content['body'] = BODY
 			end
 		end
+	elseif METHOD == "HEAD" or METHOD == "OPTIONS" then
+		return true, nil
 	else
 		-- 暂未支持其他方法
 		return
@@ -362,10 +364,11 @@ local function ERROR_RESPONSE(http, code, path, ip, forword, speed)
 	return concat({
 		REQUEST_STATUCODE_RESPONSE(code),
 		'Date: ' .. HTTP_DATE(),
-		'Allow: GET, POST, HEAD',
+		'Allow: GET, POST, HEAD, OPTIONS',
 		'Access-Control-Allow-Origin: *',
+		'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS',
 		'Connection: close',
-		'server: ' .. (http.server or 'cf/0.1'),
+		'server: ' .. (http.__server or 'cf/0.1'),
 	}, CRLF) .. CRLF2
 end
 
@@ -406,7 +409,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 		REQUEST_STATUCODE_RESPONSE(101),
 		'Date: ' .. HTTP_DATE(),
 		'Connection: Upgrade',
-		'Server: '..(http.server or 'cf/0.1'),
+		'Server: '..(http.__server or 'cf/0.1'),
 		'Upgrade: WebSocket',
 		'Sec-WebSocket-Accept: '..base64(sha1(sec_key..'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))
 	}
@@ -481,6 +484,16 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, now() - start))
 				return sock:close()
 			end
+			if not content then -- 没有 Content则返回200;
+				http:tolog(200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
+				sock:send(concat({REQUEST_STATUCODE_RESPONSE(200), 'Date: ' .. HTTP_DATE(),
+					'Allow: GET, POST, HEAD, OPTIONS',
+					'Access-Control-Allow-Origin: *',
+					'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS',
+					'server: ' .. (server or 'cf/0.1'),
+				}, CRLF)..CRLF2)
+				return sock:close()
+			end
 			content['method'], content['path'], content['headers'] = METHOD, PATH, HEADER
 
 			-- before 函数只影响接口与view
@@ -501,8 +514,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 							http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
 							sock:send(concat({
 								REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
-								'Allow: GET, POST, HEAD',
+								'Allow: GET, POST, HEAD, OPTIONS',
 								'Access-Control-Allow-Origin: *',
+								'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS',
 								'server: ' .. (server or 'cf/0.1'),
 								'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
 							}, CRLF)..CRLF2)
@@ -513,8 +527,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 									http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
 									sock:send(concat({
 										REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
-										'Allow: GET, POST, HEAD',
+										'Allow: GET, POST, HEAD, OPTIONS',
 										'Access-Control-Allow-Origin: *',
+										'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS',
 										'server: ' .. (server or 'cf/0.1'),
 										'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
 										'Content-Length: '..tostring(#data),
@@ -596,9 +611,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 
 			insert(header, 'Date: ' .. HTTP_DATE())
-			insert(header, 'Allow: GET, POST, HEAD')
+			insert(header, 'Allow: GET, POST, HEAD, OPTIONS')
 			insert(header, 'Access-Control-Allow-Origin: *')
-			insert(header, 'Access-Control-Allow-Methods: GET, POST, HEAD')
+			insert(header, 'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS')
 			insert(header, 'server: ' .. (server or 'cf/0.1'))
 
 			local Connection = 'Connection: keep-alive'
