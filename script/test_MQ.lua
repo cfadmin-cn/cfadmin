@@ -1,5 +1,5 @@
 -- 基于redis的订阅与发布消息队列(同步处理)
-local MQ = require "mq"
+local MQ = require "MQ"
 require "utils"
 
 local rds = MQ:new {
@@ -13,7 +13,7 @@ print(rds:on('/test/*', function (msg)
 end))
 
 -- 基于mqtt的订阅与发布消息队列(同步处理)
-local MQ = require "mq"
+local MQ = require "MQ"
 require "utils"
 
 local mqtt = MQ:new {
