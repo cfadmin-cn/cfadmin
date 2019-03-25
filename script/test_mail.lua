@@ -9,7 +9,8 @@ local ok, err = mail.send {
 	to   = 'xwmrzg@163.com',   -- 收件人地址
 	subject = "测试邮件主题",	   -- 主题
 	SSL = true,				   -- 该端口是否安全连接端口
-	content = "这是一封测试邮件!", -- 邮件内容
+	mime = 'html',			   -- 不填写该字段则为纯文本, 客户端不会解析html语法
+	content = "<h1>这是一封测试邮件!</h1>", -- 邮件内容
 }
 
 print(ok, err)

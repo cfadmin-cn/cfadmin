@@ -154,7 +154,7 @@ local function MAIL_HEADER(session, from, to, SSL)
 end
 
 -- 发送邮件内容
-local function MAIL_CONTENT(session, from, to, subject, content, SSL)
+local function MAIL_CONTENT(session, from, to, subject, mime, content, SSL)
 	local code, data, err
 	-- DATA命令, 开始发送邮件实体
 	send(session, "DATA\r\n", SSL)
@@ -168,8 +168,13 @@ local function MAIL_CONTENT(session, from, to, subject, content, SSL)
 	end
 	local FROM = fmt("from:<%s>\r\n", from)
 	local TO = fmt("to:<%s>\r\n", to)
-	local SUBJECT = fmt("subject:%s\r\n\r\n", subject)
-	send(session, FROM..TO..SUBJECT..content..'\r\n\r\n.\r\n', SSL)
+	local SUBJECT = fmt("subject:%s\r\n", subject)
+	if mime and mime == 'html' then
+		mime = 'Content-Type: text/html\r\n'
+	else
+		mime = ''
+	end
+	send(session, FROM..TO..SUBJECT..mime..'\r\n'..content..'\r\n\r\n.\r\n', SSL)
 	data, err = recv(session, MAX_PACKET_SIZE, SSL)
 	if not data then
 		return nil, '[MAIL CONTENT ERROR]: ' .. tostring(err) or '服务器关闭了连接. '
@@ -225,7 +230,7 @@ function mail.send(opt)
 		close(session)
 		return nil, err
 	end
-	ok, err = MAIL_CONTENT(session, opt.from, opt.to, opt.subject, opt.content, opt.SSL)
+	ok, err = MAIL_CONTENT(session, opt.from, opt.to, opt.subject, opt.mime, opt.content, opt.SSL)
 	if not ok then
 		close(session)
 		return nil, err
