@@ -1,4 +1,4 @@
-## core_framework 一个基于libev的轻量级lua web快速后端开发框架
+## core_framework 一个基于libev的轻量级lua网络开发框架
 <p>
   <a href="https://github.com/CandyMi/core_framework/blob/master/LICENSE">
   <img src="https://img.shields.io/badge/license-BSD-brightgreen.svg"></a>
@@ -8,12 +8,13 @@
   <img src="https://img.shields.io/badge/Author-CandyMi-red.svg"></a>
 </p>
 
->   大道至简, 返璞归真
+>   大道至简, 返璞归真. 
 
 ---
+
 ## 介绍一下CF
 
->文档在这里:
+>	文档在这里:
 
 *   [CF是什么?](https://github.com/CandyMi/core_framework/wiki/home)
 
@@ -23,13 +24,17 @@
 
 >   [CF如何安装?](https://github.com/CandyMi/core_framework/wiki/install)
 
+>   [CF如何运行?](https://github.com/CandyMi/core_framework/wiki/RUN)
+
+>   [如何在容器内运行?](https://github.com/CandyMi/core_framework/wiki/Docker)
+
 ## 第一次运行CF
 
 >   [CF如何运行?](https://github.com/CandyMi/core_framework/wiki/RUN)
 
 ## 第一次使用CF的问题
 
->   [Q & A](https://github.com/CandyMi/core_framework/wiki/QA)
+>   [我有一些cf使用上的问题?](https://github.com/CandyMi/core_framework/wiki/QA)
 
 ## 联系作者
 
