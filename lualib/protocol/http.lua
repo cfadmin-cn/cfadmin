@@ -364,9 +364,9 @@ local function ERROR_RESPONSE(http, code, path, ip, forword, speed)
 	return concat({
 		REQUEST_STATUCODE_RESPONSE(code),
 		'Date: ' .. HTTP_DATE(),
-		'Allow: GET, POST, HEAD, OPTIONS',
+		'Allow: GET, POST, PUT, HEAD, OPTIONS',
 		'Access-Control-Allow-Origin: *',
-		'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS',
+		'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
 		'Connection: close',
 		'server: ' .. (http.__server or 'cf/0.1'),
 	}, CRLF) .. CRLF2
@@ -487,9 +487,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			if not content then -- 没有 Content则返回200;
 				http:tolog(200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
 				sock:send(concat({REQUEST_STATUCODE_RESPONSE(200), 'Date: ' .. HTTP_DATE(),
-					'Allow: GET, POST, HEAD, OPTIONS',
+					'Allow: GET, POST, PUT, HEAD, OPTIONS',
 					'Access-Control-Allow-Origin: *',
-					'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS',
+					'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
 					'server: ' .. (server or 'cf/0.1'),
 				}, CRLF)..CRLF2)
 				return sock:close()
@@ -514,9 +514,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 							http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
 							sock:send(concat({
 								REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
-								'Allow: GET, POST, HEAD, OPTIONS',
+								'Allow: GET, POST, PUT, HEAD, OPTIONS',
 								'Access-Control-Allow-Origin: *',
-								'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS',
+								'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
 								'server: ' .. (server or 'cf/0.1'),
 								'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
 							}, CRLF)..CRLF2)
@@ -527,9 +527,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 									http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), now() - start)
 									sock:send(concat({
 										REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
-										'Allow: GET, POST, HEAD, OPTIONS',
+										'Allow: GET, POST, PUT, HEAD, OPTIONS',
 										'Access-Control-Allow-Origin: *',
-										'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS',
+										'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
 										'server: ' .. (server or 'cf/0.1'),
 										'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
 										'Content-Length: '..tostring(#data),
@@ -611,9 +611,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 
 			insert(header, 'Date: ' .. HTTP_DATE())
-			insert(header, 'Allow: GET, POST, HEAD, OPTIONS')
+			insert(header, 'Allow: GET, POST, PUT, HEAD, OPTIONS')
 			insert(header, 'Access-Control-Allow-Origin: *')
-			insert(header, 'Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS')
+			insert(header, 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS')
 			insert(header, 'server: ' .. (server or 'cf/0.1'))
 
 			local Connection = 'Connection: keep-alive'
