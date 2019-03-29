@@ -42,6 +42,12 @@
 
 >   <a href="mailto:869646063@qq.com">作者邮箱</a>
 
+## 支持
+
+>   简单, 不简单! 
+
+>   使用cf的目标: [拒绝996](https://github.com/996icu/996.ICU), [没有ICU](https://github.com/996icu/996.ICU)
+
 ## 授权协议
 
 [BSD LICENSE](https://github.com/CandyMi/core_framework/blob/master/LICENSE)
