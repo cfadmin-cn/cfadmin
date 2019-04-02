@@ -473,7 +473,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
 				end
-				var_dump(HEADER)
 				-- 根据请求方法进行解析, 解析失败返回501
 				local ok, content = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
 				if not ok then
@@ -495,11 +494,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 						'Connection: keep-alive',
 						'server: ' .. (server or 'cf/0.1'),
 					}, CRLF)..CRLF2)
-					buffers = {}
-					break
+					return sock:close()
 				end
 				content['method'], content['path'], content['headers'] = METHOD, PATH, HEADER
-
 				-- before 函数只影响接口与view
 				if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
 					local ok, code, data = pcall(before_func, content)
@@ -619,7 +616,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 						static = fmt('Content-Type: %s', conten_type)
 					end
 				end
-
 				insert(header, 'Date: ' .. HTTP_DATE())
 				insert(header, 'Origin: *')
 				insert(header, 'Allow: GET, POST, PUT, HEAD, OPTIONS')
@@ -627,7 +623,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				insert(header, 'Access-Control-Allow-Headers: *')
 				insert(header, 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS')
 				insert(header, 'server: ' .. (server or 'cf/0.1'))
-
 				local Connection = 'Connection: keep-alive'
 				if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
 					Connection = 'Connection: close'
