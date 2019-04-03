@@ -434,242 +434,244 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local max_body_size = http.__max_body_size
 	local sock = tcp:new():set_fd(fd):timeout(timeout or 15)
 	while 1 do
-		while 1 do
-			local buf = sock:recv(1024)
-			if not buf then
+		local buf = sock:recv(1024)
+		if not buf then
+			return sock:close()
+		end
+		insert(buffers, buf)
+		local buffer = concat(buffers)
+		local CRLF_START, CRLF_END = find(buffer, CRLF2)
+		if CRLF_START and CRLF_END then
+			local start = now()
+			local PROTOCOL_START, PROTOCOL_END = find(buffer, CRLF)
+			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(buffer)
+			-- 协议有问题返回400
+			if not METHOD or not PATH or not VERSION then
+				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr, METHOD or "GET", now() - start))
 				return sock:close()
 			end
-			insert(buffers, buf)
-			local buffer = concat(buffers)
-			local CRLF_START, CRLF_END = find(buffer, CRLF2)
-			if CRLF_START and CRLF_END then
-				local start = now()
-				local PROTOCOL_START, PROTOCOL_END = find(buffer, CRLF)
-				local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(buffer)
-				-- 协议有问题返回400
-				if not METHOD or not PATH or not VERSION then
-					sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr, METHOD or "GET", now() - start))
+			-- 超过自定义最大PATH长度限制
+			if PATH and #PATH > (max_path_size or 1024) then
+				sock:send(ERROR_RESPONSE(http, 414, PATH, ipaddr, METHOD, now() - start))
+				return sock:close()
+			end
+			-- 没有HEADER返回400
+			local HEADER = REQUEST_HEADER_PARSER(buffer)
+			if not HEADER then
+				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr, METHOD, now() - start))
+				return sock:close()
+			end
+			-- 超过自定义最大HEADER长度限制
+			if #buffer - CRLF_START > (max_header_size or 65535) then
+				sock:send(ERROR_RESPONSE(http, 431, PATH, ipaddr, METHOD, now() - start))
+				return sock:close()
+			end
+			-- 这里根据PATH先查找路由, 如果没有直接返回404.
+			local cls, typ = ROUTE_FIND(routes, PATH)
+			if not cls or not typ then
+				sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+				return sock:close()
+			end
+			-- 根据请求方法进行解析, 解析失败返回501
+			local ok, content = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
+			if not ok then
+				if content == 413 then
+					sock:send(ERROR_RESPONSE(http, 413, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
 				end
-				-- 超过自定义最大PATH长度限制
-				if PATH and #PATH > (max_path_size or 1024) then
-					sock:send(ERROR_RESPONSE(http, 414, PATH, ipaddr, METHOD, now() - start))
+				sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+				return sock:close()
+			end
+			if not content then -- 没有 Content则返回200;
+				http:tolog(200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
+				sock:send(concat({REQUEST_STATUCODE_RESPONSE(200), 'Date: ' .. HTTP_DATE(),
+					'Origin: *',
+					'Allow: GET, POST, PUT, HEAD, OPTIONS',
+					'Access-Control-Allow-Origin: *',
+					'Access-Control-Allow-Headers: *',
+					'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
+					'Access-Control-Max-Age: 86400',
+					'Connection: keep-alive',
+					'server: ' .. (server or 'cf/0.1'),
+				}, CRLF)..CRLF2)
+				return sock:close()
+			end
+			content['method'], content['path'], content['headers'] = METHOD, PATH, HEADER
+			-- before 函数只影响接口与view
+			if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
+				local ok, code, data = pcall(before_func, content)
+				if not ok then -- before 函数执行出错
+					log.error(code)
+					sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
 				end
-				-- 没有HEADER返回400
-				local HEADER = REQUEST_HEADER_PARSER(buffer)
-				if not HEADER then
-					sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr, METHOD, now() - start))
-					return sock:close()
-				end
-				-- 超过自定义最大HEADER长度限制
-				if #buffer - CRLF_START > (max_header_size or 65535) then
-					sock:send(ERROR_RESPONSE(http, 431, PATH, ipaddr, METHOD, now() - start))
-					return sock:close()
-				end
-				-- 这里根据PATH先查找路由, 如果没有直接返回404.
-				local cls, typ = ROUTE_FIND(routes, PATH)
-				if not cls or not typ then
-					sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-					return sock:close()
-				end
-				-- 根据请求方法进行解析, 解析失败返回501
-				local ok, content = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
-				if not ok then
-					if content == 413 then
-						sock:send(ERROR_RESPONSE(http, 413, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-						return sock:close()
-					end
-					sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-					return sock:close()
-				end
-				if not content then -- 没有 Content则返回200;
-					http:tolog(200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
-					sock:send(concat({REQUEST_STATUCODE_RESPONSE(200), 'Date: ' .. HTTP_DATE(),
-						'Origin: *',
-						'Allow: GET, POST, PUT, HEAD, OPTIONS',
-						'Access-Control-Allow-Origin: *',
-						'Access-Control-Allow-Headers: *',
-						'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
-						'Connection: keep-alive',
-						'server: ' .. (server or 'cf/0.1'),
-					}, CRLF)..CRLF2)
-					return sock:close()
-				end
-				content['method'], content['path'], content['headers'] = METHOD, PATH, HEADER
-				-- before 函数只影响接口与view
-				if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
-					local ok, code, data = pcall(before_func, content)
-					if not ok then -- before 函数执行出错
-						log.error(code)
-						sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-						return sock:close()
-					end
-					if code then
-						if type(code) == "number" then
-							if code < 200 or code > 500 then
-								log.error("before function: Illegal return value")
-								sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-								return sock:close()
-							elseif code == 301 or code == 302 then
-								http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
-								sock:send(concat({
-									REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
-									'Origin: *',
-									'Allow: GET, POST, PUT, HEAD, OPTIONS',
-									'Access-Control-Allow-Origin: *',
-									'Access-Control-Allow-Headers: *',
-									'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
-									'Connection: close',
-									'server: ' .. (server or 'cf/0.1'),
-									'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
-								}, CRLF)..CRLF2)
-								return sock:close()
-							elseif code ~= 200 then
-								if data then
-									if type(data) == 'string' and data ~= '' then
-										http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
-										sock:send(concat({
-											REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
-											'Origin: *',
-											'Allow: GET, POST, PUT, HEAD, OPTIONS',
-											'Access-Control-Allow-Origin: *',
-											'Access-Control-Allow-Headers: *',
-											'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
-											'server: ' .. (server or 'cf/0.1'),
-											'Connection: close',
-											'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
-											'Content-Length: '..tostring(#data),
-										}, CRLF)..CRLF2..data)
-										return sock:close()
-									end
+				if code then
+					if type(code) == "number" then
+						if code < 200 or code > 500 then
+							log.error("before function: Illegal return value")
+							sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+							return sock:close()
+						elseif code == 301 or code == 302 then
+							http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
+							sock:send(concat({
+								REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
+								'Origin: *',
+								'Allow: GET, POST, PUT, HEAD, OPTIONS',
+								'Access-Control-Allow-Origin: *',
+								'Access-Control-Allow-Headers: *',
+								'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
+								'Access-Control-Max-Age: 86400',
+								'Connection: close',
+								'server: ' .. (server or 'cf/0.1'),
+								'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
+							}, CRLF)..CRLF2)
+							return sock:close()
+						elseif code ~= 200 then
+							if data then
+								if type(data) == 'string' and data ~= '' then
+									http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
+									sock:send(concat({
+										REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
+										'Origin: *',
+										'Allow: GET, POST, PUT, HEAD, OPTIONS',
+										'Access-Control-Allow-Origin: *',
+										'Access-Control-Allow-Headers: *',
+										'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
+										'Access-Control-Max-Age: 86400',
+										'server: ' .. (server or 'cf/0.1'),
+										'Connection: close',
+										'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
+										'Content-Length: '..tostring(#data),
+									}, CRLF)..CRLF2..data)
+									return sock:close()
 								end
-								sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-								return sock:close()
 							end
-						else
-							sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+							sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 							return sock:close()
 						end
 					else
 						sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 						return sock:close()
 					end
-				end
-
-				local header = { }
-				local ok, data, static, statucode
-
-				if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
-					if type(cls) == "table" then
-						local method = cls[lower(METHOD)]
-						if not method or type(method) ~= 'function' then -- 注册的路由未实现这个方法
-							sock:send(ERROR_RESPONSE(http, 405, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-							return sock:close()
-						end
-						local c = cls:new(content)
-						ok, data = pcall(method, c)
-					else
-						ok, data = pcall(cls, content)
-					end
-					if not ok then
-						log.error(data)
-						statucode = 500
-						sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-						return sock:close()
-					end
-					statucode = 200
-					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
-				elseif typ == HTTP_PROTOCOL.WS then
-					local ok, msg = pcall(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
-					if not ok then
-						log.error(msg)
-						return sock:close()
-					end
-					return 
 				else
-					local file_type
-					local path = PATH
-					local pos, _ = find(PATH, '%?')
-					if pos then
-						path = split(path, 1, pos - 1)
-					end
-					ok, data, file_type = pcall(cls, './'..path)
-					if not ok then
-						log.error(data)
-						statucode = 500
-						sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-						return sock:close()
-					end
-					if not data then
-						statucode = 404
-						sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-						return sock:close()
-					end
-					statucode = 200
-					insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
-					local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
-					if not conten_type then
-						insert(header, 'Content-Disposition: attachment') -- 确保浏览器提示需要下载
-						static = fmt('Content-Type: %s', 'application/octet-stream')
-					else
-						static = fmt('Content-Type: %s', conten_type)
-					end
-				end
-				insert(header, 'Date: ' .. HTTP_DATE())
-				insert(header, 'Origin: *')
-				insert(header, 'Allow: GET, POST, PUT, HEAD, OPTIONS')
-				insert(header, 'Access-Control-Allow-Origin: *')
-				insert(header, 'Access-Control-Allow-Headers: *')
-				insert(header, 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS')
-				insert(header, 'server: ' .. (server or 'cf/0.1'))
-				local Connection = 'Connection: keep-alive'
-				if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
-					Connection = 'Connection: close'
-				end
-				insert(header, Connection)
-				if data then
-					if type(data) == 'string' then
-						if #data >= 1 then
-							insert(header, 'Transfer-Encoding: identity')
-							insert(header, fmt('Content-Length: %d', #data))
-						end
-					else
-						log.warn('response body not a string type.'..'('..tostring(data)..')')
-						data = ''
-					end
-				else
-					data = ''
-				end
-				if typ == HTTP_PROTOCOL.API then
-					if #data > 0 then
-						insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('json'))
-					end
-					insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
-					insert(header, 'Cache-Control: no-cache')
-				elseif typ == HTTP_PROTOCOL.USE then
-					if #data > 0 then
-						insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8')
-					end
-					insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
-					insert(header, 'Cache-Control: no-cache')
-				else
-					if ttl then
-						cache = fmt('Expires: %s', HTTP_DATE(time() + ttl))
-					end
-					insert(header, static)
-				end
-				http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
-				sock:send(concat(header, CRLF) .. CRLF2 .. data)
-				if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
+					sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
 				end
-				buffers = {}
 			end
-			if #buffers ~= 0 and #buffer > (max_header_size or 65535) then
-				sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+
+			local header = { }
+			local ok, data, static, statucode
+
+			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
+				if type(cls) == "table" then
+					local method = cls[lower(METHOD)]
+					if not method or type(method) ~= 'function' then -- 注册的路由未实现这个方法
+						sock:send(ERROR_RESPONSE(http, 405, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+						return sock:close()
+					end
+					local c = cls:new(content)
+					ok, data = pcall(method, c)
+				else
+					ok, data = pcall(cls, content)
+				end
+				if not ok then
+					log.error(data)
+					statucode = 500
+					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+					return sock:close()
+				end
+				statucode = 200
+				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+			elseif typ == HTTP_PROTOCOL.WS then
+				local ok, msg = pcall(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
+				if not ok then
+					log.error(msg)
+					return sock:close()
+				end
+				return 
+			else
+				local file_type
+				local path = PATH
+				local pos, _ = find(PATH, '%?')
+				if pos then
+					path = split(path, 1, pos - 1)
+				end
+				ok, data, file_type = pcall(cls, './'..path)
+				if not ok then
+					log.error(data)
+					statucode = 500
+					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+					return sock:close()
+				end
+				if not data then
+					statucode = 404
+					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+					return sock:close()
+				end
+				statucode = 200
+				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+				local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
+				if not conten_type then
+					insert(header, 'Content-Disposition: attachment') -- 确保浏览器提示需要下载
+					static = fmt('Content-Type: %s', 'application/octet-stream')
+				else
+					static = fmt('Content-Type: %s', conten_type)
+				end
+			end
+			insert(header, 'Date: ' .. HTTP_DATE())
+			insert(header, 'Origin: *')
+			insert(header, 'Allow: GET, POST, PUT, HEAD, OPTIONS')
+			insert(header, 'Access-Control-Allow-Origin: *')
+			insert(header, 'Access-Control-Allow-Headers: *')
+			insert(header, 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS')
+			insert(header, 'Access-Control-Max-Age: 86400')
+			insert(header, 'server: ' .. (server or 'cf/0.1'))
+			local Connection = 'Connection: keep-alive'
+			if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
+				Connection = 'Connection: close'
+			end
+			insert(header, Connection)
+			if data then
+				if type(data) == 'string' then
+					if #data >= 1 then
+						insert(header, 'Transfer-Encoding: identity')
+						insert(header, fmt('Content-Length: %d', #data))
+					end
+				else
+					log.warn('response body not a string type.'..'('..tostring(data)..')')
+					data = ''
+				end
+			else
+				data = ''
+			end
+			if typ == HTTP_PROTOCOL.API then
+				if #data > 0 then
+					insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('json'))
+				end
+				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
+				insert(header, 'Cache-Control: no-cache')
+			elseif typ == HTTP_PROTOCOL.USE then
+				if #data > 0 then
+					insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8')
+				end
+				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
+				insert(header, 'Cache-Control: no-cache')
+			else
+				if ttl then
+					cache = fmt('Expires: %s', HTTP_DATE(time() + ttl))
+				end
+				insert(header, static)
+			end
+			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
+			sock:send(concat(header, CRLF) .. CRLF2 .. data)
+			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
 				return sock:close()
 			end
+			buffers = {}
+		end
+		if #buffers ~= 0 and #buffer > (max_header_size or 65535) then
+			sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+			return sock:close()
 		end
 	end
 end
