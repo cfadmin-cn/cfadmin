@@ -414,7 +414,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 	if protocol then -- 仅支持协议回传, 具体实现由用户实现
 		insert(response, "Sec-Websocket-Protocol: "..tostring(protocol))
 	end
-	http:tolog(200, PATH, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, now() - start_time)
+	http:tolog(200, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, now() - start_time)
 	local ok = sock:send(concat(response, CRLF)..CRLF2)
 	if not ok then
 		return sock:close() 
