@@ -34,7 +34,7 @@ local function mq_login(self)
 				return rds
 			end
 			rds:close()
-			log.error('第'..times..'次连接mq(redis)失败:'..(err or "unknow"))
+			log.error('次连接mq(redis)失败:'..(err or "unknow")..'.正在尝试重连')
 			Timer.sleep(3)
 			times = times + 1
 		elseif self.type == 'mqtt' then
@@ -52,7 +52,7 @@ local function mq_login(self)
 				return mqtt
 			end
 			mqtt:close()
-			log.error('第'..times..'次连接mq(mqtt)失败:'..(err or "unknow"))
+			log.error('连接mq(mqtt)失败:'..(err or "unknow")..'.正在尝试重连')
 			Timer.sleep(3)
 			times = times + 1
 		else
@@ -79,7 +79,8 @@ local function mqtt_subscribe(self)
 	return sub_mq:subscribe({qos = 2, topic = self.pattern, clean = self.clean}, self.func)
 end
 
-local function redis_publish(self, pattern, data)
+local function redis_publish(self)
+	local index = 1
 	while 1 do
 		if not self.pub_mq then
 			local pub_mq, err = mq_login(self)
@@ -88,9 +89,17 @@ local function redis_publish(self, pattern, data)
 			end
 			self.pub_mq = pub_mq
 		end
-		local ok, msg = self.pub_mq:publish(pattern, data)
-		if ok then
-			return ok, msg
+		while 1 do
+			local msg = self.queue[index]
+			if not msg then
+				self.queue = {}
+				return true
+			end
+			local ok, err = self.pub_mq:publish(msg.pattern, msg.payload)
+			if not ok then
+				break
+			end
+			index = index + 1
 		end
 		if self.pub_mq then
 			self.pub_mq:close()
@@ -99,7 +108,8 @@ local function redis_publish(self, pattern, data)
 	end
 end
 
-local function mqtt_publish(self, pattern, data)
+local function mqtt_publish(self)
+	local index = 1
 	while 1 do
 		if not self.pub_mq then
 			local pub_mq, err = mq_login(self)
@@ -108,9 +118,17 @@ local function mqtt_publish(self, pattern, data)
 			end
 			self.pub_mq = pub_mq
 		end
-		local ok = self.pub_mq:publish{topic = pattern, payload = data, qos = 2}
-		if ok then
-			return ok
+		while 1 do
+			local msg = self.queue[index]
+			if not msg then
+				self.queue = {}
+				return true
+			end
+			local ok = self.pub_mq:publish{topic = msg.pattern, payload = msg.payload, qos = 2}
+			if not ok then
+				break
+			end
+			index = index + 1
 		end
 		if self.pub_mq then
 			self.pub_mq:close()
@@ -127,10 +145,15 @@ function mq:emit(pattern, data)
 	if type(data) ~= 'string' or data == '' then
 		return nil, "publish string error."
 	end
+	if not self.queue then
+		self.queue = {{pattern = pattern, payload = data}}
+	else
+		self.queue[#self.queue + 1] = {pattern = pattern, payload = data}
+	end
 	if self.type == 'redis' then
-		return redis_publish(self, pattern, data)
+		return redis_publish(self)
 	elseif self.type == 'mqtt' then
-		return mqtt_publish(self, pattern, data)
+		return mqtt_publish(self)
 	end
 	return error("mq publish error: 目前仅支持redis/mqtt协议.")
 end

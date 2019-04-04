@@ -221,11 +221,13 @@ end
 function client:connect()
 	local ok, err = self:connection(self.host, self.port)
 	if not ok then
-		return false, 'open network connection failed'
+		return false, "open network connection failed."
 	end
 	-- send CONNECT packet
-	self:_send_connect()
-
+	local ok = self:_send_connect()
+	if not ok then
+		return false, "send connection packet faild."
+	end
 	-- wait for CONNACK with return code == 0
 	local packet, err = self:_wait_packet()
 	if not packet then

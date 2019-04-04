@@ -10,6 +10,7 @@ local ti_stop = ti.stop
 
 local co_new = co.new
 local co_wait = co.wait
+local co_spwan = co.spwan
 local co_wakeup = co.wakeup
 local co_self = co.self
 
@@ -79,21 +80,22 @@ function Timer.at(repeats, cb)
     if not t then
         return log.error("timeout error: Create timer class error! memory maybe not enough...")
     end
-    local timer = {STOP = false}
+    local timer = { STOP = false }
     timer.stop = function (...)
         if not timer.STOP then
-            Timer_release(t)
-            Timer[timer] = nil
-            timer.co = nil
-            timer.STOP = true
+            return
         end
+        Timer_release(t)
+        timer.STOP = true
+        Timer[timer] = nil
+        timer.co = nil
     end
-    timer.co = co_new(function (...)
+    timer.co = co_new(function ()
         while 1 do
-            local ok, err = pcall(cb)
-            if not ok then
-               log.error('timeat error:', err)
+            if timer.STOP then
+                return
             end
+            co_spwan(cb)
             co_wait()
         end
     end)
@@ -102,7 +104,7 @@ function Timer.at(repeats, cb)
     return timer
 end
 
--- 循环定时器 --
+-- 休眠 --
 function Timer.sleep(repeats)
     if type(repeats) ~= 'number' or repeats <= 0 then
         return

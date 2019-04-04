@@ -103,13 +103,9 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 	if (revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			errno = 0;
-			int status = 0;
-			int CONNECTED = 1;
-			if (revents & EV_READ){
-				int err = 0; socklen_t len; /* 可能连接已经成功, 并且有数据发送过来; */
-				getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0 && errno == 0 ? (CONNECTED = 1): (CONNECTED = 0);
-			}
+			socklen_t len;
+			int status = 0, CONNECTED = 0, err = 0;
+			if(getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0 && err == 0) CONNECTED = 1;
 			lua_pushboolean(co, CONNECTED);
 			status = lua_resume(co, NULL, 1);
 			if (status != LUA_YIELD && status != LUA_OK){
