@@ -330,15 +330,16 @@ function command:psubscribe(pattern, func)
 	return ok, msg
 end
 
+-- 订阅
 function command:subscribe(pattern, func)
 	return self:psubscribe(pattern, func)
 end
 
 -- 发布
-function command:publish(pattern)
+function command:publish(pattern, data)
 	local sock = self.sock
-	sock:send(compose_message("PUBLISH", pattern))
-	return not read_response(sock)
+	sock:send(compose_message("PUBLISH", {pattern, data}))
+	return read_response(sock)
 end
 
 -- 关闭连接

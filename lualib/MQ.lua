@@ -35,10 +35,6 @@ local function mq_login(self)
 			end
 			rds:close()
 			log.error('第'..times..'次连接mq(redis)失败:'..(err or "unknow"))
-			if times >= 3 then
-				log.error("超过最大尝试次数, 请检查mq(redis)网络或者服务是否正常.")
-				return nil, "超过最大尝试次数, 请检查mq(redis)网络或者服务是否正常."
-			end
 			Timer.sleep(3)
 			times = times + 1
 		elseif self.type == 'mqtt' then
@@ -57,32 +53,86 @@ local function mq_login(self)
 			end
 			mqtt:close()
 			log.error('第'..times..'次连接mq(mqtt)失败:'..(err or "unknow"))
-			if times >= 3 then
-				log.error("超过最大尝试次数, 请检查mq(mqtt)网络或者服务是否正常.")
-				return nil, "超过最大尝试次数, 请检查mq(mqtt)网络或者服务是否正常."
-			end
 			Timer.sleep(3)
 			times = times + 1
+		else
+			error("未知的mq类型.")
 		end
 	end
 end
 
 local function redis_subscribe(self)
-	local mq, err = mq_login(self)
-	if not mq then
+	local sub_mq, err = mq_login(self)
+	if not sub_mq then
 		return nil, err
 	end
-	self.mq = mq
-	return mq:psubscribe(self.pattern, self.func)
+	self.sub_mq = sub_mq
+	return sub_mq:subscribe(self.pattern, self.func)
 end
 
 local function mqtt_subscribe(self)
-	local mq, err = mq_login(self)
-	if not mq then
+	local sub_mq, err = mq_login(self)
+	if not sub_mq then
 		return nil, err
 	end
-	self.mq = mq
-	return mq:subscribe({qos = 2, topic = self.pattern, clean = self.clean}, self.func)
+	self.sub_mq = sub_mq
+	return sub_mq:subscribe({qos = 2, topic = self.pattern, clean = self.clean}, self.func)
+end
+
+local function redis_publish(self, pattern, data)
+	while 1 do
+		if not self.pub_mq then
+			local pub_mq, err = mq_login(self)
+			if not pub_mq then
+				return nil, err
+			end
+			self.pub_mq = pub_mq
+		end
+		local ok, msg = self.pub_mq:publish(pattern, data)
+		if ok then
+			return ok, msg
+		end
+		if self.pub_mq then
+			self.pub_mq:close()
+			self.pub_mq = nil
+		end
+	end
+end
+
+local function mqtt_publish(self, pattern, data)
+	while 1 do
+		if not self.pub_mq then
+			local pub_mq, err = mq_login(self)
+			if not pub_mq then
+				return nil, err
+			end
+			self.pub_mq = pub_mq
+		end
+		local ok = self.pub_mq:publish{topic = pattern, payload = data, qos = 2}
+		if ok then
+			return ok
+		end
+		if self.pub_mq then
+			self.pub_mq:close()
+			self.pub_mq = nil
+		end
+	end
+end
+
+-- 发布消息
+function mq:emit(pattern, data)
+	if type(pattern) ~= 'string' or pattern == '' then
+		return nil, "publish pattern error."
+	end
+	if type(data) ~= 'string' or data == '' then
+		return nil, "publish string error."
+	end
+	if self.type == 'redis' then
+		return redis_publish(self, pattern, data)
+	elseif self.type == 'mqtt' then
+		return mqtt_publish(self, pattern, data)
+	end
+	return error("mq publish error: 目前仅支持redis/mqtt协议.")
 end
 
 -- 订阅消息
@@ -105,9 +155,13 @@ end
 
 -- 关闭消息队列监听
 function mq:close()
-	if self.mq then
-		self.mq:close()
-		self.mq = nil
+	if self.sub_mq then
+		self.sub_mq:close()
+		self.sub_mq = nil
+	end
+	if self.pub_mq then
+		self.pub_mq:close()
+		self.pub_mq = nil
 	end
 end
 
