@@ -1,21 +1,25 @@
 local log = require "log"
 local sys = require "sys"
 local tcp = require "internal.TCP"
-local httpparser = require "httpparser"
 local wsserver = require "protocol.websocket.server"
 
 local crypt = require "crypt"
 local sha1 = crypt.sha1
 local base64 = crypt.base64encode
 local now = sys.now
+local DATE = sys.date
 
-local form = require "form"
+local form = require "httpd.Form"
 local FILE_TYPE = form.FILE
 local ARGS_TYPE = form.ARGS
 local form_multipart = form.multipart
 local form_urlencode = form.urlencode
 
+local Router = require "httpd.Router"
+local ROUTE_FIND = Router.find
+local ROUTE_REGISTERY = Router.registery
 
+local httpparser = require "httpparser"
 local REQUEST_PROTOCOL_PARSER = httpparser.parser_request_protocol
 local RESPONSE_PROTOCOL_PARSER = httpparser.parser_response_protocol
 local REQUEST_HEADER_PARSER = httpparser.parser_request_header
@@ -28,7 +32,6 @@ local tostring = tostring
 local next = next
 local pcall = pcall
 local ipairs = ipairs
-local DATE = os.date
 local time = os.time
 local char = string.char
 local lower = string.lower
@@ -46,6 +49,8 @@ local concat = table.concat
 
 local CRLF = '\x0d\x0a'
 local CRLF2 = '\x0d\x0a\x0d\x0a'
+
+local SERVER = 'cf web/0.1'
 
 local HTTP_CODE = {
 
@@ -174,98 +179,18 @@ function HTTP_PROTOCOL.FILEMIME(mime)
 	return MIME[mime]
 end
 
--- 路由注册
-local function ROUTE_REGISTERY(routes, route, class, type)
-	if route == '' then
-		return log.warn('Please Do not add empty string in route registery method :)')
-	end
-	if find(route, '//') then
-		return log.warn('Please Do not add [//] in route registery method :)')
-	end
-	local fields = {}
-	for field in splite(route, '/([^/?]*)') do
-		insert(fields, field)
-	end
-	local t 
-	for index, field in ipairs(fields) do
-		if index == 1 then
-			if routes[field] then
-				t = routes[field]
-				if #fields == index then
-					break
-				end
-			else
-				t = {}
-				routes[field] = t
-				if #fields == index then
-					break
-				end
-			end
-		else
-			if t[field] then
-				t = t[field]
-				if #fields == index then
-					break
-				end
-			else
-				t[field] = {}
-				t = t[field]
-				if #fields == index then
-					break
-				end
-			end
-		end
-	end
-	t.route = route
-	t.class = class
-	t.type = type
-end
+-- -- 路由注册
 HTTP_PROTOCOL.ROUTE_REGISTERY = ROUTE_REGISTERY
 
--- 路由查找
-local function ROUTE_FIND(routes, route)
-	local fields = {}
-	for field in splite(route, '/([^/?]*)') do
-		insert(fields, field)
-	end
-	local t, class, typ
-	for index, field in ipairs(fields) do
-		if index == 1 then
-			if not routes[field] then
-				break
-			end
-			t = routes[field]
-			if #fields == index and t.class then
-				typ = t.type
-				class = t.class
-				break
-			end
-			if t.type == HTTP_PROTOCOL.STATIC then
-				typ = t.type
-				class = t.class
-				break
-			end
-		else
-			if not t[field] then
-				break
-			end
-			t = t[field]
-			if #fields == index and t.class then
-				typ = t.type
-				class = t.class
-				break
-			end
-		end
-	end
-	return class, typ
-end
+-- -- 路由查找
 HTTP_PROTOCOL.ROUTE_FIND = ROUTE_FIND
 
-local function HTTP_DATE(timestamp)
-	if not timestamp then
-		return DATE("%a, %d %b %Y %X GMT")
-	end
-	return DATE("%a, %d %b %Y %X GMT", timestamp)
+local function HTTP_DATE()
+	return DATE("Date: %a, %d %b %Y %X GMT")
+end
+
+local function HTTP_EXPIRES(timestamp)
+	return DATE("Expires: %a, %d %b %Y %X GMT", timestamp)
 end
 
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
@@ -363,9 +288,9 @@ local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
 	http:tolog(code, path, ip, X_Forwarded_FORMAT(forword) or ip, method, speed)
 	return concat({
 		REQUEST_STATUCODE_RESPONSE(code),
-		'Date: ' .. HTTP_DATE(),
+		HTTP_DATE(),
 		'Connection: close',
-		'server: ' .. (http.__server or 'cf/0.1'),
+		'server: ' .. (http.__server or SERVER),
 	}, CRLF) .. CRLF2
 end
 
@@ -404,9 +329,9 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 	end
 	local response = {
 		REQUEST_STATUCODE_RESPONSE(101),
-		'Date: ' .. HTTP_DATE(),
+		HTTP_DATE(),
 		'Connection: Upgrade',
-		'Server: '..(http.__server or 'cf/0.1'),
+		'Server: '..(http.__server or SERVER),
 		'Upgrade: WebSocket',
 		'Sec-WebSocket-Accept: '..base64(sha1(sec_key..'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))
 	}
@@ -425,7 +350,6 @@ end
 function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local buffers = {}
 	local ttl = http.ttl
-	local routes = http.routes
 	local server = http.__server
 	local timeout = http.__timeout
 	local before_func = http._before_func
@@ -467,7 +391,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				return sock:close()
 			end
 			-- 这里根据PATH先查找路由, 如果没有直接返回404.
-			local cls, typ = ROUTE_FIND(routes, PATH)
+			local cls, typ = ROUTE_FIND(PATH)
 			if not cls or not typ then
 				sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 				return sock:close()
@@ -484,7 +408,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 			if not content then -- 没有 Content则返回200;
 				http:tolog(200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
-				sock:send(concat({REQUEST_STATUCODE_RESPONSE(200), 'Date: ' .. HTTP_DATE(),
+				sock:send(concat({REQUEST_STATUCODE_RESPONSE(200), HTTP_DATE(),
 					'Origin: *',
 					'Allow: GET, POST, PUT, HEAD, OPTIONS',
 					'Access-Control-Allow-Origin: *',
@@ -492,7 +416,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
 					'Access-Control-Max-Age: 86400',
 					'Connection: keep-alive',
-					'server: ' .. (server or 'cf/0.1'),
+					'server: ' .. (server or SERVER),
 				}, CRLF)..CRLF2)
 				return sock:close()
 			end
@@ -514,7 +438,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 						elseif code == 301 or code == 302 then
 							http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
 							sock:send(concat({
-								REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
+								REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
 								'Origin: *',
 								'Allow: GET, POST, PUT, HEAD, OPTIONS',
 								'Access-Control-Allow-Origin: *',
@@ -522,7 +446,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 								'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
 								'Access-Control-Max-Age: 86400',
 								'Connection: close',
-								'server: ' .. (server or 'cf/0.1'),
+								'server: ' .. (server or SERVER),
 								'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
 							}, CRLF)..CRLF2)
 							return sock:close()
@@ -531,14 +455,14 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 								if type(data) == 'string' and data ~= '' then
 									http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
 									sock:send(concat({
-										REQUEST_STATUCODE_RESPONSE(code), 'Date: ' .. HTTP_DATE(),
+										REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
 										'Origin: *',
 										'Allow: GET, POST, PUT, HEAD, OPTIONS',
 										'Access-Control-Allow-Origin: *',
 										'Access-Control-Allow-Headers: *',
 										'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
 										'Access-Control-Max-Age: 86400',
-										'server: ' .. (server or 'cf/0.1'),
+										'server: ' .. (server or SERVER),
 										'Connection: close',
 										'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
 										'Content-Length: '..tostring(#data),
@@ -618,14 +542,15 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					static = fmt('Content-Type: %s', conten_type)
 				end
 			end
-			insert(header, 'Date: ' .. HTTP_DATE())
+			insert(header, HTTP_DATE())
 			insert(header, 'Origin: *')
 			insert(header, 'Allow: GET, POST, PUT, HEAD, OPTIONS')
 			insert(header, 'Access-Control-Allow-Origin: *')
 			insert(header, 'Access-Control-Allow-Headers: *')
 			insert(header, 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS')
 			insert(header, 'Access-Control-Max-Age: 86400')
-			insert(header, 'server: ' .. (server or 'cf/0.1'))
+			insert(header, 'server: ' .. (server or SERVER))
+
 			local Connection = 'Connection: keep-alive'
 			if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
 				Connection = 'Connection: close'
@@ -658,7 +583,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				insert(header, 'Cache-Control: no-cache')
 			else
 				if ttl then
-					cache = fmt('Expires: %s', HTTP_DATE(time() + ttl))
+					insert(header, HTTP_EXPIRES(time() + ttl))
 				end
 				insert(header, static)
 			end

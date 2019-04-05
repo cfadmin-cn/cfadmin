@@ -28,28 +28,28 @@ local httpd = class("httpd")
 function httpd:ctor(opt)
     self.API = HTTP.API
     self.USE = HTTP.USE
-    self.routes = {}
     self.IO = tcp:new()
 end
 
 -- 用来注册WebSocket对象
 function httpd:ws(route, class)
     if route and type(class) == "table" then
-        HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.WS)
+        -- HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.WS)
+        HTTP_ROUTE_REGISTERY(route, class, HTTP.WS)
     end
 end
 
 -- 用来注册接口
 function httpd:api(route, class)
     if route and (type(class) == "table" or type(class) == "function")then
-        HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.API)
+        HTTP_ROUTE_REGISTERY(route, class, HTTP.API)
     end
 end
 
 -- 用来注册普通路由
 function httpd:use(route, class)
     if route and (type(class) == "table" or type(class) == "function") then
-        HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.USE)
+        HTTP_ROUTE_REGISTERY(route, class, HTTP.USE)
     end
 end
 
@@ -114,7 +114,7 @@ function httpd:static(foldor, ttl)
         if ttl and ttl > 0 then
             self.ttl = ttl
         end
-        HTTP_ROUTE_REGISTERY(self.routes, './'..foldor, function (path)
+        HTTP_ROUTE_REGISTERY('./'..foldor, function (path)
             if path then
                 local FILE = io_open(path, "rb")
                 if not FILE then
