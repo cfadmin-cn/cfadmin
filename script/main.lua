@@ -1,6 +1,7 @@
-local http = require "http"
-local httpc = require "httpc"
 local httpd = require "httpd"
+local http = require "httpd.http"
+local httpc = require "httpc"
+
 
 local app = httpd:new("App")
 
