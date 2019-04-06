@@ -78,7 +78,7 @@ local function CMD(...)
 	local tab = {...}
 	local lines = { "*"..#tab}
 	for index = 1, #tab do
-		lines[#lines+1] = "$"..#tab[index]
+		lines[#lines+1] = "$"..#tostring(tab[index])
 		lines[#lines+1] = tab[index]
 		if index == #tab then
 			lines[#lines+1] = ""

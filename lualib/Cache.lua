@@ -12,10 +12,11 @@ local ipairs = ipairs
 local setmetatable = setmetatable
 
 local table = table
+local unpack = table.unpack
 local remove = table.remove
 local upper = string.upper
 local lower = string.lower
-local replace = string.gsub
+local splite = string.gmatch
 
 
 -- 默认情况下, 保持50个redis连接
@@ -43,7 +44,6 @@ local function in_command(cmd)
     end
     return false
 end
-
 
 local wlist = {}
 
@@ -101,8 +101,16 @@ local Cache = setmetatable({}, {__index = function (_, key)
     end
     return function (_, ...)
         local ok, ret
+        local keys = {}
+        for k in splite(key, "([^_]+)") do
+            keys[#keys+1] = k
+        end
         while 1 do
-            ok, ret = cache:cmd(replace(upper(key), "_", " "), ...)
+            if #keys > 1 then
+                ok, ret = cache:cmd(keys[1], keys[2], ...)
+            else
+                ok, ret = cache:cmd(keys[1], ...)
+            end
             if ret ~= 'server close!!' then
                 break
             end
