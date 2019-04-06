@@ -23,7 +23,7 @@ local function read_response(sock)
 	while 1 do
 		local data = sock:recv(1)
 		if not data then
-			return nil, "server close"
+			return nil, 'server close!!'
 		end
 		result = result .. data
 		if find(result, CRLF) then
@@ -73,39 +73,18 @@ redcmd[42] = function(sock, data)	-- '*'
 	return noerr, bulk
 end
 
-
--------------------
-
--- msg could be any type of value
-
-local function make_cache(f)
-	return setmetatable({}, {
-		__mode = "kv",
-		__index = f,
-	})
-end
-
-local header_cache = make_cache(function(t, k)
-		local s = "\r\n$" .. k .. CRLF
-		t[k] = s
-		return s
-	end)
-
-local command_cache = make_cache(function(t, cmd)
-		local s = "\r\n$"..#cmd..CRLF..cmd:upper()
-		t[cmd] = s
-		return s
-	end)
-
-local count_cache = make_cache(function(t, k)
-		local s = "*" .. k
-		t[k] = s
-		return s
-	end)
-
--- 组合为文本命令
+-- 格式化命令为redis protocol
 local function CMD(...)
-	return concat({...}, " ")..CRLF
+	local tab = {...}
+	local lines = { "*"..#tab}
+	for index = 1, #tab do
+		lines[#lines+1] = "$"..#tab[index]
+		lines[#lines+1] = tab[index]
+		if index == #tab then
+			lines[#lines+1] = ""
+		end
+	end
+	return concat(lines, CRLF)
 end
 
 local function read_boolean(sock)

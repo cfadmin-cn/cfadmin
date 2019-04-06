@@ -85,7 +85,7 @@ local Cache = setmetatable({}, {__index = function (_, key)
             local ok, ret
             while 1 do
                 ok, ret = cache[key](cache, ...)
-                if ret ~= 'server close' and ok then
+                if ret ~= 'server close!!' then
                     break
                 end
                 cache:close()
@@ -103,7 +103,7 @@ local Cache = setmetatable({}, {__index = function (_, key)
         local ok, ret
         while 1 do
             ok, ret = cache:cmd(replace(upper(key), "_", " "), ...)
-            if ret ~= 'server close' and ok then
+            if ret ~= 'server close!!' then
                 break
             end
             cache:close()
@@ -135,6 +135,14 @@ function Cache.init(opt)
     if type(opt.port) ~= 'number' or opt.port < 0 or opt.port > 65535 then
         return nil, "Cache error: 异常的端口."
     end
+    if opt.db and type(opt.db) ~= 'number' then
+        return nil, "Cache error: 异常的端口."
+    end
+
+    if opt.auth and (type(opt.auth) ~= 'string' or opt.auth == '') then
+        return nil, "Cache error: 异常的端口."
+    end
+
     CREATE_CACHE = function ()
         local times = 1
         local rds
@@ -149,8 +157,8 @@ function Cache.init(opt)
             rds:close()
             timer.sleep(3)
         end
-        local ok, ret = rds:cmd("CONFIG GET", "TIMEOUT")
-        if ret[2] ~= '0' then
+        local ok, ret = rds:cmd("CONFIG", "GET", "TIMEOUT")
+        if not INITIALIZATION and ret[2] ~= '0' then
             rds:cmd("CONFIG SET", "TIMEOUT", "0")
         end
         return rds
