@@ -1,17 +1,13 @@
 local log = require "log"
+local class = require "class"
 local Co = require "internal.Co"
 local tcp = require "internal.TCP"
-
-local co_spwan = Co.spwan
-
 local table = table
 local concat = table.concat
-local unpack = table.unpack
 
 local sub = string.sub
 local string = string
 local match = string.match
-local fmt = string.format
 local find = string.find
 local byte = string.byte
 local upper = string.upper
@@ -75,6 +71,7 @@ redcmd[42] = function(sock, data)	-- '*'
 	return noerr, bulk
 end
 
+
 -------------------
 
 -- msg could be any type of value
@@ -104,41 +101,29 @@ local count_cache = make_cache(function(t, k)
 		return s
 	end)
 
-local function compose_message(cmd, msg)
-	local lines = {}
-	if type(msg) == "table" then
-		lines[1] = count_cache[#msg+1]
-		lines[2] = command_cache[cmd]
-		local idx = 3
-		for _,v in ipairs(msg) do
-			v = tostring(v)
-			lines[idx] = header_cache[#v]
-			lines[idx+1] = v
-			idx = idx + 2
-		end
-		lines[idx] = CRLF
-	else
-		msg = tostring(msg)
-		lines[1] = "*2"
-		lines[2] = command_cache[cmd]
-		lines[3] = header_cache[#msg]
-		lines[4] = msg
-		lines[5] = CRLF
-	end
+-- 组合为文本命令
+local function CMD(...)
+	return concat({...}, " ")..CRLF
+end
 
-	return concat(lines)
+local function read_boolean(sock)
+	local ok, result = read_response(sock)
+	if ok then
+		return ok, result ~= 0 or result == "OK"
+	end
+	return ok, result
 end
 
 local function redis_login(sock, auth, db)
 	if auth then
-		sock:send(compose_message("AUTH", auth))
+		sock:send(CMD("AUTH", auth))
 		local ok, err = read_response(sock)
 		if not ok then
 			return nil, err
 		end
 	end
 	if db then
-		sock:send(compose_message("SELECT", db))
+		sock:send(CMD("SELECT", db))
 		local ok, err = read_response(sock)
 		if not ok then
 			return nil, err
@@ -147,27 +132,17 @@ local function redis_login(sock, auth, db)
 	return true
 end
 
--- redis
-local command = setmetatable({ __name = "Redis"}, {__index = function(t, k)
-	if k == 'auth' or k == 'db' then
-		return
-	end
-	local cmd = upper(k)
-	local f = function (self, v, ...)
-		local sock = self.sock
-		if type(v) == "table" then
-			sock:send(compose_message(cmd, v))
-			return read_response(sock)
-		else
-			sock:send(compose_message(cmd, {v, ...}))
-			return read_response(sock)
-		end
-	end
-	t[k] = f
-	return f
-end})
+local redis = class("redis")
 
-function command:connect()
+function redis:ctor(opt)
+	self.sock = tcp:new()
+	self.host = opt.host
+	self.port = opt.port
+	self.db = opt.db
+	self.auth = opt.auth
+end
+
+function redis:connect()
 	local sock = self.sock
 	if not sock then
 		return nil, "Can't Create redis Socket"
@@ -180,129 +155,13 @@ function command:connect()
 	if not ok then
 		return nil, "redis login error:"..(err or 'close')
 	end
-	self.state = true
 	return true
 end
 
-local function read_boolean(sock)
-	local ok, result = read_response(sock)
-	if ok then
-		return ok, result ~= 0 or result == "OK"
-	end
-	return ok, result
-end
-
-local function read_kv(sock)
-	local ok, array = read_response(sock)
-	if ok and #array & 0x1 == 0 then
-		local t = {}
-		for i=1, #array, 2 do
-			t[array[i]] = array[i+1]
-		end
-		return ok, t
-	end
-	return ok, array
-end
-
-function command:hgetall(map)
-	local sock = self.sock
-	sock:send(compose_message ("HGETALL", map))
-	return read_kv(sock)
-end
-
-function command:hmget(map, ...)
-	local sock = self.sock
-	sock:send(compose_message ("HMGET", {map, ...}))
-	return read_response(sock)
-end
-
-function command:hset(map, key, value)
-	local sock = self.sock
-	sock:send(compose_message ("HSET", {map, key, value}))
-	return read_boolean(sock) -- HSET 永远返回(true, false)
-end
-
-function command:hmset(map, ...)
-	local sock = self.sock
-	sock:send(compose_message ("HMSET", {map, ...}))
-	return read_boolean(sock) -- HSET 永远返回(true, false)
-end
-
-function command:set(key, value)
-	local sock = self.sock
-	sock:send(compose_message ("SET", {key, value}))
-	return read_boolean(sock)
-end
-
--- 查询键是否存在
-function command:exists(key)
-	local sock = self.sock
-	sock:send(compose_message ("EXISTS", key))
-	return read_boolean(sock)
-end
-
--- 查询键
-function command:sismember(key, value)
-	local sock = self.sock
-	sock:send(compose_message ("SISMEMBER", {key, value}))
-	return read_response(sock)
-end
-
--- 执行指定普通脚本
-function command:eval(script, numbers, ...)
-	local sock = self.sock
-	local t = {'EVAL', '"'..script..'"', numbers, ...}
-	sock:send(concat(t, " ")..CRLF)
-	return read_response(sock)
-end
-
--- 执行指定sha1脚本
-function command:evalsha(sha, numbers, ...)
-	local sock = self.sock
-	local t = {'EVALSHA', sha, numbers, ...}
-	sock:send(concat(t, " ")..CRLF)
-	return read_response(sock)
-end
-
--- 批量注册事务脚本到redis
-function command:loadscripts(scripts)
-	local Cache = {}
-	local sock = self.sock
-	for index, script in ipairs(scripts) do
-		local t = {'SCRIPT', 'LOAD', '"'..script..'"', CRLF}
-		sock:send(concat(t, " "))
-		local ok, result = read_response(sock)
-		if not ok then
-			return nil, fmt("complite index:%d script error: %", index, errresult)
-		end
-		Cache[index] = result
-	end
-	return true, Cache
-end
-
-function command:get_config(key)
-	local t = {"CONFIG", "GET"}
-	if key then
-		t[#t+1] = key
-	else
-		t[#t+1] = '*'
-	end
-	local sock = self.sock
-	sock:send(concat(t, " ")..CRLF)
-	return read_response(sock)
-end
-
-function command:set_config(key, value)
-	local t = {"CONFIG", "SET", key, value, CRLF}
-	local sock = self.sock
-	sock:send(concat(t, " "))
-	return read_response(sock)
-end
-
 -- 订阅
-function command:psubscribe(pattern, func)
+function redis:psubscribe(pattern, func)
 	local sock = self.sock
-	sock:send(compose_message("PSUBSCRIBE", pattern))
+	sock:send(CMD("PSUBSCRIBE", pattern))
 	local ok, msg = read_response(sock)
 	if not ok or not msg[2] then
 		return nil, "PSUBSCRIBE error: 订阅"..tostring(pattern).."失败."
@@ -331,35 +190,42 @@ function command:psubscribe(pattern, func)
 end
 
 -- 订阅
-function command:subscribe(pattern, func)
+function redis:subscribe(pattern, func)
 	return self:psubscribe(pattern, func)
 end
 
 -- 发布
-function command:publish(pattern, data)
+function redis:publish(pattern, data)
 	local sock = self.sock
-	sock:send(compose_message("PUBLISH", {pattern, data}))
+	sock:send(CMD("PUBLISH", pattern, data))
 	return read_response(sock)
 end
 
--- 关闭连接
-function command:close()
-	if self.sock then
-		self.sock:close()
-		self.sock = nil
-	end
-	setmetatable(self, nil)
+-- 查询键是否存在
+function redis:exists(key)
+	local sock = self.sock
+	sock:send(CMD("EXISTS", key))
+	return read_boolean(sock)
 end
 
--- new_tab -> command -> __index
-return {
-	new = function (self, opt)
-		return setmetatable({
-			sock = tcp:new(),
-			host = opt.host,
-			port = opt.port,
-			db = opt.db,
-			auth = opt.auth,
-			}, {__index = command})
-	end,
-}
+-- 查询元素是否集合成员
+function redis:sismember(key, value)
+	local sock = self.sock
+	sock:send(CMD("SISMEMBER", key, value))
+	return read_boolean(sock)
+end
+
+-- 执行命令
+function redis:cmd(...)
+	local sock = self.sock
+	sock:send(CMD(...))
+	return read_response(sock)
+end
+
+function redis:close()
+	if self.sock then
+		self.sock:close()
+	end
+end
+
+return redis

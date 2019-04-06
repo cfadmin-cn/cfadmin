@@ -57,7 +57,7 @@ end
 --             local tcp_count = tcp.count()
 --             local time_count = Timer.count()
 --             local db_count = DB.count()
---             local cache_count = Timer.count()
+--             local cache_count = Cache.count()
 --             print("=======================")
 --             print("co 数量为:", co_count)
 --             print("tcp 数量为:", tcp_count)

@@ -3,36 +3,48 @@ local Co = require "internal.Co"
 local timer = require "internal.Timer"
 local redis = require "protocol.redis"
 
-local type = type
-local error = error
-local pcall = pcall
-local toint = math.tointeger
-local tostring = tostring
-local setmetatable = setmetatable
-
 local co_self = Co.self
 local co_wait = Co.wait
 local co_wakeup = Co.wakeup
 
-local os_time = os.time
+local type = type
+local ipairs = ipairs
+local setmetatable = setmetatable
+
+local table = table
 local remove = table.remove
+local upper = string.upper
+local lower = string.lower
+local replace = string.gsub
 
--- 是否已经初始化
-local INITIALIZATION
 
--- 最大重试次数
-local MAX_TIMES = 5
-
--- 最大DB连接数量
+-- 默认情况下, 保持50个redis连接
 local MAX, COUNT = 50, 0
 
--- 最大空闲连接时间
-local WAIT_TIMEOUT
+-- 连接池
+local POOL = {}
 
--- Cache连接创建函数
-local CACHE_CREATE
+-- 是否已经初始化
+local INITIALIZATION = false
 
--- 等待db对象的协程列表
+-- session创建函数
+local CREATE_CACHE
+
+-- 注册命令
+local commands = {
+    'sismember', 'exists'
+}
+
+local function in_command(cmd)
+    for _, command in ipairs(commands) do
+        if cmd == command then
+            return true
+        end
+    end
+    return false
+end
+
+
 local wlist = {}
 
 local function add_wait(co)
@@ -43,105 +55,114 @@ local function pop_wait()
     return remove(wlist)
 end
 
--- Cache连接池
-local POOL = {}
-
-local function add_cache(cache)
-    if not WAIT_TIMEOUT then
-        POOL[#POOL+1] = {session = cache}
-        return
-    end
-    POOL[#POOL+1] = {session = cache, ttl = os_time()}
+local function add_cache(session)
+    POOL[#POOL+1] = session
 end
 
 local function pop_cache()
     if #POOL > 0 then
-        while 1 do
-            local cache = remove(POOL)
-            if not cache then break end
-            if not cache.ttl or cache.ttl > os_time() - WAIT_TIMEOUT then
-                return cache.session
-            end
-            cache.session:close()
-            COUNT = COUNT - 1
-        end
+        return remove(POOL)
     end
     if COUNT < MAX then
         COUNT = COUNT + 1
-        local cache = CACHE_CREATE()
-        if cache then
-            return cache
-        end
-        COUNT = COUNT - 1
+        return CREATE_CACHE()
     end
     add_wait(co_self())
     return co_wait()
 end
 
-local f
 
-local Cache = setmetatable({}, {__name = "Cache", __index = function (t, k)
+local Cache = setmetatable({}, {__index = function (_, key)
     if not INITIALIZATION then
-        return nil, "Cache尚未初始化"
+        return nil, 'Cache尚未初始化'
     end
-    f = f or function (self, ...)
-        local cache = pop_cache()
-        local OK, v1, v2 = pcall(cache[k], cache, ...)
-        if not OK then
+    if lower(key) == "publish" or lower(key) == "subscribe" or lower(key) == "psubscribe" then
+        return nil, 'Cache error: Cache不支持在缓存中直接使用此命令.'
+    end
+    local cache = pop_cache()
+    if in_command(key) then
+        return function (_, ...)
+            local ok, ret
+            while 1 do
+                ok, ret = cache[key](cache, ...)
+                if ret ~= 'server close' and ok then
+                    break
+                end
+                cache:close()
+                cache = CREATE_CACHE()
+            end
+            if #wlist > 0 then
+                co_wakeup(pop_wait(), cache)
+            else
+                add_cache(cache)
+            end
+            return ok, ret
+        end
+    end
+    return function (_, ...)
+        local ok, ret
+        while 1 do
+            ok, ret = cache:cmd(replace(upper(key), "_", " "), ...)
+            if ret ~= 'server close' and ok then
+                break
+            end
             cache:close()
-            return nil, v1
+            cache = CREATE_CACHE()
         end
         if #wlist > 0 then
             co_wakeup(pop_wait(), cache)
         else
             add_cache(cache)
         end
-        return v1, v2
+        return ok, ret
     end
-    return f
 end})
 
-
+-- 初始化
 function Cache.init(opt)
     if INITIALIZATION then
         return nil, "Cache已经初始化."
     end
     if type(opt) ~= 'table' then
-        return nil, '错误的Cache配置文件.'
+        return nil, 'Cache error: 错误的Cache配置文件.'
     end
-    if type(opt.max) == 'number' then
+    if type(opt.max) == 'number' and opt.max > 0 then
         MAX = opt.max
     end
-    CACHE_CREATE = function (...)
+    if type(opt.host) ~= 'string' or opt.host == '' then
+        return nil, "Cache error: 异常的主机名."
+    end
+    if type(opt.port) ~= 'number' or opt.port < 0 or opt.port > 65535 then
+        return nil, "Cache error: 异常的端口."
+    end
+    CREATE_CACHE = function ()
         local times = 1
-        local cache
+        local rds
         while 1 do
-            cache = redis:new(opt)
-            local ok, connect, err = pcall(cache.connect, cache)
-            if ok and connect then
+            rds = redis:new(opt)
+            local ok, err = rds:connect()
+            if ok then
                 break
             end
-            if times > MAX_TIMES then
-                cache:close()
-                error('超过最大重试次数, 请检查网络连接后重启Redis与本服务')
-            end
             log.error('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
-            cache:close()
             times = times + 1
+            rds:close()
             timer.sleep(3)
         end
-        local ok, ret = cache:get_config('timeout')
-        if ret[1] == 'timeout' and ret[2] ~= '0' then
-            WAIT_TIMEOUT = toint(ret[2])
+        local ok, ret = rds:cmd("CONFIG GET", "TIMEOUT")
+        if ret[2] ~= '0' then
+            rds:cmd("CONFIG SET", "TIMEOUT", "0")
         end
-        return cache
+        return rds
     end
-    add_cache(pop_cache())
+    add_cache(CREATE_CACHE())
     INITIALIZATION = true
+    COUNT = COUNT + 1
     return true
 end
 
-function Cache.count( ... )
+-- 连接池数量
+function Cache.count()
     return #POOL
 end
 

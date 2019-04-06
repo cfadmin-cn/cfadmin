@@ -380,17 +380,13 @@ function DB.init(opt)
             if connect then
                 break
             end
-            if times > 5 then
-                db:close()
-                error("超过最大重试次数, 请检查网络连接后重启MySQL与本服务")
-            end
             log.error('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
             db:close()
             times = times + 1
             timer.sleep(3)
         end
-        db:query(fmt('set wait_timeout=%s', tostring(WAIT_TIMEOUT)))
-        db:query(fmt('set interactive_timeout=%s', tostring(WAIT_TIMEOUT)))
+        db:query(fmt('SET wait_timeout=%s', tostring(WAIT_TIMEOUT)))
+        db:query(fmt('SET interactive_timeout=%s', tostring(WAIT_TIMEOUT)))
         return db
     end
     add_db(get_db())
