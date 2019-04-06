@@ -5,6 +5,8 @@ local tcp = require "internal.TCP"
 local table = table
 local concat = table.concat
 
+local co_spwan = Co.spwan
+
 local sub = string.sub
 local string = string
 local match = string.match
