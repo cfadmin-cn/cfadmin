@@ -47,6 +47,8 @@ end
 -- local co = require "internal.Co"
 -- local tcp = require "internal.TCP"
 -- local Timer = require "internal.Timer"
+-- local DB = require "DB"
+-- local Cache = require "Cache"
 -- co.spwan(function ( ... )
 --     while 1 do
 --         local self = co.self()
@@ -54,11 +56,15 @@ end
 --             local co_count, task_count = co.count()
 --             local tcp_count = tcp.count()
 --             local time_count = Timer.count()
+--             local db_count = DB.count()
+--             local cache_count = Timer.count()
 --             print("=======================")
 --             print("co 数量为:", co_count)
 --             print("tcp 数量为:", tcp_count)
 --             print("task 数量为:", task_count)
 --             print("timer 数量为:", time_count)
+--             print("db 数量为:", db_count)
+--             print("cache 数量为:", cache_count)
 --             print("当前内存为:", collectgarbage('count'))
 --             print("=======================")
 --             co.wakeup(self)
