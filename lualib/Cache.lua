@@ -38,7 +38,7 @@ local commands = {
 
 local function in_command(cmd)
     for _, command in ipairs(commands) do
-        if cmd == command then
+        if lower(cmd) == command then
             return true
         end
     end
@@ -107,9 +107,9 @@ local Cache = setmetatable({}, {__index = function (_, key)
         end
         while 1 do
             if #keys > 1 then
-                ok, ret = cache:cmd(keys[1], keys[2], ...)
+                ok, ret = cache:cmd(upper(keys[1]), upper(keys[2]), ...)
             else
-                ok, ret = cache:cmd(keys[1], ...)
+                ok, ret = cache:cmd(upper(keys[1]), ...)
             end
             if ret ~= 'server close!!' then
                 break
