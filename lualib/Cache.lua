@@ -131,24 +131,19 @@ function Cache.init(opt)
     if INITIALIZATION then
         return nil, "Cache已经初始化."
     end
-    if type(opt) ~= 'table' then
-        return nil, 'Cache error: 错误的Cache配置文件.'
-    end
+
+    assert(type(opt) == 'table', "Cache error: 错误的Cache配置文件.")
+
+    assert(type(opt.host) == 'string' and opt.host ~= '', "Cache error: 异常的主机名.")
+
+    assert(type(opt.port) == 'number' and opt.port > 0 and opt.port <= 65535, "Cache error: 异常的端口.")
+
+    assert(not opt.auth or type(opt.auth) == 'string' , "Cache error: 异常的auth.")
+
+    assert(not opt.db or type(opt.db) == 'number' and opt.db >= 0 and opt.db <= 15, "Cache error: 异常的db.")
+
     if type(opt.max) == 'number' and opt.max > 0 then
         MAX = opt.max
-    end
-    if type(opt.host) ~= 'string' or opt.host == '' then
-        return nil, "Cache error: 异常的主机名."
-    end
-    if type(opt.port) ~= 'number' or opt.port < 0 or opt.port > 65535 then
-        return nil, "Cache error: 异常的端口."
-    end
-    if opt.db and type(opt.db) ~= 'number' then
-        return nil, "Cache error: 异常的端口."
-    end
-
-    if opt.auth and (type(opt.auth) ~= 'string' or opt.auth == '') then
-        return nil, "Cache error: 异常的端口."
     end
 
     CREATE_CACHE = function ()
