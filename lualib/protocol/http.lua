@@ -43,7 +43,6 @@ local find = string.find
 local split = string.sub
 local splite = string.gmatch
 local spliter = string.gsub
-local insert = table.insert
 local remove = table.remove
 local concat = table.concat
 
@@ -219,7 +218,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 					if not buf then
 						return
 					end
-					insert(buffers, buf)
+					buffers[#buffers+1] = buf
 					local buffer = concat(buffers)
 					if #buffer >= (max_body_size or 1024 * 1024) then
 						return nil, 413
@@ -286,12 +285,12 @@ end
 -- 一些错误返回
 local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
 	http:tolog(code, path, ip, X_Forwarded_FORMAT(forword) or ip, method, speed)
-	return concat({
+	return concat({concat({
 		REQUEST_STATUCODE_RESPONSE(code),
 		HTTP_DATE(),
 		'Connection: close',
 		'server: ' .. (http.__server or SERVER),
-	}, CRLF) .. CRLF2
+	}, CRLF), CRLF2})
 end
 
 -- WebSocket
@@ -337,12 +336,12 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 	}
 	local protocol = header['Sec-Websocket-Protocol']
 	if protocol then -- 仅支持协议回传, 具体实现由用户实现
-		insert(response, "Sec-Websocket-Protocol: "..tostring(protocol))
+		response[#response+1] = "Sec-Websocket-Protocol: "..tostring(protocol)
 	end
 	http:tolog(200, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, now() - start_time)
 	local ok = sock:send(concat(response, CRLF)..CRLF2)
 	if not ok then
-		return sock:close() 
+		return sock:close()
 	end
 	return wsserver:new({cls = cls, sock = sock}):start()
 end
@@ -362,7 +361,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 		if not buf then
 			return sock:close()
 		end
-		insert(buffers, buf)
+		buffers[#buffers+1] = buf
 		local buffer = concat(buffers)
 		local CRLF_START, CRLF_END = find(buffer, CRLF2)
 		if CRLF_START and CRLF_END then
@@ -505,7 +504,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					return sock:close()
 				end
 				statucode = 200
-				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+				header[#header+1] = REQUEST_STATUCODE_RESPONSE(statucode)
 			elseif typ == HTTP_PROTOCOL.WS then
 				local ok, msg = pcall(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
 				if not ok then
@@ -533,34 +532,33 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					return sock:close()
 				end
 				statucode = 200
-				insert(header, REQUEST_STATUCODE_RESPONSE(statucode))
+				header[#header+1] = REQUEST_STATUCODE_RESPONSE(statucode)
 				local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
 				if not conten_type then
-					insert(header, 'Content-Disposition: attachment') -- 确保浏览器提示需要下载
+					header[#header+1] = 'Content-Disposition: attachment' -- 确保浏览器提示需要下载
 					static = fmt('Content-Type: %s', 'application/octet-stream')
 				else
 					static = fmt('Content-Type: %s', conten_type)
 				end
 			end
-			insert(header, HTTP_DATE())
-			insert(header, 'Origin: *')
-			insert(header, 'Allow: GET, POST, PUT, HEAD, OPTIONS')
-			insert(header, 'Access-Control-Allow-Origin: *')
-			insert(header, 'Access-Control-Allow-Headers: *')
-			insert(header, 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS')
-			insert(header, 'Access-Control-Max-Age: 86400')
-			insert(header, 'server: ' .. (server or SERVER))
-
+			header[#header+1] = HTTP_DATE()
+			header[#header+1] = 'Origin: *'
+			header[#header+1] = 'Allow: GET, POST, PUT, HEAD, OPTIONS'
+			header[#header+1] = 'Access-Control-Allow-Origin: *'
+			header[#header+1] = 'Access-Control-Allow-Headers: *'
+			header[#header+1] = 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS'
+			header[#header+1] = 'Access-Control-Max-Age: 86400'
+			header[#header+1] = 'server: ' .. (server or SERVER)
 			local Connection = 'Connection: keep-alive'
 			if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
 				Connection = 'Connection: close'
 			end
-			insert(header, Connection)
+			header[#header+1] = Connection
 			if data then
 				if type(data) == 'string' then
 					if #data >= 1 then
-						insert(header, 'Transfer-Encoding: identity')
-						insert(header, fmt('Content-Length: %d', #data))
+						header[#header+1] = 'Transfer-Encoding: identity'
+						header[#header+1] = 'Content-Length: '.. #data
 					end
 				else
 					log.warn('response body not a string type.'..'('..tostring(data)..')')
@@ -571,24 +569,24 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 			if typ == HTTP_PROTOCOL.API then
 				if #data > 0 then
-					insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('json'))
+					header[#header+1] = 'Content-Type: '..REQUEST_MIME_RESPONSE('json')
 				end
-				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
-				insert(header, 'Cache-Control: no-cache')
+				header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
+				header[#header+1] = 'Cache-Control: no-cache'
 			elseif typ == HTTP_PROTOCOL.USE then
 				if #data > 0 then
-					insert(header, 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8')
+					header[#header+1] = 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8'
 				end
-				insert(header, 'Cache-Control: no-cache, no-store, must-revalidate')
-				insert(header, 'Cache-Control: no-cache')
+				header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
+				header[#header+1] = 'Cache-Control: no-cache'
 			else
 				if ttl then
-					insert(header, HTTP_EXPIRES(time() + ttl))
+					header[#header+1] = HTTP_EXPIRES(time() + ttl)
 				end
-				insert(header, static)
+				header[#header+1] = static
 			end
+			sock:send(concat({concat(header, CRLF), CRLF2, data}))
 			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
-			sock:send(concat(header, CRLF) .. CRLF2 .. data)
 			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
 				return sock:close()
 			end
