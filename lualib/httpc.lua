@@ -142,28 +142,24 @@ end
 local function IO_CONNECT(IO, PROTOCOL, DOAMIN, PORT)
 	local PORT = tonumber(PORT)
 	if PROTOCOL == "http" then
-		if PORT and PORT < 65536 and PORT > 1 then
-			PORT = tonumber(PORT)
-		else
+		if not PORT or PORT > 65536 or PORT < 1 then
 			PORT = 80
 		end
 		local ok, err = IO:connect(DOAMIN, PORT)
 		if not ok then
 			IO:close()
-			return false, 'httpc 连接失败:'.. DOAMIN ..',' .. PORT
+			return false, 'httpc 连接失败: '.. DOAMIN ..',' .. PORT
 		end
 		return true
 	end
 	if PROTOCOL == "https" then
-		if PORT and PORT < 65536 and PORT > 1 then
-			PORT = tonumber(PORT)
-		else
-			PORT = 80
+		if not PORT or PORT > 65536 or PORT < 1 then
+			PORT = 443
 		end
 		local ok = IO:ssl_connect(DOAMIN, PORT)
 		if not ok then
 			IO:close()
-			return false, 'httpc ssl连接失败'.. DOAMIN ..',' .. PORT
+			return false, 'httpc ssl连接失败: '.. DOAMIN ..',' .. PORT
 		end
 		return true
 	end
@@ -201,12 +197,10 @@ local function splite_protocol(domain)
 	if not PATH or PATH == '' then
 		PATH = '/'
 	end
-
 	local times = 0
 	for colon in splite(DOMAIN, ":") do
 		times = times + 1
 	end
-
 	local PORT
 	if times == 1 then
 		DOMAIN, PORT = match(DOMAIN, "(.+):([%d]+)")
@@ -216,7 +210,6 @@ local function splite_protocol(domain)
 			DOMAIN, PORT = domain, port
 		end
 	end
-
 	return PROTOCOL, DOMAIN, PORT, PATH
 end
 
