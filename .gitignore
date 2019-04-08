@@ -42,6 +42,9 @@
 *.idb
 *.pdb
 
+# Code Edit
+.vscode
+
 # Kernel Module Compile Results
 *.mod*
 *.cmd
