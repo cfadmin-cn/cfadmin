@@ -186,10 +186,12 @@ HTTP_PROTOCOL.ROUTE_FIND = ROUTE_FIND
 
 local function HTTP_DATE()
 	return DATE("Date: %a, %d %b %Y %X GMT")
+	-- return os.date("Date: %a, %d %b %Y %X GMT")
 end
 
 local function HTTP_EXPIRES(timestamp)
 	return DATE("Expires: %a, %d %b %Y %X GMT", timestamp)
+	-- return os.date("Date: %a, %d %b %Y %X GMT")
 end
 
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
@@ -237,12 +239,12 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 			if format == FILE_ENCODE then
 				local BOUNDARY = match(HEADER['Content-Type'], '^.+=[%-]*(.+)')
 				if BOUNDARY and BOUNDARY ~= '' then
-					local typ, data = form_multipart(BODY, BOUNDARY)
+					local typ, body = form_multipart(BODY, BOUNDARY)
 					if typ == FILE_TYPE then
-						content['files'] = data
+						content['files'] = body
 					elseif typ == ARGS_TYPE then
 						content['args'] = {}
-						for _, args in ipairs(data) do
+						for _, args in ipairs(body) do
 							content['args'][args[1]] = args[2]
 						end
 					end
@@ -288,6 +290,13 @@ local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
 	return concat({concat({
 		REQUEST_STATUCODE_RESPONSE(code),
 		HTTP_DATE(),
+		'Origin: *',
+		'Allow: GET, POST, PUT, HEAD, OPTIONS',
+		'Allow: GET, POST, PUT, HEAD, OPTIONS',
+		'Access-Control-Allow-Origin: *',
+		'Access-Control-Allow-Headers: *',
+		'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
+		'Access-Control-Max-Age: 86400',
 		'Connection: close',
 		'server: ' .. (http.__server or SERVER),
 	}, CRLF), CRLF2})
@@ -453,7 +462,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 							if data then
 								if type(data) == 'string' and data ~= '' then
 									http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
-									sock:send(concat({
+									sock:send(concat({concat({
 										REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
 										'Origin: *',
 										'Allow: GET, POST, PUT, HEAD, OPTIONS',
@@ -465,7 +474,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 										'Connection: close',
 										'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
 										'Content-Length: '..tostring(#data),
-									}, CRLF)..CRLF2..data)
+									}, CRLF), CRLF2, data}))
 									return sock:close()
 								end
 							end
@@ -483,7 +492,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 
 			local header = { }
-			local ok, data, static, statucode
+			local ok, body, static, statucode
 
 			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
 				if type(cls) == "table" then
@@ -493,12 +502,12 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 						return sock:close()
 					end
 					local c = cls:new(content)
-					ok, data = pcall(method, c)
+					ok, body = pcall(method, c)
 				else
-					ok, data = pcall(cls, content)
+					ok, body = pcall(cls, content)
 				end
 				if not ok then
-					log.error(data)
+					log.error(body)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
@@ -519,14 +528,14 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				if pos then
 					path = split(path, 1, pos - 1)
 				end
-				ok, data, file_type = pcall(cls, './'..path)
+				ok, body, file_type = pcall(cls, './'..path)
 				if not ok then
-					log.error(data)
+					log.error(body)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
 				end
-				if not data then
+				if not body then
 					statucode = 404
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
@@ -554,28 +563,28 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				Connection = 'Connection: close'
 			end
 			header[#header+1] = Connection
-			if data then
-				if type(data) == 'string' then
-					if #data >= 1 then
+			if body then
+				if type(body) == 'string' then
+					if #body >= 1 then
 						header[#header+1] = 'Transfer-Encoding: identity'
-						header[#header+1] = 'Content-Length: '.. #data
+						header[#header+1] = 'Content-Length: '.. #body
 					end
 				else
-					log.warn('response body not a string type.'..'('..tostring(data)..')')
-					data = ''
+					log.warn('response body not a string type.'..'('..tostring(body)..')')
+					body = ''
 				end
 			else
-				data = ''
+				body = ''
 			end
 			if typ == HTTP_PROTOCOL.API then
-				if #data > 0 then
+				if #body > 0 then
 					header[#header+1] = 'Content-Type: '..REQUEST_MIME_RESPONSE('json')
 				end
 				header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
 				header[#header+1] = 'Cache-Control: no-cache'
 			elseif typ == HTTP_PROTOCOL.USE then
-				if #data > 0 then
-					header[#header+1] = 'Content-Type: '..REQUEST_MIME_RESPONSE('html')..';charset=utf-8'
+				if #body > 0 then
+					header[#header+1] = concat({'Content-Type: ', REQUEST_MIME_RESPONSE('html'), ';charset=utf-8'})
 				end
 				header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
 				header[#header+1] = 'Cache-Control: no-cache'
@@ -585,7 +594,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				end
 				header[#header+1] = static
 			end
-			sock:send(concat({concat(header, CRLF), CRLF2, data}))
+			sock:send(concat({concat(header, CRLF), CRLF2, body}))
 			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
 			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
 				return sock:close()
