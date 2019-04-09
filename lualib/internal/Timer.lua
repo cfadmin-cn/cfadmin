@@ -43,6 +43,9 @@ function Timer.timeout(timeout, cb)
     if type(timeout) ~= 'number' or timeout <= 0 then
         return
     end
+    if type(cb) ~= 'function' then
+      return
+    end
     local t = Timer_new()
     if not t then
         return log.error("timeout error: Create timer class error! memory maybe not enough...")
@@ -63,6 +66,9 @@ function Timer.timeout(timeout, cb)
         if not ok then
             log.error('timeout error:', err)
         end
+        if timer.STOP then
+          return
+        end
         Timer[timer] = nil
         timer.STOP = true
         timer.co = nil
@@ -76,6 +82,9 @@ end
 function Timer.at(repeats, cb)
     if type(repeats) ~= 'number' or repeats <= 0 then
         return
+    end
+    if type(cb) ~= 'function' then
+      return
     end
     local t = Timer_new()
     if not t then
@@ -98,6 +107,9 @@ function Timer.at(repeats, cb)
                 return
             end
             co_spwan(cb)
+            if timer.STOP then
+              return
+            end
             co_wait()
         end
     end)
