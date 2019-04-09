@@ -8,14 +8,13 @@ local is_ipv6 = sys.ipv6
 local now = sys.now
 
 local type = type
-local TYPE = math.type
 
 local os_date = os.date
 local os_time = os.time
 
 local System = {
   -- 类型转换函数
-  toint = math.tointeger,
+  toint = math.modf,
   tonumber = tonumber,
   tostring = tostring,
 }
@@ -24,12 +23,20 @@ local System = {
 
 -- 是否为整数类型
 function System.is_int(number)
-  return TYPE(number) == 'integer'
+  if type(number) ~= 'number' then
+    return false
+  end
+  local int, float = math.modf(number)
+  return float == 0.
 end
 
 -- 是否为浮点型
-function System.is_number(number)
-  return TYPE(number) == 'float'
+function System.is_float(number)
+  if type(number) ~= 'number' then
+    return false
+  end
+  local int, float = math.modf(number)
+  return float ~= 0.
 end
 
 -- 是否字符串类型, empty = true则追加判断字符串是否为空
