@@ -125,11 +125,13 @@ local HTTP_CODE = {
 
 local MIME = {
 	-- 文本格式
-	['htm']  = 'text/html',
+	['xml'] = 'application/xml',
+	['htm'] = 'text/html',
 	['html'] = 'text/html',
+	['xhtml'] = 'application/xhtml+xml',
 	['txt']  = 'text/plain',
 	['css']  = 'text/css',
-	['js']   = 'application/x-javascript',
+	['js']   = 'application/javascript',
 	['json'] = 'application/json',
 	-- 图片格式
 	['bmp']  = 'image/bmp',
@@ -140,7 +142,19 @@ local MIME = {
 	['ico']  = 'image/x-icon',
 	['tif']  = 'image/tiff',
 	['tiff'] = 'image/tiff',
-	-- 其他格式
+	-- 音频
+	['wav'] = 'audio/wav',
+	['acc'] = 'audio/aac',
+	-- 视频
+	['avi'] = 'video/x-msvideo',
+	['mpeg'] = 'video/mpeg',
+	-- 文档
+	['csv'] = 'text/csv',
+	['xls'] = 'application/vnd.ms-excel',
+	['xlsx'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	['docx'] = 'application/msword',
+	['doc'] = 'application/msword',
+	['pdf'] = 'application/pdf',
 	-- TODO
 }
 
@@ -520,7 +534,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					log.error(msg)
 					return sock:close()
 				end
-				return 
+				return
 			else
 				local file_type
 				local path = PATH

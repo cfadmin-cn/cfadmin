@@ -100,7 +100,7 @@ function TCP:send(buf)
                         self.SEND_IO = nil
                         self.send_co = nil
                         self.send_current_co = nil
-                        return co_wakeup(send_current_co, len == #buf)
+                        return co_wakeup(co, len == #buf)
                     end
                     buf = split(buf, len + 1, -1)
                     co_wait()
@@ -352,7 +352,7 @@ function TCP:count()
 end
 
 function TCP:close()
-        
+
     if self.timer then
         self.timer:stop()
         self.timer = nil
