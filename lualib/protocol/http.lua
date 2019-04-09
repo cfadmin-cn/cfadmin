@@ -1,5 +1,5 @@
 local log = require "log"
-local sys = require "sys"
+local sys = require "system"
 local tcp = require "internal.TCP"
 local wsserver = require "protocol.websocket.server"
 
@@ -7,7 +7,7 @@ local crypt = require "crypt"
 local sha1 = crypt.sha1
 local base64 = crypt.base64encode
 local now = sys.now
-local DATE = sys.date
+local DATE = os.date
 
 local form = require "httpd.Form"
 local FILE_TYPE = form.FILE

@@ -49,12 +49,13 @@ function Timer.timeout(timeout, cb)
     end
     local timer = {STOP = false}
     timer.stop = function (...)
-        if not timer.STOP then
-            Timer_release(t)
-            Timer[timer] = nil
-            timer.co = nil
-            timer.STOP = true
+        if timer.STOP then
+          return
         end
+        Timer_release(t)
+        timer.STOP = true
+        timer.co = nil
+        Timer[timer] = nil
     end
     timer.co = co_new(function (...)
         Timer_release(t)
@@ -82,15 +83,16 @@ function Timer.at(repeats, cb)
     end
     local timer = { STOP = false }
     timer.stop = function (...)
-        if not timer.STOP then
+        if timer.STOP then
             return
         end
         Timer_release(t)
         timer.STOP = true
-        Timer[timer] = nil
         timer.co = nil
+        Timer[timer] = nil
     end
     timer.co = co_new(function ()
+      local co_wait = coroutine.yield
         while 1 do
             if timer.STOP then
                 return

@@ -1,12 +1,9 @@
 local HTTP = require "protocol.http"
 local tcp = require "internal.TCP"
-local Co = require "internal.Co"
 local class = require "class"
-local sys = require "sys"
+local sys = require "system"
 local log = require "log"
-
-local is_ipv4 = sys.ipv4
-local is_ipv6 = sys.ipv6
+local cf = require "cf"
 
 local type = type
 local ipairs = ipairs
@@ -15,7 +12,6 @@ local fmt = string.format
 local match = string.match
 local io_open = io.open
 local os_date = os.date
-local os_time = os.time
 
 -- 请求解析
 local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
@@ -155,18 +151,14 @@ end
 -- 监听请求
 function httpd:listen(ip, port)
     return self.IO:listen(ip, port, function (fd, ipaddr)
-        if not is_ipv4(ipaddr) then
-            if is_ipv6(ipaddr) then
-                ipaddr = match(ipaddr, '^::[f]+:(.*)') or ipaddr
-            end
-        end
+        ipaddr = match(ipaddr, '^::[f]+:(.+)') or ipaddr
         return EVENT_DISPATCH(fd, ipaddr, self)
     end)
 end
 
 -- 正确的运行方式
 function httpd:run()
-    return Co.wait()
+    return cf.wait()
 end
 
 return httpd

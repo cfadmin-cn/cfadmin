@@ -243,6 +243,7 @@ end
 function TCP:listen(ip, port, cb)
     self.LISTEN_IO = tcp_pop()
     self.fd = tcp_new_server_fd(ip, port)
+    local co_wait = coroutine.yield
     if not self.fd then
         return log.error("this IP and port Create A bind or listen method Faild! :) ")
     end

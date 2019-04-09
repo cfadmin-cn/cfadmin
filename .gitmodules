@@ -1,3 +1,0 @@
-[submodule "luaclib/src/lcjson"]
-	path = luaclib/src/lcjson
-	url = https://github.com/CandyMi/lua-cjson.git

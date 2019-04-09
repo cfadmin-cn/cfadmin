@@ -1,5 +1,5 @@
 local class = require "class"
-local timer = require 'internal.Timer'
+local cf = require "cf"
 local json = require "json"
 local MQ = require "MQ"
 local websocket = class("websocket")
@@ -15,7 +15,7 @@ end
 
 function websocket:on_open()
     print('on_open')
-    self.timer = timer.at(0.01, function ( ... ) -- 定时器
+    self.timer = cf.at(0.01, function ( ... ) -- 定时器
         self.count = self.count + 1
         self.ws:send(tostring(self.count))
     end)

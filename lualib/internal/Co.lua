@@ -1,6 +1,10 @@
 local log  = require "log"
 local task = require "task"
 
+local type = type
+local assert = assert
+local error = error
+
 local task_new = task.new
 local task_stop = task.stop
 local task_start = task.start
@@ -48,7 +52,7 @@ local function co_push(co)
 end
 
 local function f()
-	while 1 do 
+	while 1 do
 		local ok, msg = pcall(co_wait())
 		if not ok then
 			log.error(msg)
@@ -76,6 +80,8 @@ end
 
 -- 让出
 function Co.wait()
+	local co = co_self()
+	assert(cos[co] or co == main_co, "非cf创建的协程不能让出执行权")
 	return co_wait()
 end
 
@@ -91,18 +97,16 @@ end
 
 -- 唤醒
 function Co.wakeup(co, ...)
-	assert(co, "Attemp to Pass a nil value (need a co).")
+	assert(type(co) == 'thread', "试图传递一个非协程的类型的参数到wakeup内部.")
 	local status = co_status(co)
 	if co == co_self() then
-		return log.error("Can't wakeup current co.")
+		return log.error("不能唤醒当前正在执行的协程")
 	end
 	if main_co == co and status == "suspended" then
 		return task_start(main_task, main_co, ...)
 	end
 	local t = cos[co]
-	if not t then
-		return log.error("Can't find co in co list.")
-	end
+	assert(t, "非cf创建的协程不能由cf来唤醒")
 	return task_start(t, co, ...)
 end
 
