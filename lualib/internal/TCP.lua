@@ -13,8 +13,8 @@ local dns_resolve = dns.resolve
 local co_new = co.new
 local co_wakeup = co.wakeup
 local co_spwan = co.spwan
-local co_wait = co.wait
 local co_self = co.self
+local co_wait = coroutine.yield
 
 local tcp_start = tcp.start
 local tcp_stop = tcp.stop
@@ -70,7 +70,6 @@ function TCP:set_fd(fd)
 end
 
 -- 设置backlog
-
 function TCP:set_backlog(backlog)
     if type(backlog) == 'number' and backlog > 0 then
         self._backlog = backlog
@@ -243,7 +242,6 @@ end
 function TCP:listen(ip, port, cb)
     self.LISTEN_IO = tcp_pop()
     self.fd = tcp_new_server_fd(ip, port)
-    local co_wait = coroutine.yield
     if not self.fd then
         return log.error("this IP and port Create A bind or listen method Faild! :) ")
     end

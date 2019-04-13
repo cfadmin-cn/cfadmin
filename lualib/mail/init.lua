@@ -1,7 +1,11 @@
-local TCP = require "internal.TCP"
 local crypt = require "crypt"
-
 local base64encode = crypt.base64encode
+
+local socket = require "mail.socket"
+local connect = socket.connect
+local close = socket.close
+local send = socket.send
+local recv = socket.recv
 
 local tonumber = tonumber
 local tostring = tostring
@@ -31,45 +35,6 @@ end
 
 local function time()
 	return os_date("[%Y/%m/%d %H:%M:%S]")
-end
-
--- hook connect 与 ssl connect
-local function connect(host, port, SSL)
-	local tcp = TCP:new()
-	if not SSL then
-		local ok, err = tcp:connect(host, port)
-		if not ok then
-			tcp:close()
-			return ok, err
-		end
-	else
-		local ok, err = tcp:ssl_connect(host, port)
-		if not ok then
-			tcp:close()
-			return ok, err
-		end
-	end
-	return tcp
-end
-
--- hook read 与 ssl read
-local function recv(session, bytes, SSL)
-	if not SSL then
-		return session:recv(bytes)
-	end
-	return session:ssl_recv(bytes)
-end
-
--- hook send 与 ssl send
-local function send(session, buf, SSL)
-	if not SSL then
-		return session:send(buf)
-	end
-	return session:ssl_send(buf)
-end
-
-local function close(session)
-	return session:close()
 end
 
 -- HELO 命令
