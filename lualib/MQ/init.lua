@@ -34,7 +34,7 @@ local function mq_login(self)
 				return rds
 			end
 			rds:close()
-			log.error('次连接mq(redis)失败:'..(err or "unknow")..'.正在尝试重连')
+			log.error('连接mq(redis)失败:'..(err or "unknow")..'.正在尝试重连')
 			Timer.sleep(3)
 			times = times + 1
 		elseif self.type == 'mqtt' then
