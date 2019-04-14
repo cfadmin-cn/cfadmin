@@ -286,12 +286,15 @@ end
 
 local function X_Forwarded_FORMAT(tab)
 	local ip_list
+	local insert = table.insert
 	if tab and type(tab) == 'string' then
 		for ip in splite(tab, '([^ ,;]+)') do
 			if not ip_list then
 				ip_list = {ip}
 			else
-				ip_list[#ip_list+1] = ip
+				if ip ~= ip_list[1] then
+					insert(ip_list, 1, ip)
+				end
 			end
 		end
 		return concat(ip_list, ' -> ')
