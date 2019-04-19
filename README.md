@@ -8,9 +8,11 @@
   <img src="https://img.shields.io/badge/Author-CandyMi-red.svg"></a>
 </p>
 
->   大道至简, 返璞归真.
+<p>
+  <img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/cfadmin.png" height="20%" width="20%"/ >
+</p>
 
->   简单, 不简单!
+>   大道至简, 返璞归真. 简单? 不简单!
 
 >   没有其它框架比它更容易入手! 如果有, 那就是借鉴了它.
 
@@ -48,9 +50,10 @@
 
 >   如果您觉得cf还不错, 可以支持一杯咖啡予以鼓励.
 
-<img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/zhifubao.jpeg" height="30%" width="30%">
-<img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/weixin.jpeg" height="30%" width="30%">
-
+<p>
+  <img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/zhifubao.jpeg" height="30%" width="30%">
+  <img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/weixin.jpeg" height="37%" width="37%">
+</p>
 
 ## 授权协议
 
