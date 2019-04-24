@@ -1,5 +1,3 @@
---- this code fork from github.com/manoelcampos/xml2lua
-
 --- @module Module providing a non-validating XML stream parser in Lua. 
 --  
 --  Features:
@@ -51,17 +49,8 @@
 --
 --@author Paul Chakravarti (paulc@passtheaardvark.com)
 --@author Manoel Campos da Silva Filho
-local class = require "class"
+local xml2lua = {}
 local XmlParser = require("XmlParser")
-
-local tonumber = tonumber
-local getmetatable = getmetatable
-local setmetatable = setmetatable
-local error = error
-local pairs = pairs
-local ipairs = ipairs
-local table = table
-local string = string
 
 ---Recursivelly prints a table in an easy-to-ready format
 --@param tb The table to be printed
@@ -90,10 +79,7 @@ end
 -- local handler = require("xmlhandler/tree").
 --@return a XmlParser object used to parse the XML
 --@see XmlParser
-
-local xml2lua = {}
-
-function xml2lua.parser(handler)
+function xml2lua.parser(handler)    
     if handler == xml2lua then
         error("You must call xml2lua.parse(handler) instead of xml2lua:parse(handler)")
     end

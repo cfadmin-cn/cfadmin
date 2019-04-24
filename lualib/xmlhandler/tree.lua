@@ -5,7 +5,7 @@ local function init()
     }
     
     obj._stack = {obj.root, n=1}  
-    return obj
+    return obj  
 end
 
 --- @module XML Tree Handler.
