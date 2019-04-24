@@ -1,3 +1,11 @@
+.PHONY : build rebuild clean
+
+default :
+	@echo "======================================="
+	@echo "Please use 'make build' command to build it.."
+	@echo "Please use 'make clean' command to clean all."
+	@echo "======================================="
+
 LIBNAME = lpeg
 LUADIR = ../lua/
 
@@ -38,13 +46,13 @@ macosx:
 build: $(FILES)
 	CC -o lpeg.so $(FILES) -shared -fPIC -lcore
 	mv *.so ../../
-	rm *.o *.so
+	rm -rf *.o *.so
 
 
 rebuild: $(FILES)
 	CC -o lpeg.so $(FILES) -shared -fPIC -lcore
 	mv *.so ../../
-	rm *.o *.so
+	rm -rf *.o *.so
 
 
 lpeg.so: $(FILES)
