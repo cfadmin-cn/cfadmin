@@ -1,18 +1,33 @@
+local type = type
+local error = error
+local pairs = pairs
+local ipairs = ipairs
+local tonumber = tonumber
+local setmetatable = setmetatable
+local getmetatable = getmetatable
+
+local strfind = string.find
+local strgsub = string.gsub
+local strsub = string.sub
+local strchar = string.char
+
+local table_remove = table.remove
+local table_concat = table.concat
 --- @module Class providing the actual XML parser.
 --  Available options are:
---      * stripWS   
---        Strip non-significant whitespace (leading/trailing) 
+--      * stripWS
+--        Strip non-significant whitespace (leading/trailing)
 --        and do not generate events for empty text elements
---  
---      * expandEntities 
---        Expand entities (standard entities + single char 
---        numeric entities only currently - could be extended 
+--
+--      * expandEntities
+--        Expand entities (standard entities + single char
+--        numeric entities only currently - could be extended
 --        at runtime if suitable DTD parser added elements
 --        to table (see obj._ENTITIES). May also be possible
 --        to expand multibyre entities for UTF-8 only
---  
+--
 --      * errorHandler
---        Custom error handler function 
+--        Custom error handler function
 --
 --  NOTE: Boolean options must be set to 'nil' not '0'
 
@@ -23,9 +38,9 @@
 local function decimalToHtmlChar(code)
     local n = tonumber(code)
     if n >= 0 and n < 256 then
-        return string.char(n)
+        return strchar(n)
     else
-        return "&#"..code..";"
+        return table_concat({"&#", code, ";"})
     end
 end
 
@@ -36,9 +51,9 @@ end
 local function hexadecimalToHtmlChar(code)
     local n = tonumber(code, 16)
     if n >= 0 and n < 256 then
-        return string.char(n)
+        return strchar(n)
     else
-        return "&#x"..code..";"
+        return table_concat({"&#x", code, ";"})
     end
 end
 
@@ -67,7 +82,7 @@ local XmlParser = {
     --Matches a closing tag such as </person> or the end of a openning tag such as <person>
     _TAGEXT     = '(%/?)>',
 
-    _errstr = { 
+    _errstr = {
         xmlErr = "Error Parsing XML",
         declErr = "Error Parsing XMLDecl",
         declStartErr = "XMLDecl not at start of document",
@@ -81,7 +96,7 @@ local XmlParser = {
         incompleteXmlErr = "Incomplete XML Document",
     },
 
-    _ENTITIES = { 
+    _ENTITIES = {
         ["&lt;"] = "<",
         ["&gt;"] = ">",
         ["&amp;"] = "&",
@@ -136,16 +151,16 @@ end
 --- Removes whitespaces
 local function stripWS(self, s)
     if self.options.stripWS then
-        s = string.gsub(s,'^%s+','')
-        s = string.gsub(s,'%s+$','')
+        s = strgsub(s,'^%s+','')
+        s = strgsub(s,'%s+$','')
     end
     return s
 end
 
-local function parseEntities(self, s) 
+local function parseEntities(self, s)
     if self.options.expandEntities then
         for k,v in pairs(self._ENTITIES) do
-            s = string.gsub(s,k,v)
+            s = strgsub(s,k,v)
         end
     end
 
@@ -155,25 +170,25 @@ end
 --- Parses a string representing a tag.
 --@param s String containing tag text
 --@return a {name, attrs} table
--- where name is the name of the tag and attrs 
+-- where name is the name of the tag and attrs
 -- is a table containing the atributtes of the tag
 local function parseTag(self, s)
     local tag = {
-            name = string.gsub(s, self._TAG, '%1'),
+            name = strgsub(s, self._TAG, '%1'),
             attrs = {}
-          }            
+          }
 
-    local parseFunction = function (k, v) 
+    local parseFunction = function (k, v)
             tag.attrs[k] = parseEntities(self, v)
-            tag.attrs._ = 1 
+            tag.attrs._ = 1
           end
-                          
-    string.gsub(s, self._ATTR1, parseFunction) 
-    string.gsub(s, self._ATTR2, parseFunction)
+
+    strgsub(s, self._ATTR1, parseFunction)
+    strgsub(s, self._ATTR2, parseFunction)
 
     if tag.attrs._ then
         tag.attrs._ = nil
-    else 
+    else
         tag.attrs = nil
     end
 
@@ -182,26 +197,26 @@ end
 
 local function parseXmlDeclaration(self, xml, f)
     -- XML Declaration
-    f.match, f.endMatch, f.text = string.find(xml, self._PI, f.pos)
-    if not f.match then 
+    f.match, f.endMatch, f.text = strfind(xml, self._PI, f.pos)
+    if not f.match then
         err(self, self._errstr.declErr, f.pos)
-    end 
+    end
 
     if f.match ~= 1 then
         -- Must be at start of doc if present
         err(self, self._errstr.declStartErr, f.pos)
     end
 
-    local tag = parseTag(self, f.text) 
+    local tag = parseTag(self, f.text)
     -- TODO: Check if attributes are valid
     -- Check for version (mandatory)
     if tag.attrs and tag.attrs.version == nil then
         err(self, self._errstr.declAttrErr, f.pos)
     end
 
-    if fexists(self.handler, 'decl') then 
-        self.handler:decl(tag, f.match, f.endMatch) 
-    end    
+    if fexists(self.handler, 'decl') then
+        self.handler:decl(tag, f.match, f.endMatch)
+    end
 
     return tag
 end
@@ -210,14 +225,14 @@ local function parseXmlProcessingInstruction(self, xml, f)
     local tag = {}
 
     -- XML Processing Instruction (PI)
-    f.match, f.endMatch, f.text = string.find(xml, self._PI, f.pos)
-    if not f.match then 
+    f.match, f.endMatch, f.text = strfind(xml, self._PI, f.pos)
+    if not f.match then
         err(self, self._errstr.piErr, f.pos)
-    end 
-    if fexists(self.handler, 'pi') then 
+    end
+    if fexists(self.handler, 'pi') then
         -- Parse PI attributes & text
-        tag = parseTag(self, f.text) 
-        local pi = string.sub(f.text, string.len(tag.name)+1)
+        tag = parseTag(self, f.text)
+        local pi = strsub(f.text, #tag.name + 1)
         if pi ~= "" then
             if tag.attrs then
                 tag.attrs._text = pi
@@ -225,19 +240,19 @@ local function parseXmlProcessingInstruction(self, xml, f)
                 tag.attrs = { _text = pi }
             end
         end
-        self.handler:pi(tag, f.match, f.endMatch) 
+        self.handler:pi(tag, f.match, f.endMatch)
     end
 
     return tag
 end
 
 local function parseComment(self, xml, f)
-    f.match, f.endMatch, f.text = string.find(xml, self._COMMENT, f.pos)
-    if not f.match then 
+    f.match, f.endMatch, f.text = strfind(xml, self._COMMENT, f.pos)
+    if not f.match then
         err(self, self._errstr.commentErr, f.pos)
-    end 
+    end
 
-    if fexists(self.handler, 'comment') then 
+    if fexists(self.handler, 'comment') then
         f.text = parseEntities(self, stripWS(self, f.text))
         self.handler:comment(f.text, next, f.match, f.endMatch)
     end
@@ -246,30 +261,30 @@ end
 local function _parseDtd(self, xml, pos)
     -- match,endMatch,root,type,name,uri,internal
     local m,e,r,t,n,u,i
-    
-    m,e,r,t,u,i = string.find(xml, self._DTD1,pos)
+
+    m,e,r,t,u,i = strfind(xml, self._DTD1,pos)
     if m then
-        return m, e, {_root=r,_type=t,_uri=u,_internal=i} 
+        return m, e, {_root=r,_type=t,_uri=u,_internal=i}
     end
 
-    m,e,r,t,n,u,i = string.find(xml, self._DTD2,pos)
+    m,e,r,t,n,u,i = strfind(xml, self._DTD2,pos)
     if m then
-        return m, e, {_root=r,_type=t,_name=n,_uri=u,_internal=i} 
+        return m, e, {_root=r,_type=t,_name=n,_uri=u,_internal=i}
     end
 
-    m,e,r,i = string.find(xml, self._DTD3,pos)
+    m,e,r,i = strfind(xml, self._DTD3,pos)
     if m then
-        return m, e, {_root=r,_internal=i} 
+        return m, e, {_root=r,_internal=i}
     end
 
-    m,e,r,t,u = string.find(s,self._DTD4,pos)
+    m,e,r,t,u = strfind(s,self._DTD4,pos)
     if m then
-        return m,e,{_root=r,_type=t,_uri=u} 
+        return m,e,{_root=r,_type=t,_uri=u}
     end
 
-    m,e,r,t,n,u = string.find(s,self._DTD5,pos)
+    m,e,r,t,n,u = strfind(s,self._DTD5,pos)
     if m then
-        return m,e,{_root=r,_type=t,_name=n,_uri=u} 
+        return m,e,{_root=r,_type=t,_name=n,_uri=u}
     end
 
     return nil
@@ -277,9 +292,9 @@ end
 
 local function parseDtd(self, xml, f)
     f.match, f.endMatch, attrs = self:_parseDtd(xml, f.pos)
-    if not f.match then 
+    if not f.match then
         err(self, self._errstr.dtdErr, f.pos)
-    end 
+    end
 
     if fexists(self.handler, 'dtd') then
         self.handler:dtd(attrs._root, attrs, f.match, f.endMatch)
@@ -287,44 +302,44 @@ local function parseDtd(self, xml, f)
 end
 
 local function parseCdata(self, xml, f)
-    f.match, f.endMatch, f.text = string.find(xml, self._CDATA, f.pos)
-    if not f.match then 
+    f.match, f.endMatch, f.text = strfind(xml, self._CDATA, f.pos)
+    if not f.match then
         err(self, self._errstr.cdataErr, f.pos)
-    end 
+    end
 
     if fexists(self.handler, 'cdata') then
         self.handler:cdata(f.text, nil, f.match, f.endMatch)
-    end    
+    end
 end
 
 --- Parse a Normal tag
 -- Need check for embedded '>' in attribute value and extend
--- match recursively if necessary eg. <tag attr="123>456"> 
+-- match recursively if necessary eg. <tag attr="123>456">
 local function parseNormalTag(self, xml, f)
     --Check for errors
     while 1 do
         --If there isn't an attribute without closing quotes (single or double quotes)
         --then breaks to follow the normal processing of the tag.
         --Otherwise, try to find where the quotes close.
-        f.errStart, f.errEnd = string.find(f.tagstr, self._ATTRERR1)        
+        f.errStart, f.errEnd = strfind(f.tagstr, self._ATTRERR1)
 
         if f.errEnd == nil then
-            f.errStart, f.errEnd = string.find(f.tagstr, self._ATTRERR2)
+            f.errStart, f.errEnd = strfind(f.tagstr, self._ATTRERR2)
             if f.errEnd == nil then
                 break
             end
         end
-        
-        f.extStart, f.extEnd, f.endt2 = string.find(xml, self._TAGEXT, f.endMatch+1)
-        f.tagstr = f.tagstr .. string.sub(xml, f.endMatch, f.extEnd-1)
-        if not f.match then 
+
+        f.extStart, f.extEnd, f.endt2 = strfind(xml, self._TAGEXT, f.endMatch+1)
+        f.tagstr = f.tagstr .. strsub(xml, f.endMatch, f.extEnd-1)
+        if not f.match then
             err(self, self._errstr.xmlErr, f.pos)
-        end 
+        end
         f.endMatch = f.extEnd
-    end 
+    end
 
     -- Extract tag name and attrs
-    local tag = parseTag(self, f.tagstr) 
+    local tag = parseTag(self, f.tagstr)
 
     if (f.endt1=="/") then
         if fexists(self.handler, 'endtag') then
@@ -332,13 +347,13 @@ local function parseNormalTag(self, xml, f)
                 -- Shouldn't have any attributes in endtag
                 err(self, string.format("%s (/%s)", self._errstr.endTagErr, tag.name), f.pos)
             end
-            if table.remove(self._stack) ~= tag.name then
+            if table_remove(self._stack) ~= tag.name then
                 err(self, string.format("%s (/%s)", self._errstr.unmatchedTagErr, tag.name), f.pos)
             end
             self.handler:endtag(tag, f.match, f.endMatch)
         end
     else
-        table.insert(self._stack, tag.name)
+        self._stack[#self._stack+1] = tag.name
         if fexists(self.handler, 'starttag') then
             self.handler:starttag(tag, f.match, f.endMatch)
         end
@@ -349,7 +364,7 @@ local function parseNormalTag(self, xml, f)
 
         -- Self-Closing Tag
         if (f.endt2=="/") then
-            table.remove(self._stack)
+            table_remove(self._stack)
             if fexists(self.handler, 'endtag') then
                 self.handler:endtag(tag, f.match, f.endMatch)
             end
@@ -361,15 +376,15 @@ end
 
 local function parseTagType(self, xml, f)
     -- Test for tag type
-    if string.find(string.sub(f.tagstr, 1, 5), "?xml%s") then
+    if strfind(strsub(f.tagstr, 1, 5), "?xml%s") then
         parseXmlDeclaration(self, xml, f)
-    elseif string.sub(f.tagstr, 1, 1) == "?" then
+    elseif strsub(f.tagstr, 1, 1) == "?" then
         parseXmlProcessingInstruction(self, xml, f)
-    elseif string.sub(f.tagstr, 1, 3) == "!--" then
+    elseif strsub(f.tagstr, 1, 3) == "!--" then
         parseComment(self, xml, f)
-    elseif string.sub(f.tagstr, 1, 8) == "!DOCTYPE" then
+    elseif strsub(f.tagstr, 1, 8) == "!DOCTYPE" then
         parseDtd(self, xml, f)
-    elseif string.sub(f.tagstr, 1, 8) == "![CDATA[" then
+    elseif strsub(f.tagstr, 1, 8) == "![CDATA[" then
         parseCdata(self, xml, f)
     else
         parseNormalTag(self, xml, f)
@@ -379,31 +394,31 @@ end
 --- Get next tag (first pass - fix exceptions below).
 --@return true if the next tag could be got, false otherwise
 local function getNextTag(self, xml, f)
-  f.match, f.endMatch, f.text, f.endt1, f.tagstr, f.endt2 = string.find(xml, self._XML, f.pos)
-  if not f.match then 
-      if string.find(xml, self._WS, f.pos) then
+  f.match, f.endMatch, f.text, f.endt1, f.tagstr, f.endt2 = strfind(xml, self._XML, f.pos)
+  if not f.match then
+      if strfind(xml, self._WS, f.pos) then
           -- No more text - check document complete
           if #self._stack ~= 0 then
               err(self, self._errstr.incompleteXmlErr, f.pos)
           else
-              return false 
+              return false
           end
       else
           -- Unparsable text
           err(self, self._errstr.xmlErr, f.pos)
       end
-  end 
+  end
 
   f.text = f.text or ''
   f.tagstr = f.tagstr or ''
   f.match = f.match or 0
-  
+
   return f.endMatch ~= nil
 end
 
 --Main function which starts the XML parsing process
 --@param xml the XML string to parse
---@param parseAttributes indicates if tag attributes should be parsed or not. 
+--@param parseAttributes indicates if tag attributes should be parsed or not.
 --       If omitted, the default value is true.
 function XmlParser:parse(xml, parseAttributes)
     if type(self) ~= "table" or getmetatable(self) ~= XmlParser then
@@ -416,15 +431,15 @@ function XmlParser:parse(xml, parseAttributes)
 
     self.handler.parseAttributes = parseAttributes
 
-    --Stores string.find results and parameters
+    --Stores strfind results and parameters
     --and other auxiliar variables
     local f = {
-        --string.find return
+        --strfind return
         match = 0,
         endMatch = 0,
         -- text, end1, tagstr, end2,
 
-        --string.find parameters and auxiliar variables
+        --strfind parameters and auxiliar variables
         pos = 1,
         -- startText, endText,
         -- errStart, errEnd, extStart, extEnd,
@@ -434,11 +449,11 @@ function XmlParser:parse(xml, parseAttributes)
         if not getNextTag(self, xml, f) then
             break
         end
-        
+
         -- Handle leading text
         f.startText = f.match
-        f.endText = f.match + string.len(f.text) - 1
-        f.match = f.match + string.len(f.text)
+        f.endText = f.match + #f.text - 1
+        f.match = f.match + #f.text
         f.text = parseEntities(self, stripWS(self, f.text))
         if f.text ~= "" and fexists(self.handler, 'text') then
             self.handler:text(f.text, nil, f.match, f.endText)

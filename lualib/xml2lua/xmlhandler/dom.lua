@@ -1,7 +1,7 @@
----- @module Handler to generate a DOM-like node tree structure with 
---      a single ROOT node parent - each node is a table comprising 
+---- @module Handler to generate a DOM-like node tree structure with
+--      a single ROOT node parent - each node is a table comprising
 --      the fields below.
---  
+--
 --      node = { _name = <Element Name>,
 --              _type = ROOT|ELEMENT|TEXT|COMMENT|PI|DECL|DTD,
 --              _attr = { Node attributes - see callback API },
@@ -16,7 +16,7 @@
 --
 -- Options
 -- =======
---    options.(comment|pi|dtd|decl)Node = bool 
+--    options.(comment|pi|dtd|decl)Node = bool
 --        - Include/exclude given node types
 --
 --  License:
@@ -34,15 +34,15 @@ local dom = {
 
 ---Parses a start tag.
 -- @param tag a {name, attrs} table
--- where name is the name of the tag and attrs 
+-- where name is the name of the tag and attrs
 -- is a table containing the atributtes of the tag
 function dom:starttag(tag)
-    local node = { _type = 'ELEMENT', 
-                   _name = tag.name, 
-                   _attr = tag.attrs, 
-                   _children = {n=0} 
+    local node = { _type = 'ELEMENT',
+                   _name = tag.name,
+                   _attr = tag.attrs,
+                   _children = {n=0}
                  }
-            
+
     if self.root == nil then
         self.root = node
     end
@@ -55,7 +55,7 @@ end
 
 ---Parses an end tag.
 -- @param tag a {name, attrs} table
--- where name is the name of the tag and attrs 
+-- where name is the name of the tag and attrs
 -- is a table containing the atributtes of the tag
 function dom:endtag(tag, s)
     --Table representing the containing tag of the current tag
@@ -71,7 +71,7 @@ end
 ---Parses a tag content.
 -- @param text text to process
 function dom:text(text)
-    local node = { _type = "TEXT", 
+    local node = { _type = "TEXT",
                    _text = text
                  }
     table.insert(self.current._children, node)
@@ -81,8 +81,8 @@ end
 -- @param text comment text
 function dom:comment(text)
     if self.options.commentNode then
-        local node = { _type = "COMMENT", 
-                       _text = text 
+        local node = { _type = "COMMENT",
+                       _text = text
                      }
         table.insert(self.current._children, node)
     end
@@ -90,27 +90,27 @@ end
 
 --- Parses a XML processing instruction (PI) tag
 -- @param tag a {name, attrs} table
--- where name is the name of the tag and attrs 
+-- where name is the name of the tag and attrs
 -- is a table containing the atributtes of the tag
 function dom:pi(tag)
     if self.options.piNode then
-        local node = { _type = "PI", 
+        local node = { _type = "PI",
                        _name = tag.name,
-                       _attr = tag.attrs, 
-                     } 
+                       _attr = tag.attrs,
+                     }
         table.insert(self.current._children, node)
     end
 end
 
 ---Parse the XML declaration line (the line that indicates the XML version).
 -- @param tag a {name, attrs} table
--- where name is the name of the tag and attrs 
+-- where name is the name of the tag and attrs
 -- is a table containing the atributtes of the tag
 function dom:decl(tag)
     if self.options.declNode then
-        local node = { _type = "DECL", 
+        local node = { _type = "DECL",
                     _name = tag.name,
-                    _attr = tag.attrs, 
+                    _attr = tag.attrs,
                     }
         table.insert(self.current._children, node)
     end
@@ -118,13 +118,13 @@ end
 
 ---Parses a DTD tag.
 -- @param tag a {name, attrs} table
--- where name is the name of the tag and attrs 
+-- where name is the name of the tag and attrs
 -- is a table containing the atributtes of the tag
 function dom:dtd(tag)
     if self.options.dtdNode then
-        local node = { _type = "DTD", 
+        local node = { _type = "DTD",
                        _name = tag.name,
-                       _attr = tag.attrs, 
+                       _attr = tag.attrs,
                      }
         table.insert(self.current._children, node)
     end
