@@ -1,9 +1,6 @@
 #define LUA_LIB
 
-#include <string.h>
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
+#include "../../../src/core.h"
 #include "httpparser.h"
 
 int

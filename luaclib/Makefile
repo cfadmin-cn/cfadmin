@@ -6,7 +6,7 @@ default :
 	@echo "Please use 'make clean' command to clean all."
 	@echo "======================================="
 
-INCLUDES += -I/usr/local/include 
+INCLUDES += -I/usr/local/include
 LIBS += -L/usr/local/lib -L./ -L../
 # CFLAGS = -Wall -Os -fPIC --shared -I/usr/local/include -L./ -L../ -DJEMALLOC -ljemalloc
 # CFLAGS = -Wall -Os -fPIC --shared -I/usr/local/include -L./ -L../ -DTCMALLOC -ltcmalloc
@@ -21,8 +21,9 @@ build :
 	$(CC) -o task.so src/ltask.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o crypt.so src/lcrypt.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	### 以下为预留第三方库编译位置 ###
-	cd src/lhttpparser && rm -rf *.o *.so && make build# 增加PicoHTTPParser库
+	cd src/lhttpparser && rm -rf *.o *.so && make build # 增加PicoHTTPParser库
 	cd src/lcjson && rm -rf *.o *.so && make build 	 # 增加cjson库
+	cd src/lpeg && rm -rf *.o *.so && make build 	 # 增加lpeg库
 
 rebuild :
 	rm -rf *.o *.so
@@ -35,6 +36,7 @@ rebuild :
 	### 以下为预留第三方库编译位置 ###
 	cd src/lhttpparser && rm -rf *.o *.so && make rebuild # 增加PicoHTTPParser库
 	cd src/lcjson && rm -rf *.o *.so && make rebuild # 增加cjson库
+	cd src/lpeg && rm -rf *.o *.so && make rebuild 	# 增加lpeg库
 
 clean :
 	rm -rf *.so
