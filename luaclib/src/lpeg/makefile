@@ -44,13 +44,13 @@ macosx:
 	$(MAKE) lpeg.so "DLLFLAGS = -bundle -undefined dynamic_lookup"
 
 build: $(FILES)
-	CC -o lpeg.so $(FILES) -shared -fPIC -lcore
+	$(CC) -o lpeg.so $(FILES) -shared -fPIC -lcore
 	mv *.so ../../
 	rm -rf *.o *.so
 
 
 rebuild: $(FILES)
-	CC -o lpeg.so $(FILES) -shared -fPIC -lcore
+	$(CC) -o lpeg.so $(FILES) -shared -fPIC -lcore
 	mv *.so ../../
 	rm -rf *.o *.so
 
