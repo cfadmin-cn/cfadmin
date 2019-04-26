@@ -59,17 +59,6 @@ local function find_route(path)
 	if #tab == 0 then -- 如果路由为/[/]{0, n}, 则转义为: ''
 		tab[1] = ''
 	end
-	-- for index, r in ipairs(tab) do
-	-- 	local route = routes[index][r]
-	-- 	if type(route) == 'table' then
-	-- 		if #tab == index then
-	-- 			return route.class, route.type
-	-- 		end
-	-- 		if route.type == Router.STATIC then
-	-- 			return route.class, route.type
-	-- 		end
-	-- 	end
-	-- end
 	for index, route in ipairs(routes) do
 		local r = tab[index]
 		if not r then
