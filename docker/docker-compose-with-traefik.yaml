@@ -1,0 +1,30 @@
+# docker-compose.yaml
+version: "2"
+services:
+  WebProxy:
+    image: traefik
+    command: --api --docker # Enables the web UI and tells Traefik to listen to docker
+    ports:
+      - "80:80"     # The HTTP port
+      - "8080:8080" # The Web UI (enabled by --api)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # So that Traefik can listen to the Docker events
+    networks:
+      - local
+
+  WebApp:
+    image: candymi/cfweb:latest
+    labels:
+      - "traefik.port=8080"
+      - "traefik.backend=WebApp"
+      - "traefik.enable=true"
+      - "traefik.domain=localhost"
+      - "traefik.frontend.rule=Host:localhost"
+    volumes:
+      - ./script:/app/script
+    networks:
+      - local
+
+networks:
+  local:
+    driver: bridge

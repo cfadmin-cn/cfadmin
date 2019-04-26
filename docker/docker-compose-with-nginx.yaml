@@ -1,0 +1,37 @@
+# docker-compose.yaml
+version: "2"
+services:
+  WebProxy:
+    image: nginx:latest
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - local
+    links:
+      - WebApp1:webapp1
+      - WebApp2:webapp2
+      - WebApp3:webapp3
+  WebApp1:
+    image: candymi/cfweb:latest
+    volumes:
+      - ./script:/app/script
+    networks:
+      - local
+  WebApp2:
+    image: candymi/cfweb:latest
+    volumes:
+      - ./script:/app/script
+    networks:
+      - local
+  WebApp3:
+    image: candymi/cfweb:latest
+    volumes:
+      - ./script:/app/script
+    networks:
+      - local
+
+networks:
+  local:
+    driver: bridge
