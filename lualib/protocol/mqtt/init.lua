@@ -10,7 +10,7 @@ local string = require "string"
 local calss = require "class"
 local tcp = require "internal.TCP"
 local Co = require "internal.Co"
-local log = require "log"
+local log = require "logging"
 local protocol = require "protocol.mqtt.protocol"
 local protocol4 = require "protocol.mqtt.protocol4"
 local co = require "internal.Co"
@@ -22,6 +22,8 @@ local packet_tostring = protocol.packet_tostring
 local make_packet4 = protocol4.make_packet
 local parse_packet4 = protocol4.parse_packet
 local connack_return_code = protocol4.connack_return_code
+
+local Log = log:new()
 
 -- cache to locals
 local type = type
@@ -79,7 +81,7 @@ function client:subscribe(opt, func)
 				end
 				local ok, err = pcall(self.handle, nil)
 				if not ok then
-					log.error(err)
+					Log:ERROR(err)
 				end
 				return false, 'waiting for the next packet failed'
 			end
@@ -87,7 +89,7 @@ function client:subscribe(opt, func)
 			if packet.type == packet_type.PUBLISH then
 				local ok, err = pcall(self.handle, packet)
 				if not ok then
-					log.error(err)
+					Log:ERROR(err)
 				end
 				self:acknowledge(packet)
 			elseif packet.type == packet_type.PUBACK then

@@ -3,7 +3,8 @@ local dns = require "protocol.dns"
 local co = require "internal.Co"
 local class = require "class"
 local tcp = require "tcp"
-local log = require "log"
+local log = require "logging"
+local Log = log:new()
 
 local split = string.sub
 local insert = table.insert
@@ -79,7 +80,7 @@ end
 
 function TCP:send(buf)
     if self.ssl then
-        return log.error("Please use ssl_send method :)")
+        return Log:ERROR("Please use ssl_send method :)")
     end
     while 1 do
         local len = tcp_write(self.fd, buf, #buf)
@@ -114,7 +115,7 @@ end
 
 function TCP:ssl_send(buf)
     if not self.ssl then
-        return log.error("Please use send method :)")
+        return Log:ERROR("Please use send method :)")
     end
     while 1 do
         local len = tcp_ssl_write(self.ssl, buf, #buf)
@@ -151,7 +152,7 @@ end
 
 function TCP:recv(bytes)
     if self.ssl then
-        return log.error("Please use ssl_recv method :)")
+        return Log:ERROR("Please use ssl_recv method :)")
     end
     self.READ_IO = tcp_pop()
     local co = co_self()
@@ -187,7 +188,7 @@ end
 
 function TCP:ssl_recv(bytes)
     if not self.ssl then
-        return log.error("Please use recv method :)")
+        return Log:ERROR("Please use recv method :)")
     end
     local buf, len = tcp_sslread(self.ssl, bytes)
     if not buf then
@@ -243,7 +244,7 @@ function TCP:listen(ip, port, cb)
     self.LISTEN_IO = tcp_pop()
     self.fd = tcp_new_server_fd(ip, port)
     if not self.fd then
-        return log.error("this IP and port Create A bind or listen method Faild! :) ")
+        return Log:ERROR("this IP and port Create A bind or listen method Faild! :) ")
     end
     self.co = co_new(function (fd, ipaddr)
         while 1 do
@@ -263,7 +264,7 @@ function TCP:connect(domain, port)
     end
     self.fd = tcp_new_client_fd(IP, port)
     if not self.fd then
-        log.error("Connect This IP or Port Faild!"..domain, IP)
+        Log:ERROR("Connect This IP or Port Faild!"..domain, IP)
         return nil, "Connect This host fault! :"
     end
     local co = co_self()
@@ -304,7 +305,7 @@ function TCP:ssl_connect(domain, port)
     end
     self.ssl_ctx, self.ssl = tcp.new_ssl(self.fd)
     if not self.ssl_ctx or not self.ssl then
-        return log.error("Create a SSL Error! :) ")
+        return Log:ERROR("Create a SSL Error! :) ")
     end
     local co = co_self()
     self.CONNECT_IO = tcp_pop()

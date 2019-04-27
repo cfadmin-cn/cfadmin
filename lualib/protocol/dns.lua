@@ -1,7 +1,7 @@
 local UDP = require "internal.UDP"
 local co = require "internal.Co"
 local sys = require "sys"
-local log = require "log"
+local log = require "logging"
 
 local prefix = '::ffff:'
 

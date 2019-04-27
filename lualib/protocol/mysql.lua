@@ -1,5 +1,4 @@
 local tcp = require "internal.TCP"
-local log = require "log"
 local crypt = require "crypt"
 
 local sub = string.sub

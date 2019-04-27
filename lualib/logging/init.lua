@@ -102,8 +102,10 @@ local paths = {}
 local Log = class("Log")
 
 function Log:ctor (opt)
-  self.path = opt.path
-  self.now = Y_m_d()
+  if type(opt) == 'table' then
+    self.path = opt.path
+    self.now = Y_m_d()
+  end
 end
 
 -- 常规日志
@@ -144,7 +146,7 @@ function Log:dump(log)
         paths[self.path] = file
       end
     end
-    file:write(log)
+    file:write(log):flush()
   end
 end
 

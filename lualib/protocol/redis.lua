@@ -1,9 +1,11 @@
-local log = require "log"
+local log = require "logging"
 local class = require "class"
 local Co = require "internal.Co"
 local tcp = require "internal.TCP"
 local table = table
 local concat = table.concat
+
+local Log = log:new()
 
 local co_spwan = Co.spwan
 
@@ -153,7 +155,7 @@ function redis:psubscribe(pattern, func)
 			if not ok or not msg or not self.sock then
 				local ok, err = pcall(func, nil)
 				if not ok then
-					log.error(err)
+					Log:ERROR(err)
 				end
 				return
 			end
@@ -163,7 +165,7 @@ function redis:psubscribe(pattern, func)
 			end
 			local ok, err = pcall(func, data)
 			if not ok then
-				return log.error(err)
+				return Log:ERROR(err)
 			end
 		end
 	end)

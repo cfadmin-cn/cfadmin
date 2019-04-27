@@ -1,7 +1,8 @@
 local mysql = require "protocol.mysql"
 local timer = require "internal.Timer"
 local co = require "internal.Co"
-local log = require "log"
+local log = require "logging"
+local Log = log:new()
 
 local co_self = co.self
 local co_wait = co.wait
@@ -170,7 +171,7 @@ local function execute(query)
             if db.state then
                 break
             end
-            log.error(err)
+            Log:ERROR(err)
             db:close()
             db, ret, err = nil
         end
@@ -380,7 +381,7 @@ function DB.init(opt)
             if connect then
                 break
             end
-            log.error('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
+            Log:ERROR('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
             db:close()
             times = times + 1
             timer.sleep(3)
@@ -414,7 +415,7 @@ function DB.select(fields)
         limit = limit,
         execute = execute,
     }
-    if tpy == "string" then 
+    if tpy == "string" then
         insert(query, fields)
     end
     if tpy == "table" then
@@ -491,7 +492,7 @@ function DB.query(query)
             if db.state then
                 break
             end
-            log.error(err)
+            Log:ERROR(err)
             db:close()
             db, ret, err = nil
         end

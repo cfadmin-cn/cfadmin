@@ -1,7 +1,9 @@
-local log = require "log"
+local log = require "logging"
 local sys = require "system"
 local tcp = require "internal.TCP"
 local wsserver = require "protocol.websocket.server"
+
+local Log = log:new()
 
 local crypt = require "crypt"
 local sha1 = crypt.sha1
@@ -449,14 +451,14 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
 				local ok, code, data = pcall(before_func, content)
 				if not ok then -- before 函数执行出错
-					log.error(code)
+					Log:ERROR(code)
 					sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
 				end
 				if code then
 					if type(code) == "number" then
 						if code < 200 or code > 500 then
-							log.error("before function: Illegal return value")
+							Log:ERROR("before function: Illegal return value")
 							sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 							return sock:close()
 						elseif code == 301 or code == 302 then
@@ -523,7 +525,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					ok, body = pcall(cls, content)
 				end
 				if not ok then
-					log.error(body)
+					Log:ERROR(body)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
@@ -533,7 +535,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			elseif typ == HTTP_PROTOCOL.WS then
 				local ok, msg = pcall(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
 				if not ok then
-					log.error(msg)
+					Log:ERROR(msg)
 					return sock:close()
 				end
 				return
@@ -546,7 +548,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				end
 				ok, body, file_type = pcall(cls, './'..path)
 				if not ok then
-					log.error(body)
+					Log:ERROR(body)
 					statucode = 500
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
@@ -586,7 +588,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 						header[#header+1] = 'Content-Length: '.. #body
 					end
 				else
-					log.warn('response body not a string type.'..'('..tostring(body)..')')
+					Log:WARN('response body not a string type.'..'('..tostring(body)..')')
 					body = ''
 				end
 			else

@@ -1,4 +1,4 @@
-local log = require "log"
+local log = require "logging"
 local Co = require "internal.Co"
 local timer = require "internal.Timer"
 local redis = require "protocol.redis"
@@ -17,6 +17,8 @@ local remove = table.remove
 local upper = string.upper
 local lower = string.lower
 local splite = string.gmatch
+
+local Log = log:new()
 
 
 -- 默认情况下, 保持50个redis连接
@@ -155,7 +157,7 @@ function Cache.init(opt)
             if ok then
                 break
             end
-            log.error('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
+            Log:ERROR('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
             times = times + 1
             rds:close()
             timer.sleep(3)

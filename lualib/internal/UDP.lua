@@ -1,6 +1,5 @@
 local ti = require "internal.Timer"
 local co = require "internal.Co"
-local log = require "log"
 local udp = require "udp"
 local class = require "class"
 

@@ -1,9 +1,11 @@
-local log = require "log"
+local log = require "logging"
 local class = require "class"
 local co = require "internal.Co"
 local wbproto = require "protocol.websocket.protocol"
 local _recv_frame = wbproto.recv_frame
 local _send_frame = wbproto.send_frame
+
+local Log = log:new()
 
 local co_self = co.self
 local co_wait = co.wait
@@ -55,7 +57,7 @@ function websocket:start()
             for _, f in ipairs(write_list) do
                 local ok, err = pcall(f)
                 if not ok then
-                    log.error(err)
+                    Log:ERROR(err)
                 end
             end
             write_list = {}
@@ -108,8 +110,8 @@ function websocket:start()
         end,
         -- ping = function (self, data)
         --     if self.CLOSE then return end
-        --     add_to_queue(write_list, function() 
-        --         _send_frame(sock, true, 0x9, data, cls.max_payload_len or 65535, cls.send_masked or false) 
+        --     add_to_queue(write_list, function()
+        --         _send_frame(sock, true, 0x9, data, cls.max_payload_len or 65535, cls.send_masked or false)
         --     end)
         --     return wakeup(write_co)
         -- end,
@@ -128,7 +130,7 @@ function websocket:start()
     local on_close = cls.on_close
     local ok, err = pcall(on_open, cls)
     if not ok then
-        log.error(err)
+        Log:ERROR(err)
         return sock:close()
     end
     while 1 do
@@ -144,12 +146,12 @@ function websocket:start()
             if err then
                 local ok, err = pcall(on_error, cls, err)
                 if not ok then
-                    log.error(err)
+                    Log:ERROR(err)
                 end
             end
             local ok, err = pcall(on_close, cls, data)
             if not ok then
-                log.error(err)
+                Log:ERROR(err)
             end
             -- print("读取协程退出了")
             return wakeup(write_co)

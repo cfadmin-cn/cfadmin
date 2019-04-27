@@ -2,7 +2,7 @@ local HTTP = require "protocol.http"
 local tcp = require "internal.TCP"
 local class = require "class"
 local sys = require "system"
-local log = require "log"
+local log = require "logging"
 local cf = require "cf"
 
 local type = type
@@ -127,23 +127,13 @@ end
 -- 记录日志到文件
 function httpd:log(path)
     self.logpath = path or "cf-httpd.log"
-    log.outfile = self.logpath
+    self.log = log:new({ path = self.logpath })
 end
 
 function httpd:tolog(code, path, ip, ip_list, method, speed)
     if self.logpath then
-        if not self.logfile then
-            local err
-            self.logfile, err = io_open(self.logpath, "a")
-            if not self.logfile then
-                return log.error(self.logpath..":"..err)
-            end
-        end
-        local ok, err = self.logfile:write(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
-        if not ok then
-            return log.error(self.logpath..":"..err)
-        end
-        self.logfile:flush()
+      local log = fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed)
+      self.log:dump(log)
     end
     print(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
 end

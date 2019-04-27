@@ -1,4 +1,6 @@
-local log = require "log"
+local log = require "logging"
+local Log = log:new()
+
 local math = math
 local string = string
 local find = string.find
@@ -84,13 +86,13 @@ end
 -- 注册路由
 function Router.registery(route, class, route_type)
 	if type(route) ~= 'string' or route == '' then -- 过滤错误的路由输入
-		return log.warn('Please Do not add empty string in route registery method :)')
+		return Log:WARN('Please Do not add empty string in route registery method :)')
 	end
 	if find(route, '//') then -- 不允许出现路由出现[//]
-		return log.warn('Please Do not add [//] in route registery method :)')
+		return Log:WARN('Please Do not add [//] in route registery method :)')
 	end
 	if find(route, '^/%[%w+:.+%]$') then -- 不允许顶层路由注册rest模式.
-		return log.warn('Please Do not add [/[type:key] in root route :)]')
+		return Log:WARN('Please Do not add [/[type:key] in root route :)]')
 	end
 	return registery_router(route, class, route_type)
 end

@@ -1,8 +1,10 @@
-local log = require "log"
+local log = require "logging"
 local class = require "class"
 local Timer = require "internal.Timer"
 local mqtt = require "protocol.mqtt"
 local redis = require "protocol.redis"
+
+local Log = log:new()
 
 local type = type
 local math = math
@@ -34,7 +36,7 @@ local function mq_login(self)
 				return rds
 			end
 			rds:close()
-			log.error('连接mq(redis)失败:'..(err or "unknow")..'.正在尝试重连')
+			Log:ERROR('连接mq(redis)失败:'..(err or "unknow")..'.正在尝试重连')
 			Timer.sleep(3)
 			times = times + 1
 		elseif self.type == 'mqtt' then
@@ -52,7 +54,7 @@ local function mq_login(self)
 				return mqtt
 			end
 			mqtt:close()
-			log.error('连接mq(mqtt)失败:'..(err or "unknow")..'.正在尝试重连')
+			Log:ERROR('连接mq(mqtt)失败:'..(err or "unknow")..'.正在尝试重连')
 			Timer.sleep(3)
 			times = times + 1
 		else

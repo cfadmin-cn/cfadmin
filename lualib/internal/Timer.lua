@@ -1,6 +1,7 @@
 local co = require "internal.Co"
 local ti = require "timer"
-local log = require "log"
+local log = require "logging"
+local Log = log:new()
 
 local type = type
 local pcall = pcall
@@ -48,7 +49,7 @@ function Timer.timeout(timeout, cb)
     end
     local t = Timer_new()
     if not t then
-        return log.error("timeout error: Create timer class error! memory maybe not enough...")
+        return Log:ERROR("timeout error: Create timer class error! memory maybe not enough...")
     end
     local timer = {STOP = false}
     timer.stop = function (...)
@@ -64,7 +65,7 @@ function Timer.timeout(timeout, cb)
         Timer_release(t)
         local ok, err = pcall(cb)
         if not ok then
-            log.error('timeout error:', err)
+            Log:ERROR('timeout error:', err)
         end
         if timer.STOP then
           return
@@ -88,7 +89,7 @@ function Timer.at(repeats, cb)
     end
     local t = Timer_new()
     if not t then
-        return log.error("timeout error: Create timer class error! memory maybe not enough...")
+        return Log:ERROR("timeout error: Create timer class error! memory maybe not enough...")
     end
     local timer = { STOP = false }
     timer.stop = function (...)
@@ -125,7 +126,7 @@ function Timer.sleep(repeats)
     end
     local t = Timer_new()
     if not t then
-        return log.error("timeout error: Create timer class error! memory maybe not enough...")
+        return Log:ERROR("timeout error: Create timer class error! memory maybe not enough...")
     end
     local timer = {}
     timer.current_co = co_self()
