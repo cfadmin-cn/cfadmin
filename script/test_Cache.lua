@@ -3,16 +3,18 @@ local Cache = require "Cache"
 local Co = require "internal.Co"
 local timer = require "internal.Timer"
 require "utils"
+
 local opt = {
     host = "localhost",
     port = 6379,
     auth = nil,
-    db = nil,
+    db = 1,
     max = 1,
 }
 
 Co.spwan(function ( ... )
-    local ok, err = Cache.init(opt)
+    local Cache = Cache:new(opt)
+		local ok, err = Cache:connect()
     if not ok then
         return print(err)
     end
@@ -114,7 +116,7 @@ Co.spwan(function ( ... )
     local ok, ret = Cache:script_load("return 10086")
     print(ok); var_dump(ret)
 
-    local sha = ret 
+    local sha = ret
     local ok, ret = Cache:script_exists(sha)
     print(ok); var_dump(ret)
 
@@ -126,5 +128,5 @@ Co.spwan(function ( ... )
 
     -- 其它一些特殊方法支持
     -- type, move, rename, keys, randomkey等等
-
+		print(Cache:count())
 end)
