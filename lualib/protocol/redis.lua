@@ -2,9 +2,8 @@ local log = require "logging"
 local class = require "class"
 local Co = require "internal.Co"
 local tcp = require "internal.TCP"
-local table = table
-local concat = table.concat
 
+local concat = table.concat
 local Log = log:new()
 
 local co_spwan = Co.spwan
@@ -98,14 +97,14 @@ local function read_boolean(sock)
 end
 
 local function redis_login(sock, auth, db)
-	if auth then
+	if type(auth) == 'string' then
 		sock:send(CMD("AUTH", auth))
 		local ok, err = read_response(sock)
 		if not ok then
 			return nil, err
 		end
 	end
-	if db then
+	if type(db) == 'number' then
 		sock:send(CMD("SELECT", db))
 		local ok, err = read_response(sock)
 		if not ok then
