@@ -319,7 +319,7 @@ local function execute(query)
         assert(query.WHERE, "更新语句请加上where条件")
     end
     local QUERY = concat(query, " ")
-    Log:DEBUG(QUERY)
+    -- Log:DEBUG(QUERY)
     local self = query.self
     query.self = nil
     return self:query(QUERY)
