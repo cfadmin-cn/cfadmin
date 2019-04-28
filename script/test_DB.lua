@@ -1,17 +1,24 @@
+local log = require "logging"
+local cf = require "cf"
 local DB = require "DB"
-local co = require "internal.Co"
+local Log = log:new()
+
 require "utils"
 
-local ok, err = DB.init({
-    host = "localhost",
-    port = 3306,
-    database = "test",
-    user = "root",
-    password = "123456789"
-    })
+local db = DB:new {
+	host = 'localhost',
+	port = 3306,
+	database = 'test',
+	username = 'root',
+	password = '123456789',
+	max = 1,
+}
+
+local ok = db:connect()
 if not ok then
-    return print("连接mysql 失败: "..err)
+	return print("连接mysql失败")
 end
+print("连接成功")
 
 --[[
     复制下面语句到任意管理工具即可导入测试表进行测试
@@ -25,19 +32,19 @@ end
     DROP TABLE IF EXISTS `user`;
     CREATE TABLE `user` (
       `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-      `name` varchar(255) NOT NULL,
-      `user` varchar(255) NOT NULL,
-      `passwd` varchar(255) NOT NULL,
+      `name` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+      `user` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+      `passwd` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
       PRIMARY KEY (`id`)
-    ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4;
+    ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
     SET FOREIGN_KEY_CHECKS = 1;
 
 --]]
 
 -- 插入语句示例
-co.spwan(function ( ... )
-    local ret, err = DB.insert("user")
+cf.fork(function ( ... )
+    local ret, err = db:insert("user")
         :fields({"name", "user", "passwd"})
         :values({
             {"candy", "root", "123456789"},
@@ -53,8 +60,8 @@ co.spwan(function ( ... )
 end)
 
 -- 查询语句示例
-co.spwan(function ( ... )
-    local ret, err = DB.select({"id", "name", "user", "passwd"})
+cf.fork(function ( ... )
+    local ret, err = db:select({"id", "name", "user", "passwd"})
         :from({"user"})
         :where({
             {"id", "!=", "0"},
@@ -91,8 +98,8 @@ co.spwan(function ( ... )
 end)
 
 -- 更新语句示例
-co.spwan(function ( ... )
-    local ret, err = DB.update("user")
+cf.fork(function ( ... )
+    local ret, err = db:update("user")
         :set({
             {"name", "=", "管理员"},
             {"user", "=", "Administrator"},
@@ -112,8 +119,8 @@ co.spwan(function ( ... )
 end)
 
 -- 删除语句示例
-co.spwan(function ( ... )
-    local ret, err = DB.delete("user")
+cf.fork(function ( ... )
+    local ret, err = db:delete("user")
         :where({
             {"id", ">", 1},
         })
@@ -129,8 +136,8 @@ co.spwan(function ( ... )
 end)
 
 
-co.spwan(function ( ... )
-    local ret, err = DB.query("show variables like 'wait_timeout'")
+cf.fork(function ( ... )
+    local ret, err = db:query("show variables like 'wait_timeout'")
     if not ret then
        return print(err)
     end

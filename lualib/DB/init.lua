@@ -1,6 +1,7 @@
 local mysql = require "protocol.mysql"
 local timer = require "internal.Timer"
 local co = require "internal.Co"
+local class = require "class"
 local log = require "logging"
 local Log = log:new()
 
@@ -25,8 +26,6 @@ local insert = table.insert
 local remove = table.remove
 local concat = table.concat
 local unpack = table.unpack
-
-local os_time = os.time
 
 local SELECT = "SELECT"
 
@@ -64,58 +63,53 @@ local GROUPBY = "GROUP BY"
 
 local COMMA = ", "
 
-local INITIALIZATION
-
--- 最大DB连接数量
-local MAX, COUNT = 50, 0
-
 -- 空闲连接时间
-local WAIT_TIMEOUT = 2592000
+local WAIT_TIMEOUT = 31104000
 
 -- 数据库连接创建函数
-local DB_CREATE
-
--- 等待db对象的协程列表
-local wlist = {}
-
-local function add_wait(co)
-    wlist[#wlist+1] = co
+local function DB_CREATE (opt)
+    local times = 1
+    local db
+    while 1 do
+        db = mysql:new()
+        local connect, err = db:connect(opt)
+        if connect then
+            break
+        end
+        db:close()
+        Log:ERROR('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
+        times = times + 1
+        timer.sleep(3)
+    end
+    db:query(fmt('SET wait_timeout=%s', tostring(WAIT_TIMEOUT)))
+    db:query(fmt('SET interactive_timeout=%s', tostring(WAIT_TIMEOUT)))
+    db:query(fmt('SET wait_timeout=%s', tostring(WAIT_TIMEOUT)))
+    -- Log:DEBUG(db:query("show session variables where variable_name ='wait_timeout' or variable_name = 'interactive_timeout'"))
+    return db
 end
 
-local function pop_wait()
-    return remove(wlist)
+local function add_wait(self, co)
+    self.co_pool[#self.co_pool + 1] = co
 end
 
--- 数据库连接池
-local POOL = {}
+local function pop_wait(self)
+    return remove(self.co_pool)
+end
 
-local function add_db(db)
-    POOL[#POOL + 1] = { session = db, ttl = os_time() }
+local function add_db(self, db)
+    self.db_pool[#self.db_pool + 1] = db
 end
 
 -- 负责创建连接/加入等待队列
-local function get_db()
-    if #POOL > 0 then
-        while 1 do
-            local db = remove(POOL)
-            if not db then break end -- 连接池内已经没有连接了
-            if db.ttl > os_time() - WAIT_TIMEOUT then
-                return db.session
-            end
-            db.session:close()
-            COUNT = COUNT - 1
-        end
+local function pop_db(self)
+    if #self.db_pool > 0 then
+      return remove(self.db_pool)
     end
-    if COUNT < MAX then
-        COUNT = COUNT + 1
-        local db = DB_CREATE()
-        if db then
-            return db
-        end
-        COUNT = COUNT - 1
-        -- 连接失败或者其他情况, 将等待其他协程唤醒; 保证公平竞争数据库连接
+    if self.current < self.max then
+      self.current = self.current + 1
+      return DB_CREATE(self)
     end
-    add_wait(co_self())
+    add_wait(self, co_self())
     return co_wait()
 end
 
@@ -145,43 +139,6 @@ end
 
 local function format_value4(t)
     return fmt("%s %s %s '%s'", unpack(t))
-end
-
--- 执行
-local function execute(query)
-    if query.SELECT then
-        assert(query.FROM and query.WHERE, "查询语句必须使用from方法与where条件.")
-    end
-    if query.DELETE then
-        assert(query.WHERE, "删除语句请加上where条件")
-    end
-    if query.INSERT then
-        assert(query.FILEDS and query.VALUES, "插入语句请加上fields与values")
-    end
-    if query.UPDATE then
-        assert(query.WHERE, "更新语句请加上where条件")
-    end
-    local QUERY = concat(query, " ")
-    -- print(QUERY)
-    local db, ret, err
-    while 1 do
-        db = get_db()
-        if db then
-            ret, err = db:query(QUERY)
-            if db.state then
-                break
-            end
-            Log:ERROR(err)
-            db:close()
-            db, ret, err = nil
-        end
-    end
-    if #wlist > 0 then
-        co_wakeup(pop_wait(), db)
-    else
-        add_db(db)
-    end
-    return ret, err
 end
 
 local function limit(query, limit1, limit2)
@@ -332,10 +289,6 @@ local function fields(query, fields)
 end
 -- 插入语句专用函数 --
 
-
-
-
-
 -- 更新语句专用 --
 local function set(query, values)
     local tpy = type(values)
@@ -350,60 +303,62 @@ local function set(query, values)
 end
 -- 更新语句专用 --
 
-
-
-local DB = {}
-
--- 初始化数据库
-function DB.init(opt)
-    if INITIALIZATION then
-        return nil, "DB已经初始化."
+-- 执行
+local function execute(query)
+    -- Log:DEBUG(query)
+    if query.SELECT then
+        assert(query.FROM and query.WHERE, "查询语句必须使用from方法与where条件.")
     end
-    if type(opt) ~= 'table' then
-        return nil, '错误的DB配置文件.'
+    if query.DELETE then
+        assert(query.WHERE, "删除语句请加上where条件")
     end
-    if type(opt.max) == 'number' then
-        MAX = opt.max
+    if query.INSERT then
+        assert(query.FILEDS and query.VALUES, "插入语句请加上fields与values")
     end
-    local config = {
-        host = opt.host or 'localhost',
-        port = opt.port or 3306,
-        database = opt.database,
-        user = opt.user,
-        password = opt.password,
-    }
-    DB_CREATE = function(...)
-        local times = 1
-        local db
-        while 1 do
-            db = mysql:new()
-            local connect, err = db:connect(config)
-            if connect then
-                break
-            end
-            Log:ERROR('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
-            db:close()
-            times = times + 1
-            timer.sleep(3)
-        end
-        db:query(fmt('SET wait_timeout=%s', tostring(WAIT_TIMEOUT)))
-        db:query(fmt('SET interactive_timeout=%s', tostring(WAIT_TIMEOUT)))
-        return db
+    if query.UPDATE then
+        assert(query.WHERE, "更新语句请加上where条件")
     end
-    add_db(get_db())
-    INITIALIZATION = true
-    return true
+    local QUERY = concat(query, " ")
+    Log:DEBUG(QUERY)
+    local self = query.self
+    query.self = nil
+    return self:query(QUERY)
 end
 
+local DB = class("DB")
+
+function DB:ctor(opt)
+  self.host = opt.host
+  self.port = opt.port
+  self.username = opt.username
+  self.password = opt.password
+  self.database = opt.database
+  self.max = opt.max or 50
+  self.current = 0
+  -- 协程池
+  self.co_pool = {}
+  -- 连接池
+  self.db_pool = {}
+end
+
+function DB:connect ()
+  if not self.INITIALIZATION then
+    add_db(self, pop_db(self))
+    self.INITIALIZATION = true
+    return self.INITIALIZATION
+  end
+  return self.INITIALIZATION
+end
 
 -- 查询语句
-function DB.select(fields)
-    if not INITIALIZATION then
+function DB:select(fields)
+    if not self.INITIALIZATION then
         return nil, "DB尚未初始化"
     end
     local tpy = type(fields)
     assert(tpy == "string" or tpy == "table", "错误的字段类型(fields):"..tostring(fields))
     local query = {
+        self = self,
         [1] = SELECT,
         SELECT = true,
         from = from,
@@ -424,31 +379,16 @@ function DB.select(fields)
     return query
 end
 
--- 插入语句
-function DB.insert(table_name)
-    if not INITIALIZATION then
-        return nil, "DB尚未初始化"
-    end
-    local tpy = type(table_name)
-    assert(tpy == "string", "错误的表名(table_name):"..tostring(table_name))
-    return {
-        [1] = INSERT,
-        [2] = table_name,
-        INSERT = true,
-        fields = fields,
-        values = values,
-        execute = execute,
-    }
-end
 
 -- 更新语句
-function DB.update(table_name)
-    if not INITIALIZATION then
+function DB:update(table_name)
+    if not self.INITIALIZATION then
         return nil, "DB尚未初始化"
     end
     local tpy = type(table_name)
     assert(tpy == "string" or tpy == "tables", "错误的表名(table_name):"..tostring(table_name))
     return {
+        self = self,
         [1] = UPDATE,
         [2] = table_name,
         UPDATE = true,
@@ -459,14 +399,34 @@ function DB.update(table_name)
     }
 end
 
+
+-- 插入语句
+function DB:insert(table_name)
+  if not self.INITIALIZATION then
+      return nil, "DB尚未初始化"
+  end
+  local tpy = type(table_name)
+  assert(tpy == "string", "错误的表名(table_name):"..tostring(table_name))
+  return {
+      self = self,
+      [1] = INSERT,
+      [2] = table_name,
+      INSERT = true,
+      fields = fields,
+      values = values,
+      execute = execute,
+  }
+end
+
 -- 删除语句
-function DB.delete(table_name)
-    if not INITIALIZATION then
+function DB:delete(table_name)
+    if not self.INITIALIZATION then
         return nil, "DB尚未初始化"
     end
     local tpy = type(table_name)
     assert(tpy == "string" or tpy == "tables", "错误的表名(table_name):"..tostring(table_name))
     return {
+        self = self,
         [1] = DELETE,
         [2] = FROM,
         [3] = table_name,
@@ -478,35 +438,37 @@ function DB.delete(table_name)
     }
 end
 
--- 原始SQL
-function DB.query(query)
-    if not INITIALIZATION then
-        return nil, "DB尚未初始化"
-    end
-    assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
-    local db, ret, err
-    while 1 do
-        db = get_db()
-        if db then
-            ret, err = db:query(query)
-            if db.state then
-                break
-            end
-            Log:ERROR(err)
-            db:close()
-            db, ret, err = nil
-        end
-    end
-    if #wlist > 0 then
-        co_wakeup(pop_wait(), db)
-    else
-        add_db(db)
-    end
+-- 原始查询语句
+function DB:query(query)
+  if not self.INITIALIZATION then
+      return nil, "DB尚未初始化"
+  end
+  assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
+  local db, ret, err
+  while 1 do
+      db = pop_db(self)
+      if db then
+          ret, err = db:query(query)
+          if db.state then
+              break
+          end
+          Log:ERROR(err)
+          db:close()
+          self.current = self.current - 1
+          db, ret, err = nil, nil, nil
+      end
+  end
+  local co = pop_wait(self)
+  if co then
+    co_wakeup(co, db)
     return ret, err
+  end
+  add_db(self, db)
+  return ret, err
 end
 
-function DB.count( ... )
-    return #POOL
+function DB:count()
+  return self.current, self.max, #self.co_pool, #self.db_pool
 end
 
 return DB

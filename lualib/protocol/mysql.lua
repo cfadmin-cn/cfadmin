@@ -375,7 +375,7 @@ function MySQL.connect(self, opts)
     self.compact = opts.compact_arrays
 
     local database = opts.database or ""
-    local user = opts.user or ""
+    local username = opts.username or ""
     local host = opts.host
 
     if not host then
@@ -383,9 +383,6 @@ function MySQL.connect(self, opts)
     end
 
     local port = opts.port or 3306
-    if not pool then
-        pool = user .. ":" .. database .. ":" .. host .. ":" .. port
-    end
 
     local ok = sock:connect(host, port)
     if not ok then
@@ -475,7 +472,7 @@ function MySQL.connect(self, opts)
         client_flags,
         self._max_packet_size,
         strrep("\0", 24),	-- TODO: add support for charset encoding
-        user,
+        username,
         token,
         database)
 
