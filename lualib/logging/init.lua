@@ -22,7 +22,7 @@ local modf = math.modf
 -- 格式化时间: [年-月-日 时:分:秒,毫秒]
 local function fmt_Y_m_d_H_M_S()
   local ts, f = modf(now())
-  f = format("%3.0f", f * 1e3)
+  f = format("%03.0f", f * 1e3)
   return concat({'[', os_date('%Y-%m-%d %H:%M:%S'), ',', f, ']'})
 end
 
@@ -43,29 +43,26 @@ local function table_format(t)
   while 1 do
     local mt = getmetatable(t)
     for key, value in pairs(t) do
+      local k, v
       if type(key) == 'number' then
-        if type(value) == 'table' then
-          if t ~= value then
-            tab[#tab+1] = concat({'[', key, ']', '=', '{', concat(t, ", "), '}'})
-          end
-        elseif type(value) == 'string' then
-          tab[#tab+1] = concat({'[', key, ']', '="', tostring(value), '"'})
-        else
-          tab[#tab+1] = concat({'[', key, ']', '=', tostring(value)})
-        end
+          k = concat({'[', key, ']'})
       else
-        if type(value) == 'table' then
-          if t ~= value then
-            tab[#tab+1] = concat({'["', key, '"]', '=', '{', concat(t, ", "), '}'})
-          end
-        elseif type(value) == 'string' then
-          tab[#tab+1] = concat({'["', key, '"]', '="', tostring(value), '"'})
-        else
-          tab[#tab+1] = concat({'["', key, '"]', '=', tostring(value)})
-        end
+          k = concat({'["', key, '"]'})
       end
+      if type(value) == 'table' then
+        if t ~= value then
+          v = table_format(value)
+        else
+          v = tostring(value)
+        end
+      elseif type(value) == 'string' then
+        v = concat({'"', value, '"'})
+      else
+        v = tostring(value)
+      end
+      tab[#tab+1] = concat({k, '=', v})
     end
-    if not mt then
+    if not mt or mt == t then
       break
     end
     t = mt
