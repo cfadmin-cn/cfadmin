@@ -310,11 +310,6 @@ local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
 		HTTP_DATE(),
 		'Origin: *',
 		'Allow: GET, POST, PUT, HEAD, OPTIONS',
-		'Allow: GET, POST, PUT, HEAD, OPTIONS',
-		'Access-Control-Allow-Origin: *',
-		'Access-Control-Allow-Headers: *',
-		'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
-		'Access-Control-Max-Age: 86400',
 		'Connection: close',
 		'server: ' .. (http.__server or SERVER),
 	}, CRLF), CRLF2})
@@ -440,6 +435,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					'Access-Control-Allow-Origin: *',
 					'Access-Control-Allow-Headers: *',
 					'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
+					'Access-Control-Allow-Credentials: true',
 					'Access-Control-Max-Age: 86400',
 					'Connection: keep-alive',
 					'server: ' .. (server or SERVER),
@@ -465,12 +461,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 							http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
 							sock:send(concat({
 								REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
-								'Origin: *',
-								'Allow: GET, POST, PUT, HEAD, OPTIONS',
-								'Access-Control-Allow-Origin: *',
-								'Access-Control-Allow-Headers: *',
-								'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
-								'Access-Control-Max-Age: 86400',
 								'Connection: close',
 								'server: ' .. (server or SERVER),
 								'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
@@ -484,10 +474,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 										REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
 										'Origin: *',
 										'Allow: GET, POST, PUT, HEAD, OPTIONS',
-										'Access-Control-Allow-Origin: *',
-										'Access-Control-Allow-Headers: *',
-										'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
-										'Access-Control-Max-Age: 86400',
 										'server: ' .. (server or SERVER),
 										'Connection: close',
 										'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
@@ -571,10 +557,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			header[#header+1] = HTTP_DATE()
 			header[#header+1] = 'Origin: *'
 			header[#header+1] = 'Allow: GET, POST, PUT, HEAD, OPTIONS'
-			header[#header+1] = 'Access-Control-Allow-Origin: *'
-			header[#header+1] = 'Access-Control-Allow-Headers: *'
-			header[#header+1] = 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS'
-			header[#header+1] = 'Access-Control-Max-Age: 86400'
 			header[#header+1] = 'server: ' .. (server or SERVER)
 			local Connection = 'Connection: keep-alive'
 			if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
