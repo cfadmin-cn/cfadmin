@@ -4,7 +4,7 @@ local Timer = require "internal.Timer"
 local mqtt = require "protocol.mqtt"
 local redis = require "protocol.redis"
 
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'MQ' })
 
 local type = type
 local math = math

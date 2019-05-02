@@ -4,7 +4,7 @@ local co = require "internal.Co"
 local class = require "class"
 local tcp = require "tcp"
 local log = require "logging"
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'internal-TCP' })
 
 local split = string.sub
 local insert = table.insert

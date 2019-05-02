@@ -1,5 +1,5 @@
 local log = require "logging"
-local Log = log:new()
+local Log = log:new({dump = true, path = 'httpd-Router'})
 
 local math = math
 local string = string

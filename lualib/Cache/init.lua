@@ -17,7 +17,7 @@ local upper = string.upper
 local lower = string.lower
 local splite = string.gmatch
 
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'Cache'})
 
 -- 注册命令
 local commands = {

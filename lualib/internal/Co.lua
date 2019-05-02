@@ -1,7 +1,7 @@
 local log  = require "logging"
 local task = require "task"
 
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'internal-Co' })
 
 local type = type
 local assert = assert

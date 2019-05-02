@@ -3,7 +3,7 @@ local timer = require "internal.Timer"
 local co = require "internal.Co"
 local class = require "class"
 local log = require "logging"
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'DB'})
 
 local co_self = co.self
 local co_wait = co.wait

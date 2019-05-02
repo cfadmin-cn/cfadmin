@@ -1,7 +1,7 @@
 local co = require "internal.Co"
 local ti = require "timer"
 local log = require "logging"
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'internal-Timer' })
 
 local type = type
 local pcall = pcall

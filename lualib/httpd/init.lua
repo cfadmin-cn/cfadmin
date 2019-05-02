@@ -140,13 +140,12 @@ end
 -- 记录日志到文件
 function httpd:log(path)
   if type(path) == 'string' and path ~= '' then
-    self.logpath = path
-    self.log = log:new({ path = self.logpath })
+    self.log = log:new({ dump = true, path = path })
   end
 end
 
 function httpd:tolog(code, path, ip, ip_list, method, speed)
-    if self.logpath then
+    if self.log then
       local log = fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed)
       self.log:dump(log)
     end
