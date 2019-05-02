@@ -10,12 +10,20 @@ local sha1 = crypt.sha1
 local base64 = crypt.base64encode
 local now = sys.now
 local DATE = os.date
+local insert = table.insert
 
 local form = require "httpd.Form"
 local FILE_TYPE = form.FILE
 local ARGS_TYPE = form.ARGS
 local form_multipart = form.multipart
 local form_urlencode = form.urlencode
+
+local Cookie = require "httpd.Cookie"
+local clCookie = Cookie.clear		-- 清理
+local secCookie = Cookie.setSecure -- 设置Cookie加密字段
+local seCookie = Cookie.serialization -- 序列化
+local deCookie = Cookie.deserialization -- 反序列化
+
 
 local Router = require "httpd.Router"
 local ROUTE_FIND = Router.find
@@ -373,10 +381,13 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local ttl = http.ttl
 	local server = http.__server
 	local timeout = http.__timeout
+	local cookie = http.__cookie
+	local cookie_secure = http.__cookie_secure
 	local before_func = http._before_func
 	local max_path_size = http.__max_path_size
 	local max_header_size = http.__max_header_size
 	local max_body_size = http.__max_body_size
+	secCookie(cookie_secure) -- 如果需要
 	local sock = tcp:new():set_fd(fd):timeout(timeout or 15)
 	while 1 do
 		local buf = sock:recv(1024)
@@ -499,6 +510,10 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			local ok, body, static, statucode
 
 			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
+				-- 如果httpd开启了记录Cookie字段, 则每次尝试是否deCookie
+				if cookie and typ == HTTP_PROTOCOL.USE then
+					deCookie(content['headers']["Cookie"])
+				end
 				if type(cls) == "table" then
 					local method = cls[lower(METHOD)]
 					if not method or type(method) ~= 'function' then -- 注册的路由未实现这个方法
@@ -510,6 +525,14 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				else
 					ok, body = pcall(cls, content)
 				end
+				-- 如果httpd开启了记录Cookie字段, 则每次尝试是否需要seCookie
+				if cookie and typ == HTTP_PROTOCOL.USE then
+					local Cookies = seCookie()
+					for _, Cookie in ipairs(Cookies) do
+						header[#header+1] = Cookie
+					end
+					clCookie()
+				end
 				if not ok then
 					Log:ERROR(body)
 					statucode = 500
@@ -517,7 +540,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					return sock:close()
 				end
 				statucode = 200
-				header[#header+1] = REQUEST_STATUCODE_RESPONSE(statucode)
+				insert(header, 1, REQUEST_STATUCODE_RESPONSE(statucode))
 			elseif typ == HTTP_PROTOCOL.WS then
 				local ok, msg = pcall(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
 				if not ok then

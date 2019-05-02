@@ -97,10 +97,23 @@ function httpd:server_name(server)
     end
 end
 
+-- 连接保持时间
 function httpd:timeout(timeout)
     if type(timeout) == "number" then
         self.__timeout = timeout
     end
+end
+
+-- 是否记录解析cookie
+function httpd:enable_cookie ()
+  self.__cookie = true
+end
+
+-- 设置Cookie加密Key
+function httpd:cookie_secure (secure)
+  if type(secure) == 'string' and secure ~= '' then
+    self.__cookie_secure = secure
+  end
 end
 
 -- 注册静态文件读取路径, foldor是一个目录, ttl是静态文件缓存周期
@@ -126,8 +139,10 @@ end
 
 -- 记录日志到文件
 function httpd:log(path)
-    self.logpath = path or "cf-httpd.log"
+  if type(path) == 'string' and path ~= '' then
+    self.logpath = path
     self.log = log:new({ path = self.logpath })
+  end
 end
 
 function httpd:tolog(code, path, ip, ip_list, method, speed)
