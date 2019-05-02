@@ -2,6 +2,7 @@ local UDP = require "internal.UDP"
 local co = require "internal.Co"
 local sys = require "sys"
 local log = require "logging"
+local Log = log:new({ dump = true, path = 'protocol-dns'})
 
 local prefix = '::ffff:'
 
@@ -225,7 +226,7 @@ local function dns_query(domain)
             break
         end
         if type(len) == "string" then
-            log.info("正在解析["..domain.."]:"..len)
+            Log:INFO("正在解析["..domain.."]:"..len)
         end
     end
     if not len or len < LIMIT_HEADER_LEN then

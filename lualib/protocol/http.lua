@@ -3,7 +3,7 @@ local sys = require "system"
 local tcp = require "internal.TCP"
 local wsserver = require "protocol.websocket.server"
 
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'protocol-http'})
 
 local crypt = require "crypt"
 local sha1 = crypt.sha1

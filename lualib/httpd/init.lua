@@ -140,24 +140,23 @@ end
 -- 记录日志到文件
 function httpd:log(path)
   if type(path) == 'string' and path ~= '' then
-    self.log = log:new({ dump = true, path = path })
+    self.logging = log:new({ dump = true, path = path })
   end
 end
 
 function httpd:tolog(code, path, ip, ip_list, method, speed)
-    if self.log then
-      local log = fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed)
-      self.log:dump(log)
+    if self.logging then
+      self.logging:dump(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
     end
     print(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
 end
 
 -- 监听请求
 function httpd:listen(ip, port)
-    return self.IO:listen(ip, port, function (fd, ipaddr)
-        ipaddr = match(ipaddr, '^::[f]+:(.+)') or ipaddr
-        return EVENT_DISPATCH(fd, ipaddr, self)
+    self.IO:listen(ip, port, function (fd, ipaddr)
+        return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
     end)
+    return self
 end
 
 -- 正确的运行方式

@@ -4,7 +4,7 @@ local Co = require "internal.Co"
 local tcp = require "internal.TCP"
 
 local concat = table.concat
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'protocol-redis' })
 
 local co_spwan = Co.spwan
 

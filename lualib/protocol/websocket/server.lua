@@ -5,7 +5,7 @@ local wbproto = require "protocol.websocket.protocol"
 local _recv_frame = wbproto.recv_frame
 local _send_frame = wbproto.send_frame
 
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'protocol-websocket-server'})
 
 local co_self = co.self
 local co_wait = co.wait

@@ -23,7 +23,7 @@ local make_packet4 = protocol4.make_packet
 local parse_packet4 = protocol4.parse_packet
 local connack_return_code = protocol4.connack_return_code
 
-local Log = log:new()
+local Log = log:new({ dump = true, path = 'protocol-MQTT'})
 
 -- cache to locals
 local type = type
