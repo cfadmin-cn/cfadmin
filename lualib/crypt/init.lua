@@ -32,7 +32,7 @@ function crypt.sha1(...)
 end
 
 function crypt.xor_str (...)
-  return CRYPT(...)
+  return xor_str(...)
 end
 
 function crypt.randomkey(...)
