@@ -19,7 +19,7 @@ build :
 	$(CC) -o udp.so src/ludp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o task.so src/ltask.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
-	$(CC) -o crypt.so src/lcrypt.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
+	$(CC) -o lcrypt.so src/lcrypt.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	### 以下为预留第三方库编译位置 ###
 	cd src/lhttpparser && rm -rf *.o *.so && make build # 增加PicoHTTPParser库
 	cd src/lcjson && rm -rf *.o *.so && make build 	 # 增加cjson库
@@ -32,7 +32,7 @@ rebuild :
 	$(CC) -o udp.so src/ludp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o task.so src/ltask.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
-	$(CC) -o crypt.so src/lcrypt.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
+	$(CC) -o lcrypt.so src/lcrypt.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	### 以下为预留第三方库编译位置 ###
 	cd src/lhttpparser && rm -rf *.o *.so && make rebuild # 增加PicoHTTPParser库
 	cd src/lcjson && rm -rf *.o *.so && make rebuild # 增加cjson库
