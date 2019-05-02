@@ -142,7 +142,7 @@ static void *
 L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
 	// 为lua内存hook注入日志;
 	/* 用户自定义数据 */
-	(void)ud;  (void)osize; 
+	(void)ud;  (void)osize;
 	if (nsize == 0) return xfree(ptr), NULL;
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
@@ -170,10 +170,10 @@ init_lua_libs(lua_State *L){
 	/* 注入lua搜索域 */
     lua_getglobal(L, "package");
 
-    lua_pushliteral(L, "./script/?.lua;./script/?/init.lua;./lualib/?.lua;./lualib/?/init.lua;./?/init.lua");
+    lua_pushliteral(L, "lualib/?.lua;lualib/?/init.lua;script/?.lua;script/?/init.lua;");
     lua_setfield(L, 1, "path");
 
-    lua_pushliteral(L, "./luaclib/?.so;./luaclib/?/init.so;");
+    lua_pushliteral(L, "luaclib/?.so;luaclib/?/init.so;");
     lua_setfield(L, 1, "cpath");
 
     lua_settop(L, 0);
