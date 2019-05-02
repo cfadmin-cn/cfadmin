@@ -1,5 +1,4 @@
 -- logging 核心配置
-
 local class = require "class"
 local system = require "system"
 local now = system.now
@@ -94,12 +93,11 @@ function FMT (where, level, ...)
   return concat({ fmt_Y_m_d_H_M_S(), where, level, ':', fmt(...), '\n'}, ' ')
 end
 
-local paths = {}
-
 local Log = class("Log")
 
 function Log:ctor (opt)
   if type(opt) == 'table' then
+    self.to_dump = opt.dump
     self.path = opt.path
     self.now = Y_m_d()
   end
@@ -129,21 +127,20 @@ function Log:WARN (...)
   self:dump(FMT(debuginfo(), "[WARN]", ...))
 end
 
+-- dump日志到磁盘
 function Log:dump(log)
-  local file = paths[self.path]
-  if type(self.path) == 'string' and self.path ~= '' then
-    if not file then
-        file = io_open(self.path..'_'..self.now..'.log', 'a')
-        paths[self.path] = file
+  if self.to_dump and self.path then
+    if not self.file then
+      self.file, err = io_open('logs/'..self.path..'_'..self.now..'.log', 'a')
     else
-      if Y_m_d() ~= self.now then
-        file:close()
-        self.now = Y_m_d()
-        file = io_open(self.path..'_'..self.now..'.log', 'a')
-        paths[self.path] = file
+      local now = Y_m_d()
+      if now ~= self.now then
+        self.file:close()
+        self.now = now
+        self.file = io_open('logs/'..self.path..'_'..self.now..'.log', 'a')
       end
     end
-    file:write(log):flush()
+    self.file:write(log):flush()
   end
 end
 
