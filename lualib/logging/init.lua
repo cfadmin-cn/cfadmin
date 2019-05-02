@@ -81,7 +81,7 @@ local function fmt(...)
     else
       tab[#tab+1]= tostring(arg)
     end
-    if index == len then
+    if index >= len then
       break
     end
     index = index + 1
