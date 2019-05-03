@@ -3,6 +3,7 @@ local Log = log:new({dump = true, path = 'httpd-Router'})
 
 local math = math
 local string = string
+local split = string.sub
 local find = string.find
 local match = string.match
 local splite = string.gmatch
@@ -13,6 +14,9 @@ local ipairs = ipairs
 local tonumber = tonumber
 local tostring = tostring
 local toint = math.tointeger
+local io_open = io.open
+
+local load_file
 
 local Router = {
 	API = 1,
@@ -22,6 +26,8 @@ local Router = {
 }
 
 local routes = {} -- 存储路由
+
+local static = {} -- 静态文件路由
 
 local typ = {
 	int = toint,
@@ -36,6 +42,16 @@ local function splite_route(route)
 		tab[#tab + 1] = r
 	end
 	return tab
+end
+
+local function registery_static (prefix, route_type)
+	if route_type == Router.STATIC then
+		if not next(static) then
+			static.prefix = prefix
+			static.type = route_type
+		end
+		return
+	end
 end
 
 local function registery_router(route, class, route_type)
@@ -64,23 +80,36 @@ local function find_route(path)
 	for index, route in ipairs(routes) do
 		local r = tab[index]
 		if not r then
-			return false
+			break
 		end
 		local t = route[r]
 		if type(t) == 'table' then
 			if #tab == index then
 				return t.class, t.type
 			end
-			if t.type == Router.STATIC then
-				return t.class, t.type
-			end
 		end
 	end
+	local prefix, type = static.prefix, static.type
+	load_file = load_file or function (path)
+		local f, error = io_open(prefix..path, 'rb')
+		if not f then
+			return
+		end
+		local file = f:read('*a')
+		f:close()
+		return file, match(path, '.+%.([%a]+)')
+	end
+	return load_file, type
 end
 
 -- 查找路由
 function Router.find(path)
 	return find_route(path)
+end
+
+-- 注册静态文件查找路径
+function Router.static (...)
+	return registery_static(...)
 end
 
 -- 注册路由

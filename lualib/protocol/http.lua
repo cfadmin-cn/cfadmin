@@ -553,9 +553,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				local path = PATH
 				local pos, _ = find(PATH, '%?')
 				if pos then
-					path = split(path, 1, pos - 1)
+					path = split(PATH, 1, pos - 1)
 				end
-				ok, body, file_type = pcall(cls, './'..path)
+				ok, body, file_type = pcall(cls, path)
 				if not ok then
 					Log:ERROR(body)
 					statucode = 500

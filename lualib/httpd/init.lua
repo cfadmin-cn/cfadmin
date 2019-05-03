@@ -1,4 +1,5 @@
 local HTTP = require "protocol.http"
+local HTTPD = require "httpd.Router"
 local tcp = require "internal.TCP"
 local class = require "class"
 local sys = require "system"
@@ -16,36 +17,37 @@ local os_date = os.date
 -- 请求解析
 local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
 
--- 注册HTTP路由
-local HTTP_ROUTE_REGISTERY = HTTP.ROUTE_REGISTERY
+-- 注册HTTP路由与静态文件
+local HTTP_STATIC_REGISTERY = HTTPD.static
+local HTTP_ROUTE_REGISTERY = HTTPD.registery
+
 
 local httpd = class("httpd")
 
 function httpd:ctor(opt)
-    self.API = HTTP.API
-    self.USE = HTTP.USE
+    self.API = HTTPD.API
+    self.USE = HTTPD.USE
     self.IO = tcp:new()
 end
 
 -- 用来注册WebSocket对象
 function httpd:ws(route, class)
     if route and type(class) == "table" then
-        -- HTTP_ROUTE_REGISTERY(self.routes, route, class, HTTP.WS)
-        HTTP_ROUTE_REGISTERY(route, class, HTTP.WS)
+        HTTP_ROUTE_REGISTERY(route, class, HTTPD.WS)
     end
 end
 
 -- 用来注册接口
 function httpd:api(route, class)
     if route and (type(class) == "table" or type(class) == "function")then
-        HTTP_ROUTE_REGISTERY(route, class, HTTP.API)
+        HTTP_ROUTE_REGISTERY(route, class, HTTPD.API)
     end
 end
 
 -- 用来注册普通路由
 function httpd:use(route, class)
     if route and (type(class) == "table" or type(class) == "function") then
-        HTTP_ROUTE_REGISTERY(route, class, HTTP.USE)
+        HTTP_ROUTE_REGISTERY(route, class, HTTPD.USE)
     end
 end
 
@@ -118,23 +120,13 @@ end
 
 -- 注册静态文件读取路径, foldor是一个目录, ttl是静态文件缓存周期
 function httpd:static(foldor, ttl)
-    if foldor and type(foldor) == 'string' and #foldor > 0 then
-        ttl = math.tointeger(ttl)
-        if ttl and ttl > 0 then
-            self.ttl = ttl
-        end
-        HTTP_ROUTE_REGISTERY('./'..foldor, function (path)
-            if path then
-                local FILE = io_open(path, "rb")
-                if not FILE then
-                    return
-                end
-                local file = FILE:read('*a')
-                FILE:close()
-                return file, match(path, '.+%.([%a]+)')
-            end
-        end, HTTP.STATIC)
+  if not self.foldor then
+    self.foldor = foldor or 'static'
+    if ttl and ttl > 0 then
+        self.ttl = ttl
     end
+    return HTTP_STATIC_REGISTERY(self.foldor, HTTPD.STATIC)
+  end
 end
 
 -- 记录日志到文件
