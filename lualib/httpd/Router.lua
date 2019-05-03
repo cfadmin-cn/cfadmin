@@ -1,6 +1,9 @@
 local log = require "logging"
 local Log = log:new({dump = true, path = 'httpd-Router'})
 
+local crypt = require "crypt"
+local hexencode = crypt.hexencode
+
 local math = math
 local string = string
 local split = string.sub
@@ -13,10 +16,9 @@ local assert = assert
 local ipairs = ipairs
 local tonumber = tonumber
 local tostring = tostring
-local toint = math.tointeger
 local io_open = io.open
-
-local load_file
+local concat = table.concat
+local toint = math.tointeger
 
 local Router = {
 	API = 1,
@@ -35,59 +37,34 @@ local typ = {
 	string = tostring,
 }
 
--- 路由分割: /a/b/c/d = {'a', 'b', 'c', 'd'}
-local function splite_route(route)
+-- 分割路径后进行hex, 得到key后一次查表即可完成
+local function hex_route(route)
 	local tab = {}
 	for r in splite(route, '/([^/?]+)') do
 		tab[#tab + 1] = r
 	end
-	return tab
+	return hexencode(concat(tab))
 end
 
 local function registery_static (prefix, route_type)
-	if route_type == Router.STATIC then
-		if not next(static) then
-			static.prefix = prefix
-			static.type = route_type
-		end
-		return
+	if not next(static) then
+		static.prefix = prefix
+		static.type = route_type
 	end
+	return
 end
 
-local function registery_router(route, class, route_type)
-	local tab = splite_route(route)
-	if route == '/' then -- 如果注册路由为'/', 则转义为:''
-		tab = {''}
-	end
-	for index, r in ipairs(tab) do
-		if not routes[index] then
-			routes[index] = {}
-		end
-		if not routes[index][r] then
-			routes[index][r] = true
-		end
-		if #tab == index then
-			routes[index][r] = {class = class, type = route_type}
-		end
-	end
+local load_file
+
+local function registery_router (route, class, route_type)
+	routes[hex_route(route)] = {class = class, type = route_type}
 end
 
-local function find_route(path)
-	local tab = splite_route(path)
-	if #tab == 0 then -- 如果路由为/[/]{0, n}, 则转义为: ''
-		tab[1] = ''
-	end
-	for index, route in ipairs(routes) do
-		local r = tab[index]
-		if not r then
-			break
-		end
-		local t = route[r]
-		if type(t) == 'table' then
-			if #tab == index then
-				return t.class, t.type
-			end
-		end
+local function find_route (path)
+	local hex = hex_route(path)
+	local t = routes[hex]
+	if t then
+		return t.class, t.type
 	end
 	local prefix, type = static.prefix, static.type
 	load_file = load_file or function (path)
