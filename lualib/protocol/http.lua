@@ -19,7 +19,7 @@ local form_multipart = form.multipart
 local form_urlencode = form.urlencode
 
 local Cookie = require "httpd.Cookie"
-local clCookie = Cookie.clear		-- 清理
+local clCookie = Cookie.clean		-- 清理
 local secCookie = Cookie.setSecure -- 设置Cookie加密字段
 local seCookie = Cookie.serialization -- 序列化
 local deCookie = Cookie.deserialization -- 反序列化

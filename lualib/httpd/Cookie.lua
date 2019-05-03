@@ -60,24 +60,29 @@ function Cookie.setCookie (name, value, expires, notall, https)
   }
 end
 
--- 获取置顶Cookie字段
+-- 获取指定Cookie字段
 function Cookie.getCookie (name)
-  local co = co_self
+  local co = co_self()
   local cs = Cookie.client[co]
-  local value = cs.client[name]
+  local value = cs[name]
   if not value then
     return
   end
   return decode_value(value)
 end
 
+function Cookie.delCookie (name)
+  return Cookie.setCookie(name, ' ', os_time() + 1)
+end
+
 -- 对cookie进行反序列化
 function Cookie.deserialization (cs)
-  if type(cs) ~= 'string' or cs == '' then
-    return
-  end
   local co = co_self()
   local Cookies = {}
+  if type(cs) ~= 'string' or cs == '' then
+    Cookie.client[co] = Cookies
+    return
+  end
   for name, value in splite(cs, '([^ ;]+)=([^ ;]+)') do
     Cookies[name] = value
   end
@@ -110,7 +115,7 @@ function Cookie.serialization ()
 end
 
 -- 清理Cookie
-function Cookie.clear ()
+function Cookie.clean ()
   local co = co_self()
   Cookie.server[co] = nil
   Cookie.client[co] = nil
