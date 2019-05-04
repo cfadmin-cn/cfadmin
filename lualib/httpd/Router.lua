@@ -67,6 +67,9 @@ local function find_route (path)
 		return t.class, t.type
 	end
 	local prefix, type = static.prefix, static.type
+	if not prefix and not type then
+		return
+	end
 	load_file = load_file or function (path)
 		local f, error = io_open(prefix..path, 'rb')
 		if not f then
