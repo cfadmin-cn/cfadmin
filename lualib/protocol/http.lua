@@ -576,6 +576,8 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				else
 					static = fmt('Content-Type: %s', conten_type)
 				end
+				-- 如果是静态文件, 增加默认跨域访问支持
+				header[#header+1] = "Access-Control-Allow-Origin: *"
 			end
 			header[#header+1] = HTTP_DATE()
 			header[#header+1] = 'Origin: *'
