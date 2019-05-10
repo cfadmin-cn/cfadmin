@@ -118,7 +118,7 @@ end
 -- 将['field', '=', 'a'] 格式化为 field = a
 -- 将['field', 'NOT', 'IN', '(1, 2, 3)'] 格式化为 field NOT IN (1, 2, 3)
 local function format(t)
-    return fmt(concat({rep("%s ", #t-1), "%s"}), unpack(t))
+    return fmt(rep("'%s' ", #t), unpack(t))
 end
 
 local function format_value1(t)
@@ -220,7 +220,7 @@ local function where(query, conditions)
                     insert(CONDITIONS, format({condition[1], con2, LEFT..format_value2(condition[3], c)..RIGHT}))
                 elseif con2 == IS then
                     insert(CONDITIONS, concat(condition, " "))
-                elseif find(condition[3], condition[1]) then
+                elseif find(condition[3], condition[1]) or find(condition[3], '`.') then
                     insert(CONDITIONS, concat(condition, " "))
                 else
                     insert(CONDITIONS, format_value3(condition))
@@ -444,6 +444,7 @@ function DB:query(query)
       return nil, "DB尚未初始化"
   end
   assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
+  -- Log:DEBUG(query)
   local db, ret, err
   while 1 do
       db = pop_db(self)
