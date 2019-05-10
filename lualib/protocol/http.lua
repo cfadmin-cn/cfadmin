@@ -590,15 +590,15 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			header[#header+1] = Connection
 			if body then
 				if type(body) == 'string' then
-					if #body >= 1 then
-						header[#header+1] = 'Transfer-Encoding: identity'
-						header[#header+1] = 'Content-Length: '.. #body
-					end
+					header[#header+1] = 'Transfer-Encoding: identity'
+					header[#header+1] = 'Content-Length: '.. #body
 				else
 					Log:WARN('response body not a string type.'..'('..tostring(body)..')')
+					header[#header+1] = 'Content-Length: 0'
 					body = ''
 				end
 			else
+				header[#header+1] = 'Content-Length: 0'
 				body = ''
 			end
 			if typ == HTTP_PROTOCOL.API then
