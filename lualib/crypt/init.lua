@@ -2,6 +2,8 @@ local CRYPT = require "lcrypt"
 
 local sha1 = CRYPT.sha1
 local xor_str = CRYPT.xor_str
+local crc32 = CRYPT.crc32
+local crc64 = CRYPT.crc64
 
 local randomkey = CRYPT.randomkey
 local hashkey = CRYPT.hashkey
@@ -89,6 +91,14 @@ end
 
 function crypt.dhexchange (...)
   return dhexchange(...)
+end
+
+function crypt.crc32 (...)
+  return crc32(...)
+end
+
+function crypt.crc64 (...)
+  return crc64(...)
 end
 
 return crypt
