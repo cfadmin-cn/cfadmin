@@ -15,6 +15,51 @@ local error = error
 local tonumber = tonumber
 local new_tab = function (narr, nrec) return {} end
 
+local CHARSET_MAP = {
+    _default  = 0,
+    big5      = 1,
+    dec8      = 3,
+    cp850     = 4,
+    hp8       = 6,
+    koi8r     = 7,
+    latin1    = 8,
+    latin2    = 9,
+    swe7      = 10,
+    ascii     = 11,
+    ujis      = 12,
+    sjis      = 13,
+    hebrew    = 16,
+    tis620    = 18,
+    euckr     = 19,
+    koi8u     = 22,
+    gb2312    = 24,
+    greek     = 25,
+    cp1250    = 26,
+    gbk       = 28,
+    latin5    = 30,
+    armscii8  = 32,
+    utf8      = 33,
+    ucs2      = 35,
+    cp866     = 36,
+    keybcs2   = 37,
+    macce     = 38,
+    macroman  = 39,
+    cp852     = 40,
+    latin7    = 41,
+    utf8mb4   = 45,
+    cp1251    = 51,
+    utf16     = 54,
+    utf16le   = 56,
+    cp1256    = 57,
+    cp1257    = 59,
+    utf32     = 60,
+    binary    = 63,
+    geostd8   = 92,
+    cp932     = 95,
+    eucjpms   = 97,
+    gb18030   = 248
+}
+
 local MySQL = class("MySQL")
 
 local STATE_CONNECTED = 1
@@ -468,10 +513,11 @@ function MySQL.connect(self, opts)
 
     local client_flags = 260047;
 
-    local req = strpack("<I4I4c24zs1z",
+    local req = strpack("<I4I4Bc23zs1z",
         client_flags,
         self._max_packet_size,
-        strrep("\0", 24),	-- TODO: add support for charset encoding
+        CHARSET_MAP[opts.charset] or 33,
+        strrep("\0", 23),	-- TODO: add support for charset encoding
         username,
         token,
         database)

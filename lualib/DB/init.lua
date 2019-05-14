@@ -333,6 +333,7 @@ function DB:ctor(opt)
   self.username = opt.username
   self.password = opt.password
   self.database = opt.database
+  self.charset = opt.charset or 'utf8'
   self.max = opt.max or 50
   self.current = 0
   -- 协程池
