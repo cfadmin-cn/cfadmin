@@ -101,7 +101,7 @@ end
 
 -- 连接保持时间
 function httpd:timeout(timeout)
-    if type(timeout) == "number" then
+    if type(timeout) == "number" and timeout > 0 then
         self.__timeout = timeout
     end
 end

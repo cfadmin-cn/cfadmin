@@ -380,7 +380,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local buffers = {}
 	local ttl = http.ttl
 	local server = http.__server
-	local timeout = http.__timeout
+	local timeout = http.__timeout or 30
 	local cookie = http.__cookie
 	local cookie_secure = http.__cookie_secure
 	local before_func = http._before_func
@@ -388,7 +388,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local max_header_size = http.__max_header_size
 	local max_body_size = http.__max_body_size
 	secCookie(cookie_secure) -- 如果需要
-	local sock = tcp:new():set_fd(fd):timeout(timeout or 15)
+	local sock = tcp:new():set_fd(fd):timeout(timeout)
 	while 1 do
 		local buf = sock:recv(1024)
 		if not buf then
@@ -618,6 +618,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					header[#header+1] = HTTP_EXPIRES(time() + ttl)
 				end
 				header[#header+1] = static
+			end
+			if Connection == 'Connection: keep-alive' then
+				header[#header+1] = "Keep-Alive: timeout="..timeout
 			end
 			sock:send(concat({concat(header, CRLF), CRLF2, body}))
 			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
