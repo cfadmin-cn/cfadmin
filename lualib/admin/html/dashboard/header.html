@@ -1,0 +1,47 @@
+<!-- 顶部开始 -->
+<div class="container">
+    <div class="logo">
+        <a href="{*logo*}">{* locale['dashboard.header.logo'] *}</a>
+    </div>
+    <div class="left_open">
+        <a><i class="iconfont">&#xe699;</i></a> <!-- 左侧栏展开按钮 -->
+    </div>
+    <ul class="layui-nav right fast-add">
+        {% if type(headers) == 'table' then %}
+          {% for index = 1, 8 do %}
+            <li class="layui-nav-item to-index">
+            {% if type(headers[index]) == 'table' then %}
+              <a href="{*headers[index][2]*}" target="view_window">{{ locale[headers[index][1]] or headers[index][1] }}</a>
+            {% end %}
+            </li>
+          {% end %}
+        {% end %}
+        <li class="layui-nav-item">
+            <a href="javascript:;"><i class="iconfont">&#59432;</i> {* locale['dashboard.header.langs'] *}</a>
+            <dl class="layui-nav-child">
+              <dd>
+                <a href="{{ logo..'?'..'lang='..'ZH-CN' }}">{* locale['dashboard.header.langs.simplified-chinese'] *}</a>
+              </dd>
+              <dd>
+                <a href="{{ logo..'?'..'lang='..'EN-US' }}">{* locale['dashboard.header.langs.us-english'] *}</a>
+              </dd>
+            </dl>
+        </li>
+        <li class="layui-nav-item">
+            <a href="javascript:;"><i class="iconfont">&#xe6b8;</i> {* username *}</a>
+            <dl class="layui-nav-child">
+              <dd>
+                <a onclick="xadmin.open('{* locale['dashboard.header.user.profile'] *}', '{*profile*}', 500, 430)">
+                  <i class="iconfont">&#xe70b;</i> {* locale['dashboard.header.user.profile'] *}
+                </a>
+              </dd>
+              <dd>
+                <a href="{{ logout or 'javascript:;' }}">
+                  <i class="iconfont">&#59034;</i> {* locale['dashboard.header.user.quit'] *}
+                </a>
+              </dd>
+            </dl>
+        </li>
+    </ul>
+</div>
+<!-- 顶部结束 -->

@@ -1,0 +1,12 @@
+<div class="login layui-anim layui-anim-up">
+    <div class="message">{* locale['login.form.title'] *}</div>
+    <div id="darkbannerwrap"></div>
+    <form method="post" class="layui-form" >
+        <input name="username" placeholder="{* locale['login.form.username'] *}"  type="text" lay-verify="required" class="layui-input" />
+        <hr class="hr15">
+        <input name="password" placeholder="{* locale['login.form.password'] *}"  type="password" lay-verify="required" class="layui-input" />
+        <hr class="hr15">
+        <input id="sub" type="submit"  value="{* locale['login.form.submit'] *}" lay-submit lay-filter="login" style="width:100%;" />
+        <hr class="hr20" >
+    </form>
+</div>

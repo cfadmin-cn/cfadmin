@@ -1,0 +1,25 @@
+<script>
+    $(function  () {
+      layui.use('form', function(){
+        var form = layui.form;
+        //监听提交
+        form.on('submit(login)', function(data){
+          $('#sub').hide();
+          $.post('{*login_api*}', data.field,
+            function (data, status) {
+              if (data.code != 0 && data.code != 200) {
+                return layer.msg('请求失败:' + data.msg, {time:2000}, function () {
+                  $('#sub').show();
+                });
+              }
+              layer.msg('登录成功', {time:1000}, function () {
+                  window.location.href = data.url + '?' + 'token=' + data.token
+              });
+            }
+          );
+          form.render();
+          return false;
+        });
+      });
+    })
+</script>

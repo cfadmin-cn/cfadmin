@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html class="x-admin-sm">
+
+    <head>
+        <meta charset="UTF-8">
+        <title>role-edit</title>
+        <meta name="renderer" content="webkit">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8" />
+        <link rel="stylesheet" href="{*cdn*}css/font.css">
+        <link rel="stylesheet" href="{*cdn*}css/xadmin.css">
+        <link rel="stylesheet" href="{*cdn*}layui_ext/dtree/dtree.css">
+        <link rel="stylesheet" href="{*cdn*}layui_ext/dtree/font/dtreefont.css">
+        <script type="text/javascript" src="{*cdn*}lib/layui/layui.js" charset="utf-8"></script>
+        <script type="text/javascript" src="{*cdn*}js/xadmin.js"></script>
+        <!-- 让IE8/9支持媒体查询，从而兼容栅格 -->
+        <!--[if lt IE 9]>
+            <script src="https://cdn.staticfile.org/html5shiv/r29/html5.min.js"></script>
+            <script src="https://cdn.staticfile.org/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+    </head>
+    <body>
+        <div class="layui-fluid">
+            <div class="layui-row">
+                <form class="layui-form">
+                  <div class="layui-form-item">
+                      <label for="name" class="layui-form-label">
+                          <span class="x-red">*</span>角色名称
+                      </label>
+                      <div class="layui-input-inline">
+                          <input type="text" name="name" value="{*name*}" lay-verify="required" autocomplete="off" class="layui-input">
+                      </div>
+                      <div class="layui-form-mid layui-word-aux">
+                          <span class="x-red">*</span>用户的角色名
+                      </div>
+                  </div>
+                  <div class="layui-form-item">
+                      <label for="name" class="layui-form-label">
+                          <span class="x-red">*</span>菜单列表
+                      </label>
+                      <div class="layui-input-block">
+                        <ul id="dataTree" class="dtree" data-id="0"></ul>
+                      </div>
+                  </div>
+                  <div class="layui-form-item layui-hide">
+                      <div class="layui-input-inline">
+                          <input type="text" name="action" value="edit">
+                      </div>
+                  </div>
+                  <div class="layui-form-item layui-hide">
+                      <div class="layui-input-inline">
+                          <input type="text" name="token" value="{*token*}">
+                      </div>
+                  </div>
+                  <div class="layui-form-item">
+                      <label class="layui-form-label"></label>
+                      <button id="submit" class="layui-btn" lay-filter="add" lay-submit="">{*locale['dashboard.menu.user_manage.form.submit']*}</button>
+                  </div>
+              </form>
+            </div>
+        </div>
+        <script>
+        layui.extend({dtree: '{*cdn*}layui_ext/dtree/dtree'})
+        .use(['dtree', 'form', 'layer'], function() {
+            $ = layui.jquery;
+            var {dtree, form, layer} = layui;
+
+            var tree = dtree.render({
+              elem: '#dataTree', dataStyle: "layuiStyle", dataFormat: "list", response: {message:"msg", statusCode:0}, // 固定参数1
+              checkbar: true, checkbarLoad: "node", request: {token:"{*token*}", action:"get_veri_tree", id: "{*id*}"}, url: '{*api_url*}', // 固定参数2
+              initLevel: 1,  // 控制折叠菜单权限列表
+            })
+
+            form.on("submit(add)", function (data) {
+              $('#submit').hide();
+              var permissions = [];
+              var nodes = dtree.getCheckbarNodesParam("dataTree");
+              for (let index in nodes) {
+                permissions[index] = {menu_id: nodes[index].nodeId}
+              }
+              // 没菜单不允许添加
+              if (permissions.length <= 0) {
+                layer.msg('permissions was empty', {timeout: 2000}, function () {
+                  $('#submit').show();
+                });
+                return false;
+              }
+              // 判断菜单权限是否改变
+              var isChange = dtree.changeCheckbarNodes("dataTree");
+              if (!isChange) {
+                permissions = [];
+              }
+
+              $.ajax({
+                url: "{*api_url*}",
+                type: "POST",
+                dataType:"json",
+                contentType: "application/json",
+                data: JSON.stringify({
+                  id: "{*id*}",
+                  name : data.field.name,
+                  token : data.field.token,
+                  action : data.field.action,
+                  permissions: permissions,
+                }),
+                success: function (res) {
+                  if (res.code != 0) {
+                    return layer.msg(res.msg, {timeout: 2000}, function () {
+                      $('#submit').show();
+                    });
+                  }
+                  return layer.msg(res.msg, {timeout: 1000}, function () {
+                    xadmin.close();
+                    xadmin.father_reload();
+                  });
+                },
+                error: function (res) {
+                  layer.msg(res.msg, {timeout: 2000}, function () {
+                    $('#submit').show();
+                  });
+                }
+              })
+              return false;
+            });
+        });
+          </script>
+    </body>
+
+</html>
