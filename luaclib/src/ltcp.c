@@ -7,16 +7,24 @@
 
 static inline
 void SETSOCKETOPT(int sockfd){
+
+  int Enable = 1;
+
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
 
-    int ENABLE = 1;
+  /* 地址/端口重用 */
+  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
 
-     /* 地址/端口重用 */
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &ENABLE, sizeof(ENABLE));
+	/* 关闭小包延迟合并算法 */
+	setsockopt(sockfd, SOL_SOCKET, TCP_NODELAY, &Enable, sizeof(Enable));
 
-     /* 关闭小包延迟合并算法 */
-	setsockopt(sockfd, SOL_SOCKET, TCP_NODELAY, &ENABLE, sizeof(ENABLE));
+	/* TCP Fast Open*/
+	/*
+		cfadmin Sever一般隐藏在代理层之后. .
+		setsockopt(sockfd, IPPROTO_TCP, TCP_FASTOPEN, &Enable, sizeof(Enable));
+	*/
+
 
 }
 
@@ -28,6 +36,7 @@ create_server_fd(int port, int backlog){
 	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 	if (0 >= sockfd) return -1;
 
+	/* socket option set */
 	SETSOCKETOPT(sockfd);
 
 	struct sockaddr_in6 SA;
@@ -56,6 +65,7 @@ create_client_fd(const char *ipaddr, int port){
 	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 	if (0 >= sockfd) return -1;
 
+	/* socket option set */
 	SETSOCKETOPT(sockfd);
 
 	struct sockaddr_in6 SA;
@@ -274,7 +284,7 @@ new_server_fd(lua_State *L){
 	int fd = create_server_fd(port, 0 >= backlog ? 128 : backlog);
 	if (0 >= fd) return 0;
 
-	lua_pushinteger(L, fd);	
+	lua_pushinteger(L, fd);
 
 	return 1;
 }
@@ -469,19 +479,18 @@ LUAMOD_API int
 luaopen_tcp(lua_State *L){
 	luaL_checkversion(L);
 	/* 添加SSL支持 */
-    SSL_library_init();
-    SSL_load_error_strings();
-    // CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
-    // OpenSSL_add_ssl_algorithms();
+  SSL_library_init();
+  SSL_load_error_strings();
+  // CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
+  // OpenSSL_add_ssl_algorithms();
 	/* 添加SSL支持 */
 	luaL_newmetatable(L, "__TCP__");
 	lua_pushstring (L, "__index");
 	lua_pushvalue(L, -2);
 	lua_rawset(L, -3);
-    lua_pushliteral(L, "__mode");
-    lua_pushliteral(L, "kv");
-    lua_rawset(L, -3);
-
+  lua_pushliteral(L, "__mode");
+  lua_pushliteral(L, "kv");
+  lua_rawset(L, -3);
 	luaL_Reg tcp_libs[] = {
 		{"read", tcp_read},
 		{"write", tcp_write},
