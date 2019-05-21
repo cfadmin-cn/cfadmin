@@ -62,7 +62,7 @@
                 },
                 function (data, status) {
                   if (data.code != 0) {
-                    return layer.msg(data.msg, {timeout:2000});
+                    return layer.msg(data.msg, {time:2000});
                   }
                   layer.msg(data.msg, {time:1000}, function () {
                     return window.location.reload();

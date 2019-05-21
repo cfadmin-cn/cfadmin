@@ -98,17 +98,17 @@
                 }),
                 success: function (res) {
                   if (res.code != 0) {
-                    return layer.msg(res.msg, {timeout: 2000}, function () {
+                    return layer.msg(res.msg, {time: 2000}, function () {
                       $('#submit').show();
                     });
                   }
-                  return layer.msg(res.msg, {timeout: 1000}, function () {
+                  return layer.msg(res.msg, {time: 1000}, function () {
                     xadmin.close();
                     xadmin.father_reload();
                   });
                 },
                 error: function (res) {
-                  layer.msg(res.msg, {timeout: 2000}, function () {
+                  layer.msg(res.msg, {time: 2000}, function () {
                     $('#submit').show();
                   });
                 }
