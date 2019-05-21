@@ -14,7 +14,7 @@ end
 -- 获取指定header
 function header.get_header (db, id)
   local ret, err = db:query(fmt([[ SELECT id, name, url FROM cfadmin_headers WHERE id = '%s' LIMIT 1]], id))
-  if #ret == 0 then
+  if not ret or #ret == 0 then
     return
   end
   return ret[1]
@@ -22,7 +22,7 @@ end
 
 -- header 总数
 function header.header_count (db)
-  return db:query([[SELECT count(id) as count FROM cfadmin_headers WHERE active = '1']])[1]['count']
+  return db:query([[SELECT count(id) AS count FROM cfadmin_headers WHERE active = '1']])[1]['count']
 end
 
 -- 是否存在此header

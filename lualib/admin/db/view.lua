@@ -3,7 +3,7 @@ local view = {}
 
 -- 获取顶部栏
 function view.get_headers (db)
-  return db:query([[ SELECT id, name, url FROM cfadmin_headers WHERE active = '1' ORDER BY id LIMIT 8 ]])
+  return db:query([[ SELECT id, name, url FROM cfadmin_headers WHERE active = '1' ORDER BY id]])
 end
 
 -- 获取菜单栏

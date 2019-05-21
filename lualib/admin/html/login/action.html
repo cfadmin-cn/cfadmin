@@ -16,7 +16,7 @@
                 });
               }
               layer.msg(res.msg, {time:1000}, function () {
-                  window.location.href = data.url + '?' + 'token=' + data.token
+                  window.location.href = res.url + '?token=' + res.token
               });
             },
             error: function (res) {

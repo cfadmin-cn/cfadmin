@@ -28,9 +28,9 @@ function token.generate (uid)
 end
 
 -- 解析token
-function token.parser (token)
-  local str = token.decode(token)
-  return match(str, '([%d]+):([%d]+)')
-end
+-- function token.parser (token)
+--   local str = token.decode(token)
+--   return match(str, '([%d]+):([%d%.]+)')
+-- end
 
 return token

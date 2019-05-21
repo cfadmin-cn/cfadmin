@@ -4,9 +4,9 @@ local Cookie = require "admin.cookie"
 local config = require "admin.config"
 local locales = require "admin.locales"
 local role = require "admin.db.role"
+local view = require "admin.db.view"
 local user = require "admin.db.user"
 local user_token = require "admin.db.token"
-local view = require "admin.db.view"
 
 local type = type
 local ipairs = ipairs
@@ -16,49 +16,31 @@ local user_have_permission = utils.user_have_permission
 
 local template_path = 'lualib/admin/html/dashboard/base.html'
 
--- 管理页面验权
 local function verify_permission (content, db)
   local args = content.args
-  -- 切换语言
-  if type(args) == 'table' and args.lang then
-    local lang = args.lang
-    local locale = config.locales[lang]
-    if locale then
-      Cookie.setCookie('CFLANG', lang)
-    else
-      Cookie.setCookie('CFLANG', config.locale)
+  if type(args) == 'table' then
+    local lang, token = args.lang, args.token
+    if lang then  -- 切换语言
+      Cookie.setCookie('CFLANG', config.locales[lang] and lang or config.locale)
+      return false, config.dashboard
     end
-    return false, config.dashboard
-  end
-  -- 登录注入Cookie
-  if type(args) == 'table' and args.token then
-    local token = args.token
-    if not token then  -- 对一些错误传参直接重定向到登录页
-      return false, config.login_render
+    if token then -- 登录授权
+      local exists = user_token.token_exists(db, token)
+      if not exists then -- Token不存在需要重新登录
+        return false, config.login_render
+      end
+      Cookie.setCookie("CFTOKEN", token)
+      return false, config.dashboard
     end
-    -- 开启验证Token
-    local exists = user_token.token_exists(db, token)
-    if not exists then -- Token不存在需要重新登录
-      return false, config.login_render
-    end
-    -- 如果是第一次带上Token访问后, admin会给予一个重写URL后的url.
-    -- 同时admin会在这里将Token写入到Cookie中去, 用户无需感知.
-    Cookie.setCookie("CFTOKEN", token)
-    return false, utils.get_path(content)
   end
   local token = Cookie.getCookie('CFTOKEN')
   if not token then -- 未授权的访问
     return false, config.login_render
   end
-  local exists = user_token.token_exists(db, token)
-  if not exists then -- Token不存在需要重新登录
-    return false, config.login_render
-  end
-  local info = user.user_info(db, exists.uid)
+  local info = user_token.token_to_userinfo(db, token)
   if not info then
     return false, config.login_render
   end
-  info.token = exists.token
   info.is_admin = info.is_admin == 1
   info.roles = role.role_permissions(db, info.role)
   return true, info
@@ -138,13 +120,13 @@ function dashboard.render(content)
     menus = get_menus(db, {is_admin = user.is_admin, roles = user.roles}),
     headers = get_headers(db),
     username = user.name,
+    is_admin = user.is_admin,
     logout = config.login_render,
     user = config.system_user_render,
     menu = config.system_menu_render,
     header = config.system_header_render,
     role = config.system_role_render,
     profile = config.profile_render,
-    is_admin = user.is_admin,
     locale = get_locale(Cookie.getCookie("CFLANG"))
   }
 end

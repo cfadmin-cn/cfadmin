@@ -32,4 +32,29 @@ function token.token_exists (db, token)
   return ret[1]
 end
 
+-- 根据token查用户信息
+function token.token_to_userinfo (db, token)
+  return db:query(fmt([[
+  SELECT
+  	`cfadmin_users`.id,
+  	`cfadmin_users`.name,
+  	`cfadmin_users`.username,
+  	`cfadmin_users`.password,
+  	`cfadmin_tokens`.token,
+  	`cfadmin_users`.role,
+    `cfadmin_users`.name AS role_name,
+  	`cfadmin_roles`.is_admin,
+  	`cfadmin_users`.email,
+  	`cfadmin_users`.phone,
+  	`cfadmin_users`.create_at,
+  	`cfadmin_users`.update_at
+  FROM
+  	cfadmin_users, cfadmin_tokens, cfadmin_roles
+  WHERE
+  	`cfadmin_tokens`.uid = `cfadmin_users`.id AND
+    `cfadmin_roles`.id = `cfadmin_users`.role AND
+  	`cfadmin_tokens`.token = '%s'
+  LIMIT 1]], token))[1]
+end
+
 return token

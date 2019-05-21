@@ -55,11 +55,7 @@ function login.response (content)
   if not ok then
     return json_encode({code = 500, msg = err})
   end
-  return json_encode({
-    code = 200,
-    token = TOKEN,
-    url = config.dashboard,
-  })
+  return json_encode({code = 0, msg = "登录成功", token = TOKEN, url = config.dashboard })
 end
 
 return login

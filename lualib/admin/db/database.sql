@@ -7,23 +7,13 @@
 #
 # Host: 127.0.0.1 (MySQL 5.7.25)
 # Database: cfadmin
-# Generation Time: 2019-05-16 15:18:11 +0000
+# Generation Time: 2019-05-21 02:32:16 +0000
 # ************************************************************
-
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
 
 # Dump of table cfadmin_headers
 # ------------------------------------------------------------
 
-CREATE TABLE `cfadmin_headers` (
+CREATE TABLE IF NOT EXISTS `cfadmin_headers` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `name` varchar(255) NOT NULL COMMENT '头部名称',
   `url` varchar(255) NOT NULL COMMENT '头部URL',
@@ -35,24 +25,10 @@ CREATE TABLE `cfadmin_headers` (
 
 
 
-# Dump of table cfadmin_logs
-# ------------------------------------------------------------
-
-CREATE TABLE `cfadmin_logs` (
-  `id` bigint(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
-  `uid` int(11) unsigned NOT NULL COMMENT '用户ID',
-  `content` text NOT NULL COMMENT '日志信息',
-  `create_at` int(11) unsigned NOT NULL COMMENT '创建时间',
-  PRIMARY KEY (`id`),
-  KEY `uid_index` (`uid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
 # Dump of table cfadmin_menus
 # ------------------------------------------------------------
 
-CREATE TABLE `cfadmin_menus` (
+CREATE TABLE IF NOT EXISTS `cfadmin_menus` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `parent` int(11) unsigned NOT NULL,
   `name` varchar(255) NOT NULL COMMENT '菜单名称',
@@ -61,7 +37,8 @@ CREATE TABLE `cfadmin_menus` (
   `create_at` int(11) unsigned NOT NULL COMMENT '创建时间',
   `update_at` int(11) unsigned NOT NULL COMMENT '更新时间',
   `active` tinyint(4) unsigned NOT NULL COMMENT '删除标志',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `com_index` (`active`,`url`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
@@ -69,7 +46,7 @@ CREATE TABLE `cfadmin_menus` (
 # Dump of table cfadmin_permissions
 # ------------------------------------------------------------
 
-CREATE TABLE `cfadmin_permissions` (
+CREATE TABLE IF NOT EXISTS `cfadmin_permissions` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `role_id` int(11) unsigned NOT NULL COMMENT '所属角色',
   `menu_id` int(11) unsigned NOT NULL COMMENT '所属菜单',
@@ -77,8 +54,7 @@ CREATE TABLE `cfadmin_permissions` (
   `update_at` int(11) unsigned NOT NULL COMMENT '修改时间',
   `active` tinyint(4) unsigned NOT NULL COMMENT '是否启用',
   PRIMARY KEY (`id`),
-  KEY `role_index` (`role_id`),
-  KEY `menu_index` (`menu_id`)
+  KEY `com_index` (`active`,`role_id`,`menu_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
@@ -86,7 +62,7 @@ CREATE TABLE `cfadmin_permissions` (
 # Dump of table cfadmin_roles
 # ------------------------------------------------------------
 
-CREATE TABLE `cfadmin_roles` (
+CREATE TABLE IF NOT EXISTS `cfadmin_roles` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `name` varchar(255) NOT NULL COMMENT '角色名称',
   `is_admin` tinyint(4) unsigned NOT NULL COMMENT '管理员标志',
@@ -101,7 +77,7 @@ CREATE TABLE `cfadmin_roles` (
 # Dump of table cfadmin_tokens
 # ------------------------------------------------------------
 
-CREATE TABLE `cfadmin_tokens` (
+CREATE TABLE IF NOT EXISTS `cfadmin_tokens` (
   `uid` int(11) unsigned NOT NULL COMMENT '用户ID',
   `name` varchar(255) NOT NULL COMMENT '用户名称',
   `token` varchar(255) NOT NULL COMMENT '用户TOKEN',
@@ -114,7 +90,7 @@ CREATE TABLE `cfadmin_tokens` (
 # Dump of table cfadmin_users
 # ------------------------------------------------------------
 
-CREATE TABLE `cfadmin_users` (
+CREATE TABLE IF NOT EXISTS `cfadmin_users` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `name` varchar(255) NOT NULL COMMENT '用户名',
   `username` varchar(255) NOT NULL COMMENT '用户账户',
@@ -127,13 +103,3 @@ CREATE TABLE `cfadmin_users` (
   `active` tinyint(4) unsigned NOT NULL COMMENT '删除标志',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

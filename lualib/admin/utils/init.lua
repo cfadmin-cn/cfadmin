@@ -1,13 +1,10 @@
-local crypt = require "crypt"
 local template = require "template"
 local config = require "admin.config"
 
 local type = type
 local assert = assert
 local ipairs = ipairs
-local tonumber = tonumber
 
-local io_open = io.open
 local split = string.sub
 local find = string.find
 local concat = table.concat

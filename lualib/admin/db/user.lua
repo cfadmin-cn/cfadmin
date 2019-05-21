@@ -18,7 +18,7 @@ function user.user_list (db, opt)
     `cfadmin_users`.id,
     `cfadmin_users`.name,
     `cfadmin_users`.username,
-    `cfadmin_roles`.name as role_name,
+    `cfadmin_roles`.name AS role_name,
     `cfadmin_users`.email,
     `cfadmin_users`.phone,
     `cfadmin_users`.create_at,
@@ -33,7 +33,7 @@ end
 
 -- 用户总数
 function user.user_count (db)
-  return db:query([[SELECT count(id) as count FROM cfadmin_users WHERE active = '1']])[1]['count']
+  return db:query([[SELECT count(id) AS count FROM cfadmin_users WHERE active = '1']])[1]['count']
 end
 
 -- 用户是否存在
@@ -59,7 +59,7 @@ function user.user_info (db, uid)
     `cfadmin_users`.name,
     `cfadmin_users`.username,
     `cfadmin_users`.password,
-    `cfadmin_roles`.name as role_name,
+    `cfadmin_roles`.name AS role_name,
     `cfadmin_roles`.is_admin,
     `cfadmin_users`.role,
     `cfadmin_users`.phone,
