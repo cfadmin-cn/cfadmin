@@ -22,7 +22,7 @@ return {
   ['dashboard.header.profile.update_userinfo'] = 'Update Profile',
   ['dashboard.header.profile.form.name'] = 'Name',
   ['dashboard.header.profile.form.name.notice'] = 'User Display Name',
-  ['dashboard.header.profile.form.username'] = 'User Name',
+  ['dashboard.header.profile.form.username'] = 'User Account',
   ['dashboard.header.profile.form.username.notice'] = 'User Account',
   ['dashboard.header.profile.form.email'] = 'Email',
   ['dashboard.header.profile.form.phone'] = 'Phone',

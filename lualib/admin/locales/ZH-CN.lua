@@ -20,9 +20,9 @@ return {
   ['dashboard.header.langs.simplified-chinese'] = '简体-中文',
 
   ['dashboard.header.profile.update_userinfo'] = '更新用户信息',
-  ['dashboard.header.profile.form.name'] = '用户名称',
+  ['dashboard.header.profile.form.name'] = '名称',
   ['dashboard.header.profile.form.name.notice'] = '用户显示名称',
-  ['dashboard.header.profile.form.username'] = '用户账户',
+  ['dashboard.header.profile.form.username'] = '账户',
   ['dashboard.header.profile.form.username.notice'] = '用户登录账户',
   ['dashboard.header.profile.form.email'] = '邮箱',
   ['dashboard.header.profile.form.phone'] = '手机',
