@@ -40,7 +40,7 @@ local typ = {
 -- 分割路径后进行hex, 得到key后一次查表即可完成
 local function hex_route(route)
 	local tab = {}
-	for r in splite(route, '/([^/?]+)') do
+	for r in splite(route, '/([^/%?]+)') do
 		tab[#tab + 1] = r
 	end
 	return hexencode(concat(tab))
@@ -61,7 +61,7 @@ local function registery_router (route, class, route_type)
 end
 
 local function find_route (path)
-	local hex = hex_route(path)
+	local hex = hex_route(split(path, 1, (find(path, '?') or 0) - 1))
 	local t = routes[hex]
 	if t then
 		return t.class, t.type
