@@ -39,12 +39,7 @@ end
 
 -- 获取页面url
 function utils.get_path (content)
-  local path = content['path']
-  local _, Pos = find(path, '?')
-  if Pos then
-    path = split(path, 1, Pos - 1)
-  end
-  return path
+  return split(content['path'], 1, (find(content['path'], '?') or 0) - 1)
 end
 
 -- 获取语言

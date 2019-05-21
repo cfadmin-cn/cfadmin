@@ -43,7 +43,18 @@ cfadmin.init_db()
 -- cfadmin.init_home(location or domain + path)
 -- cfadmin.init_home('https://www.baidu.com')
 
+local view = require "admin.view"
+-- 参数:
+-- 1. ctx是一个http req 对象, 目前内置包括: get_method, get_args, get_path, get_raw_path, get_headers, get_cookie
+-- 2. db初始化后的db对象, 方便用户直接使用.
 
+view.use('/test1', function (ctx, db)
+	return "hello world"
+end)
+
+view.api('/test2', function (ctx, db)
+	return '{"code":0,"msg":"hello world"}'
+end)
 
 -- 这里是设置语言的地方
 -- 语言表在admin/locales内, 可参照key -> value进行填写.
