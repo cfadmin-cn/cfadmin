@@ -40,6 +40,24 @@
 
 >   [我有一些cf使用上的问题?](https://github.com/CandyMi/core_framework/wiki/QA)
 
+## 看一下cf的通用后台开发模板预览图吧!
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-login.png"/></p>
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-dashboard.png"/></p>
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-profile.png"/></p>
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-user.png"/></p>
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-role.png"/></p>
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-header.png"/></p>
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-aside.png"/></p>
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-lang.png"/></p>
+
 ## 联系作者
 
 >   [issues](https://github.com/CandyMi/core_framework/issues)
