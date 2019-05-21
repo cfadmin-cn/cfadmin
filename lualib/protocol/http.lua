@@ -256,7 +256,8 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 				end
 			end
 			local FILE_ENCODE = 'multipart/form-data'
-			local XML_ENCODE  = 'application/xml'
+			local XML_ENCODE_1  = 'text/xml'
+			local XML_ENCODE_2  = 'application/xml'
 			local JSON_ENCODE = 'application/json'
 			local URL_ENCODE  = 'application/x-www-form-urlencoded'
 			local format = match(HEADER['Content-Type'], '(.-/[^;]*)')
@@ -276,7 +277,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 			elseif format == JSON_ENCODE then
 				content['json'] = true
 				content['body'] = BODY
-			elseif format == XML_ENCODE then
+			elseif format == XML_ENCODE_1 or format == XML_ENCODE_2 then
 				content['xml'] = true
 				content['body'] = BODY
 			elseif format == URL_ENCODE then

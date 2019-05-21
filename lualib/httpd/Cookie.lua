@@ -64,6 +64,9 @@ end
 function Cookie.getCookie (name)
   local co = co_self()
   local cs = Cookie.client[co]
+  if not cs then
+    return
+  end
   local value = cs[name]
   if not value then
     return
