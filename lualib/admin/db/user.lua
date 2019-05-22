@@ -3,10 +3,6 @@ local tostring = tostring
 local os_time = os.time
 local fmt = string.format
 
-local json = require "json"
-local json_encode = json.encode
-local json_decode = json.decode
-
 local user = {}
 
 -- 用户列表
@@ -49,6 +45,14 @@ function user.user_exists (db, username, uid)
     `cfadmin_users`.active = '1' AND `cfadmin_users`.username = '%s' OR `cfadmin_users`.id = '%s'
   LIMIT 1]],
   tostring(username), toint(uid)))[1]
+end
+
+function user.user_name_or_username_exists (db, name, username)
+  local ret, err = db:query(fmt([[SELECT name, username FROM cfadmin_users WHERE name = '%s' OR username = '%s' AND active = '1']], name, username))
+  if ret and #ret > 0 then
+    return true
+  end
+  return false
 end
 
 -- 用户信息

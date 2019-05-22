@@ -147,7 +147,7 @@ function system.user_response (content)
     end
     args.name = url.decode(args.name)
     args.email = url.decode(args.email)
-    local exists = user.user_exists(db, args.username)
+    local exists = user.user_name_or_username_exists(db, args.name, args.username)
     if exists then
       return json_encode({code = 400, data = null, msg = '4. 用户已存在'})
     end

@@ -42,7 +42,8 @@ function view.use (path, cls)
     if type(cls) == 'function' then
       ok, html = pcall(cls, {ctx = httpctx:new{content = content, db = db}})
     else
-      ok, html = pcall(cls:new({ctx = httpctx:new{content = content, db = db}}), content['method']:lower())
+      local c = cls:new({ctx = httpctx:new{content = content, db = db}})
+      ok, html = pcall(c, c, content['method']:lower())
     end
     return html
   end)
@@ -51,14 +52,15 @@ end
 -- 接口路由
 function view.api (path, cls)
   assert(type(path) == 'string', 'view api path failed.')
-  assert(type(cls) == 'function' or type(cls) == 'table', 'view use path failed.')
+  assert(type(cls) == 'function' or type(cls) == 'table', 'view api path failed.')
   local db, app = config.db, config.app
   return app:api(path, function (content)
     local ok, res
     if type(cls) == 'function' then
       ok, res = pcall(cls, {ctx = httpctx:new{content = content, db = db}})
     else
-      ok, res = pcall(cls:new({ctx = httpctx:new{content = content, db = db}}), content['method']:lower())
+      local c = cls:new({ctx = httpctx:new{content = content, db = db}})
+      ok, res = pcall(c, c, content['method']:lower())
     end
     return res
   end)
