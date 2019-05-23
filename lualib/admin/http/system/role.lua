@@ -5,7 +5,7 @@ local user = require "admin.db.user"
 local user_token = require "admin.db.token"
 local menu = require "admin.db.menu"
 local role = require "admin.db.role"
-local Cookie = require "admin.Cookie"
+local Cookie = require "admin.cookie"
 
 local json = require "json"
 local json_encode = json.encode

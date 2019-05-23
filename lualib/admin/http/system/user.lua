@@ -4,7 +4,7 @@ local utils = require "admin.utils"
 local user = require "admin.db.user"
 local user_token = require "admin.db.token"
 local role = require "admin.db.role"
-local Cookie = require "admin.Cookie"
+local Cookie = require "admin.cookie"
 local crypt = require "crypt"
 
 local json = require "json"
