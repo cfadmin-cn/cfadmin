@@ -64,7 +64,9 @@ local GROUPBY = "GROUP BY"
 local COMMA = ", "
 
 -- 空闲连接时间
-local WAIT_TIMEOUT = 31104000
+local WAIT_TIMEOUT = 31536000
+
+local WAIT_TIMEOUT_NOT_SET = true
 
 -- 数据库连接创建函数
 local function DB_CREATE (opt)
@@ -81,10 +83,11 @@ local function DB_CREATE (opt)
         times = times + 1
         timer.sleep(3)
     end
-    db:query(fmt('SET wait_timeout=%s', tostring(WAIT_TIMEOUT)))
-    db:query(fmt('SET interactive_timeout=%s', tostring(WAIT_TIMEOUT)))
-    db:query(fmt('SET wait_timeout=%s', tostring(WAIT_TIMEOUT)))
-    -- Log:DEBUG(db:query("show session variables where variable_name ='wait_timeout' or variable_name = 'interactive_timeout'"))
+    if WAIT_TIMEOUT_NOT_SET then -- 设置连接超时时间
+      WAIT_TIMEOUT_NOT_SET = false
+      db:query(fmt('SET GLOBAL wait_timeout=%s', WAIT_TIMEOUT))
+      db:query(fmt('SET GLOBAL interactive_timeout=%s', WAIT_TIMEOUT))
+    end
     return db
 end
 

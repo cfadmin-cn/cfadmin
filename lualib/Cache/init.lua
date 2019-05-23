@@ -55,9 +55,11 @@ local function CREATE_CACHE(opt)
       rds:close()
       timer.sleep(3)
   end
-  local ok, ret = rds:cmd("CONFIG", "GET", "TIMEOUT")
-  if not INITIALIZATION and ret[2] ~= '0' then
+  if not INITIALIZATION then
+    local ok, ret = rds:cmd("CONFIG", "GET", "TIMEOUT")
+    if ret[2] ~= '0' then
       rds:cmd("CONFIG SET", "TIMEOUT", "0")
+    end
   end
   return rds
 end
