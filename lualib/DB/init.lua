@@ -453,14 +453,14 @@ function DB:query(query)
   while 1 do
       db = pop_db(self)
       if db then
-          ret, err = db:query(query)
-          if db.state then
-              break
-          end
-          Log:ERROR(err)
-          db:close()
-          self.current = self.current - 1
-          db, ret, err = nil, nil, nil
+        ret, err = db:query(query)
+        if db.state then
+            break
+        end
+        -- Log:ERROR(err)
+        db:close()
+        self.current = self.current - 1
+        db, ret, err = nil, nil, nil
       end
   end
   local co = pop_wait(self)

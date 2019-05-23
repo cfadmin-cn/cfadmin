@@ -5,26 +5,75 @@
 #include <openssl/crypto.h>
 #include "../../src/core.h"
 
+#define SERVER 0
+#define CLIENT 1
+
 static inline
-void SETSOCKETOPT(int sockfd){
+void SETSOCKETOPT(int sockfd, int mode){
 
   int Enable = 1;
+
+  int ret = 0;
 
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
 
   /* 地址/端口重用 */
-  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
+  ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
+  if (ret){
+    LOG("ERROR", "SO_REUSEADDR 设置失败.");
+    return exit(-1);
+  }
 
 	/* 关闭小包延迟合并算法 */
-	setsockopt(sockfd, SOL_SOCKET, TCP_NODELAY, &Enable, sizeof(Enable));
+	ret = setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &Enable, sizeof(Enable));
+  if (ret){
+    LOG("ERROR", "TCP_NODELAY 设置失败.");
+    return exit(-1);
+  }
 
-	/* TCP Fast Open*/
-	/*
-		cfadmin Sever一般隐藏在代理层之后. .
-		setsockopt(sockfd, IPPROTO_TCP, TCP_FASTOPEN, &Enable, sizeof(Enable));
-	*/
+  /* 开启 TCP keepalive */
+  ret = setsockopt(sockfd, IPPROTO_TCP, SO_KEEPALIVE, &Enable , sizeof(Enable));
+  if (ret){
+    LOG("ERROR", "SO_KEEPALIVE 设置失败.");
+    return exit(-1);
+  }
 
+#if defined(linux)
+  if (!mode) {
+    /* 开启延迟Accept, 没数据来之前不回调accept */
+    ret = setsockopt(sockfd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &Enable, sizeof(Enable));
+    if (ret){
+      LOG("ERROR", "TCP_DEFER_ACCEPT 设置失败.");
+      return exit(-1);
+    }
+  }
+
+  /* 设置 TCP keepalive 空闲时间 */
+  int keepidle = 30;
+  ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle , sizeof(keepidle));
+  if (ret){
+    LOG("ERROR", "TCP_KEEPIDLE 设置失败.");
+    return exit(-1);
+  }
+
+#endif
+
+  /* 设置 TCP keepalive 探测总次数 */
+  int keepcount = 3;
+  ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPCNT, &keepcount , sizeof(keepcount));
+  if (ret){
+    LOG("ERROR", "TCP_KEEPCNT 设置失败.");
+    return exit(-1);
+  }
+
+  /* 设置 TCP keepalive 每次探测间隔时间 */
+  int keepinterval = 5;
+  ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL, &keepinterval , sizeof(keepinterval));
+  if (ret){
+    LOG("ERROR", "TCP_KEEPINTVL 设置失败.");
+    return exit(-1);
+  }
 
 }
 
@@ -37,7 +86,7 @@ create_server_fd(int port, int backlog){
 	if (0 >= sockfd) return -1;
 
 	/* socket option set */
-	SETSOCKETOPT(sockfd);
+	SETSOCKETOPT(sockfd, SERVER);
 
 	struct sockaddr_in6 SA;
 	SA.sin6_family = AF_INET6;
@@ -66,7 +115,7 @@ create_client_fd(const char *ipaddr, int port){
 	if (0 >= sockfd) return -1;
 
 	/* socket option set */
-	SETSOCKETOPT(sockfd);
+	SETSOCKETOPT(sockfd, CLIENT);
 
 	struct sockaddr_in6 SA;
 	SA.sin6_family = AF_INET6;
