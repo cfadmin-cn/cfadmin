@@ -1,4 +1,5 @@
 local template = require "template"
+local http = require "httpd.http"
 local utils = require "admin.utils"
 local config = require "admin.config"
 local locales = require "admin.locales"
@@ -65,14 +66,14 @@ function admin.init_page (app, db)
     if find(path, '^/api/admin/.+') then -- 用于所有/api接口需要传递token header进行验权.
       local token = content['headers']['token']
       if not token then
-        return 401
+        return http.throw(401, "Can't Find Token")
       end
       local exists = user_token.token_exists(db, token)
       if not exists then
-        return 403
+        return http.throw(403, "Token Was not Exists")
       end
     end
-    return 200
+    return http.ok()
   end)
 
   -- 注册登录页相关路由
