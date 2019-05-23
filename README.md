@@ -58,6 +58,8 @@
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-lang.png"/></p>
 
+> [如何快速体验cfadmin后台?](https://github.com/CandyMi/core_framework/wiki/cfadmin)
+
 ## 联系作者
 
 >   [issues](https://github.com/CandyMi/core_framework/issues)
