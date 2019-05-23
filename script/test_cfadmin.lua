@@ -1,5 +1,4 @@
 local httpd = require "httpd"
-local http = require "httpd.http"
 local DB = require "DB"
 
 --[[
@@ -16,6 +15,7 @@ local db = DB:new({
 	password = '123456789',
 	charset = 'utf8',
 	database = 'cfadmin',
+	max = 100,
 })
 
 db:connect()
@@ -48,11 +48,12 @@ local view = require "admin.view"
 -- 1. ctx是一个http req 对象, 目前内置包括: get_method, get_args, get_path, get_raw_path, get_headers, get_cookie
 -- 2. db初始化后的db对象, 方便用户直接使用.
 
-view.use('/test1', function (ctx, db)
+view.use('/admin/test1', function (ctx, db)
+	print(view.get_locale(), view.get_cdn())
 	return "hello world"
 end)
 
-view.api('/test2', function (ctx, db)
+view.api('/api/admin/test2', function (ctx, db)
 	return '{"code":0,"msg":"hello world"}'
 end)
 
@@ -76,7 +77,7 @@ end)
 
 -- 这个方法可以用来设置静态文件域名与前缀.
 -- 如果静态文件在其它域名或者无法访问, 可以使用这个参数修改.(域名后必须加上'/')
--- cfadmin.static('http://10.0.0.16:8080/')
+-- cfadmin.static('/')
 
 -- 设置cfadmin的区域语言, 默认为: ZH-CN
 -- cfadmin.set_locale('EN-US')
