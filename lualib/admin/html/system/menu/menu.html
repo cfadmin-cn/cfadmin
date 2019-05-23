@@ -108,15 +108,20 @@
            /*用户-删除*/
           function member_del(obj, field){
               layer.confirm("", {title:"", content:"{*locale['dashboard.menu.menu_manage.table.options.confirm']*}"}, function(index){
-                  $.post('{*api_url*}', field,
-                    function (data, status) {
-                      if (data.code != 0) {
-                        return layer.msg(data.msg, {time:2000});
+                  $.ajax({
+                    url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: field,
+                    error: function (res) {
+                      return layer.msg('请求失败', {time:2000});
+                    },
+                    success: function (res) {
+                      if (res.code != 0) {
+                        return layer.msg(res.msg, {time:2000});
                       }
-                      layer.msg(data.msg, {time:1000}, function () {
-                          return window.location.reload();
+                      return layer.msg(res.msg, {time:1000}, function () {
+                        return window.location.reload();
                       });
-                  });
+                    },
+                  })
               });
           }
 

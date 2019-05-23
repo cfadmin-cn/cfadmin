@@ -47,8 +47,9 @@ function user.user_exists (db, username, uid)
   tostring(username), toint(uid)))[1]
 end
 
+-- 用户名或者登录名是否存在
 function user.user_name_or_username_exists (db, name, username)
-  local ret, err = db:query(fmt([[SELECT name, username FROM cfadmin_users WHERE name = '%s' OR username = '%s' AND active = '1']], name, username))
+  local ret, err = db:query(fmt([[SELECT name, username FROM cfadmin_users WHERE active = '1' AND (name = '%s' OR username = '%s')]], name, username))
   if ret and #ret > 0 then
     return true
   end

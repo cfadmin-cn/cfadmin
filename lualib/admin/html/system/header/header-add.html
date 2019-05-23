@@ -67,16 +67,24 @@
               var {form, layer} = layui;
               form.on('submit(add)',function(data) {
                 $('#submit').hide();
-                $.post("{*api_url*}", data.field, function (data, status) {
-                  if (data.code != 0) {
-                    return layer.msg(data.msg, {time:2000}, function () {
+                $.ajax({
+                  url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: data.field,
+                  error: function (res) {
+                    return layer.msg('请求失败', {time:2000}, function () {
                       $('#submit').show();
                     });
-                  }
-                  layer.msg(data.msg, {time:500}, function () {
-                    xadmin.close();
-                    xadmin.father_reload();
-                  });
+                  },
+                  success: function (res) {
+                    if (res.code != 0) {
+                      return layer.msg(res.msg, {time:2000}, function () {
+                        $('#submit').show();
+                      });
+                    }
+                    return layer.msg(res.msg, {time:1000}, function () {
+                      xadmin.close();
+                      xadmin.father_reload();
+                    });
+                  },
                 });
                 return false;
               });

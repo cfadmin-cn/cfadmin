@@ -22,6 +22,11 @@ function role.role_list (db, opt)
   return roles
 end
 
+-- 计算角色数量
+function role.role_count (db)
+  return db:query([[SELECT count(id) AS count FROM cfadmin_roles WHERE active = '1']])[1]['count']
+end
+
 -- 角色对应权限
 function role.role_permissions (db, id)
   return db:query(fmt([[SELECT role_id, menu_id FROM cfadmin_permissions WHERE role_id = '%s' AND active = '1']], id))

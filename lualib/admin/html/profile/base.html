@@ -124,34 +124,49 @@
                 // 更新用户密码
                 form.on('submit(pwsubmit)', function(data) {
                   $('#pwsubmit').hide();
-                   $.post('{*api_url*}', data.field, function (data, status) {
-                     if (data.code != 0 ){
-                       return layer.msg(data.msg, {time:2000}, function () {
-                         $('#pwsubmit').show();
-                       });
-                     };
-                     layer.msg(data.msg, {time:1000}, function () {
-                       xadmin.close();
-                       xadmin.father_reload();
-                     })
-                   });
+                  $.ajax({
+                    url: "{*api_url*}", type:"POST", headers:{token:"{*user.token*}"}, data: data.field,
+                    error: function (res) {
+                      return layer.msg("请求失败", {time:2000}, function () {
+                        $('#pwsubmit').show();
+                      });
+                    },
+                    success: function (res) {
+                      if (res.code != 0 ){
+                        return layer.msg(res.msg, {time:2000}, function () {
+                          $('#pwsubmit').show();
+                        });
+                      };
+                      layer.msg(res.msg, {time:1000}, function () {
+                        xadmin.close();
+                        xadmin.father_reload();
+                      })
+                    },
+                  });
                   return false;
                 });
-
                 // 更新用户信息
                 form.on('submit(profilesubmit)', function(data) {
                   $('#profilesubmit').hide();
-                   $.post('{*api_url*}', data.field, function (data, status) {
-                     if (data.code != 0 ){
-                       return layer.msg(data.msg, {time:2000}, function () {
-                         $('#profilesubmit').show();
-                       });
-                     };
-                     layer.msg(data.msg, {time:1000}, function () {
-                       xadmin.close();
-                       xadmin.father_reload();
-                     })
-                   });
+                    $.ajax({
+                      url: "{*api_url*}", type:"POST", headers:{token:"{*user.token*}"}, data: data.field,
+                      error: function (res) {
+                        return layer.msg("请求失败", {time:2000}, function () {
+                          $('#profilesubmit').show();
+                        });
+                      },
+                      success: function (res) {
+                        if (res.code != 0 ){
+                          return layer.msg(res.msg, {time:2000}, function () {
+                            $('#profilesubmit').show();
+                          });
+                        };
+                        layer.msg(res.msg, {time:1000}, function () {
+                          xadmin.close();
+                          xadmin.father_reload();
+                        })
+                      },
+                    });
                   return false;
                 });
             });

@@ -9,6 +9,7 @@ local permission = require "admin.db.permission"
 
 
 local type = type
+local pcall = pcall
 local assert = assert
 
 local get_path = utils.get_path
@@ -29,41 +30,39 @@ end
 local view = {}
 
 -- 页面路由
-function view.use (path, cls)
+function view.use (path, f)
   assert(type(path) == 'string', 'view use path failed.')
-  assert(type(cls) == 'function' or type(cls) == 'table', 'view use path failed.')
+  assert(type(f) == 'function', 'view use handle failed.')
   local db, app = config.db, config.app
   return app:use(path, function (content)
     local ok, url = verify_permission(content, db)
     if not ok then
       return utils.redirect(url)
     end
-    local ok, html
-    if type(cls) == 'function' then
-      ok, html = pcall(cls, {ctx = httpctx:new{content = content, db = db}})
-    else
-      local c = cls:new({ctx = httpctx:new{content = content, db = db}})
-      ok, html = pcall(c, c, content['method']:lower())
-    end
+    local ok, html = pcall(f, httpctx:new{content = content}, db)
     return html
   end)
 end
 
 -- 接口路由
-function view.api (path, cls)
+function view.api (path, f)
   assert(type(path) == 'string', 'view api path failed.')
-  assert(type(cls) == 'function' or type(cls) == 'table', 'view api path failed.')
+  assert(type(f) == 'function', 'view api handle failed.')
   local db, app = config.db, config.app
   return app:api(path, function (content)
-    local ok, res
-    if type(cls) == 'function' then
-      ok, res = pcall(cls, {ctx = httpctx:new{content = content, db = db}})
-    else
-      local c = cls:new({ctx = httpctx:new{content = content, db = db}})
-      ok, res = pcall(c, c, content['method']:lower())
-    end
+    local ok, res = pcall(f, httpctx:new{content = content}, db)
     return res
   end)
+end
+
+-- 获取当前用户语言表
+function view.get_locale ()
+  return utils.get_locale(Cookie.getCookie("CFLANG"))
+end
+
+-- 获取静态文件前缀
+function view.get_cdn ()
+  return config.cdn
 end
 
 return view

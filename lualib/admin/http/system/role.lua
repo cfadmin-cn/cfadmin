@@ -139,7 +139,7 @@ function system.role_response (content)
     return json_encode({code = 400, data = null, msg = '4. 用户权限不足'})
   end
   if args.action == 'list' then
-    return json_encode({code = 0, data = role.role_list(db, args)})
+    return json_encode({code = 0, count = role.role_count(db), data = role.role_list(db, args)})
   end
   if args.action == 'add' then
     if not args.name or not args.permissions then

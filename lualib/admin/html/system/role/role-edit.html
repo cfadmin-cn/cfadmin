@@ -66,7 +66,7 @@
             var {dtree, form, layer} = layui;
 
             var tree = dtree.render({
-              elem: '#dataTree', dataStyle: "layuiStyle", dataFormat: "list", response: {message:"msg", statusCode:0}, // 固定参数1
+              elem: '#dataTree', dataStyle: "layuiStyle", dataFormat: "list", response: {message:"msg", statusCode:0}, headers:{token:'{*token*}'},// 固定参数1
               checkbar: true, checkbarLoad: "node", request: {token:"{*token*}", action:"get_veri_tree", id: "{*id*}"}, url: '{*api_url*}', // 固定参数2
               initLevel: 1,  // 控制折叠菜单权限列表
             })
@@ -95,6 +95,7 @@
                 url: "{*api_url*}",
                 type: "POST",
                 dataType:"json",
+                headers:{token:'{*token*}'},
                 contentType: "application/json",
                 data: JSON.stringify({
                   id: "{*id*}",

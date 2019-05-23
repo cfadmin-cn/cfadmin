@@ -454,6 +454,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				}, CRLF)..CRLF2)
 				return sock:close()
 			end
+			content['ROUTE'] = HTTP_PROTOCOL[typ]
 			content['method'], content['path'], content['headers'] = METHOD, PATH, HEADER
 			-- before 函数只影响接口与view
 			if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then

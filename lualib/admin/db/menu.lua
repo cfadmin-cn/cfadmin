@@ -12,6 +12,7 @@ function menu.menu_list (db, opt)
   return db:query(fmt([[SELECT id, parent, name, url, icon, create_at, update_at FROM cfadmin_menus WHERE active = '1' LIMIT %s, %s]], limit * (page - 1), limit))
 end
 
+-- 菜单名已存在
 function menu.menu_name_exists (db, name)
   local ret = db:query(fmt([[SELECT name FROM cfadmin_menus WHERE name = '%s' AND active = '1']], name))
   if ret and #ret > 0 then

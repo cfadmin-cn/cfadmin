@@ -17,7 +17,7 @@
     <![endif]-->
   </head>
   <body class="index">
-    <table class="layui-table" lay-data="{id:'table', url:'{*api_url*}?token={*token*}&action=list', height:'full', toolbar: '#headertoolbar', page: true}" lay-filter="table">
+    <table class="layui-table" lay-data="{id:'table', headers:{token:'{*token*}'}, url:'{*api_url*}?token={*token*}&action=list', height:'full', toolbar: '#headertoolbar', page: true}" lay-filter="table">
       <thead>
         <tr>
           <th lay-data="{align:'center', type:'numbers'}">#</th>
@@ -51,24 +51,23 @@
         table.on('tool(table)', function(obj){
           var data = obj.data;
           if(obj.event === 'delete'){
-            layer.confirm("", {
-              title:"",
-              content:"{*locale['dashboard.menu.header_manage.table.options.delete.confirm']*}"
-            }, function(index){
-              $.post('{*api_url*}', {
-                  action: "delete",
-                  headerid: data.id,
-                  token: "{*token*}",
+            layer.confirm("", {title:"", content:"{*locale['dashboard.menu.header_manage.table.options.delete.confirm']*}"},
+            function(index){
+              $.ajax({
+                url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"},
+                data: { action: "delete", token: "{*token*}", headerid: data.id},
+                error: function (res) {
+                  return layer.msg('请求失败',{time:2000});
                 },
-                function (data, status) {
-                  if (data.code != 0) {
-                    return layer.msg(data.msg, {time:2000});
+                success: function (res) {
+                  if (res.code != 0) {
+                    return layer.msg(res.msg, {time:2000});
                   }
-                  layer.msg(data.msg, {time:1000}, function () {
+                  return layer.msg(res.msg, {time:1000}, function () {
                     return window.location.reload();
-                  })
+                  });
                 }
-              );
+              });
               return false;
             });
           } else if(obj.event === 'edit'){

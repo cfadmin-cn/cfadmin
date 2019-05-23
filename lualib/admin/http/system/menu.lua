@@ -198,7 +198,7 @@ function system.menu_response (content)
     args.name = url_decode(args.name)
     args.url = url_decode(args.url) or "NULL"
     args.icon = url_decode(args.icon)
-    if menu.menu_name_exists then
+    if menu.menu_name_exists(db, args.name) then
       return json_encode({code = 401, msg = '菜单名已存在'})
     end
     menu.menu_add(db, args)
