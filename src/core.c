@@ -168,21 +168,20 @@ init_lua_libs(lua_State *L){
 	lua_settop(L, 0);
 
 	/* 注入lua搜索域 */
-    lua_getglobal(L, "package");
+  lua_getglobal(L, "package");
 
-    lua_pushliteral(L, "lualib/?.lua;lualib/?/init.lua;script/?.lua;script/?/init.lua;");
-    lua_setfield(L, 1, "path");
+  lua_pushliteral(L, "lualib/?.lua;lualib/?/init.lua;script/?.lua;script/?/init.lua;");
+  lua_setfield(L, 1, "path");
 
-    lua_pushliteral(L, "luaclib/?.so;luaclib/?/init.so;");
-    lua_setfield(L, 1, "cpath");
+  lua_pushliteral(L, "luaclib/?.so;luaclib/?/init.so;");
+  lua_setfield(L, 1, "cpath");
 
-    lua_settop(L, 0);
+  lua_settop(L, 0);
 }
 
 static lua_State *L;
 core_signal sighup;
 core_signal sigpipe;
-core_signal sigquit;
 core_signal sigtstp;
 
 void
@@ -195,10 +194,6 @@ signal_init(){
 	/* 忽略管道信号 */
 	ev_signal_init(&sigpipe, SIG_CB, SIGPIPE);
 	ev_signal_start(CORE_LOOP_ &sigpipe);
-
-	/* 忽略Ctrl-/操作信号 */
-	ev_signal_init(&sigquit, SIG_CB, SIGQUIT);
-	ev_signal_start(CORE_LOOP_ &sigquit);
 
 	/* 忽略Ctrl-Z操作信号 */
 	ev_signal_init(&sigtstp, SIG_CB, SIGTSTP);
