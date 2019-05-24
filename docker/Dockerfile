@@ -20,4 +20,4 @@ RUN yum groupinstall "development tools" -y && yum install autoconf git readline
 # 使用者可在启动容器时使用-v命令将您的代码目录直接挂载到/app/script目录进行调试操作
 WORKDIR /app
 
-CMD ["./cfadmin"]
+ENTRYPOINT ["./cfadmin"]
