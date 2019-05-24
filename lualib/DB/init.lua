@@ -66,8 +66,6 @@ local COMMA = ", "
 -- 空闲连接时间
 local WAIT_TIMEOUT = 31536000
 
-local WAIT_TIMEOUT_NOT_SET = true
-
 -- 数据库连接创建函数
 local function DB_CREATE (opt)
     local times = 1
@@ -83,8 +81,7 @@ local function DB_CREATE (opt)
         times = times + 1
         timer.sleep(3)
     end
-    if WAIT_TIMEOUT_NOT_SET then -- 设置连接超时时间
-      WAIT_TIMEOUT_NOT_SET = false
+    if not opt.INITIALIZATION then -- 设置连接超时时间
       db:query(fmt('SET GLOBAL wait_timeout=%s', WAIT_TIMEOUT))
       db:query(fmt('SET GLOBAL interactive_timeout=%s', WAIT_TIMEOUT))
     end
