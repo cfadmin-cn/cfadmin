@@ -452,7 +452,7 @@ function DB:query(query)
       return nil, "DB尚未初始化"
   end
   assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
-  Log:DEBUG(query)
+  -- Log:DEBUG(query)
   local db, ret, err
   while 1 do
       db = pop_db(self)
