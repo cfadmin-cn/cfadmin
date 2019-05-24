@@ -110,10 +110,54 @@ core_start(core_loop *loop, int mode){
 
 }
 
-static void
-SIG_CB(core_loop *loop, core_signal *signal, int revents){
-	// LOG("WARN", "RECV SIGNAL...");
+
+const char *signame[]= {
+	"INVALID",
+	"SIGHUP",
+	"SIGINT",
+	"SIGQUIT",
+	"SIGILL",
+	"SIGTRAP",
+	"SIGABRT",
+	"SIGBUS",
+	"SIGFPE",
+	"SIGKILL",
+	"SIGUSR1",
+	"SIGSEGV",
+	"SIGUSR2",
+	"SIGPIPE",
+	"SIGALRM",
+	"SIGTERM",
+	"SIGSTKFLT",
+	"SIGCHLD",
+	"SIGCONT",
+	"SIGSTOP",
+	"SIGTSTP",
+	"SIGTTIN",
+	"SIGTTOU",
+	"SIGURG",
+	"SIGXCPU",
+	"SIGXFSZ",
+	"SIGVTALRM",
+	"SIGPROF",
+	"SIGWINCH",
+	"SIGPOLL",
+	"SIGPWR",
+	"SIGSYS",
+	NULL
+};
+
+#define signum_to_string(number) (signame[number])
+
+static void // 忽略信号
+SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
 	return ;
+}
+
+static void // 退出信号
+SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
+	LOG("ERROR", signum_to_string(signal->signum));
+	return exit(-1);
 }
 
 static void
@@ -184,20 +228,36 @@ core_signal sighup;
 core_signal sigpipe;
 core_signal sigtstp;
 
+core_signal sigint;
+core_signal sigterm;
+core_signal sigquit;
+
 void
 signal_init(){
 
 	/* 忽略父进程退出的信号 */
-	ev_signal_init(&sighup, SIG_CB, SIGHUP);
+	ev_signal_init(&sighup, SIG_IGNORE, SIGHUP);
 	ev_signal_start(CORE_LOOP_ &sighup);
 
 	/* 忽略管道信号 */
-	ev_signal_init(&sigpipe, SIG_CB, SIGPIPE);
+	ev_signal_init(&sigpipe, SIG_IGNORE, SIGPIPE);
 	ev_signal_start(CORE_LOOP_ &sigpipe);
 
 	/* 忽略Ctrl-Z操作信号 */
-	ev_signal_init(&sigtstp, SIG_CB, SIGTSTP);
+	ev_signal_init(&sigtstp, SIG_IGNORE, SIGTSTP);
 	ev_signal_start(CORE_LOOP_ &sigtstp);
+
+	/* TERM信号 显示退出 */
+	ev_signal_init(&sigterm, SIG_EXIT, SIGTERM);
+	ev_signal_start(CORE_LOOP_ &sigterm);
+
+	/* INT信号 显示退出 */
+	ev_signal_init(&sigint, SIG_EXIT, SIGINT);
+	ev_signal_start(CORE_LOOP_ &sigint);
+
+	/* QUIT信号 显示退出 */
+	ev_signal_init(&sigquit, SIG_EXIT, SIGQUIT);
+	ev_signal_start(CORE_LOOP_ &sigquit);
 
 }
 
