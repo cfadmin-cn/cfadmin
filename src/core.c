@@ -110,7 +110,6 @@ core_start(core_loop *loop, int mode){
 
 }
 
-
 const char *signame[]= {
 	"INVALID",
 	"SIGHUP",
@@ -156,7 +155,7 @@ SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
 
 static void // 退出信号
 SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
-	LOG("ERROR", signum_to_string(signal->signum));
+	// LOG("ERROR", signum_to_string(signal->signum));
 	return exit(-1);
 }
 
@@ -224,10 +223,13 @@ init_lua_libs(lua_State *L){
 }
 
 static lua_State *L;
+
+/* 注册需要忽略的信号 */
 core_signal sighup;
 core_signal sigpipe;
 core_signal sigtstp;
 
+/* 注册需要退出的信号(docker需要) */
 core_signal sigint;
 core_signal sigterm;
 core_signal sigquit;
