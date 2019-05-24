@@ -49,7 +49,6 @@ local view = require "admin.view"
 -- 2. db初始化后的db对象, 方便用户直接使用.
 
 view.use('/admin/test1', function (ctx, db)
-	print(view.get_locale(), view.get_cdn())
 	return "hello world"
 end)
 
