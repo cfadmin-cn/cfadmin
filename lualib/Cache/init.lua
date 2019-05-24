@@ -12,6 +12,7 @@ local ipairs = ipairs
 local setmetatable = setmetatable
 
 local table = table
+local insert = table.insert
 local remove = table.remove
 local upper = string.upper
 local lower = string.lower
@@ -66,12 +67,7 @@ end
 
 -- 加入到连接池内
 local function add_cache(self, cache)
-  self.cache_pool[#self.cache_pool+1] = cache
-end
-
--- 加入到协程池内
-local function add_wait(self, co)
-  self.co_pool[#self.co_pool+1] = co
+  insert(self.cache_pool, 1, cache)
 end
 
 -- 从连接池内取出一个cache对象
@@ -85,6 +81,11 @@ local function pop_cache(self)
   end
   add_wait(self, co_self())
   return co_wait()
+end
+
+-- 加入到协程池内
+local function add_wait(self, co)
+  insert(self.co_pool, 1, co)
 end
 
 -- 弹出一个等待协程

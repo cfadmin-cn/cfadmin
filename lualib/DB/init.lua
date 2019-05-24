@@ -92,7 +92,7 @@ local function DB_CREATE (opt)
 end
 
 local function add_wait(self, co)
-    self.co_pool[#self.co_pool + 1] = co
+  insert(self.co_pool, 1, co)
 end
 
 local function pop_wait(self)
@@ -100,7 +100,7 @@ local function pop_wait(self)
 end
 
 local function add_db(self, db)
-    self.db_pool[#self.db_pool + 1] = db
+  insert(self.db_pool, 1, db)
 end
 
 -- 负责创建连接/加入等待队列
@@ -121,7 +121,11 @@ end
 -- 将['field', '=', 'a'] 格式化为 field = a
 -- 将['field', 'NOT', 'IN', '(1, 2, 3)'] 格式化为 field NOT IN (1, 2, 3)
 local function format(t)
-    return fmt(rep("'%s' ", #t), unpack(t))
+    local tab = {}
+    for index=1, #t, 1 do
+      tab[#tab+1] = "%s"
+    end
+    return fmt(concat(tab, ' '), unpack(t))
 end
 
 local function format_value1(t)
@@ -223,7 +227,7 @@ local function where(query, conditions)
                     insert(CONDITIONS, format({condition[1], con2, LEFT..format_value2(condition[3], c)..RIGHT}))
                 elseif con2 == IS then
                     insert(CONDITIONS, concat(condition, " "))
-                elseif find(condition[3], condition[1]) or find(condition[3], '`.') then
+                elseif find(condition[3], condition[1]) or find(condition[3], '`') then
                     insert(CONDITIONS, concat(condition, " "))
                 else
                     insert(CONDITIONS, format_value3(condition))
@@ -448,7 +452,7 @@ function DB:query(query)
       return nil, "DB尚未初始化"
   end
   assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
-  -- Log:DEBUG(query)
+  Log:DEBUG(query)
   local db, ret, err
   while 1 do
       db = pop_db(self)

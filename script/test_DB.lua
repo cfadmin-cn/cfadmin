@@ -83,6 +83,8 @@ cf.fork(function ( ... )
             {"user", "BETWEEN", {1, 100}},
             "AND",
             {"user", "NOT", "BETWEEN", {1, 100}},
+						"AND",
+						{"`user`.id", "=", '`user`.id'},
         })
         :groupby('id')      -- groupby({"name", "user"})
         :orderby("id")      -- orderby({"name", "user"})
