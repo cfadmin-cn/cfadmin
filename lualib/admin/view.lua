@@ -65,4 +65,6 @@ function view.get_cdn ()
   return config.cdn
 end
 
+view.template = template
+
 return view
