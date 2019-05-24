@@ -4,6 +4,7 @@ local Co = require "internal.Co"
 local tcp = require "internal.TCP"
 
 local concat = table.concat
+local unpack = table.unpack
 local Log = log:new({ dump = true, path = 'protocol-redis' })
 
 local co_spwan = Co.spwan
@@ -202,6 +203,27 @@ function redis:cmd(...)
 	local sock = self.sock
 	sock:send(CMD(...))
 	return read_response(sock)
+end
+
+-- 管道命令
+function redis:pipeline(opt)
+	local cmds = {}
+	if opt and #opt > 0 then
+		for _, cmd in ipairs(opt) do
+			cmds[#cmds+1] = CMD(unpack(cmd))
+		end
+	end
+	local max_read_times = #cmds
+	if max_read_times > 0 then
+		local rets = {}
+		local sock = self.sock
+		sock:send(concat(cmds))
+		for i = 1, max_read_times do
+			rets[#rets+1] = {read_response(sock)}
+		end
+		return true, rets
+	end
+	return nil
 end
 
 function redis:close()

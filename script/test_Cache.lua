@@ -129,4 +129,12 @@ Co.spwan(function ( ... )
     -- 其它一些特殊方法支持
     -- type, move, rename, keys, randomkey等等
 		print(Cache:count())
+
+    -- 管道命令支持
+    local ok, ret = Cache:pipeline {
+      {"HMSET", "USER_INFO", "name", "Candy", "email", '869646063@qq.com', 'phone', '13000000000'},
+      {"HGET",  "USER_INFO", "email"},
+      {"HGET",  "USER_INFO", "phone"},
+    }
+    print(ok); var_dump(ret)
 end)

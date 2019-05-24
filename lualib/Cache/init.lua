@@ -22,7 +22,7 @@ local Log = log:new({ dump = true, path = 'Cache'})
 
 -- 注册命令
 local commands = {
-    'sismember', 'exists'
+    'sismember', 'exists', 'pipeline'
 }
 
 local function in_command(cmd)
