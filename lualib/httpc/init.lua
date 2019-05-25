@@ -63,6 +63,9 @@ local function httpc_response(IO, SSL)
 			end
 			local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
 			local chunked = HEADER['Transfer-Encoding']
+			if not chunked and not Content_Length then
+				Content_Length = 0
+			end
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
 					IO:close()
