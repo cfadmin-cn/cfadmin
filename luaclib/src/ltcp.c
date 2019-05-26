@@ -16,7 +16,7 @@ void SETSOCKETOPT(int sockfd, int mode){
   int ret = 0;
 
 	/* 设置非阻塞 */
-	non_blocking(sockfd);
+  non_blocking(sockfd);
 
   /* 地址/端口重用 */
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
@@ -407,18 +407,15 @@ tcp_sslconnect(lua_State *L){
 	if (!ssl) return 0;
 
 	int status = SSL_do_handshake(ssl);
-	if (1 == status) {
+	if (status >= 1) {
 		lua_pushboolean(L, 1);
 		return 1;
 	}
-	if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, status)) {
+  int ERR = SSL_get_error(ssl, status);
+  // printf("status = %d, ERR = %d, SSL_ERROR_WANT_READ == %d, SSL_ERROR_WANT_WRITE == %d\n", status, ERR, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE);
+	if (SSL_ERROR_WANT_READ == ERR || SSL_ERROR_WANT_WRITE == ERR) {
 		lua_pushnil(L);
-		lua_pushinteger(L, EV_READ);
-		return 2;
-	}
-	if (SSL_ERROR_WANT_WRITE == SSL_get_error(ssl, status)){
-		lua_pushnil(L);
-		lua_pushinteger(L, EV_WRITE);
+		lua_pushinteger(L, ERR - 1);
 		return 2;
 	}
 	return 0;
@@ -530,6 +527,7 @@ luaopen_tcp(lua_State *L){
 	/* 添加SSL支持 */
   SSL_library_init();
   SSL_load_error_strings();
+  // ERR_load_crypto_strings();
   // CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
   // OpenSSL_add_ssl_algorithms();
 	/* 添加SSL支持 */
