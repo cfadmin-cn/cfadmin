@@ -150,6 +150,7 @@ const char *signame[]= {
 
 static void // 忽略信号
 SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
+	// LOG("ERROR", signum_to_string(signal->signum));
 	return ;
 }
 
@@ -176,7 +177,7 @@ EV_ALLOC(void *ptr, long nsize){
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
 		if (newptr) return newptr;
-		LOG("WARN", "Allocate Failt, sleep sometime..");
+		LOG("WARN", "Allocate failed, Sleep sometime..");
 		sleep(1);
 	}
 }
@@ -190,7 +191,7 @@ L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
 		if (newptr) return newptr;
-		LOG("WARN", "Allocate Failt, sleep sometime..");
+		LOG("WARN", "Allocate failed, Sleep sometime..");
 		sleep(1);
 	}
 }
