@@ -131,7 +131,7 @@ function websocket:start()
           Log:ERROR(err)
         end
       end
-      local ok, err = pcall(on_close, cls, data)
+      local ok, err = pcall(on_close, cls, data or err)
       if not ok then
         Log:ERROR(err)
       end
