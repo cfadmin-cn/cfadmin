@@ -32,8 +32,60 @@ local __TIMEOUT__ = 15
 
 local httpc = {}
 
-local function httpc_response(IO, SSL)
-	if not IO then
+local function sock_recv (sock, PROTOCOL, byte)
+	if PROTOCOL == 'https' then
+		local data, len = sock:ssl_recv(byte)
+		if data then
+			return data, len
+		end
+	end
+	if PROTOCOL == 'http' then
+		local data, len = sock:recv(byte)
+		if data then
+			return data, len
+		end
+	end
+	return nil, '服务端断开了连接'
+end
+
+local function sock_connect(sock, PROTOCOL, DOAMIN, PORT)
+	if PROTOCOL == 'https' then
+		local ok, err = sock:ssl_connect(DOAMIN, PORT)
+		if ok then
+			return true
+		end
+	end
+	if PROTOCOL == 'http' then
+		local ok, err = sock:connect(DOAMIN, PORT)
+		if ok then
+			return true
+		end
+	end
+	sock:close()
+	return nil, 'httpc连接失败.'
+end
+
+local function sock_send(sock, PROTOCOL, DATA)
+	if PROTOCOL == 'http' then
+		local ok = sock:send(DATA)
+		if ok then
+			return true
+		end
+	end
+
+	if PROTOCOL == 'https' then
+		local ok = sock:send(DATA)
+		if ok then
+			return true
+		end
+	end
+	sock:close()
+	return nil, "httpc发送请求失败"
+end
+
+
+local function httpc_response(sock, SSL)
+	if not sock then
 		return nil, "Can't used this method before other httpc method.."
 	end
 	local CODE, HEADER, BODY
@@ -41,14 +93,9 @@ local function httpc_response(IO, SSL)
 	local content = {}
 	local times = 0
 	while 1 do
-		local data, len
-		if SSL == "http" then
-			data, len = IO:recv(1024)
-		else
-			data, len = IO:ssl_recv(1024)
-		end
+		local data, len = sock_recv(sock, SSL, 1024)
 		if not data then
-			IO:close()
+			sock:close()
 			return nil, "A peer of remote server close this connection."
 		end
 		insert(content, data)
@@ -58,7 +105,7 @@ local function httpc_response(IO, SSL)
 			CODE = RESPONSE_PROTOCOL_PARSER(split(DATA, 1, posB))
 			HEADER = RESPONSE_HEADER_PARSER(split(DATA, 1, posB))
 			if not CODE or not HEADER then
-				IO:close()
+				sock:close()
 				return nil, "can't resolvable protocol."
 			end
 			local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
@@ -68,25 +115,20 @@ local function httpc_response(IO, SSL)
 			end
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
-					IO:close()
+					sock:close()
 					return CODE, split(DATA, posB+1, #DATA)
 				end
 				local content = {split(DATA, posB+1, #DATA)}
 				while 1 do
-					local data, len
-					if SSL == "http" then
-						data, len = IO:recv(1024)
-					else
-						data, len = IO:ssl_recv(1024)
-					end
+					local data, len = sock_recv(sock, SSL, 1024)
 					if not data then
-						IO:close()
+						sock:close()
 						return CODE, SSL.."[Content_Length] A peer of remote server close this connection."
 					end
 					insert(content, data)
 					local DATA = concat(content)
 					if Content_Length == #DATA then
-						IO:close()
+						sock:close()
 						return CODE, DATA
 					end
 				end
@@ -101,7 +143,7 @@ local function httpc_response(IO, SSL)
 							local len = toint(fmt("0x%s", hex))
 							if len and len == #block then
 								if len == 0 and block == '' then
-									IO:close()
+									sock:close()
 									return CODE, concat(body)
 								end
 								insert(body, block)
@@ -111,14 +153,9 @@ local function httpc_response(IO, SSL)
 					insert(content, DATA)
 				end
 				while 1 do
-					local data, len
-					if SSL == "http" then
-						data, len = IO:recv(1024)
-					else
-						data, len = IO:ssl_recv(1024)
-					end
+					local data, len = sock_recv(sock, SSL, 1024)
 					if not data then
-						IO:close()
+						sock:close()
 						return CODE, SSL.."[chunked] A peer of remote server close this connection A."
 					end
 					insert(content, data)
@@ -129,7 +166,7 @@ local function httpc_response(IO, SSL)
 							local len = toint(fmt("0x%s", hex))
 							if len and len == #block then
 								if len == 0 and block == '' then
-									IO:close()
+									sock:close()
 									return CODE, concat(body)
 								end
 								insert(body, block)
@@ -142,107 +179,71 @@ local function httpc_response(IO, SSL)
 	end
 end
 
-local function IO_CONNECT(IO, PROTOCOL, DOAMIN, PORT)
-	local PORT = tonumber(PORT)
-	if PROTOCOL == "http" then
-		if not PORT or PORT > 65536 or PORT < 1 then
-			PORT = 80
-		end
-		local ok, err = IO:connect(DOAMIN, PORT)
-		if not ok then
-			IO:close()
-			return false, 'httpc 连接失败: '.. DOAMIN ..',' .. PORT
-		end
-		return true
-	end
-	if PROTOCOL == "https" then
-		if not PORT or PORT > 65536 or PORT < 1 then
-			PORT = 443
-		end
-		local ok = IO:ssl_connect(DOAMIN, PORT)
-		if not ok then
-			IO:close()
-			return false, 'httpc ssl连接失败: '.. DOAMIN ..',' .. PORT
-		end
-		return true
-	end
-	IO:close()
-	return nil, "IO_CONNECT error! unknow PROTOCOL: "..tostring(PROTOCOL)
-end
-
-local function IO_SEND(IO, PROTOCOL, DATA)
-	if PROTOCOL == "http" then
-		local ok = IO:send(DATA)
-		if not ok then
-			IO:close()
-			return nil, "httpc request get method error"
-		end
-		return true
-	end
-	if PROTOCOL == "https" then
-		local ok = IO:ssl_send(DATA)
-		if not ok then
-			IO:close()
-			return nil, "httpc ssl request get method error"
-		end
-		return true
-	end
-	IO:close()
-	return nil, "IO_SEND error! unknow PROTOCOL: "..tostring(PROTOCOL)
-end
-
-
+-- 分割httpc domain
 local function splite_protocol(domain)
-	local PROTOCOL, DOMAIN, PATH = match(domain, '(http[s]?)://([^/]+)([/]?.*)')
-	if not PROTOCOL or PROTOCOL == '' or not DOMAIN  or DOMAIN == '' then
-		return nil, "Invaild protocol"
+	if type(domain) ~= 'string' then
+		return nil, '1. 非法的域名'
 	end
-	if not PATH or PATH == '' then
-		PATH = '/'
+
+	local protocol, domain_port, path = match(domain, '^(http[s]?)://([^/]+)(.*)')
+	if not protocol or not domain_port or not path then
+		return nil, '2. 错误的url'
 	end
-	local times = 0
-	for colon in splite(DOMAIN, ":") do
-		times = times + 1
+
+	if not path or path == '' then
+		return nil, "3. http无path需要以'/'结尾."
 	end
-	local PORT
-	if times == 1 then
-		DOMAIN, PORT = match(DOMAIN, "(.+):([%d]+)")
-	elseif times > 1 then
-		local domain, port = match(DOMAIN, "%[(.+)%][:]?([%d]*)")
-		if domain and port then
-			DOMAIN, PORT = domain, port
-		end
+
+	local domain, port
+	if find(domain_port, ':') then
+		local _, Bracket_Pos = find(domain_port, '[%[%]]')
+    if Bracket_Pos then
+      domain, port = match(domain_port, '%[(.+)%][:]?(%d*)')
+    else
+      domain, port = match(domain_port, '([^:]+):(%d*)')
+    end
+    if not domain then
+      return nil, "4. 无效或者非法的主机名: "..domain_port
+    end
+    port = toint(port)
+    if not port then
+      port = 80
+    end
+	else
+		domain, port = domain_port, 80
 	end
-	return PROTOCOL, DOMAIN, PORT, PATH
+	return {
+		protocol = protocol,
+		domain = domain,
+		port = port,
+		path = path,
+	}
 end
 
 
 -- HTTP GET
 function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 
-	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
-	local port
-	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
-		port = ":"..PORT
-	else
-		port = ""
+	local opt, err = splite_protocol(domain)
+	if not opt then
+		return nil, err
 	end
 
 	local request = {
-		fmt("GET %s HTTP/1.1", PATH),
-		fmt("Host: %s", DOMAIN..':'..port),
+		fmt("GET %s HTTP/1.1", opt.path),
+		fmt("Host: %s", opt.domain..':'..opt.port),
 		'Accept: */*',
 		'Accept-Encoding: identity',
 		fmt("Connection: keep-alive"),
 		fmt("User-Agent: %s", SERVER),
 	}
-	if ARGS and type(ARGS) == "table" then
+	if type(ARGS) == "table" then
 		local args = {}
 		for _, arg in ipairs(ARGS) do
 			assert(#arg == 2, "args need key[1]->value[2] (2 values)")
 			insert(args, arg[1]..'='..arg[2])
 		end
-		request[1] = fmt("GET %s HTTP/1.1", PATH..'?'..concat(args, "&"))
+		request[1] = fmt("GET %s HTTP/1.1", opt.path..'?'..concat(args, "&"))
 	end
 	if HEADER and type(HEADER) == "table" then
 		for _, header in ipairs(HEADER) do
@@ -254,39 +255,36 @@ function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 	insert(request, CRLF)
 	local REQ = concat(request, CRLF)
 
-	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
-	local ok, err = IO_CONNECT(IO, PROTOCOL, DOMAIN, PORT)
+	local sock = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
+	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
 		return ok, err
 	end
-	local ok, err = IO_SEND(IO, PROTOCOL, REQ)
+	local ok, err = sock_send(sock, opt.protocol, REQ)
 	if not ok then
 		return ok, err
 	end
-	return httpc_response(IO, PROTOCOL)
+	return httpc_response(sock, opt.protocol)
 end
 
 -- HTTP POST
 function httpc.post(domain, HEADER, BODY, TIMEOUT)
 
-	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
-	local port
-	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
-		port = ":"..PORT
-	else
-		port = ""
+	local opt, err = splite_protocol(domain)
+	if not opt then
+		return nil, err
 	end
 
 	local request = {
-		fmt("POST %s HTTP/1.1\r\n", PATH),
-		fmt("Host: %s\r\n", DOMAIN..':'..port),
+		fmt("POST %s HTTP/1.1\r\n", opt.path),
+		fmt("Host: %s\r\n", opt.domain..':'..opt.port),
 		'Accept: */*\r\n',
 		'Accept-Encoding: identity\r\n',
 		fmt("Connection: keep-alive\r\n"),
 		fmt("User-Agent: %s\r\n", SERVER),
 		'Content-Type: application/x-www-form-urlencoded\r\n',
 	}
-	if HEADER and type(HEADER) == "table" then
+	if type(HEADER) == "table" then
 		for _, header in ipairs(HEADER) do
 			assert(string.lower(header[1]) ~= 'content-length', "please don't give Content-Length")
 			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
@@ -311,33 +309,30 @@ function httpc.post(domain, HEADER, BODY, TIMEOUT)
 
 	local REQ = concat(request)
 
-	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
-	local ok, err = IO_CONNECT(IO, PROTOCOL, DOMAIN, PORT)
+	local sock = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
+	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
 		return ok, err
 	end
-	local ok, err = IO_SEND(IO, PROTOCOL, REQ)
+	local ok, err = sock_send(sock, opt.protocol, REQ)
 	if not ok then
 		return ok, err
 	end
-	return httpc_response(IO, PROTOCOL)
+	return httpc_response(sock, opt.protocol)
 end
 
 function httpc.json(domain, HEADER, JSON, TIMEOUT)
 
-	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
-	local port
-	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
-		port = ":"..PORT
-	else
-		port = ""
+	local opt, err = splite_protocol(domain)
+	if not opt then
+		return nil, err
 	end
 
 	assert(type(JSON) == "string", "Please passed A vaild json string.")
 
 	local request = {
-		fmt("POST %s HTTP/1.1\r\n", PATH),
-		fmt("Host: %s\r\n", DOMAIN..':'..port),
+		fmt("POST %s HTTP/1.1\r\n", opt.path),
+		fmt("Host: %s\r\n", opt.domain..':'..opt.port),
 		'Accept: */*\r\n',
 		'Accept-Encoding: identity\r\n',
 		fmt("Connection: keep-alive\r\n"),
@@ -358,31 +353,28 @@ function httpc.json(domain, HEADER, JSON, TIMEOUT)
 
 	local REQ = concat(request)
 
-	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
-	local ok, err = IO_CONNECT(IO, PROTOCOL, DOMAIN, PORT)
+	local sock = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
+	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
 		return ok, err
 	end
-	local ok, err = IO_SEND(IO, PROTOCOL, REQ)
+	local ok, err = sock_send(sock, opt.protocol, REQ)
 	if not ok then
 		return ok, err
 	end
-	return httpc_response(IO, PROTOCOL)
+	return httpc_response(sock, opt.protocol)
 end
 
 function httpc.file(domain, HEADER, FILES, TIMEOUT)
 
-	local PROTOCOL, DOMAIN, PORT, PATH = splite_protocol(domain)
-	local port
-	if type(PORT) == 'number' and (port ~= 80 or port ~= 443) then
-		port = ":"..PORT
-	else
-		port = ""
+	local opt, err = splite_protocol(domain)
+	if not opt then
+		return nil, err
 	end
 
 	local request = {
-		fmt("POST %s HTTP/1.1\r\n", PATH),
-		fmt("Host: %s\r\n", DOMAIN..':'..port),
+		fmt("POST %s HTTP/1.1\r\n", opt.path),
+		fmt("Host: %s\r\n", opt.domain..':'..opt.port),
 		'Accept: */*\r\n',
 		'Accept-Encoding: identity\r\n',
 		fmt("Connection: keep-alive\r\n"),
@@ -423,16 +415,16 @@ function httpc.file(domain, HEADER, FILES, TIMEOUT)
 
 	local REQ = concat(request)
 
-	local IO = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
-	local ok, err = IO_CONNECT(IO, PROTOCOL, DOMAIN, PORT)
+	local sock = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
+	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
 		return ok, err
 	end
-	local ok, err = IO_SEND(IO, PROTOCOL, REQ)
+	local ok, err = sock_send(sock, opt.protocol, REQ)
 	if not ok then
 		return ok, err
 	end
-	return httpc_response(IO, PROTOCOL)
+	return httpc_response(sock, opt.protocol)
 end
 
 return httpc
