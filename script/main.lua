@@ -28,8 +28,6 @@ app:enable_cookie()
 app:cookie_secure("https://github.com/CandyMi/core_framework")
 -- app:cookie_secure("candymi")
 
-app:ws('/ws', require "ws")
-
 -- 导入cf内置的admin库
 local cfadmin = require "admin"
 
@@ -56,6 +54,18 @@ end)
 
 view.api('/api/admin/test2', function (ctx, db)
 	return '{"code":0,"msg":"hello world"}'
+end)
+
+app:ws('/ws', require "ws")
+
+app:api('/api', function (content)
+	require('logging'):new():DEBUG(content.args or content.body)
+	return '{"code":200}'
+end)
+
+app:use('/view', function (content)
+	require('logging'):new():DEBUG(content.files)
+	return '<h1>cfadmin v0.3</h1>'
 end)
 
 -- 这里是设置语言的地方

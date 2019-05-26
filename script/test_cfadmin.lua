@@ -9,7 +9,7 @@ local DB = require "DB"
 ]]
 
 local db = DB:new({
-	host = 'localhost',
+	host = '10.0.0.16',
 	port = 3306,
 	username = 'root',
 	password = '123456789',
@@ -49,12 +49,23 @@ local view = require "admin.view"
 -- 2. db初始化后的db对象, 方便用户直接使用.
 
 view.use('/admin/test1', function (ctx, db)
-	print(view.get_locale(), view.get_cdn())
 	return "hello world"
 end)
 
 view.api('/api/admin/test2', function (ctx, db)
 	return '{"code":0,"msg":"hello world"}'
+end)
+
+app:ws('/ws', require "ws")
+
+app:api('/api', function (content)
+	require('logging'):new():DEBUG(content.args or content.body)
+	return '{"code":200}'
+end)
+
+app:use('/view', function (content)
+	require('logging'):new():DEBUG(content.files)
+	return '<h1>cfadmin v0.3</h1>'
 end)
 
 -- 这里是设置语言的地方

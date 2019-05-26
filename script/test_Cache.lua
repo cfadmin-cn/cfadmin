@@ -1,7 +1,6 @@
 -- 测试redis
 local Cache = require "Cache"
-local Co = require "internal.Co"
-local timer = require "internal.Timer"
+local cf = require "cf"
 require "utils"
 
 local opt = {
@@ -12,7 +11,7 @@ local opt = {
     max = 1,
 }
 
-Co.spwan(function ( ... )
+cf.fork(function ( ... )
     local Cache = Cache:new(opt)
 		local ok, err = Cache:connect()
     if not ok then
