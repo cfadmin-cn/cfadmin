@@ -62,17 +62,20 @@ function Timer.timeout(timeout, cb)
         Timer[timer] = nil
     end
     timer.co = co_new(function (...)
-        Timer_release(t)
-        local ok, err = pcall(cb)
-        if not ok then
-            Log:ERROR('timeout error:', err)
-        end
-        if timer.STOP then
+      if timer.STOP then
           return
-        end
-        Timer[timer] = nil
-        timer.STOP = true
-        timer.co = nil
+      end
+      Timer_release(t)
+      local ok, err = pcall(cb)
+      if not ok then
+          Log:ERROR('timeout error:', err)
+      end
+      if timer.STOP then
+        return
+      end
+      Timer[timer] = nil
+      timer.STOP = true
+      timer.co = nil
     end)
     Timer[timer] = timer
     ti_start(t, timeout, timer.co)
@@ -104,14 +107,14 @@ function Timer.at(repeats, cb)
     timer.co = co_new(function ()
       local co_wait = coroutine.yield
         while 1 do
-            if timer.STOP then
-                return
-            end
-            co_spwan(cb)
-            if timer.STOP then
+          if timer.STOP then
               return
-            end
-            co_wait()
+          end
+          co_spwan(cb)
+          if timer.STOP then
+            return
+          end
+          co_wait()
         end
     end)
     Timer[timer] = timer
@@ -133,7 +136,8 @@ function Timer.sleep(repeats)
     timer.co = co_new(function (...)
         local current_co = timer.current_co
         Timer[timer] = nil
-        timer.current_co, timer.co = nil
+        timer.current_co = nil
+        timer.co = nil
         Timer_release(t)
         return co_wakeup(current_co)
     end)
