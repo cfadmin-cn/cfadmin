@@ -28,9 +28,23 @@ local types = {
     [0xa] = "pong",
 }
 
+local function sock_recv (sock, byte)
+  if sock.ssl then
+    return sock:ssl_recv(byte)
+  end
+  return sock:recv(byte)
+end
+
+local function sock_send (sock, data)
+  if sock.ssl then
+    return sock:ssl_send(data)
+  end
+  return sock:send(data)
+end
+
 
 function _M.recv_frame(sock, max_payload_len, force_masking)
-    local data, err = sock:recv(2)
+    local data, err = sock_recv(sock, 2)
     if not data then
         return nil, nil, err
     end
@@ -62,7 +76,7 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
     local payload_len = snd & 0x7f
 
     if payload_len == 126 then
-        local data, err = sock:recv(2)
+        local data, err = sock_recv(sock, 2)
         if not data then
             return nil, nil, "failed to receive the 2 byte payload length: "
                              .. (err or "unknown")
@@ -70,7 +84,7 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
         payload_len = (byte(data, 1) >> 8) | byte(data, 2)
 
     elseif payload_len == 127 then
-        local data, err = sock:recv(8)
+        local data, err = sock_recv(sock, 8)
         if not data then
             return nil, nil, "failed to receive the 8 byte payload length: "
                              .. (err or "unknown")
@@ -120,7 +134,7 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
 
     local data
     if rest > 0 then
-        data, err = sock:recv(rest)
+        data, err = sock_recv(sock, rest)
         if not data then
             return nil, nil, "failed to read masking-len and payload: "
                              .. (err or "unknown")
@@ -214,7 +228,7 @@ local function build_frame(fin, opcode, payload_len, payload, masking)
 
         snd = 127
         -- XXX we only support 31-bit length here
-        extra_len_bytes = char(0, 0, 0, 0, 
+        extra_len_bytes = char(0, 0, 0, 0,
                                 (payload_len >> 24) & 0xff,
                                 (payload_len >> 16) & 0xff,
                                 (payload_len >> 8) & 0xff,
@@ -272,7 +286,7 @@ function _M.send_frame(sock, fin, opcode, payload, max_payload_len, masking)
     if not frame then
         return nil, "failed to build frame: " .. err
     end
-    return sock:send(frame)
+    return sock_send(sock, frame)
 end
 
 return _M

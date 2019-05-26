@@ -1,12 +1,13 @@
-local log = require "logging"
 local class = require "class"
-local co = require "internal.Co"
+
 local wbproto = require "protocol.websocket.protocol"
 local _recv_frame = wbproto.recv_frame
 local _send_frame = wbproto.send_frame
 
+local log = require "logging"
 local Log = log:new({ dump = true, path = 'protocol-websocket-server'})
 
+local co = require "internal.Co"
 local co_self = co.self
 local co_wait = co.wait
 local co_spwan = co.spwan
@@ -21,159 +22,132 @@ local setmetatable = setmetatable
 local tostring = tostring
 local char = string.char
 
+-- 将回调函数写入到队列内
+local function add_to_queue(queue, f)
+    queue[#queue + 1] = f
+end
+
+-- 唤醒write queue
+local function wakeup(co, ...)
+    return co and co_wakeup(co, ...)
+end
 
 local websocket = class("websocket-server")
 
 function websocket:ctor(opt)
-    self.cls = opt.cls
-    self.sock = opt.sock
-    self.sock._timeout = nil
-end
-
--- 将回调函数写入到队列内
-local function add_to_queue(queue, func)
-    queue[#queue + 1] = func
-end
-
--- 一次将多条回调函数写入到队列内
-local function more_add_to_queue(queue, list)
-    for _, func in ipairs(list) do
-        add_to_queue(queue, func)
-    end
-end
-
--- 唤醒write queue
-local function wakeup(co)
-    return co and co_wakeup(co)
-end
-
-function websocket:start()
-    local cls
-    local sock = self.sock
-    local current_co = co_self()
-    local write_list = {}
-    local write_co = co_spwan(function (...)
-        while 1 do
-            for _, f in ipairs(write_list) do
-                local ok, err = pcall(f)
-                if not ok then
-                    Log:ERROR(err)
-                end
-            end
-            write_list = {}
-            co_wait()
-            if #write_list == 0 then
-                -- print("写入协程退出了")
-                return
-            end
-        end
-    end)
-    local ws = {
-        CLOSE = false,
-        send = function (self, data, binary)
-            if self.CLOSE then return end
-            if data and type(data) == 'string' then
-                local code = 0x1
-                if binary then
-                    code = 0x2
-                end
-                add_to_queue(write_list, function ()
-                    return _send_frame(
-                        sock,
-                        true,
-                        code,
-                        data,
-                        cls.max_payload_len or 65535,
-                        cls.send_masked or false
-                    )
-                end)
-                return wakeup(write_co)
-            end
-        end,
-        close = function (self, data)
-            if self.CLOSE then return end
-            self.CLOSE = true
-            more_add_to_queue(write_list, {
-                function()
-                    return _send_frame(
-                        sock,
-                        true,
-                        0x8,
-                        char(((1000 >> 8) & 0xff),(1000 & 0xff))..(data or ""),
-                        cls.max_payload_len or 65535,
-                        cls.send_masked or false
-                    )
-                end,
-                function() return sock:close() end,
-            })
-            return wakeup(current_co), wakeup(write_co)
-        end,
-        -- ping = function (self, data)
-        --     if self.CLOSE then return end
-        --     add_to_queue(write_list, function()
-        --         _send_frame(sock, true, 0x9, data, cls.max_payload_len or 65535, cls.send_masked or false)
-        --     end)
-        --     return wakeup(write_co)
-        -- end,
-        -- pong = function (self, data)
-        --     if self.CLOSE then return end
-        --     add_to_queue(write_list, function()
-        --         _send_frame(sock, true, 0xa, data, cls.max_payload_len or 65535, cls.send_masked or false)
-        --     end)
-        --     return wakeup(write_co)
-        -- end,
-    }
-    cls = self.cls:new { ws = ws }
-    local on_open = cls.on_open
-    local on_message = cls.on_message
-    local on_error = cls.on_error
-    local on_close = cls.on_close
-    local ok, err = pcall(on_open, cls)
-    if not ok then
-        Log:ERROR(err)
-        return sock:close()
-    end
+  self._VERSION = '0.07'
+  self.cls = opt.cls
+  self.sock = opt.sock
+  self.co = co_self()
+  self.write_co = nil
+  self.closed = nil
+  self.sock._timeout = nil
+  self.queue = {}
+  self.write_state = 'work'
+  co_spwan(function ()
+    self.write_co = co_self()
     while 1 do
-        local data, typ, err = _recv_frame(sock, cls.max_payload_len, true)
-        if (not data and not typ) or typ == 'close' then
-            -- 客户端主动关闭: ws.CLOSE == flase
-            -- 服务端主动关闭: ws.CLOSE == true
-            if not ws.CLOSE then
-                ws.CLOSE = true
-                write_list = {}
-                sock:close()
-            end
-            if err then
-                local ok, err = pcall(on_error, cls, err)
-                if not ok then
-                    Log:ERROR(err)
-                end
-            end
-            local ok, err = pcall(on_close, cls, data)
-            if not ok then
-                Log:ERROR(err)
-            end
-            -- print("读取协程退出了")
-            return wakeup(write_co)
+      self.write_state = 'work'
+      for _, f in ipairs(self.queue) do
+        local ok, err = pcall(f)
+        if not ok then
+          Log:ERROR(err)
         end
-        if typ == 'ping' then
-            add_to_queue(write_list, function()
-                _send_frame(
-                    sock,
-                    true,
-                    0xa,
-                    data,
-                    cls.max_payload_len or 65535,
-                    cls.send_masked or false
-                )
-            end)
-        elseif typ == 'text' or typ == 'binary' then
-            co_spwan(on_message, cls, data, typ)
-        else
-            -- 目前将设计精简为: 除了需要回应的ping协议, 其他协议均不会触发任何Server端回调响应;
-            -- 如需特殊需求, 请自行在业务逻辑中解决(或使用定时器进行循环探测);
-        end
+      end
+      if self.closed then
+        self.write_state = 'quit'
+        return
+      end
+      self.queue = {}
+      self.write_state = 'wait'
+      local continue = co_wait()
+      if not continue then
+        self.write_state = 'quit'
+        return
+      end
     end
+  end)
+end
+
+-- send_text、send_binary
+function websocket:send (data, binary)
+  if self.closed then
+    return
+  end
+  if data and type(data) == 'string' then
+    add_to_queue(self.queue, function ()
+      return _send_frame(self.sock, true, binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked)
+    end)
+    if self.write_state == 'wait' then
+      return wakeup(self.write_co, true)
+    end
+  end
+end
+
+-- 发送close帧
+function websocket:close (data)
+  if self.closed then
+    return
+  end
+  self.closed = true
+  if type(data) == 'string' and data ~= '' then
+    add_to_queue(self.queue, function ()
+      return _send_frame(self.sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..data, self.max_payload_len, self.send_masked)
+    end)
+  end
+  if self.write_state == 'wait' then
+    wakeup(self.write_co)
+  end
+  wakeup(self.co)
+end
+
+-- Websocket Server 事件循环
+function websocket:start()
+  local sock = self.sock
+  local cls = self.cls:new { ws = self }
+  local on_open = cls.on_open
+  local on_message = cls.on_message
+  local on_error = cls.on_error
+  local on_close = cls.on_close
+  local ok, err = pcall(on_open, cls)
+  if not ok then
+    self.sock = nil
+    return Log:ERROR(err)
+  end
+  self.cls = nil
+  self.sock._timeout = cls.timeout
+  self.send_masked = cls.send_masked
+  self.max_payload_len = cls.max_payload_len or 65535
+  while 1 do
+    local data, typ, err = _recv_frame(sock, self.max_payload_len, self.send_masked)
+    if (not data and not typ) or typ == 'close' then
+      self.closed = true
+      if self.write_state == 'wait' then
+        wakeup(self.write_co)
+      end
+      if err and err ~= 'read timeout' then
+        local ok, err = pcall(on_error, cls, err)
+        if not ok then
+          Log:ERROR(err)
+        end
+      end
+      local ok, err = pcall(on_close, cls, data)
+      if not ok then
+        Log:ERROR(err)
+      end
+      self.sock = nil
+      return
+    end
+    if typ == 'ping' then
+      add_to_queue(self.queue, function () return _send_frame(sock, true, 0xA, data or '', self.max_payload_len, self.send_masked) end)
+      if self.write_state == 'wait' then
+        wakeup(self.write_co, true)
+      end
+    end
+    if typ == 'text' or typ == 'binary' then
+      co_spwan(on_message, cls, data, typ == 'binary')
+    end
+  end
 end
 
 return websocket
