@@ -307,32 +307,33 @@ function TCP:ssl_connect(domain, port)
     if not self.ssl_ctx or not self.ssl then
         return Log:ERROR("Create a SSL Error! :) ")
     end
+
     local co = co_self()
     self.CONNECT_IO = tcp_pop()
     self.connect_current_co = co
     self.connect_co = co_new(function ()
-        local EVENTS = EVENT_WRITE
-        while 1 do
-            local ok, EVENT = tcp_ssl_connect(self.ssl)
-            if ok then
-                if self.timer then
-                    self.timer:stop()
-                    self.timer = nil
-                end
-                tcp_push(self.CONNECT_IO)
-                tcp_stop(self.CONNECT_IO)
-                self.CONNECT_IO = nil
-                self.connect_co = nil
-                self.connect_current_co = nil
-                return co_wakeup(co, ok)
+      local EVENTS = EVENT_WRITE
+      while 1 do
+          local ok, EVENT = tcp_ssl_connect(self.ssl)
+          if ok or not EVENT then
+            if self.timer then
+              self.timer:stop()
+              self.timer = nil
             end
-            if EVENTS ~= EVENT then
-                EVENTS = EVENT
-                tcp_stop(self.CONNECT_IO)
-                tcp_start(self.CONNECT_IO, self.fd, EVENTS, self.connect_co)
-            end
-            co_wait()
-        end
+            tcp_push(self.CONNECT_IO)
+            tcp_stop(self.CONNECT_IO)
+            self.CONNECT_IO = nil
+            self.connect_co = nil
+            self.connect_current_co = nil
+            return co_wakeup(co, ok)
+          end
+          if EVENTS ~= EVENT then
+            EVENTS = EVENT
+            tcp_stop(self.CONNECT_IO)
+            tcp_start(self.CONNECT_IO, self.fd, EVENTS, self.connect_co)
+          end
+          co_wait()
+      end
     end)
     self.timer = ti.timeout(self._timeout, function ( ... )
         tcp_push(self.CONNECT_IO)
@@ -360,21 +361,21 @@ function TCP:close()
 
     if self.READ_IO then
         tcp_stop(self.READ_IO)
-        tcp_pop(self.READ_IO)
+        tcp_push(self.READ_IO)
         self.READ_IO = nil
         self.read_co = nil
     end
 
     if self.SEND_IO then
         tcp_stop(self.SEND_IO)
-        tcp_pop(self.SEND_IO)
+        tcp_push(self.SEND_IO)
         self.SEND_IO = nil
         self.send_co = nil
     end
 
     if self.CONNECT_IO then
         tcp_stop(self.CONNECT_IO)
-        tcp_pop(self.CONNECT_IO)
+        tcp_push(self.CONNECT_IO)
         self.CONNECT_IO = nil
         self.connect_co = nil
     end

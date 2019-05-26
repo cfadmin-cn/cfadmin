@@ -61,25 +61,23 @@ local function sock_connect(sock, PROTOCOL, DOAMIN, PORT)
 			return true
 		end
 	end
-	sock:close()
 	return nil, 'httpc连接失败.'
 end
 
 local function sock_send(sock, PROTOCOL, DATA)
+	if PROTOCOL == 'https' then
+		local ok = sock:ssl_send(DATA)
+		if ok then
+			return true
+		end
+	end
+
 	if PROTOCOL == 'http' then
 		local ok = sock:send(DATA)
 		if ok then
 			return true
 		end
 	end
-
-	if PROTOCOL == 'https' then
-		local ok = sock:send(DATA)
-		if ok then
-			return true
-		end
-	end
-	sock:close()
 	return nil, "httpc发送请求失败"
 end
 
@@ -207,10 +205,13 @@ local function splite_protocol(domain)
     end
     port = toint(port)
     if not port then
-      port = 80
+			port = 80
+			if protocol == 'https' then
+      	port = 443
+			end
     end
 	else
-		domain, port = domain_port, 80
+		domain, port = domain_port, protocol == 'https' and 443 or 80
 	end
 	return {
 		protocol = protocol,
@@ -258,10 +259,12 @@ function httpc.get(domain, HEADER, ARGS, TIMEOUT)
 	local sock = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
 	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
+		sock:close()
 		return ok, err
 	end
 	local ok, err = sock_send(sock, opt.protocol, REQ)
 	if not ok then
+		sock:close()
 		return ok, err
 	end
 	return httpc_response(sock, opt.protocol)
@@ -312,10 +315,12 @@ function httpc.post(domain, HEADER, BODY, TIMEOUT)
 	local sock = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
 	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
+		sock:close()
 		return ok, err
 	end
 	local ok, err = sock_send(sock, opt.protocol, REQ)
 	if not ok then
+		sock:close()
 		return ok, err
 	end
 	return httpc_response(sock, opt.protocol)
@@ -356,10 +361,12 @@ function httpc.json(domain, HEADER, JSON, TIMEOUT)
 	local sock = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
 	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
+		sock:close()
 		return ok, err
 	end
 	local ok, err = sock_send(sock, opt.protocol, REQ)
 	if not ok then
+		sock:close()
 		return ok, err
 	end
 	return httpc_response(sock, opt.protocol)
@@ -418,10 +425,12 @@ function httpc.file(domain, HEADER, FILES, TIMEOUT)
 	local sock = tcp:new():timeout(TIMEOUT or __TIMEOUT__)
 	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
+		sock:close()
 		return ok, err
 	end
 	local ok, err = sock_send(sock, opt.protocol, REQ)
 	if not ok then
+		sock:close()
 		return ok, err
 	end
 	return httpc_response(sock, opt.protocol)
