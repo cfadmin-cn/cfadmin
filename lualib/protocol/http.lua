@@ -547,9 +547,8 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				local ok, msg = pcall(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
 				if not ok then
 					Log:ERROR(msg)
-					return sock:close()
 				end
-				return
+				return sock:close()
 			else
 				local file_type
 				local path = PATH
