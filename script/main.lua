@@ -28,6 +28,8 @@ app:enable_cookie()
 app:cookie_secure("https://github.com/CandyMi/core_framework")
 -- app:cookie_secure("candymi")
 
+app:ws('/ws', require "ws")
+
 -- 导入cf内置的admin库
 local cfadmin = require "admin"
 
