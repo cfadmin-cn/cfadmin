@@ -64,13 +64,13 @@ function admin.init_page (app, db)
   app:before(function (content)
     local path = get_path(content)
     if find(path, '^/api/admin/.+') then -- 用于所有/api接口需要传递token header进行验权.
-      local token = content['headers']['token']
+      local token = content['headers']['token'] or content['headers']['Token']
       if not token then
-        return http.throw(401, "Can't Find Token")
+        return http.throw(401, '{"code":401,"msg":"Token was not exists"}')
       end
       local exists = user_token.token_exists(db, token)
       if not exists then
-        return http.throw(403, "Token Was not Exists")
+        return http.throw(403, '{"code":401,"msg":"Token was verify failed"}')
       end
     end
     return http.ok()
