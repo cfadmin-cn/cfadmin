@@ -166,9 +166,12 @@ local function url_split (self)
     port = toint(port)
     if not port then
       port = 80
+      if scheme == 'wss' then
+        port = 443
+      end
     end
   else
-    domain, port = domain_port, 80
+    domain, port = domain_port, scheme == 'ws' and 80 or 443
   end
 
   -- 判断是否需要ssl socket
