@@ -72,25 +72,27 @@ end
 
 local function gen_cache()
     local file = io.open("/etc/hosts", "r")
-    dns_cache['localhost'] = {ip = '127.0.0.1'}
     if file then
-        for line in file:lines() do
-            local ip, domain = match(line, '([^# %t]*)[%t ]*(.*)$')
-            local ok, v = check_ip(ip)
-            if ok then
-                if v == 4 then
-                    if not dns_cache[domain] then
-                        dns_cache[domain] = {ip = prefix..ip}
-                    end
-                else
-                    if not dns_cache[domain] then
-                        dns_cache[domain] = {ip = ip}
-                    end
+      for line in file:lines() do
+          local ip, domain = match(line, '^([^#%t ]*)[ ]+(.+)$')
+          local ok, v = check_ip(ip)
+          if ok then
+            domain = match(domain, '([^ ]+)') or domain
+            if v == 4 then
+                if not dns_cache[domain] then
+                    dns_cache[domain] = {ip = prefix..ip}
                 end
             end
+            if v == 6 then
+              if not dns_cache[domain] then
+                  dns_cache[domain] = {ip = ip}
+              end
+            end
+          end
         end
         file:close()
     end
+    dns_cache['localhost'] = {ip = prefix..'127.0.0.1'}
 end
 
 if #dns_list < 1 then
@@ -209,24 +211,26 @@ local function dns_query(domain)
     cos[domain] = wlist
     -- local start = os.time() + os.clock()
     -- print("开始解析域名:["..domain.."], 开始时间: ", start)
-    local dns_resp, len
+
     local dns_client, msg = get_dns_client()
     if not dns_client then
         dns_client:close()
         return nil, msg
     end
-    local header = pack_header()
-    local question = pack_question(domain, msg)
+    -- local header = pack_header()
+    -- local question = pack_question(domain, msg)
+    local req = pack_header() .. pack_question(domain, msg)
+    local dns_resp, len
     while 1 do   -- 如果一直没收到回应将会反复请求
-        dns_client:send(header..question)
+        dns_client:send(req)
         dns_resp, len = dns_client:recv()
         if dns_resp then
-            dns_client:close()
-            dns_client = nil
-            break
+          dns_client:close()
+          dns_client = nil
+          break
         end
         if type(len) == "string" then
-            Log:INFO("正在解析["..domain.."]:"..len)
+          Log:WARN("正在解析["..domain.."]:"..len)
         end
     end
     if not len or len < LIMIT_HEADER_LEN then
@@ -250,12 +254,20 @@ local function dns_query(domain)
     end
     local answer
     for i = 1, answer_header.ancount do
-        answer, nbyte = unpack_answer(dns_resp, nbyte)
-        if answer.atype == QTYPE.A or answer.atype == QTYPE.AAAA then
-            answer.ip = unpack_rdata(answer.rdata, answer.atype)
+      answer, nbyte = unpack_answer(dns_resp, nbyte)
+      if answer.atype == QTYPE.A or answer.atype == QTYPE.AAAA then
+        answer.ip = unpack_rdata(answer.rdata, answer.atype)
+        local cache = dns_cache[domain]
+        if not cache then
+          dns_cache[domain] = {ip = answer.ip, ttl = now() + answer.ttl}
+        else
+          if cache.ttl and cache.ttl < now() + answer.ttl then
             dns_cache[domain] = {ip = answer.ip, ttl = now() + answer.ttl}
+          end
         end
+      end
     end
+
     local ok, v = check_ip(answer.ip)
     if not ok then
         return nil, "unknown ip in this domain: "..domain
@@ -316,4 +328,5 @@ function dns.resolve(domain)
 end
 -- require "utils"
 -- var_dump(dns_cache)
+-- var_dump(dns_list)
 return dns

@@ -62,7 +62,7 @@ function UDP:recv(...)
 end
 
 function UDP:send(data)
-	assert(not self.udp or self.fd or self.fd < 0, "UDP ERROR 参数不完整.")
+	assert(self.udp and data and self.fd and self.fd > 0, "UDP ERROR 参数不完整.")
 	return udp.send(self.fd, data, #data)
 end
 

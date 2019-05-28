@@ -13,9 +13,9 @@ udp_socket_new(const char *ipaddr, int port){
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
 
-    int ENABLE = 1;
-     /* 端口重用 */
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &ENABLE, sizeof(ENABLE));
+  int ENABLE = 1;
+   /* 端口重用 */
+  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &ENABLE, sizeof(ENABLE));
 
 	struct sockaddr_in6 SA;
 	SA.sin6_family = AF_INET6;
