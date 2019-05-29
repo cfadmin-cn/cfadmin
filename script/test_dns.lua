@@ -1,37 +1,137 @@
+
 local dns = require "protocol.dns"
+local dns_resolve = dns.resolve
+
 local cf = require "cf"
-cf.fork(function ( ... )
-    print("申请解析 1")
-    local ok, ip = dns.resolve('www.baidu.com')
-    print("解析完成 1", ok, ip)
-end)
 
-cf.fork(function ( ... )
-    print("申请解析 2")
-    local ok, ip = dns.resolve('www.baidu.com')
-    print("解析完成 2", ok, ip)
-end)
+local system = require "system"
+local now = system.now
+local fmt = string.format
 
-cf.fork(function ( ... )
-    print("申请解析 3")
-    local ok, ip = dns.resolve('www.baidu.com')
-    print("解析完成 3", ok, ip)
-end)
+-- 百度
+for i = 1, 10 do
+  cf.fork(function ( ... )
+    local t1 = now()
+    local domain = 'www.baidu.com'
+		if i == 1 then
+    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
+		end
+    local ok, ip = dns_resolve(domain)
+    local t2 = now()
+		if i == 10 then
+    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
+		end
+  end)
+end
 
-cf.fork(function ( ... )
-    print("申请解析 11")
-    local ok, ip = dns.resolve('www.qq.com')
-    print("解析完成 11", ok, ip)
-end)
+-- 腾讯
+for i = 1, 10 do
+  cf.fork(function ( ... )
+    local t1 = now()
+    local domain = 'www.qq.com'
+		if i == 1 then
+    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
+		end
+    local ok, ip = dns_resolve(domain)
+    local t2 = now()
+		if i == 10 then
+    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
+		end
+  end)
+end
 
-cf.fork(function ( ... )
-    print("申请解析 12")
-    local ok, ip = dns.resolve('www.qq.com')
-    print("解析完成 12", ok, ip)
-end)
+-- 淘宝
+for i = 1, 10 do
+  cf.fork(function ( ... )
+    local t1 = now()
+    local domain = 'www.taobao.com'
+		if i == 1 then
+    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
+		end
+    local ok, ip = dns_resolve(domain)
+    local t2 = now()
+		if i == 10 then
+    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
+		end
+  end)
+end
 
-cf.fork(function ( ... )
-    print("申请解析 13")
-    local ok, ip = dns.resolve('www.qq.com')
-    print("解析完成 13", ok, ip)
-end)
+-- 谷歌
+for i = 1, 10 do
+  cf.fork(function ( ... )
+    local t1 = now()
+    local domain = 'www.google.com'
+		if i == 1 then
+    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
+		end
+    local ok, ip = dns_resolve(domain)
+    local t2 = now()
+		if i == 10 then
+    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
+		end
+  end)
+end
+
+-- 网易
+for i = 1, 10 do
+  cf.fork(function ( ... )
+    local t1 = now()
+    local domain = 'www.163.com'
+		if i == 1 then
+    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
+		end
+    local ok, ip = dns_resolve(domain)
+    local t2 = now()
+		if i == 10 then
+    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
+		end
+  end)
+end
+
+-- 京东
+for i = 1, 10 do
+  cf.fork(function ( ... )
+    local t1 = now()
+    local domain = 'www.jd.com'
+		if i == 1 then
+    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
+		end
+    local ok, ip = dns_resolve(domain)
+    local t2 = now()
+		if i == 10 then
+    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
+		end
+  end)
+end
+
+-- 唯品会
+for i = 1, 10 do
+  cf.fork(function ( ... )
+    local t1 = now()
+    local domain = 'www.vip.com'
+		if i == 1 then
+    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
+		end
+    local ok, ip = dns_resolve(domain)
+    local t2 = now()
+		if i == 10 then
+    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
+		end
+  end)
+end
+
+-- 盛大
+for i = 1, 10 do
+  cf.fork(function ( ... )
+    local t1 = now()
+    local domain = 'www.sdo.com'
+		if i == 1 then
+    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
+		end
+    local ok, ip = dns_resolve(domain)
+    local t2 = now()
+		if i == 10 then
+    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
+		end
+  end)
+end
