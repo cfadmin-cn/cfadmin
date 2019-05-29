@@ -3,6 +3,7 @@
 default :
 	@echo "======================================="
 	@echo "Please use 'make build' command to build it.."
+	@echo "Please use 'make rebuild' command to build it.."
 	@echo "Please use 'make clean' command to clean all."
 	@echo "======================================="
 
@@ -12,7 +13,7 @@ CC = cc
 # 这里为了兼容AMD CPU不作为默认开启选项
 # CFLAGS = -O3 -Wall -DNDEBUG -fPIC -msse4
 
-CFLAGS = -O3 -Wall -DNDEBUG -fPIC 
+CFLAGS = -O3 -Wall -DNDEBUG -fPIC
 
 INCLUDE = -I/usr/local/include
 LIB = -L/usr/local/lib
