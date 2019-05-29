@@ -33,7 +33,7 @@ app:cookie_secure("https://github.com/CandyMi/core_framework")
 app:ws('/ws', require "ws")
 
 app:api('/api', function (content)
-	local code, response = httpc.get("https://www.sojson.com/api/gongan/www.baidu.com")
+	local code, response = httpc.get("https://www.baifubao.com/callback?cmd=1059&callback=phone&phone=13000000000")
 	return code == 200 and response or "httc请求失败"
 end)
 
