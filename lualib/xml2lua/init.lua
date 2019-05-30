@@ -2,14 +2,20 @@
 local xml2lua = require "xml2lua.xml2lua"
 local xml2lua_handler = require "xml2lua.xmlhandler.tree"
 
+local type = type
+local pcall = pcall
 
 local xml = {}
 
 -- xml字符串解析
 function xml.parser(xml_data)
   local cls = xml2lua.parser(xml2lua_handler:new())
-  cls:parse(xml_data)
-  return cls.handler.root
+  -- cls:parse(xml_data)
+  local ok, data = pcall(cls.parse, cls,xml_data)
+  if not ok then
+    return data
+  end
+  return data
 end
 
 -- xml文件读取
