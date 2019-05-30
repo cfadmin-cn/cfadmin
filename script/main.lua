@@ -1,7 +1,8 @@
 local httpd = require "httpd"
 local httpc = require "httpc"
 local DB = require "DB"
-
+local xml = require "xml2lua"
+require "test_httpc"
 --[[
 请按照以下步奏初始化后台:
 	1. 创建一个数据库(名字任意);
@@ -28,7 +29,6 @@ app:enable_cookie()
 -- httpd设置Cookie加密的密匙
 app:cookie_secure("https://github.com/CandyMi/core_framework")
 -- app:cookie_secure("candymi")
-
 
 app:ws('/ws', require "ws")
 

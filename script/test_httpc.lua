@@ -1,15 +1,13 @@
 local cf = require "cf"
 local httpc = require "httpc"
+local http = require "httpc.class"
 local json = require "json"
 local system = require "system"
 local now = system.now
 
-cf.fork(function (args)
-  local code, body = httpc.get("http://localhost:8080/api")
-  print(code, body)
-end)
+require "utils"
 
-local ti = cf.timeout(2, function ( ... )
+cf.timeout(2, function ( ... )
   cf.fork(function ( ... )
     local t1 = now()
     print("开始时间:", t1)
@@ -39,17 +37,16 @@ local ti = cf.timeout(2, function ( ... )
         {name='2', filename='2.jpg', file='2', type='abc'},
         })
     print(code, body)
+
     local t2 = now()
     print("结束时间:", t1, "总耗时:", t2 - t1)
   end)
 end)
 
 
-require "utils"
-local http = require "httpc.class"
-local hc = http:new {}
-local ti = cf.timeout(1, function ( ... )
+cf.timeout(1, function ( ... )
   cf.fork(function ( ... )
+    local hc = http:new {}
     local t1 = now()
     print("开始时间:", t1)
     -- GET请求: 在参数固定的情况下可以直接写在url内
@@ -72,14 +69,50 @@ local ti = cf.timeout(1, function ( ... )
     local code, body = hc:json("http://localhost:8080/api", {{"Auth", "admin"}}, json.encode({page=1, limit=10}))
     print(code, body)
 
-    -- http 上传文件示例
-    local code, body = hc:file('http://localhost:8080/api', nil, {
-        {name='1', filename='1.jpg', file='1', type='abc'},
-        {name='2', filename='2.jpg', file='2', type='abc'},
-        })
-    print(code, body)
     local t2 = now()
     print("结束时间:", t1, "总耗时:", t2 - t1)
+    hc:close()
+  end)
+end)
+
+cf.timeout(3, function ()
+  cf.fork(function ( ... )
+    local hc = http:new {}
+    local t1 = now()
+    print("开始时间:", t1)
+    local ok, response = hc:multi_request {
+      {
+        domain = "http://localhost:8080/api",
+        method = "get",
+        headers = {{"Auth", "admin"}},
+        args = {{'page', 1}, {'limit', 10}}
+      },
+      {
+        domain = "http://localhost:8080/api",
+        method = "post",
+        headers = {{"Auth", "admin"}},
+        body = {{'page', 1}, {'limit', 10}}
+      },
+      {
+        domain = "http://localhost:8080/api",
+        method = "json",
+        headers = {{"Auth", "admin"}},
+        json = json.encode({page=1, limit=10})
+      },
+      {
+        domain = "http://localhost:8080/api",
+        method = "file",
+        headers = {{"Auth", "admin"}},
+        files = {
+          {name='1', filename='1.jpg', file='1', type='abc'},
+          {name='2', filename='2.jpg', file='2', type='abc'},
+        }
+      }
+    }
+    local t2 = now()
+    print("结束时间:", t1, "总耗时:", t2 - t1)
+
+    require('logging'):new():DEBUG(response, "回应数量: " .. #response)
     hc:close()
   end)
 end)
