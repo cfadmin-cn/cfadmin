@@ -1,4 +1,12 @@
-local class = require "httpc.class"
+local system = require "system"
+local now = system.now
+local is_array_member = system.is_array_member
+
+local cf = require "cf"
+local cf_self = cf.self
+local cf_fork = cf.fork
+local cf_wait = cf.wait
+local cf_wakeup = cf.wakeup
 
 local protocol = require "httpc.protocol"
 local sock_new = protocol.sock_new
@@ -36,10 +44,10 @@ local CRLF2 = '\x0d\x0a\x0d\x0a'
 
 local __TIMEOUT__ = 15
 
-local httpc = {}
+local methods = {'get', 'post', 'json', 'file'}
 
 -- HTTP GET
-function httpc.get(domain, headers, args, timeout)
+local function get(domain, headers, args, timeout)
 	local opt, err = splite_protocol(domain)
 	if not opt then
 		return nil, err
@@ -68,7 +76,7 @@ function httpc.get(domain, headers, args, timeout)
 end
 
 -- HTTP POST
-function httpc.post(domain, headers, body, timeout)
+local function post(domain, headers, body, timeout)
 	local opt, err = splite_protocol(domain)
 	if not opt then
 		return nil, err
@@ -96,7 +104,7 @@ function httpc.post(domain, headers, body, timeout)
 	return code, msg
 end
 
-function httpc.json(domain, headers, json, timeout)
+local function json(domain, headers, json, timeout)
 
 	local opt, err = splite_protocol(domain)
 	if not opt then
@@ -127,7 +135,7 @@ function httpc.json(domain, headers, json, timeout)
 	return code, msg
 end
 
-function httpc.file(domain, headers, files, times)
+local function file(domain, headers, files, times)
 
 	local opt, err = splite_protocol(domain)
 	if not opt then
@@ -156,8 +164,58 @@ function httpc.file(domain, headers, files, times)
 	return code, msg
 end
 
-function httpc:new (...)
-	return class:new(...)
+local function multi_request (opt)
+	if type(opt) ~= 'table' then
+    return nil, "1. 错误的参数类型"
+  end
+  local len = #opt
+  if len > 0 then
+    local co = cf_self()
+    local response = {}
+    local wakeuped = false
+    for index = 1, len do
+      cf_fork(function ()
+				local t = now()
+        local req = opt[index]
+        -- 确认method
+        local method = req.method and req.method:lower()
+        if type(method) ~= 'string' or not is_array_member(methods, method) then
+          response[index] = {nil, '不被支持的请求方法.', now() - t}
+          if #response >= len and not wakeuped then
+            wakeuped = true
+            cf_wakeup(co, nil, response)
+          end
+          return
+        end
+
+				local code, msg
+        if method == 'get' then
+					code, msg = get(req.domain, req.headers, req.args, req.timeout)
+        elseif method == 'post' then
+          code, msg = post(req.domain, req.headers, req.body, req.timeout)
+        elseif method == 'json' then
+          code, msg = json(req.domain, req.headers, req.json, req.timeout)
+        elseif method == 'file' then
+          code, msg = file(req.domain, req.headers, req.files, req.timeout)
+        end
+				response[index] = {code, msg, now() - t}
+				if #response >= len and not wakeuped then
+					wakeuped = true
+					cf_wakeup(co, nil, response)
+				end
+				return
+      end)
+    end
+    return cf_wait()
+  end
+  return nil, "2. 错误的参数"
 end
 
-return httpc
+
+return {
+	get = get,
+	post = post,
+	json = json,
+	file = file,
+	multi_request = multi_request,
+}
