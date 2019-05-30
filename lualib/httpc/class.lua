@@ -1,5 +1,11 @@
 local class = require "class"
+
+local system = require "system"
+local now = system.now
+local is_array_member = system.is_array_member
+
 local cf = require "cf"
+local cf_self = cf.self
 local cf_fork = cf.fork
 local cf_wait = cf.wait
 local cf_wakeup = cf.wakeup
@@ -38,7 +44,7 @@ local SERVER = "cf/0.1"
 local CRLF = '\x0d\x0a'
 local CRLF2 = '\x0d\x0a\x0d\x0a'
 
-
+local methods = {'get', 'post', 'json', 'file'}
 
 local httpc = class("httpc")
 
@@ -71,16 +77,34 @@ function httpc:get (domain, headers, args, timeout)
 
   local REQ = build_get_req(opt)
 
-  self.sock = self.sock or sock_new():timeout(self.timeout)
-
-  local ok, err = sock_connect(self.sock, opt.protocol, opt.domain, opt.port)
-  if not ok then
-    return ok, err
+  if not self.sock then
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    self.sock = sock
   end
+
   local ok, err = sock_send(self.sock, opt.protocol, REQ)
   if not ok then
-    return ok, err
+    self.sock:close()
+    self.sock = nil
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    ok, err = sock_send(sock, opt.protocol, REQ)
+    if not ok then
+      sock:close()
+      return nil, err
+    end
+    self.sock = sock
   end
+
   local code, msg = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
@@ -113,16 +137,34 @@ function httpc:post (domain, headers, body, timeout)
 
   local REQ = build_post_req(opt)
 
-  self.sock = self.sock or sock_new():timeout(self.timeout)
-
-  local ok, err = sock_connect(self.sock, opt.protocol, opt.domain, opt.port)
-  if not ok then
-    return ok, err
+  if not self.sock then
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    self.sock = sock
   end
+
   local ok, err = sock_send(self.sock, opt.protocol, REQ)
   if not ok then
-    return ok, err
+    self.sock:close()
+    self.sock = nil
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    ok, err = sock_send(sock, opt.protocol, REQ)
+    if not ok then
+      sock:close()
+      return nil, err
+    end
+    self.sock = sock
   end
+
   local code, msg = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
@@ -158,16 +200,34 @@ function httpc:json (domain, headers, json, timeout)
 
   local REQ = build_json_req(opt)
 
-  self.sock = self.sock or sock_new():timeout(self.timeout)
-
-  local ok, err = sock_connect(self.sock, opt.protocol, opt.domain, opt.port)
-  if not ok then
-    return ok, err
+  if not self.sock then
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    self.sock = sock
   end
+
   local ok, err = sock_send(self.sock, opt.protocol, REQ)
   if not ok then
-    return ok, err
+    self.sock:close()
+    self.sock = nil
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    ok, err = sock_send(sock, opt.protocol, REQ)
+    if not ok then
+      sock:close()
+      return nil, err
+    end
+    self.sock = sock
   end
+
   local code, msg = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
@@ -200,16 +260,34 @@ function httpc:file (domain, headers, files, timeout)
 
   local REQ = build_file_req(opt)
 
-  self.sock = self.sock or sock_new():timeout(self.timeout)
-
-  local ok, err = sock_connect(self.sock, opt.protocol, opt.domain, opt.port)
-  if not ok then
-    return ok, err
+  if not self.sock then
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    self.sock = sock
   end
+
   local ok, err = sock_send(self.sock, opt.protocol, REQ)
   if not ok then
-    return ok, err
+    self.sock:close()
+    self.sock = nil
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    ok, err = sock_send(sock, opt.protocol, REQ)
+    if not ok then
+      sock:close()
+      return nil, err
+    end
+    self.sock = sock
   end
+
   local code, msg = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
@@ -218,13 +296,96 @@ function httpc:file (domain, headers, files, timeout)
   return code, msg
 end
 
--- 多次请求
+-- 异步请求
 function httpc:multi_request (opt)
-  if type ~= 'table' then
-    return nil, "错误的参数类型"
+  if type(opt) ~= 'table' then
+    return nil, "1. 错误的参数类型"
   end
+  local len = #opt
+  if len > 0 then
+    local co = cf_self()
+    local response = {}
+    local wakeuped = false
+    for index = 1, len do
+      cf_fork(function ()
+        local t = now()
+        local req = opt[index]
+        -- 确认method
+        local method = req.method and req.method:lower()
+        if type(method) ~= 'string' or not is_array_member(methods, method) then
+          response[index] = {nil, '不被支持的请求方法.', now() - t}
+          if #response >= len and not wakeuped then
+            wakeuped = true
+            cf_wakeup(co, nil, response)
+          end
+          return
+        end
+
+        -- 解析domain
+        local opt, err = splite_protocol(req.domain)
+        if not opt then
+          response[index] = {nil, err, now() - t}
+          if #response >= len and not wakeuped then
+            wakeuped = true
+            cf_wakeup(co, nil, response)
+          end
+          return
+        end
+
+        opt.json = req.json
+        opt.body = req.body
+        opt.args = req.args
+        opt.files = req.files
+        opt.headers = req.headers
+        opt.server = self.server
+
+        local REQ
+        if method == 'get' then
+          REQ = build_get_req(opt)
+        elseif method == 'post' then
+          REQ = build_post_req(opt)
+        elseif method == 'json' then
+          REQ = build_json_req(opt)
+        elseif method == 'file' then
+          REQ = build_file_req(opt)
+        end
+
+        local sock = sock_new():timeout(self.timeout)
+        local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+        if not ok then
+          response[index] = {nil, err, now() - t}
+          if #response >= len and not wakeuped then
+            wakeuped = true
+            cf_wakeup(co, nil, response)
+          end
+          return sock:close()
+        end
+
+        ok, err = sock_send(sock, opt.protocol, REQ)
+        if not ok then
+          response[index] = {nil, err, now() - t}
+          if #response >= len and not wakeuped then
+            wakeuped = true
+            cf_wakeup(co, nil, response)
+          end
+          return sock:close()
+        end
+
+        local code, msg = httpc_response(sock, opt.protocol)
+        response[index] = {code, msg, now() - t}
+        if #response >= len and not wakeuped then
+          wakeuped = true
+          cf_wakeup(co, true, response)
+        end
+        return sock:close()
+      end)
+    end
+    return cf_wait()
+  end
+  return nil, "2. 错误的参数"
 end
 
+-- 关闭连接
 function httpc:close ()
   if self.sock then
     self.sock:close()

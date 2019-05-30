@@ -266,10 +266,10 @@ local function build_post_req (opt)
 			insert(body, fmt("%s=%s", b[1], b[2]))
 		end
 		insert(request, concat(body, "&"))
-		insert(request, #request - 2, fmt("Content-Length: %s\r\n", #request[#request]))
+		insert(request, #request - 2, fmt("Content-length: %s\r\n", #request[#request]))
 	end
 	if type(opt.body) == "string" then
-		insert(request, #request, fmt("Content-Length: %s\r\n", #opt.body))
+		insert(request, #request, fmt("Content-length: %s\r\n", #opt.body))
 		insert(request, opt.body)
 	end
   return concat(request)
@@ -290,11 +290,11 @@ local function build_json_req (opt)
 		for _, header in ipairs(opt.headers) do
 			assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
 			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
-			insert(request, header[1]..': '..header[2]..CRLF)
+			insert(request, header[1]..': '..header[2])
 		end
 	end
 	insert(request, CRLF)
-	return concat(request, CRLF)..opt.json
+  return concat(request, CRLF)..opt.json
 end
 
 local function build_file_req (opt)
