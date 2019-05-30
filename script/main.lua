@@ -2,7 +2,7 @@ local httpd = require "httpd"
 local httpc = require "httpc"
 local DB = require "DB"
 local xml = require "xml2lua"
-require "test_httpc"
+
 --[[
 请按照以下步奏初始化后台:
 	1. 创建一个数据库(名字任意);
