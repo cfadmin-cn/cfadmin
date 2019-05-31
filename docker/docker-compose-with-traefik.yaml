@@ -3,6 +3,7 @@ version: "2"
 services:
   WebProxy:
     image: traefik
+    restart: always
     command: --api --docker # Enables the web UI and tells Traefik to listen to docker
     ports:
       - "80:80"     # The HTTP port
@@ -14,6 +15,7 @@ services:
 
   WebApp:
     image: candymi/cfweb:latest
+    restart: always
     labels:
       - "traefik.port=8080"
       - "traefik.backend=WebApp"
