@@ -401,7 +401,7 @@ end
 
 
 function MySQL.set_timeout(self, timeout)
-    return self.sock:settimeout(timeout)
+    return self.sock:timeout(timeout)
 end
 
 
@@ -569,13 +569,9 @@ function MySQL.close(self)
 end
 
 function MySQL.send_query(self, query)
-
-    self.packet_no = -1
-
-    local cmd_packet = strchar(COM_QUERY) .. query
-
-    _send_packet(self, cmd_packet, 1 + #query)
-
+  self.packet_no = -1
+  local cmd_packet = strchar(COM_QUERY) .. query
+  return _send_packet(self, cmd_packet, 1 + #query)
 end
 
 
@@ -646,19 +642,17 @@ function MySQL.read_result(self, est_nrows)
     return rows
 end
 
-
 function MySQL.query(self, query, est_nrows)
-
-    if not query or type(query) ~= "string" then
-        return nil, "Attemp to pass a invaild SQL."
-    end
-
-    self:send_query(query)
-
-    return self:read_result(est_nrows)
-
+  if type(query) ~= "string" then
+      return nil, "Attemp to pass a invaild SQL."
+  end
+  local ok = self:send_query(query)
+  if not ok then
+    self.state = nil
+    return nil, 'connection already close'
+  end
+  return self:read_result(est_nrows)
 end
-
 
 function MySQL.set_compact_arrays(self, value)
     self.compact = value
