@@ -6,7 +6,7 @@ services:
     image: candymi/cfweb:latest
     restart: always
     volumes:
-      - ../script/:/app/script/
+      - script/:/app/script/
     ports:
       - "80:8080"
     depends_on:

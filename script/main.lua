@@ -1,7 +1,6 @@
 local httpd = require "httpd"
 local httpc = require "httpc"
 local DB = require "DB"
-local xml = require "xml2lua"
 
 --[[
 请按照以下步奏初始化后台:
@@ -11,7 +10,7 @@ local xml = require "xml2lua"
 ]]
 
 local db = DB:new({
-	host = '10.0.0.16',
+	host = 'localhost',
 	port = 3306,
 	username = 'root',
 	password = '123456789',
