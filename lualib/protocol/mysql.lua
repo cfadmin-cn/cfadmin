@@ -527,7 +527,10 @@ function MySQL.connect(self, opts)
     -- print("packet content length: ", packet_len)
     -- print("packet content: ", _dump(concat(req, "")))
 
-    _send_packet(self, req, packet_len)
+    local ok = _send_packet(self, req, packet_len)
+    if not ok then
+      return nil, "send packet was failed."
+    end
 
     --print("packet sent ", bytes, " bytes")
 
