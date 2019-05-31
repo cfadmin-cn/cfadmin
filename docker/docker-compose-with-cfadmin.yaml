@@ -6,6 +6,8 @@ services:
     restart: always
     volumes:
       - ./script/:/app/script/
+      # 如需设置时区, 建议请将localtime提取到home目录下再挂在使用
+      # - /etc/localtime:/etc/localtime
     ports:
       - 8080:8080
     depends_on:
@@ -23,6 +25,8 @@ services:
       - MYSQL_DATABASE=cfadmin
     volumes:
       - ./db/:/docker-entrypoint-initdb.d/
+      # 如需设置时区, 建议请将localtime提取到home目录下再挂在使用
+      # - /etc/localtime:/etc/localtime
     ports:
       - 3306:3306
     networks:
