@@ -79,10 +79,10 @@ local function gen_cache()
     local file = io.open("/etc/hosts", "r")
     if file then
       for line in file:lines() do
-          local ip, domain = match(line, '^([^#%t ]*)[ ]+(.+)$')
+          local ip, domain = match(line, '([^#%G]*)[%G]+([^%G]+)')
+          -- print(line, 'ip=['..(ip or '')..']', 'domain=['..(domain or '')..']')
           local ok, v = check_ip(ip)
           if ok then
-            domain = match(domain, '([^ ]+)') or domain
             if v == 4 then
                 if not dns_cache[domain] then
                     dns_cache[domain] = {ip = prefix..ip}
