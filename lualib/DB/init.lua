@@ -72,9 +72,10 @@ local function DB_CREATE (opt)
     local db
     while 1 do
         db = mysql:new()
+        db:set_timeout(3)
         local connect, err = db:connect(opt)
         if connect then
-            break
+          break
         end
         db:close()
         Log:ERROR('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
