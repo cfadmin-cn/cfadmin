@@ -24,12 +24,9 @@ end
 
 
 function UDP:connect(ip, port)
-	if not self.udp then
-		return nil, "Can't Create a UDP socket."
-	end
 	self.fd = udp.connect(ip, port)
-	if self.fd < 0 then
-		return nil, "a peer of connect from udp port maybe closed."
+	if not self.fd or self.fd <= 0 then
+		return nil, "Can't Creat UDP Socket"
 	end
 	return true
 end
@@ -62,7 +59,10 @@ function UDP:recv(...)
 end
 
 function UDP:send(data)
-	assert(self.udp and data and self.fd and self.fd > 0, "UDP ERROR 参数不完整.")
+	if type(data) ~= 'string' or not self.fd or self.fd <= 0 then
+		Log:ERROR("Send udp Error: 不完整的参数:"..(data or '')..','..(self.fd or '-1'))
+		return
+	end
 	return udp.send(self.fd, data, #data)
 end
 
