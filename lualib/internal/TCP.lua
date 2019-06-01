@@ -1,4 +1,3 @@
-local ti = require "internal.Timer"
 local dns = require "protocol.dns"
 local co = require "internal.Co"
 local class = require "class"
@@ -17,12 +16,15 @@ local co_spwan = co.spwan
 local co_self = co.self
 local co_wait = coroutine.yield
 
+local ti = require "internal.Timer"
+local ti_timeout = ti.timeout
+
 local tcp_start = tcp.start
 local tcp_stop = tcp.stop
 local tcp_free_ssl = tcp.free_ssl
 local tcp_close = tcp.close
 local tcp_connect = tcp.connect
-local tcp_ssl_connect = tcp.ssl_connect
+local tcp_ssl_do_handshak = tcp.ssl_connect
 local tcp_read = tcp.read
 local tcp_sslread = tcp.ssl_read
 local tcp_write = tcp.write
@@ -154,8 +156,15 @@ function TCP:recv(bytes)
     if self.ssl then
         return Log:ERROR("Please use ssl_recv method :)")
     end
-    self.READ_IO = tcp_pop()
+    local data, len = tcp_read(self.fd, bytes)
+    if not data then
+      return nil, "close"
+    end
+    if data and len > 0 then
+      return data, len
+    end
     local co = co_self()
+    self.READ_IO = tcp_pop()
     self.read_current_co = co_self()
     self.read_co = co_new(function ( ... )
         local buf, len = tcp_read(self.fd, bytes)
@@ -173,7 +182,7 @@ function TCP:recv(bytes)
         end
         return co_wakeup(co, buf, len)
     end)
-    self.timer = ti.timeout(self._timeout, function ( ... )
+    self.timer = ti_timeout(self._timeout, function ( ... )
         tcp_push(self.READ_IO)
         tcp_stop(self.READ_IO)
         self.timer = nil
@@ -225,7 +234,7 @@ function TCP:ssl_recv(bytes)
                 co_wait()
             end
         end)
-        self.timer = ti.timeout(self._timeout, function ( ... )
+        self.timer = ti_timeout(self._timeout, function ( ... )
             tcp_push(self.READ_IO)
             tcp_stop(self.READ_IO)
             self.timer = nil
@@ -285,7 +294,7 @@ function TCP:connect(domain, port)
         end
         return co_wakeup(co, false, '连接失败')
     end)
-    self.timer = ti.timeout(self._timeout, function ( ... )
+    self.timer = ti_timeout(self._timeout, function ( ... )
         tcp_push(self.CONNECT_IO)
         tcp_stop(self.CONNECT_IO)
         self.timer = nil
@@ -314,7 +323,7 @@ function TCP:ssl_connect(domain, port)
     self.connect_co = co_new(function ()
       local EVENTS = EVENT_WRITE
       while 1 do
-          local ok, EVENT = tcp_ssl_connect(self.ssl)
+          local ok, EVENT = tcp_ssl_do_handshak(self.ssl)
           if ok or not EVENT then
             if self.timer then
               self.timer:stop()
@@ -335,7 +344,7 @@ function TCP:ssl_connect(domain, port)
           co_wait()
       end
     end)
-    self.timer = ti.timeout(self._timeout, function ( ... )
+    self.timer = ti_timeout(self._timeout, function ( ... )
         tcp_push(self.CONNECT_IO)
         tcp_stop(self.CONNECT_IO)
         self.timer = nil

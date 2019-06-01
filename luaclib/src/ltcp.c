@@ -16,7 +16,11 @@ void SETSOCKETOPT(int sockfd, int mode){
   int ret = 0;
 
 	/* 设置非阻塞 */
-  non_blocking(sockfd);
+  ret = non_blocking(sockfd);
+  if (ret) {
+    LOG("ERROR", "non_blocking 设置失败.");
+    return exit(-1);
+  }
 
   /* 地址/端口重用 */
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
@@ -228,6 +232,11 @@ tcp_read(lua_State *L){
 		}
 		if (0 > rsize) {
 			if (errno == EINTR) continue;
+      if (errno == EWOULDBLOCK) {
+        lua_pushlstring(L, "", 0);
+        lua_pushinteger(L, 0);
+        return 2;
+      }
 		}
 	} while(0);
 
