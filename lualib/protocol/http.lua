@@ -34,6 +34,7 @@ local REQUEST_PROTOCOL_PARSER = httpparser.parser_request_protocol
 local RESPONSE_PROTOCOL_PARSER = httpparser.parser_response_protocol
 local REQUEST_HEADER_PARSER = httpparser.parser_request_header
 local RESPONSE_HEADER_PARSER = httpparser.parser_response_header
+local RESPONSE_CHUNKED_PARSER = httpparser.parser_response_chunked
 
 local type = type
 local assert = assert
@@ -180,13 +181,25 @@ local HTTP_PROTOCOL = {
 }
 
 -- 以下为 HTTP Client 所需所用方法
+
+-- 解析回应头部
 function HTTP_PROTOCOL.RESPONSE_HEADER_PARSER(header)
 	return RESPONSE_HEADER_PARSER(header)
 end
 
+-- 解析回应协议
 function HTTP_PROTOCOL.RESPONSE_PROTOCOL_PARSER(protocol)
 	local VERSION, CODE, STATUS = RESPONSE_PROTOCOL_PARSER(protocol)
 	return CODE
+end
+
+-- 解析回应chunked
+function HTTP_PROTOCOL.RESPONSE_CHUNKED_PARSER (data)
+	local ok, data, pos = pcall(RESPONSE_CHUNKED_PARSER, data)
+	if not ok then
+		return nil, -1
+	end
+	return data, pos
 end
 
 -- 以下为 HTTP Server 所需所用方法

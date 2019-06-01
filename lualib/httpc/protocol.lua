@@ -4,6 +4,7 @@ local HTTP = require "protocol.http"
 local FILEMIME = HTTP.FILEMIME
 local RESPONSE_PROTOCOL_PARSER = HTTP.RESPONSE_PROTOCOL_PARSER
 local RESPONSE_HEADER_PARSER = HTTP.RESPONSE_HEADER_PARSER
+local RESPONSE_CHUNKED_PARSER = HTTP.RESPONSE_CHUNKED_PARSER
 
 
 local random = math.random
@@ -133,7 +134,7 @@ local function httpc_response(sock, SSL)
 	local content = {}
 	local times = 0
 	while 1 do
-		local data, len = sock_recv(sock, SSL, 1024)
+		local data, len = sock_recv(sock, SSL, 2048)
 		if not data then
 			return nil, "A peer of remote server close this connection."
 		end
@@ -147,64 +148,55 @@ local function httpc_response(sock, SSL)
 				return nil, "can't resolvable protocol."
 			end
 			local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
-			local chunked = HEADER['Transfer-Encoding']
+			local chunked = HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding']
 			if not chunked and not Content_Length then
 				Content_Length = 0
 			end
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
-					return CODE, split(DATA, posB+1, #DATA)
+					return CODE, split(DATA, posB + 1, #DATA)
 				end
-				local content = {split(DATA, posB+1, #DATA)}
+				local content = {split(DATA, posB + 1, #DATA)}
+        local Len = #content[1]
 				while 1 do
-					local data, len = sock_recv(sock, SSL, 1024)
+					local data, len = sock_recv(sock, SSL, 2048)
 					if not data then
 						return CODE, SSL.."[Content_Length] A peer of remote server close this connection."
 					end
 					insert(content, data)
-					local DATA = concat(content)
-					if Content_Length == #DATA then
-						return CODE, DATA
-					end
+          if Len + len == Content_Length then
+            return CODE, concat(content)
+          end
 				end
 			end
 			if chunked and chunked == "chunked" then
 				local content = {}
 				if #DATA > posB then
-					local DATA = split(DATA, posB+1, #DATA)
-					if find(DATA, CRLF2) then
-						local body = {}
-						for hex, block in splite(DATA, "([%w]*)\r\n(.-)\r\n") do
-							local len = toint(fmt("0x%s", hex))
-							if len and len == #block then
-								if len == 0 and block == '' then
-									return CODE, concat(body)
-								end
-								insert(body, block)
-							end
-						end
-					end
-					insert(content, DATA)
+          local buf = split(DATA, posB + 1, #DATA)
+          data, len = RESPONSE_CHUNKED_PARSER(buf)
+          if len == -1 then
+            return nil, "错误的http trunked"
+          end
+          if data then
+            local Pos = find(data, CRLF..(0)..CRLF2)
+            return CODE, split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
+          end
+          insert(content, buf)
 				end
 				while 1 do
-					local data, len = sock_recv(sock, SSL, 1024)
+					local data, len = sock_recv(sock, SSL, 2048)
 					if not data then
 						return CODE, SSL.."[chunked] A peer of remote server close this connection A."
 					end
 					insert(content, data)
-					local DATA = concat(content)
-					if find(DATA, CRLF2) then
-						local body = {}
-						for hex, block in splite(DATA, "([%a%d]*)\r\n(.-)\r\n") do
-							local len = toint(fmt("0x%s", hex))
-							if len and len == #block then
-								if len == 0 and block == '' then
-									return CODE, concat(body)
-								end
-								insert(body, block)
-							end
-						end
-					end
+          local data, len = RESPONSE_CHUNKED_PARSER(concat(content))
+          if len == -1 then
+            return nil, "错误的http trunked. 1"
+          end
+          if data then
+            local Pos = find(data, CRLF..(0)..CRLF2)
+            return CODE, split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
+          end
 				end
 			end
 		end
