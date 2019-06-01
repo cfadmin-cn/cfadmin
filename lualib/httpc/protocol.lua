@@ -136,7 +136,7 @@ local function httpc_response(sock, SSL)
 	while 1 do
 		local data, len = sock_recv(sock, SSL, 2048)
 		if not data then
-			return nil, "A peer of remote server close this connection."
+			return nil, SSL.." A peer of remote server close this connection."
 		end
 		insert(content, data)
 		local DATA = concat(content)
@@ -145,7 +145,7 @@ local function httpc_response(sock, SSL)
 			CODE = RESPONSE_PROTOCOL_PARSER(split(DATA, 1, posB))
 			HEADER = RESPONSE_HEADER_PARSER(split(DATA, 1, posB))
 			if not CODE or not HEADER then
-				return nil, "can't resolvable protocol."
+				return nil, SSL.." can't resolvable protocol."
 			end
 			local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
 			local chunked = HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding']
@@ -161,10 +161,11 @@ local function httpc_response(sock, SSL)
 				while 1 do
 					local data, len = sock_recv(sock, SSL, 2048)
 					if not data then
-						return CODE, SSL.."[Content_Length] A peer of remote server close this connection."
+						return nil, SSL.."[Content_Length] A peer of remote server close this connection."
 					end
 					insert(content, data)
-          if Len + len == Content_Length then
+          Len = Len + len
+          if Len >= Content_Length then
             return CODE, concat(content)
           end
 				end
@@ -175,7 +176,7 @@ local function httpc_response(sock, SSL)
           local buf = split(DATA, posB + 1, #DATA)
           data, len = RESPONSE_CHUNKED_PARSER(buf)
           if len == -1 then
-            return nil, "错误的http trunked"
+            return nil, SSL.." 错误的http trunked"
           end
           if data then
             local Pos = find(data, CRLF..(0)..CRLF2)
@@ -191,7 +192,7 @@ local function httpc_response(sock, SSL)
 					insert(content, data)
           local data, len = RESPONSE_CHUNKED_PARSER(concat(content))
           if len == -1 then
-            return nil, "错误的http trunked. 1"
+            return nil, SSL.." 错误的http trunked. 1"
           end
           if data then
             local Pos = find(data, CRLF..(0)..CRLF2)
