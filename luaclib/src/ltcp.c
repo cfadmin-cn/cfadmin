@@ -194,6 +194,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 					LOG("INFO", strerror(errno));
 				return ;
 			}
+      non_blocking(client); //在某些平台下, 这个socket是阻塞的.
 			lua_State *co = (lua_State *) core_get_watcher_userdata(io);
 			if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
 				char buf[INET6_ADDRSTRLEN];
@@ -233,7 +234,7 @@ tcp_read(lua_State *L){
 		if (0 > rsize) {
 			if (errno == EINTR) continue;
       if (errno == EWOULDBLOCK) {
-        lua_pushlstring(L, "", 0);
+        lua_pushnil(L);
         lua_pushinteger(L, 0);
         return 2;
       }

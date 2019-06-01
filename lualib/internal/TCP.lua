@@ -157,11 +157,8 @@ function TCP:recv(bytes)
         return Log:ERROR("Please use ssl_recv method :)")
     end
     local data, len = tcp_read(self.fd, bytes)
-    if not data then
-      return nil, "close"
-    end
-    if data and len > 0 then
-      return data, len
+    if not len or len > 0 then
+      return data, not len and 'close' or len
     end
     local co = co_self()
     self.READ_IO = tcp_pop()
