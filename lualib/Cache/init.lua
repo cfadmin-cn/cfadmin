@@ -51,9 +51,9 @@ local function CREATE_CACHE(opt)
       if ok then
           break
       end
-      Log:ERROR('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
-      times = times + 1
+      Log:WARN('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
       rds:close()
+      times = times + 1
       timer.sleep(3)
   end
   if not opt.INITIALIZATION then

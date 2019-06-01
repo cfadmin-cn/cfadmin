@@ -77,8 +77,8 @@ local function DB_CREATE (opt)
         if connect then
           break
         end
+        Log:WARN('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
         db:close()
-        Log:ERROR('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
         times = times + 1
         timer.sleep(3)
     end
