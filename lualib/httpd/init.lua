@@ -12,7 +12,10 @@ local ipairs = ipairs
 local fmt = string.format
 local match = string.match
 local io_open = io.open
+local io_write = io.write
+local io_flush = io.flush
 local os_date = os.date
+local toint = math.tointeger
 
 -- 请求解析
 local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
@@ -137,23 +140,36 @@ function httpd:log(path)
 end
 
 function httpd:tolog(code, path, ip, ip_list, method, speed)
-    if self.logging then
-      self.logging:dump(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
-    end
-    print(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
+  if self.logging then
+    self.logging:dump(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
+  end
+  if self.output then
+    io_write(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
+  end
 end
 
 -- 监听请求
-function httpd:listen(ip, port)
-    self.IO:listen(ip, port, function (fd, ipaddr)
-        return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
-    end)
-    return self
+function httpd:listen(ip, port, backlog)
+  if type(backlog) == 'number' then
+    self.IO:set_backlog(toint(backlog))
+  end
+  self.IO:listen(ip, port, function (fd, ipaddr)
+      return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
+  end, backlog)
+  return self
 end
 
 -- 正确的运行方式
 function httpd:run()
-    return cf.wait()
+  local output = io.output()
+  if io.type(output) == 'file' then
+    self.output = true
+    output:setvbuf("full", 1 << 20)
+    cf.at(0.1, function ()
+      return io_flush() -- 定期刷新缓冲, 日志缓冲平凡导致的性能问题
+    end)
+  end
+  return cf.wait()
 end
 
 return httpd
