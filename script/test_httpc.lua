@@ -110,7 +110,7 @@ cf.timeout(5, function ()
       }
     }
     local t2 = now()
-    print("结束时间:", t1, "总耗时:", t2 - t1)
+    print("结束时间:", t2, "总耗时:", t2 - t1)
 
     require('logging'):new({path = 'test_httpc', dump=true}):DEBUG(response, "回应数量: " .. #response)
     hc:close()
