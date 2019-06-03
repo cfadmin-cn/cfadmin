@@ -21,8 +21,21 @@ function cf.at(repeats, func)
   return at(repeats, func)
 end
 
+-- 新增主动让出协程执行权的功能
+local function yield ()
+  local co = self()
+  fork(function (...)
+    wakeup(co)
+  end)
+  return wait()
+end
+cf.yield = yield
+
 -- 协程休眠指定时间
 function cf.sleep(time)
+  if time == 0 then
+    return yield()
+  end
   return sleep(time)
 end
 

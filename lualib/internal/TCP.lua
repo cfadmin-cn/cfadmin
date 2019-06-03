@@ -21,6 +21,7 @@ local ti = require "internal.Timer"
 local ti_timeout = ti.timeout
 
 local tcp = require "tcp"
+local tcp_new = tcp.new
 local tcp_start = tcp.start
 local tcp_stop = tcp.stop
 local tcp_free_ssl = tcp.free_ssl
@@ -45,7 +46,7 @@ local function tcp_pop()
     if #POOL > 0 then
         return remove(POOL)
     end
-    return tcp.new()
+    return tcp_new()
 end
 
 local function tcp_push(tcp)
