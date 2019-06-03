@@ -1,15 +1,16 @@
-local dns = require "protocol.dns"
-local co = require "internal.Co"
 local class = require "class"
-local tcp = require "tcp"
+
 local log = require "logging"
 local Log = log:new({ dump = true, path = 'internal-TCP' })
 
 local split = string.sub
 local insert = table.insert
 local remove = table.remove
+
+local dns = require "protocol.dns"
 local dns_resolve = dns.resolve
 
+local co = require "internal.Co"
 local co_new = co.new
 local co_wakeup = co.wakeup
 local co_spwan = co.spwan
@@ -19,6 +20,7 @@ local co_wait = coroutine.yield
 local ti = require "internal.Timer"
 local ti_timeout = ti.timeout
 
+local tcp = require "tcp"
 local tcp_start = tcp.start
 local tcp_stop = tcp.stop
 local tcp_free_ssl = tcp.free_ssl
@@ -47,7 +49,7 @@ local function tcp_pop()
 end
 
 local function tcp_push(tcp)
-    insert(POOL, tcp)
+    POOL[#POOL+1] = tcp
 end
 
 local TCP = class("TCP")
@@ -248,7 +250,7 @@ end
 
 function TCP:listen(ip, port, cb)
     self.LISTEN_IO = tcp_pop()
-    self.fd = tcp_new_server_fd(ip, port)
+    self.fd = tcp_new_server_fd(ip, port, self._backlog)
     if not self.fd then
         return Log:ERROR("this IP and port Create A bind or listen method Faild! :) ")
     end
@@ -260,7 +262,7 @@ function TCP:listen(ip, port, cb)
             end
         end
     end)
-    return tcp.listen(self.LISTEN_IO, self.fd, self.co, self._backlog)
+    return tcp_listen(self.LISTEN_IO, self.fd, self.co)
 end
 
 function TCP:connect(domain, port)
