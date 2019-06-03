@@ -155,7 +155,7 @@ function httpd:listen(ip, port, backlog)
   end
   self.IO:listen(ip, port, function (fd, ipaddr)
       return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
-  end, backlog)
+  end)
   return self
 end
 
