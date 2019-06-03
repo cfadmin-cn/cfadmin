@@ -7,7 +7,7 @@ local now = system.now
 
 require "utils"
 
-cf.timeout(2, function ( ... )
+cf.timeout(3, function ( ... )
   cf.fork(function ( ... )
     local t1 = now()
     print("开始时间:", t1)
@@ -32,7 +32,7 @@ cf.timeout(2, function ( ... )
     print(code, body)
 
     -- http 上传文件示例
-    local code, body = httpc.file('http://localhost:8080/view', nil, {
+    local code, body = httpc.file('http://localhost:8080/api', nil, {
         {name='1', filename='1.jpg', file='1', type='abc'},
         {name='2', filename='2.jpg', file='2', type='abc'},
         })
@@ -75,7 +75,7 @@ cf.timeout(1, function ( ... )
   end)
 end)
 
-cf.timeout(3, function ()
+cf.timeout(5, function ()
   cf.fork(function ( ... )
     local hc = http:new {}
     local t1 = now()
@@ -112,7 +112,7 @@ cf.timeout(3, function ()
     local t2 = now()
     print("结束时间:", t1, "总耗时:", t2 - t1)
 
-    require('logging'):new():DEBUG(response, "回应数量: " .. #response)
+    require('logging'):new({path = 'test_httpc', dump=true}):DEBUG(response, "回应数量: " .. #response)
     hc:close()
   end)
 end)
