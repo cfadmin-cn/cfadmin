@@ -9,7 +9,7 @@ local crypt = require "crypt"
 local sha1 = crypt.sha1
 local base64 = crypt.base64encode
 local now = sys.now
-local DATE = os.date
+local DATE = require("sys").date
 local insert = table.insert
 
 local form = require "httpd.Form"
@@ -30,10 +30,8 @@ local ROUTE_FIND = Router.find
 local ROUTE_REGISTERY = Router.registery
 
 local httpparser = require "httpparser"
-local REQUEST_PROTOCOL_PARSER = httpparser.parser_request_protocol
-local RESPONSE_PROTOCOL_PARSER = httpparser.parser_response_protocol
-local REQUEST_HEADER_PARSER = httpparser.parser_request_header
-local RESPONSE_HEADER_PARSER = httpparser.parser_response_header
+local PARSER_HTTP_REQUEST = httpparser.parser_http_request
+local PARSER_HTTP_RESPONSE = httpparser.parser_http_response
 local RESPONSE_CHUNKED_PARSER = httpparser.parser_response_chunked
 
 local type = type
@@ -180,17 +178,22 @@ local HTTP_PROTOCOL = {
 	[4] = "WS",
 }
 
--- 以下为 HTTP Client 所需所用方法
-
--- 解析回应头部
-function HTTP_PROTOCOL.RESPONSE_HEADER_PARSER(header)
-	return RESPONSE_HEADER_PARSER(header)
+-- 解析http请求
+function HTTP_PROTOCOL.PARSER_HTTP_REQUEST (buffer)
+	local ok, method, path, version, header = pcall(PARSER_HTTP_REQUEST, buffer)
+	if not ok then
+		return nil
+	end
+	return method, path, version, header
 end
 
--- 解析回应协议
-function HTTP_PROTOCOL.RESPONSE_PROTOCOL_PARSER(protocol)
-	local VERSION, CODE, STATUS = RESPONSE_PROTOCOL_PARSER(protocol)
-	return CODE
+-- 解析http回应
+function HTTP_PROTOCOL.PARSER_HTTP_RESPONSE (buffer)
+	local ok, version, code, status, header = pcall(PARSER_HTTP_RESPONSE, buffer)
+	if not ok then
+		return nil
+	end
+	return version, code, status, header
 end
 
 -- 解析回应chunked
@@ -390,6 +393,15 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 	return wsserver:new({cls = cls, sock = sock}):start()
 end
 
+local response = {nil, CRLF2, nil}
+local function send_response (sock, headers, body)
+	response[1] = concat(headers, CRLF)
+	response[3] = body
+	local ok = sock:send(concat(response))
+	response[1], response[3] = nil, nil
+	return ok
+end
+
 function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 	local buffers = {}
 	local ttl = http.ttl
@@ -413,9 +425,8 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 		local CRLF_START, CRLF_END = find(buffer, CRLF2)
 		if CRLF_START and CRLF_END then
 			local start = now()
-			local PROTOCOL_START, PROTOCOL_END = find(buffer, CRLF)
-			local METHOD, PATH, VERSION = REQUEST_PROTOCOL_PARSER(buffer)
 			-- 协议有问题返回400
+			local METHOD, PATH, VERSION, HEADER = PARSER_HTTP_REQUEST(buffer)
 			if not METHOD or not PATH or not VERSION then
 				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr, METHOD or "GET", now() - start))
 				return sock:close()
@@ -426,8 +437,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				return sock:close()
 			end
 			-- 没有HEADER返回400
-			local HEADER = REQUEST_HEADER_PARSER(buffer)
-			if not HEADER then
+			if not HEADER or not next(HEADER) then
 				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr, METHOD, now() - start))
 				return sock:close()
 			end
@@ -636,7 +646,10 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			if Connection == 'Connection: keep-alive' then
 				header[#header+1] = "Keep-Alive: timeout="..timeout
 			end
-			sock:send(concat({concat(header, CRLF), CRLF2, body}))
+			local ok = send_response(sock, header, body)
+			if not ok then
+				return sock:close()
+			end
 			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
 			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
 				return sock:close()

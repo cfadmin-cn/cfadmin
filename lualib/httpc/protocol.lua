@@ -2,8 +2,7 @@ local tcp = require "internal.TCP"
 
 local HTTP = require "protocol.http"
 local FILEMIME = HTTP.FILEMIME
-local RESPONSE_PROTOCOL_PARSER = HTTP.RESPONSE_PROTOCOL_PARSER
-local RESPONSE_HEADER_PARSER = HTTP.RESPONSE_HEADER_PARSER
+local PARSER_HTTP_RESPONSE = HTTP.PARSER_HTTP_RESPONSE
 local RESPONSE_CHUNKED_PARSER = HTTP.RESPONSE_CHUNKED_PARSER
 
 
@@ -129,7 +128,7 @@ local function httpc_response(sock, SSL)
 	if not sock then
 		return nil, "Can't used this method before other httpc method.."
 	end
-	local CODE, HEADER, BODY
+	local VERSION, CODE, STATUS, HEADER, BODY
 	local Content_Length
 	local content = {}
 	local times = 0
@@ -142,15 +141,19 @@ local function httpc_response(sock, SSL)
 		local DATA = concat(content)
 		local posA, posB = find(DATA, CRLF2)
 		if posB then
-			CODE = RESPONSE_PROTOCOL_PARSER(split(DATA, 1, posB))
-			HEADER = RESPONSE_HEADER_PARSER(split(DATA, 1, posB))
+      VERSION, CODE, STATUS, HEADER = PARSER_HTTP_RESPONSE(DATA)
+			-- CODE = RESPONSE_PROTOCOL_PARSER(split(DATA, 1, posB))
+			-- HEADER = RESPONSE_HEADER_PARSER(split(DATA, 1, posB))
 			if not CODE or not HEADER then
 				return nil, SSL.." can't resolvable protocol."
 			end
 			local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
 			local chunked = HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding']
 			if not chunked and not Content_Length then
-				Content_Length = 0
+				return nil, "不支持的请求体解析方式:"..(
+        (HEADER['Content-Length'] or HEADER['content-length']) or
+        (HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding']) or
+        "未知的解析方式")
 			end
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then

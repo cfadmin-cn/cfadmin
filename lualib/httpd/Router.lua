@@ -1,9 +1,6 @@
 local log = require "logging"
 local Log = log:new({dump = true, path = 'httpd-Router'})
 
-local crypt = require "crypt"
-local hexencode = crypt.hexencode
-
 local math = math
 local string = string
 local split = string.sub
@@ -43,7 +40,7 @@ local function hex_route(route)
 	for r in splite(route, '/([^/%?]+)') do
 		tab[#tab + 1] = r
 	end
-	return hexencode(concat(tab))
+	return concat(tab)
 end
 
 local function registery_static (prefix, route_type)
