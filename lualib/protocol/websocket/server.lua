@@ -109,15 +109,15 @@ function websocket:start()
   local on_message = cls.on_message
   local on_error = cls.on_error
   local on_close = cls.on_close
+  self.cls = nil
+  self.sock._timeout = cls.timeout
+  self.send_masked = cls.send_masked
+  self.max_payload_len = cls.max_payload_len or 65535
   local ok, err = pcall(on_open, cls)
   if not ok then
     self.sock = nil
     return Log:ERROR(err)
   end
-  self.cls = nil
-  self.sock._timeout = cls.timeout
-  self.send_masked = cls.send_masked
-  self.max_payload_len = cls.max_payload_len or 65535
   while 1 do
     local data, typ, err = _recv_frame(sock, self.max_payload_len, self.send_masked)
     if (not data and not typ) or typ == 'close' then
