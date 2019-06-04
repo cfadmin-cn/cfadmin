@@ -165,8 +165,8 @@ function httpd:run()
   if io.type(output) == 'file' then
     self.output = true
     output:setvbuf("full", 1 << 20)
-    cf.at(0.1, function ()
-      return io_flush() -- 定期刷新缓冲, 日志缓冲平凡导致的性能问题
+    cf.at(0.2, function ()
+      return io_flush() -- 定期刷新缓冲, 减少日志缓冲频繁导致的性能问题
     end)
   end
   return cf.wait()
