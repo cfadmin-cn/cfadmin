@@ -10,6 +10,14 @@
 
 #define EV_VERIFY 0
 
+#define EV_USE_FLOOR 1
+
+#define EV_USE_REALTIME 1
+
+#define EV_USE_MONOTONIC 1
+
+#define EV_USE_CLOCK_SYSCALL 1
+
 #define EV_USE_4HEAP 1
 
 #define EV_HEAP_CACHE_AT 1
@@ -20,10 +28,10 @@
 
 /* eventfd 与 signalfd */
 #if defined(__linux) || defined(__linux__)
+	#define EV_USE_EPOLL 1
 	#define EV_USE_INOTIFY 1
 	#define EV_USE_SIGNALFD 1
 	#define EV_USE_EVENTFD 1
-    #define EV_USE_EPOLL 1
 #endif
 
 #if defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
