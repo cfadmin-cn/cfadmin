@@ -53,6 +53,11 @@ function admin.init_home (url)
   config.home = url or config.home
 end
 
+-- 设置是否显示头部语言标签
+function admin.display_lang (display)
+  config.display_lang = display
+end
+
 function admin.init_page (app, db)
   config.app = assert(app, '初始化必须传入有效的http对象')
   config.db = assert(db, '初始化必须传入有效的db对象')

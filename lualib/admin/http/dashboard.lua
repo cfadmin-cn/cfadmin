@@ -126,6 +126,7 @@ function dashboard.render(content)
     menu = config.system_menu_render,
     header = config.system_header_render,
     role = config.system_role_render,
+    display_lang = config.display_lang,
     profile = config.profile_render,
     locale = get_locale(Cookie.getCookie("CFLANG"))
   }

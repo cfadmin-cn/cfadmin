@@ -16,17 +16,19 @@
             </li>
           {% end %}
         {% end %}
-        <li class="layui-nav-item">
-            <a href="javascript:;"><i class="iconfont">&#59432;</i> {* locale['dashboard.header.langs'] *}</a>
-            <dl class="layui-nav-child">
-              <dd>
-                <a href="{{ logo..'?'..'lang='..'ZH-CN' }}">{* locale['dashboard.header.langs.simplified-chinese'] *}</a>
-              </dd>
-              <dd>
-                <a href="{{ logo..'?'..'lang='..'EN-US' }}">{* locale['dashboard.header.langs.us-english'] *}</a>
-              </dd>
-            </dl>
-        </li>
+        {% if display_lang then %}
+          <li class="layui-nav-item">
+              <a href="javascript:;"><i class="iconfont">&#59432;</i> {* locale['dashboard.header.langs'] *}</a>
+              <dl class="layui-nav-child">
+                <dd>
+                  <a href="{{ logo..'?'..'lang='..'ZH-CN' }}">{* locale['dashboard.header.langs.simplified-chinese'] *}</a>
+                </dd>
+                <dd>
+                  <a href="{{ logo..'?'..'lang='..'EN-US' }}">{* locale['dashboard.header.langs.us-english'] *}</a>
+                </dd>
+              </dl>
+          </li>
+        {% end %}
         <li class="layui-nav-item">
             <a href="javascript:;"><i class="iconfont">&#xe6b8;</i> {* username *}</a>
             <dl class="layui-nav-child">
