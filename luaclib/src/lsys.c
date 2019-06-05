@@ -43,7 +43,8 @@ ldate(lua_State *L){
     return 1;
 }
 
-static int /* url编码 */
+/* url编码 */
+static int
 lurlencode(lua_State *L){
 	size_t url_len;
   const char* url = luaL_checklstring(L, 1, &url_len);
@@ -67,23 +68,26 @@ lurlencode(lua_State *L){
 	return 1;
 }
 
-static int /* url解码 */
+/* url解码 */
+static int
 lurldecode(lua_State *L){
-	size_t url_len, i = 0, j = 0;
+	size_t url_len;
   const char* url = luaL_checklstring(L, 1, &url_len);
 	if (!url) return luaL_error(L, "urldecode error: 需要传递一个有效的url字符串!");
-	char convert_url[url_len];
-	while (i < url_len) {
-		if (url[i] != '%') {
-			convert_url[j++] = url[i++];
+	luaL_Buffer convert_url;
+	luaL_buffinit(L, &convert_url);
+	while (*url) {
+		uint8_t ch = (uint8_t)*url++;
+		if (ch != '%') {
+			luaL_addchar(&convert_url, ch);
 			continue;
 		}
-		char vert[2] = {url[i + 1], url[i + 2]};
-		convert_url[j++] = (uint8_t)((vert[0] - 48 - ((vert[0] >= 'A') ? 7 : 0) - ((vert[0] >= 'a') ? 32 : 0)) * 16 + (vert[1] - 48 - ((vert[1] >= 'A') ? 7 : 0) - ((vert[1] >= 'a') ? 32 : 0)));
-		i += 3;
+		char vert[2];
+		vert[0] = (uint8_t)*url++;
+		vert[1] = (uint8_t)*url++;
+		luaL_addchar(&convert_url, (uint8_t)((vert[0] - 48 - ((vert[0] >= 'A') ? 7 : 0) - ((vert[0] >= 'a') ? 32 : 0)) * 16 + (vert[1] - 48 - ((vert[1] >= 'A') ? 7 : 0) - ((vert[1] >= 'a') ? 32 : 0))));
 	}
-	if (j < i) convert_url[j] = '\0';
-	lua_pushstring(L, convert_url);
+	luaL_pushresult(&convert_url);
 	return 1;
 }
 
