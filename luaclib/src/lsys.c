@@ -91,6 +91,14 @@ lurldecode(lua_State *L){
 	return 1;
 }
 
+static int
+lnew_tab(lua_State *L){
+	lua_Integer array_size = luaL_checkinteger(L, 1);
+	lua_Integer hash_size = luaL_checkinteger(L, 2);
+	lua_createtable(L, array_size, hash_size);
+	return 1;
+}
+
 LUAMOD_API int
 luaopen_sys(lua_State *L){
 	luaL_checkversion(L);
@@ -99,6 +107,7 @@ luaopen_sys(lua_State *L){
 		{"ipv4", lipv4},
 		{"ipv6", lipv6},
 		{"date", ldate},
+		{"new_tab", lnew_tab},
 		{"urlencode", lurlencode},
 		{"urldecode", lurldecode},
 		{NULL, NULL}

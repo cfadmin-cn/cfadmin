@@ -10,7 +10,7 @@ local rand = math.random
 local tostring = tostring
 local type = type
 
-local new_tab = function (narr, nrec) return {} end
+local new_tab = require("sys").new_tab
 
 
 local _M = new_tab(0, 5)

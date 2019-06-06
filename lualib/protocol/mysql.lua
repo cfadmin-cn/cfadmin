@@ -13,7 +13,7 @@ local sha1= crypt.sha1
 local setmetatable = setmetatable
 local error = error
 local tonumber = tonumber
-local new_tab = function (narr, nrec) return {} end
+local new_tab = require("sys").new_tab
 
 local CHARSET_MAP = {
     _default  = 0,
