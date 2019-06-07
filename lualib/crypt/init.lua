@@ -1,4 +1,5 @@
 local CRYPT = require "lcrypt"
+local new_tab = require("sys").new_tab
 
 local fmt = string.format
 local byte = string.byte
@@ -6,8 +7,10 @@ local match = string.match
 local concat = table.concat
 
 local sha1 = CRYPT.sha1
+local hmac_sha1 = CRYPT.hmac_sha1
 
 local sha256 = CRYPT.sha256
+local hmac_sha256 = CRYPT.hmac_sha256
 
 local xor_str = CRYPT.xor_str
 
@@ -17,7 +20,6 @@ local crc64 = CRYPT.crc64
 local randomkey = CRYPT.randomkey
 local hashkey = CRYPT.hashkey
 
-local hmac_sha1 = CRYPT.hmac_sha1
 local hmac_hash = CRYPT.hmac_hash
 
 local hmac64 = CRYPT.hmac64
@@ -41,7 +43,7 @@ local crypt = {}
 function crypt.sha1(str, hex)
   local hash = sha1(str)
   if hash and hex then
-    local tab = {}
+    local tab = new_tab(#hash, 0)
     for i = 1, #hash do
       tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
     end
@@ -53,7 +55,7 @@ end
 function crypt.sha256 (str, hex)
   local hash = sha256(str)
   if hash and hex then
-    local tab = {}
+    local tab = new_tab(#hash, 0)
     for i = 1, #hash do
       tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
     end
@@ -74,8 +76,28 @@ function crypt.hashkey (...)
   return hashkey(...)
 end
 
-function crypt.hmac_sha1 (...)
-  return hmac_sha1(...)
+function crypt.hmac_sha1 (key, text, hex)
+  local hash = hmac_sha1(key, text)
+  if hash and hex then
+    local tab = new_tab(#hash, 0)
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
+end
+
+function crypt.hmac_sha256 (key, text, hex)
+  local hash = hmac_sha256(key, text)
+  if hash and hex then
+    local tab = new_tab(#hash, 0)
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
 end
 
 function crypt.hmac_hash (...)

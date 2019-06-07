@@ -154,15 +154,69 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 
 }
 
+static inline
+void sha256(SHA256_CTX *ctx, const char *buffer, size_t sz, char* hash){
+	sha256_init(&ctx);
+  sha256_update(&ctx, buffer, sz);
+  sha256_final(&ctx, hash);
+}
+
 LUAMOD_API int
 lsha256(lua_State *L) {
   size_t sz = 0;
   const uint8_t * buffer = (const uint8_t *)luaL_checklstring(L, 1, &sz);
   uint8_t hash[SHA256_HASH_SIZE];
   SHA256_CTX ctx;
-  sha256_init(&ctx);
-  sha256_update(&ctx, buffer, sz);
-  sha256_final(&ctx, hash);
+	sha256(&ctx, buffer, sz, hash);
   lua_pushlstring(L, (const char *)hash, SHA256_HASH_SIZE);
+  return 1;
+}
+
+static inline
+void xor_buf(uint8_t buf1[SHA256_HASH_SIZE], uint8_t buf2[SHA256_HASH_SIZE], size_t key_size) {
+	for(int i = 0; i< key_size; i++){
+		*(buf1 + i) = *(buf1 + i) ^ 0x5c;
+		*(buf2 + i) = *(buf2 + i) ^ 0x36;
+	}
+}
+
+LUAMOD_API int
+lhmac_sha256(lua_State *L) {
+	size_t len_key = 0;
+	const uint8_t * key = (const uint8_t *)luaL_checklstring(L, 1, &len_key);
+	size_t len = 0;
+	const uint8_t * data = (const uint8_t *)luaL_checklstring(L, 2, &len);
+	int block_size = 64;
+	int hash_size = 32;
+	int key_size = block_size;
+	unsigned char buf[block_size];
+	unsigned char buf2[block_size];
+	bzero(buf, block_size);
+	bzero(buf2, block_size);
+	if (len_key > block_size) {
+		key_size = hash_size;
+		SHA256_CTX ctx;
+		sha256(&ctx, data, len, buf);
+		memcpy(buf2, buf, key_size);
+	} else {
+		memcpy(buf, key, len_key);
+		memcpy(buf2, key, len_key);
+	}
+	xor_buf(buf, buf2, key_size);
+	size_t hash_buf_size = key_size + (len < hash_size ? hash_size : len);
+	unsigned char hash_buf[hash_buf_size];
+	memcpy(hash_buf, buf2, key_size);
+	memcpy(hash_buf + key_size, data, len);
+
+	SHA256_CTX ctx1, ctx2;
+	unsigned char hash_out[SHA256_HASH_SIZE];
+	sha256(&ctx1, hash_buf, key_size + len, hash_out);
+	memcpy(hash_buf, buf, key_size);
+	memcpy(hash_buf + key_size, hash_out, hash_size);
+
+	unsigned char hash_buffer[SHA256_HASH_SIZE];
+	sha256(&ctx2, hash_buf, key_size + hash_size, hash_buffer);
+
+	lua_pushlstring(L, (const char *)hash_buffer, SHA256_HASH_SIZE);
   return 1;
 }

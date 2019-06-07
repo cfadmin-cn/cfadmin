@@ -953,6 +953,7 @@ int lhmac_sha1(lua_State *L);
 
 // defined sha256.c
 int lsha256(lua_State *L);
+int lhmac_sha256(lua_State *L);
 
 LUAMOD_API int
 luaopen_lcrypt(lua_State *L) {
@@ -973,6 +974,7 @@ luaopen_lcrypt(lua_State *L) {
 		{ "sha1", lsha1 },
     { "hmac_sha1", lhmac_sha1 },
     { "sha256", lsha256 },
+		{ "hmac_sha256", lhmac_sha256 },
     { "crc32", lcrc32 },
     { "crc64", lcrc64 },
 		{ "hmac_hash", lhmac_hash },
