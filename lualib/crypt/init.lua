@@ -1,7 +1,16 @@
 local CRYPT = require "lcrypt"
 
+local fmt = string.format
+local byte = string.byte
+local match = string.match
+local concat = table.concat
+
 local sha1 = CRYPT.sha1
+
+local sha256 = CRYPT.sha256
+
 local xor_str = CRYPT.xor_str
+
 local crc32 = CRYPT.crc32
 local crc64 = CRYPT.crc64
 
@@ -29,8 +38,28 @@ local dhexchange = CRYPT.dhexchange
 
 local crypt = {}
 
-function crypt.sha1(...)
-  return sha1(...)
+function crypt.sha1(str, hex)
+  local hash = sha1(str)
+  if hash and hex then
+    local tab = {}
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
+end
+
+function crypt.sha256 (str, hex)
+  local hash = sha256(str)
+  if hash and hex then
+    local tab = {}
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
 end
 
 function crypt.xor_str (...)
