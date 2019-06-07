@@ -56,21 +56,22 @@ function client:ctor(opt)
 end
 
 function client:subscribe(opt, func)
-	local args = { type = packet_type.SUBSCRIBE, subscriptions = {opt} }
 	self.handle = func
-	self:_send_packet(args)
+	local args = { type = packet_type.SUBSCRIBE, subscriptions = {opt} }
+	local ok, err = self:_send_packet(args)
+	if not ok then
+		return false, 'SUBSCRIBE send failed'
+	end
 	local ok, err = self:_wait_packet_exact{type=packet_type.SUBACK, packet_id=args.packet_id}
 	if not ok then
 		return false, 'SUBSCRIBE wait for SUBACK failed'
 	end
 	co_spwan(function ( ... )
-		local co_current = Co.self()
 		local time = os_time()
 		local timer = Timer.at(self.keep_alive, function ( ... )
 			if os_time() >= time + self.keep_alive then
-				return co.wakeup(co_current)
+				return self:ping()
 			end
-			return self:ping()
 		end)
 		while 1 do
 			local packet, perr = self:_wait_packet_queue()
@@ -95,10 +96,11 @@ function client:subscribe(opt, func)
 			elseif packet.type == packet_type.PUBACK then
 				self:acknowledge(packet)
 			-- elseif packet.type == packet_type.PINGRESP then
-			-- 	-- pass
+			-- 	pass
 			-- else
 			-- 	return false, "unexpected packet received: "..tostring(packet)
 			end
+
 		end
 	end)
 	return true
