@@ -174,7 +174,8 @@ lsha256(lua_State *L) {
 
 static inline
 void xor_buf(uint8_t buf1[SHA256_HASH_SIZE], uint8_t buf2[SHA256_HASH_SIZE], size_t key_size) {
-	for(int i = 0; i< key_size; i++){
+	int i;
+	for(i = 0; i< key_size; i++){
 		*(buf1 + i) = *(buf1 + i) ^ 0x5c;
 		*(buf2 + i) = *(buf2 + i) ^ 0x36;
 	}
