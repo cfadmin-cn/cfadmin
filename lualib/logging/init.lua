@@ -1,8 +1,13 @@
 -- logging 核心配置
 local class = require "class"
+
+local os_date = require("sys").date
+
 local system = require "system"
 local now = system.now
+
 local type = type
+local select = select
 local assert = assert
 local pairs = pairs
 local tostring = tostring
@@ -10,19 +15,17 @@ local getmetatable = getmetatable
 
 local modf = math.modf
 local debug_getinfo = debug.getinfo
-local os_date = require("sys").date
 local io_open = io.open
 local io_write = io.write
 local io_type = io.type
-local format = string.format
+local fmt = string.format
 local concat = table.concat
-local modf = math.modf
 
 
 -- 格式化时间: [年-月-日 时:分:秒,毫秒]
 local function fmt_Y_m_d_H_M_S()
   local ts, f = modf(now())
-  return concat({'[', os_date('%Y-%m-%d %H:%M:%S'), ',', format("%0.3f", f * 1e3), ']'})
+  return concat({'[', os_date('%Y-%m-%d %H:%M:%S'), ',', fmt("%0.3f", f * 1e3), ']'})
 end
 
 -- 格式化时间: [年-月-日 时:分:秒]
