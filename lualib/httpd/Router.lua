@@ -52,17 +52,17 @@ local function check_path_deep (paths)
 	-- 判断是否/..
 	local head = paths[1]
 	if head == '..' then
-		return
+		return true
 	end
 	-- 判断是否/./..
 	local second = paths[2]
 	if second == '..' and head == '.' then
-		return
+		return true
 	end
 	-- 结尾是特殊文件[夹]直接返回.
 	local tail = paths[#paths]
 	if tail == '.' or tail == '..' then
-		return
+		return true
 	end
 	local deep = 1
 	for index, path in ipairs(paths) do
