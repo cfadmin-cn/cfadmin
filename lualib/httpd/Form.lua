@@ -1,3 +1,7 @@
+local url = require "url"
+local urlencode = url.encode
+local urldecode = url.decode
+
 local type = type
 local string = string
 local table = table
@@ -17,7 +21,7 @@ function form.urlencode(body)
 	end
 	local ARGS = {}
 	for key, value in splite(body, "([^%?&]-)=([^%?&]+)") do
-		ARGS[key] = value
+		ARGS[urldecode(key)] = urldecode(value)
 	end
 	return ARGS
 end
