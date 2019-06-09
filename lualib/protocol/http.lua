@@ -448,7 +448,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				return sock:close()
 			end
 			-- 这里根据PATH先查找路由, 如果没有直接返回404.
-			local cls, typ = ROUTE_FIND(PATH)
+			local cls, typ = ROUTE_FIND(METHOD, PATH)
 			if not cls or not typ then
 				sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 				return sock:close()

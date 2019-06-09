@@ -94,7 +94,7 @@ local function registery_router (route, class, route_type)
 	routes[concat(hex_route(route))] = {class = class, type = route_type}
 end
 
-local function find_route (path)
+local function find_route (method, path)
 	local tab = hex_route(split(path, 1, (find(path, '?') or 0) - 1))
 	local hex = concat(tab)
 	local t = routes[hex]
@@ -103,6 +103,10 @@ local function find_route (path)
 	end
 	local prefix, type = static.prefix, static.type
 	if not prefix and not type then
+		return
+	end
+	-- 非GET方法不查找静态文件
+	if method ~= 'GET' then
 		return
 	end
 	-- 凡是找到'../'并且检查路径回退已经超出静态文件根目录返回404
@@ -122,12 +126,12 @@ local function find_route (path)
 end
 
 -- 查找路由
-function Router.find(path)
+function Router.find(method, path)
 	-- 凡是不以'/'开头的path都返回404
 	if not find(path, '^(/)') then
 		return
 	end
-	return find_route(path)
+	return find_route(method, path)
 end
 
 -- 注册静态文件查找路径
