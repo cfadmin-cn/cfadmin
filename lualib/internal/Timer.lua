@@ -66,10 +66,7 @@ function Timer.timeout(timeout, cb)
           return
       end
       Timer_release(t)
-      local ok, err = pcall(cb)
-      if not ok then
-          Log:ERROR('timeout error:', err)
-      end
+      co_spwan(cb)
       if timer.STOP then
         return
       end
