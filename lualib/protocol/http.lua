@@ -336,6 +336,7 @@ local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
 		'Origin: *',
 		'Allow: GET, POST, PUT, HEAD, OPTIONS',
 		'Connection: close',
+		'Content-length: 0',
 		'server: ' .. (http.__server or SERVER),
 	}, CRLF), CRLF2})
 end

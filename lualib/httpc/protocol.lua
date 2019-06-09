@@ -147,12 +147,12 @@ local function httpc_response(sock, SSL)
 			if not CODE or not HEADER then
 				return nil, SSL.." can't resolvable protocol."
 			end
-			local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
-			local chunked = HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding']
+			local Content_Length = toint(HEADER['Content-Length'] or HEADER['Content-length'] or HEADER['content-length'])
+			local chunked = HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding'] or HEADER['transfer-encoding']
 			if not chunked and not Content_Length then
 				return nil, "不支持的请求体解析方式:"..(
-        (HEADER['Content-Length'] or HEADER['content-length']) or
-        (HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding']) or
+        (HEADER['Content-Length'] or HEADER['Content-length'] or HEADER['content-length']) or
+        (HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding'] or HEADER['transfer-encoding']) or
         "未知的解析方式")
 			end
 			if Content_Length then

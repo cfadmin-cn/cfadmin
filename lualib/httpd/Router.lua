@@ -81,6 +81,9 @@ end
 
 -- 查找路由
 function Router.find(path)
+	if find(path, '^/%.%./') or find(path, '/%./%.%.') or find(path, '/%.%./%.%.') then
+		return -- 过滤恶意文件读取.
+	end
 	return find_route(path)
 end
 
