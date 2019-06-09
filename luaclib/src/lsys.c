@@ -36,9 +36,9 @@ ldate(lua_State *L){
     const char *fmt = lua_tostring(L, 1);
     if (!fmt) return luaL_error(L, "Date: 错误的格式化方法");
     time_t timestamp = lua_tointeger(L, 2);
-    char fmttime[64];
-    time_t t = time(&timestamp);
-    strftime(fmttime, 64, fmt, localtime(&t));
+    if (0 >= timestamp) timestamp = time(NULL);
+    char fmttime[256];
+    strftime(fmttime, 256, fmt, localtime(&timestamp));
     lua_pushstring(L, fmttime);
     return 1;
 }
