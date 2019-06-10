@@ -11,7 +11,7 @@ COPY ./lua-5.3.5.tar.gz /root/download/lua.tar.gz
 COPY ./libev-4.25.tar.gz /root/download/libev.tar.gz
 
 RUN rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 \
-	&& yum install nc gcc vim autoconf make git readline-devel openssl-devel -y \
+	&& yum install nc gcc file vim autoconf make git readline-devel openssl-devel -y \
 	&& tar zxvf lua.tar.gz && cd lua* && make linux MYCFLAGS=-fPIC && make install && cd .. \
 	&& tar zxvf libev.tar.gz && cd libev* && ./configure --prefix=/usr/local && make && make install \
 	&& rm -rf /roo/download /var/cache/yum \
