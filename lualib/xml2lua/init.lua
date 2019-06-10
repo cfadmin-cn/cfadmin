@@ -11,11 +11,11 @@ local xml = {}
 function xml.parser(xml_data)
   local cls = xml2lua.parser(xml2lua_handler:new())
   -- cls:parse(xml_data)
-  local ok, data = pcall(cls.parse, cls,xml_data)
+  local ok, err = pcall(cls.parse, cls, xml_data)
   if not ok then
-    return data
+    return err
   end
-  return data
+  return cls.handler.root
 end
 
 -- xml文件读取
