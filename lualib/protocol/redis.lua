@@ -3,11 +3,18 @@ local class = require "class"
 local Co = require "internal.Co"
 local tcp = require "internal.TCP"
 
-local concat = table.concat
-local unpack = table.unpack
 local Log = log:new({ dump = true, path = 'protocol-redis' })
 
 local co_spwan = Co.spwan
+
+local type = type
+local pcall = pcall
+local ipairs = ipairs
+local tonumber = tonumber
+local tostring = tostring
+
+local concat = table.concat
+local unpack = table.unpack
 
 local sub = string.sub
 local string = string
@@ -78,7 +85,7 @@ end
 -- 格式化命令为redis protocol
 local function CMD(...)
 	local tab = {...}
-	local lines = { "*"..#tab}
+	local lines = { "*"..#tab }
 	for index = 1, #tab do
 		lines[#lines+1] = "$"..#tostring(tab[index])
 		lines[#lines+1] = tab[index]
