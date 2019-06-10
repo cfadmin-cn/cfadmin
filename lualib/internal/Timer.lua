@@ -1,10 +1,7 @@
 local co = require "internal.Co"
 local ti = require "timer"
-local log = require "logging"
-local Log = log:new({ dump = true, path = 'internal-Timer' })
 
 local type = type
-local pcall = pcall
 local ti_new = ti.new
 local ti_start = ti.start
 local ti_stop = ti.stop
@@ -49,7 +46,7 @@ function Timer.timeout(timeout, cb)
     end
     local t = Timer_new()
     if not t then
-        return Log:ERROR("timeout error: Create timer class error! memory maybe not enough...")
+        return
     end
     local timer = {STOP = false}
     timer.stop = function (...)
@@ -89,7 +86,7 @@ function Timer.at(repeats, cb)
     end
     local t = Timer_new()
     if not t then
-        return Log:ERROR("timeout error: Create timer class error! memory maybe not enough...")
+        return
     end
     local timer = { STOP = false }
     timer.stop = function (...)
@@ -126,7 +123,7 @@ function Timer.sleep(repeats)
     end
     local t = Timer_new()
     if not t then
-        return Log:ERROR("timeout error: Create timer class error! memory maybe not enough...")
+        return
     end
     local timer = {}
     timer.current_co = co_self()

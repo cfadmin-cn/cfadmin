@@ -11,11 +11,10 @@ local ipairs = ipairs
 
 local fmt = string.format
 local match = string.match
-local io_open = io.open
 local io_write = io.write
-local io_flush = io.flush
-local os_date = os.date
+local os_date = require("sys").date
 local toint = math.tointeger
+
 
 -- 请求解析
 local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
@@ -161,13 +160,8 @@ end
 
 -- 正确的运行方式
 function httpd:run()
-  local output = io.output()
-  if io.type(output) == 'file' then
+  if io.type(io.output()) == 'file' then
     self.output = true
-    output:setvbuf("full", 1 << 20)
-    cf.at(0.2, function ()
-      return io_flush() -- 定期刷新缓冲, 减少日志缓冲频繁导致的性能问题
-    end)
   end
   return cf.wait()
 end

@@ -1,7 +1,4 @@
-local log  = require "logging"
 local task = require "task"
-
-local Log = log:new({ dump = true, path = 'internal-Co' })
 
 local type = type
 local assert = assert
@@ -57,7 +54,7 @@ local function f()
 	while 1 do
 		local ok, msg = pcall(co_wait())
 		if not ok then
-			Log:ERROR(msg)
+			print(msg)
 		end
 		local co, main = co_self()
 		if not main then
@@ -100,10 +97,8 @@ end
 -- 唤醒
 function Co.wakeup(co, ...)
 	assert(type(co) == 'thread', "试图传递一个非协程的类型的参数到wakeup内部.")
+	assert(co ~= co_self(), "不能唤醒当前正在执行的协程")
 	local status = co_status(co)
-	if co == co_self() then
-		return Log:ERROR("不能唤醒当前正在执行的协程")
-	end
 	if main_co == co and status == "suspended" then
 		return task_start(main_task, main_co, ...)
 	end

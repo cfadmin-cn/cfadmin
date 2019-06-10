@@ -17,10 +17,19 @@ local modf = math.modf
 local debug_getinfo = debug.getinfo
 local io_open = io.open
 local io_write = io.write
+local io_flush = io.flush
 local io_type = io.type
 local fmt = string.format
 local concat = table.concat
 
+local cf = require "cf"
+
+if io_type(io.output()) == 'file' then
+  io.output():setvbuf("full", 1 << 20)
+  cf.at(0.2, function ()
+    return io_flush() -- 定期刷新缓冲, 减少日志缓冲频繁导致的性能问题
+  end)
+end
 
 -- 格式化时间: [年-月-日 时:分:秒,毫秒]
 local function fmt_Y_m_d_H_M_S()
