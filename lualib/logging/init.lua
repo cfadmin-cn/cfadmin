@@ -34,7 +34,7 @@ end
 -- 格式化时间: [年-月-日 时:分:秒,毫秒]
 local function fmt_Y_m_d_H_M_S()
   local ts, f = modf(now())
-  return concat({'[', os_date('%Y-%m-%d %H:%M:%S'), ',', fmt("%0.3f", f * 1e3), ']'})
+  return concat({'[', os_date('%Y-%m-%d %H:%M:%S'), ',', fmt("%003d", modf(f * 1e3)), ']'})
 end
 
 -- 格式化时间: [年-月-日 时:分:秒]
