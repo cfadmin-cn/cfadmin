@@ -1,5 +1,4 @@
 local class = require "class"
-local log = require "logging"
 
 local tcp = require "internal.TCP"
 
@@ -7,15 +6,15 @@ local wbproto = require "protocol.websocket.protocol"
 local _recv_frame = wbproto.recv_frame
 local _send_frame = wbproto.send_frame
 
-local httpparser = require "httpparser"
-local RESPONSE_PROTOCOL_PARSER = httpparser.parser_response_protocol
-local RESPONSE_HEADER_PARSER = httpparser.parser_response_header
+local HTTP = require "protocol.http"
+local PARSER_HTTP_RESPONSE = HTTP.PARSER_HTTP_RESPONSE
 
 local crypt = require "crypt"
 local sha1 = crypt.sha1
 local base64encode = crypt.base64encode
 
 local type = type
+local next = next
 local setmetatable = setmetatable
 
 local random = math.random
@@ -31,7 +30,7 @@ local match = string.match
 
 local CRLF = '\x0d\x0a'
 local CRLF2 = '\x0d\x0a\x0d\x0a'
-
+local RE_CRLF2 = '[\x0d]?\x0a[\x0d]?\x0a'
 
 local function rshift(a, b)
   return a >> b
@@ -79,16 +78,15 @@ local function check_response (self, secure)
     end
     buffers[#buffers + 1] = data
     local buffer = concat(buffers)
-    if find(buffer, CRLF2) then
-      local version, code, msg = RESPONSE_PROTOCOL_PARSER(buffer)
-      if code ~= 101 then
+    if find(buffer, RE_CRLF2) then
+      local version, code, msg, headers = PARSER_HTTP_RESPONSE(buffer)
+      if not version or not code or not msg or not headers then
         sock_close(self)
-        return nil, '协议升级失败'
+        return nil, "错误: 协议升级失败"
       end
-      local headers = RESPONSE_HEADER_PARSER(buffer)
-      if not headers then
+      if not next(headers) then
         sock_close(self)
-        return nil, '错误: ws升级协议'
+        return nil, "错误: 不支持的响应头部"
       end
       local sec_key = headers['Sec-WebSocket-Accept']
       local connection = headers['Connection']
@@ -261,8 +259,7 @@ end
 -- 清理连接
 function websocket:close ()
   if self.sock then
-    self.sock:close()
-    self.sock = nil
+    sock_close(self)
   end
 end
 
