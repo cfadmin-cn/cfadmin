@@ -57,6 +57,7 @@ local concat = table.concat
 
 local CRLF = '\x0d\x0a'
 local CRLF2 = '\x0d\x0a\x0d\x0a'
+local RE_CRLF2 = '[\x0d]?\x0a[\x0d]?\x0a'
 
 local SERVER = 'cf web/0.1'
 
@@ -423,28 +424,28 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 		end
 		buffers[#buffers+1] = buf
 		local buffer = concat(buffers)
-		local CRLF_START, CRLF_END = find(buffer, CRLF2)
+		local CRLF_START, CRLF_END = find(buffer, RE_CRLF2)
 		if CRLF_START and CRLF_END then
 			local start = now()
 			-- 协议有问题返回400
 			local METHOD, PATH, VERSION, HEADER = PARSER_HTTP_REQUEST(buffer)
 			if not METHOD or not PATH or not VERSION then
-				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr, METHOD or "GET", now() - start))
+				sock:send(ERROR_RESPONSE(http, 400, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD or "GET", now() - start))
 				return sock:close()
 			end
 			-- 超过自定义最大PATH长度限制
 			if PATH and #PATH > (max_path_size or 1024) then
-				sock:send(ERROR_RESPONSE(http, 414, PATH, ipaddr, METHOD, now() - start))
+				sock:send(ERROR_RESPONSE(http, 414, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 				return sock:close()
 			end
 			-- 没有HEADER返回400
 			if not HEADER or not next(HEADER) then
-				sock:send(ERROR_RESPONSE(http, 400, PATH, ipaddr, METHOD, now() - start))
+				sock:send(ERROR_RESPONSE(http, 400, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 				return sock:close()
 			end
 			-- 超过自定义最大HEADER长度限制
 			if #buffer - CRLF_START > (max_header_size or 65535) then
-				sock:send(ERROR_RESPONSE(http, 431, PATH, ipaddr, METHOD, now() - start))
+				sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 				return sock:close()
 			end
 			-- 这里根据PATH先查找路由, 如果没有直接返回404.
