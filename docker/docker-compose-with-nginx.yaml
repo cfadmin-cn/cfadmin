@@ -7,29 +7,69 @@ services:
     ports:
       - 80:80
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-    networks:
-      - local
+      - ./conf.d/nginx.conf:/etc/nginx/nginx.conf
     links:
       - WebApp1:webapp1
       - WebApp2:webapp2
       - WebApp3:webapp3
+    networks:
+      - local
+
   WebApp1:
-    image: candymi/cfweb:latest
+    image: candymi/cfweb
+    restart: always
     volumes:
-      - ./script:/app/script
+      - ./script/:/app/script/
+      # 如需设置时区, 建议请将localtime提取到home目录下再挂在使用
+      # - /etc/localtime:/etc/localtime
+    depends_on:
+      - WebDB
+    links:
+      - WebDB:WebDB
     networks:
       - local
+
+
   WebApp2:
-    image: candymi/cfweb:latest
+    image: candymi/cfweb
+    restart: always
     volumes:
-      - ./script:/app/script
+      - ./script/:/app/script/
+      # 如需设置时区, 建议请将localtime提取到home目录下再挂在使用
+      # - /etc/localtime:/etc/localtime
+    depends_on:
+      - WebDB
+    links:
+      - WebDB:WebDB
     networks:
       - local
+
   WebApp3:
-    image: candymi/cfweb:latest
+    image: candymi/cfweb
+    restart: always
     volumes:
-      - ./script:/app/script
+      - ./script/:/app/script/
+      # 如需设置时区, 建议请将localtime提取到home目录下再挂在使用
+      # - /etc/localtime:/etc/localtime
+    depends_on:
+      - WebDB
+    links:
+      - WebDB:WebDB
+    networks:
+      - local
+
+  WebDB:
+    image: mysql:5.6
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456789
+      - MYSQL_DATABASE=cfadmin
+    volumes:
+      - ./db/:/docker-entrypoint-initdb.d/
+      # 如需设置时区, 建议请将localtime提取到home目录下再挂在使用
+      # - /etc/localtime:/etc/localtime
+    ports:
+      - 3306:3306
     networks:
       - local
 

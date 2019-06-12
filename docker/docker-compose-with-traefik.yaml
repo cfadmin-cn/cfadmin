@@ -23,7 +23,22 @@ services:
       - "traefik.domain=localhost"
       - "traefik.frontend.rule=Host:localhost"
     volumes:
-      - ./script:/app/script
+      - ./script:/app/script/
+    networks:
+      - local
+
+  WebDB:
+    image: mysql:5.6
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456789
+      - MYSQL_DATABASE=cfadmin
+    volumes:
+      - ./db/:/docker-entrypoint-initdb.d/
+      # 如需设置时区, 建议请将localtime提取到home目录下再挂在使用
+      # - /etc/localtime:/etc/localtime
+    ports:
+      - 3306:3306
     networks:
       - local
 
