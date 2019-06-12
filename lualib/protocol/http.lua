@@ -384,10 +384,10 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 		'Sec-WebSocket-Accept: '..base64(sha1(sec_key..'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))
 	}
 	local protocol = header['Sec-Websocket-Protocol']
-	if protocol then -- 仅支持协议回传, 具体实现由用户实现
+	if protocol then -- 仅支持协议回传
 		response[#response+1] = "Sec-Websocket-Protocol: "..tostring(protocol)
 	end
-	http:tolog(200, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, now() - start_time)
+	http:tolog(101, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, now() - start_time)
 	local ok = sock:send(concat(response, CRLF)..CRLF2)
 	if not ok then
 		return sock:close()
@@ -397,8 +397,7 @@ end
 
 local response = {nil, CRLF2, nil}
 local function send_response (sock, headers, body)
-	response[1] = concat(headers, CRLF)
-	response[3] = body
+	response[1], response[3] = concat(headers, CRLF), body
 	local ok = sock:send(concat(response))
 	response[1], response[3] = nil, nil
 	return ok
