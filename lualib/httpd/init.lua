@@ -2,9 +2,11 @@ local HTTP = require "protocol.http"
 local HTTPD = require "httpd.Router"
 local tcp = require "internal.TCP"
 local class = require "class"
-local sys = require "system"
 local log = require "logging"
 local cf = require "cf"
+
+local sys = require("sys")
+local os_date = sys.date
 
 local type = type
 local ipairs = ipairs
@@ -12,7 +14,6 @@ local ipairs = ipairs
 local fmt = string.format
 local match = string.match
 local io_write = io.write
-local os_date = require("sys").date
 local toint = math.tointeger
 
 
@@ -29,7 +30,7 @@ local httpd = class("httpd")
 function httpd:ctor(opt)
     self.API = HTTPD.API
     self.USE = HTTPD.USE
-    self.IO = tcp:new()
+    self.sock = tcp:new()
 end
 
 -- 用来注册WebSocket对象
@@ -138,21 +139,29 @@ function httpd:log(path)
   end
 end
 
+local log_fmt = "[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n"
+
 function httpd:tolog(code, path, ip, ip_list, method, speed)
   if self.logging then
-    self.logging:dump(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
+    self.logging:dump(fmt(log_fmt, os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
   end
   if self.output then
-    io_write(fmt("[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n", os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
+    io_write(fmt(log_fmt, os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
   end
 end
 
 -- 监听请求
 function httpd:listen(ip, port, backlog)
-  if type(backlog) == 'number' then
-    self.IO:set_backlog(toint(backlog))
+  if type(ip) == 'string' and type(port) == 'number' then
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd正在监听: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
+    if self.logging then
+      self.logging:dump(fmt('[%s] [INFO] httpd正在监听: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
+    end
   end
-  self.IO:listen(ip, port, function (fd, ipaddr)
+  if type(backlog) == 'number' then
+    self.sock:set_backlog(toint(backlog))
+  end
+  self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
       return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
   end)
   return self
@@ -162,6 +171,10 @@ end
 function httpd:run()
   if io.type(io.output()) == 'file' then
     self.output = true
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd正在运行Web Server服务...\n', os_date("%Y/%m/%d %H:%M:%S")))
+  end
+  if self.logging then
+    self.logging:dump(fmt('[%s] [INFO] httpd正在运行Web Server服务...\n', os_date("%Y/%m/%d %H:%M:%S")))
   end
   return cf.wait()
 end
