@@ -338,7 +338,7 @@ local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
 		'Allow: GET, POST, PUT, HEAD, OPTIONS',
 		'Connection: close',
 		'Content-length: 0',
-		'server: ' .. (http.__server or SERVER),
+		'Server: ' .. (http.__server or SERVER),
 	}, CRLF), CRLF2})
 end
 
@@ -474,7 +474,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					'Access-Control-Allow-Credentials: true',
 					'Access-Control-Max-Age: 86400',
 					'Connection: keep-alive',
-					'server: ' .. (server or SERVER),
+					'Server: ' .. (server or SERVER),
 				}, CRLF)..CRLF2)
 				return sock:close()
 			end
@@ -499,7 +499,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 							sock:send(concat({
 								REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
 								'Connection: close',
-								'server: ' .. (server or SERVER),
+								'Server: ' .. (server or SERVER),
 								'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
 							}, CRLF)..CRLF2)
 							return sock:close()
@@ -511,7 +511,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 										REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
 										'Origin: *',
 										'Allow: GET, POST, PUT, HEAD, OPTIONS',
-										'server: ' .. (server or SERVER),
+										'Server: ' .. (server or SERVER),
 										'Connection: close',
 										'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
 										'Content-Length: '..tostring(#data),
@@ -607,7 +607,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			header[#header+1] = HTTP_DATE()
 			header[#header+1] = 'Origin: *'
 			header[#header+1] = 'Allow: GET, POST, PUT, HEAD, OPTIONS'
-			header[#header+1] = 'server: ' .. (server or SERVER)
+			header[#header+1] = 'Server: ' .. (server or SERVER)
 			local Connection = 'Connection: keep-alive'
 			if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
 				Connection = 'Connection: close'
@@ -615,7 +615,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			header[#header+1] = Connection
 			if body then
 				if type(body) == 'string' then
-					header[#header+1] = 'Transfer-Encoding: identity'
 					header[#header+1] = 'Content-Length: '.. #body
 				else
 					Log:WARN('response body not a string type.'..'('..tostring(body)..')')
