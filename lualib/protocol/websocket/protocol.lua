@@ -30,9 +30,31 @@ local types = {
 
 local function sock_recv (sock, byte)
   if sock.ssl then
-    return sock:ssl_recv(byte)
+    local tab = {}
+    while 1 do
+      local data, len = sock:ssl_recv(byte)
+      if not data then
+        return nil
+      end
+      tab[#tab+1] = data
+      if len >= byte then
+        return concat(tab)
+      end
+      byte = byte - len
+    end
   end
-  return sock:recv(byte)
+  local tab = {}
+  while 1 do
+    local data, len = sock:recv(byte)
+    if not data then
+      return nil
+    end
+    tab[#tab+1] = data
+    if len >= byte then
+      return concat(tab)
+    end
+    byte = byte - len
+  end
 end
 
 local function sock_send (sock, data)

@@ -1,6 +1,12 @@
 local class = require "class"
 
+local log = require "logging"
+local Log = log:new{ dump = true, path = "protocol-wsclient"}
+
 local tcp = require "internal.TCP"
+
+local cf = require "cf"
+local cf_fork = cf.fork
 
 local wbproto = require "protocol.websocket.protocol"
 local _recv_frame = wbproto.recv_frame
@@ -15,12 +21,15 @@ local base64encode = crypt.base64encode
 
 local type = type
 local next = next
+local pcall = pcall
+local ipairs = ipairs
 local setmetatable = setmetatable
 
 local random = math.random
 local toint = math.tointeger
 local os_date = os.date
 local concat = table.concat
+local insert = table.insert
 
 local char = string.char
 local byte = string.byte
@@ -66,7 +75,6 @@ end
 
 local function sock_close (self)
   self.sock:close()
-  self.sock = nil
 end
 
 local function check_response (self, secure)
@@ -80,7 +88,7 @@ local function check_response (self, secure)
     local buffer = concat(buffers)
     if find(buffer, RE_CRLF2) then
       local version, code, msg, headers = PARSER_HTTP_RESPONSE(buffer)
-      if not version or not code or not msg or not headers then
+      if tonumber(version) ~= 1.1 or tonumber(code) ~= 101 or not headers then
         sock_close(self)
         return nil, "错误: 协议升级失败"
       end
@@ -90,7 +98,7 @@ local function check_response (self, secure)
       end
       local sec_key = headers['Sec-WebSocket-Accept']
       local connection = headers['Connection']
-      if connection ~= 'Upgrade' then
+      if not connection or connection:lower() ~= 'upgrade' then
         sock_close(self)
         return nil, '错误: 不支持的ws协议版本'
       end
@@ -124,11 +132,13 @@ local function do_handshake (self)
   local req = {
     fmt('GET %s HTTP/1.1', self.path),
     fmt('Data: %s', os_date("Date: %a, %d %b %Y %X GMT")),
-    fmt('host: %s:%s', self.domain, self.port),
+    fmt('Host: %s:%s', self.domain, self.port),
     fmt('Sec-WebSocket-Key: %s', sec_key),
+    'Origin: http://'..self.domain,
     'Sec-WebSocket-Version: 13',
     'Upgrade: websocket',
     'Connection: Upgrade',
+    'User-Agent: cf-websocket/0.1',
     CRLF
   }
   local ok, err = sock_send(self, concat(req, CRLF))
@@ -189,7 +199,7 @@ function websocket:ctor (opt)
   self.url = opt.url
   self.sock = tcp:new()
   self.sock._timeout = opt.timeout
-  self.send_masked = opt.send_masked
+  self.send_masked = opt.send_masked or true
   self.max_payload_len = opt.max_payload_len or 65535
 end
 
@@ -216,20 +226,12 @@ function websocket:connect ()
   return true, err
 end
 
--- 发送 text/binary
-function websocket:send (data, is_binary)
-  if not self.state then
-    return nil, '未连接'
-  end
-  return _send_frame(self.sock, true, binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked)
-end
-
 -- 接受数据
 function websocket:recv()
   if not self.state then
     return nil, '未连接'
   end
-  local data, typ, err = _recv_frame(self.sock, self.max_payload_len, self.send_masked)
+  local data, typ, err = _recv_frame(self.sock, self.max_payload_len, not self.send_masked)
   if typ == 'close' or not typ then
     self.state = nil
     if type == 'close' then
@@ -240,12 +242,50 @@ function websocket:recv()
   return data, typ
 end
 
--- 发送ping
-function websocket:ping( data)
+-- 发送 text/binary
+function websocket:send (data, is_binary)
   if not self.state then
     return nil, '未连接'
   end
-  return _send_frame(self.sock, true, 0x9, data, self.max_payload_len, self.send_masked)
+  local func = function (...)
+    return _send_frame(self.sock, true, is_binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked)
+  end
+  if not self.queue then
+    self.queue = { func }
+    return cf_fork(function (...)
+      for _, f in ipairs(self.queue) do
+        local ok, err = pcall(f)
+        if not ok then
+          Log:ERROR(err)
+        end
+      end
+      self.queue = nil
+    end)
+  end
+  return insert(self.queue, func)
+end
+
+-- 发送ping
+function websocket:ping(data)
+  if not self.state then
+    return nil, '未连接'
+  end
+  local func = function (...)
+    return _send_frame(self.sock, true, 0x9, data, self.max_payload_len, self.send_masked)
+  end
+  if not self.queue then
+    self.queue = { func }
+    return cf_fork(function (...)
+      for _, f in ipairs(self.queue) do
+        local ok, err = pcall(f)
+        if not ok then
+          Log:ERROR(err)
+        end
+      end
+      self.queue = nil
+    end)
+  end
+  return insert(self.queue, func)
 end
 
 -- 发送pong
@@ -253,7 +293,22 @@ function websocket:pong(data)
   if not self.state then
     return nil, '未连接'
   end
-  return _send_frame(self.sock, true, 0xA, data, self.max_payload_len, self.send_masked)
+  local func = function (...)
+    return _send_frame(self.sock, true, 0xA, data, self.max_payload_len, self.send_masked)
+  end
+  if not self.queue then
+    self.queue = { func }
+    return cf_fork(function (...)
+      for _, f in ipairs(self.queue) do
+        local ok, err = pcall(f)
+        if not ok then
+          Log:ERROR(err)
+        end
+      end
+      self.queue = nil
+    end)
+  end
+  return insert(self.queue, func)
 end
 
 -- 清理连接
