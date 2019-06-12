@@ -153,7 +153,9 @@ end
 -- 监听请求
 function httpd:listen(ip, port, backlog)
   if type(ip) == 'string' and type(port) == 'number' then
-    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd正在监听: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
+    if io.type(io.output()) == 'file' then
+      io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd正在监听: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
+    end
     if self.logging then
       self.logging:dump(fmt('[%s] [INFO] httpd正在监听: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
     end
