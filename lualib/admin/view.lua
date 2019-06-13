@@ -39,6 +39,9 @@ function view.use (path, f)
     if not ok then
       return utils.redirect(url)
     end
+    if not config.cache then
+      template.cache = {}
+    end
     local ok, html = pcall(f, httpctx:new{content = content}, db)
     return html
   end)
