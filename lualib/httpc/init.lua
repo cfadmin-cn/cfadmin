@@ -201,7 +201,7 @@ local function multi_request (opt)
 				response[index] = {code, msg, now() - t}
 				if #response >= len and not wakeuped then
 					wakeuped = true
-					cf_wakeup(co, nil, response)
+					cf_wakeup(co, true, response)
 				end
 				return
       end)
