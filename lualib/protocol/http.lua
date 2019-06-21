@@ -344,43 +344,28 @@ end
 
 -- WebSocket
 local function Switch_Protocol(http, cls, sock, header, method, version, path, ip, start_time)
-	if version ~= 1.1 then
-		sock:send(ERROR_RESPONSE(http, 505, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
-		sock:close()
-		return
-	end
 	if method ~= 'GET' then
-		sock:send(ERROR_RESPONSE(http, 405, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
-		sock:close()
-		return
+		return sock:send(ERROR_RESPONSE(http, 400, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
+	end
+	if version ~= 1.1 then
+		return sock:send(ERROR_RESPONSE(http, 400, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
 	end
 	if not header['Upgrade'] or lower(header['Upgrade']) ~= 'websocket' then
-		sock:send(ERROR_RESPONSE(http, 400, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
-		sock:close()
-		return
-	end
-	if not header['Upgrade'] or lower(header['Upgrade']) ~= 'websocket' then
-		sock:send(ERROR_RESPONSE(http, 406, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
-		sock:close()
-		return
+		return sock:send(ERROR_RESPONSE(http, 401, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
 	end
 	if header['Sec-WebSocket-Version'] ~= '13' then
-		sock:send(ERROR_RESPONSE(http, 505, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
-		sock:close()
-		return
+		return sock:send(ERROR_RESPONSE(http, 403, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
 	end
 	local sec_key = header['Sec-WebSocket-Key']
 	if not sec_key or sec_key == '' then
-		sock:send(ERROR_RESPONSE(http, 505, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
-		sock:close()
-		return
+		return sock:send(ERROR_RESPONSE(http, 505, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
 	end
 	local response = {
 		REQUEST_STATUCODE_RESPONSE(101),
 		HTTP_DATE(),
-		'Connection: Upgrade',
 		'Server: '..(http.__server or SERVER),
 		'Upgrade: WebSocket',
+		'Connection: Upgrade',
 		'Sec-WebSocket-Accept: '..base64(sha1(sec_key..'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))
 	}
 	local protocol = header['Sec-Websocket-Protocol']
@@ -390,7 +375,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 	http:tolog(101, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, now() - start_time)
 	local ok = sock:send(concat(response, CRLF)..CRLF2)
 	if not ok then
-		return sock:close()
+		return
 	end
 	return wsserver:new({cls = cls, sock = sock}):start()
 end
