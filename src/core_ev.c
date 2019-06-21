@@ -87,6 +87,19 @@ core_task_stop(core_loop *loop, core_task *task){
 
 /* ===========  TASK  =========== */
 
+/* ===========  Signal  =========== */
+void
+core_signal_init(core_signal *signal, _SIGNAL_CB cb, int signum){
+	ev_signal_init(signal, cb, signum);
+}
+
+void
+core_signal_start(core_loop *loop, core_signal *signal){
+	ev_signal_start(loop ? loop : CORE_LOOP, signal);
+}
+/* ===========  Signal  =========== */
+
+
 
 core_loop *
 core_default_loop(){

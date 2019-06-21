@@ -129,28 +129,28 @@ void
 signal_init(){
 
 	/* 忽略父进程退出的信号 */
-	ev_signal_init(&sighup, SIG_IGNORE, SIGHUP);
-	ev_signal_start(CORE_LOOP_ &sighup);
+	core_signal_init(&sighup, SIG_IGNORE, SIGHUP);
+	core_signal_start(CORE_LOOP_ &sighup);
 
 	/* 忽略管道信号 */
-	ev_signal_init(&sigpipe, SIG_IGNORE, SIGPIPE);
-	ev_signal_start(CORE_LOOP_ &sigpipe);
+	core_signal_init(&sigpipe, SIG_IGNORE, SIGPIPE);
+	core_signal_start(CORE_LOOP_ &sigpipe);
 
 	/* 忽略Ctrl-Z操作信号 */
-	ev_signal_init(&sigtstp, SIG_IGNORE, SIGTSTP);
-	ev_signal_start(CORE_LOOP_ &sigtstp);
+	core_signal_init(&sigtstp, SIG_IGNORE, SIGTSTP);
+	core_signal_start(CORE_LOOP_ &sigtstp);
 
 	/* TERM信号 显示退出 */
-	ev_signal_init(&sigterm, SIG_EXIT, SIGTERM);
-	ev_signal_start(CORE_LOOP_ &sigterm);
+	core_signal_init(&sigterm, SIG_EXIT, SIGTERM);
+	core_signal_start(CORE_LOOP_ &sigterm);
 
 	/* INT信号 显示退出 */
-	ev_signal_init(&sigint, SIG_EXIT, SIGINT);
-	ev_signal_start(CORE_LOOP_ &sigint);
+	core_signal_init(&sigint, SIG_EXIT, SIGINT);
+	core_signal_start(CORE_LOOP_ &sigint);
 
 	/* QUIT信号 显示退出 */
-	ev_signal_init(&sigquit, SIG_EXIT, SIGQUIT);
-	ev_signal_start(CORE_LOOP_ &sigquit);
+	core_signal_init(&sigquit, SIG_EXIT, SIGQUIT);
+	core_signal_start(CORE_LOOP_ &sigquit);
 
 }
 
