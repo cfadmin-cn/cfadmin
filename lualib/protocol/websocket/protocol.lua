@@ -9,6 +9,8 @@ local str_char = string.char
 local rand = math.random
 local tostring = tostring
 local type = type
+local error = error
+local assert = assert
 
 local new_tab = require("sys").new_tab
 
@@ -138,9 +140,6 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
         end
     end
 
-    -- print("payload len: ", payload_len, ", max payload len: ",
-          -- max_payload_len)
-
     if payload_len > max_payload_len then
         return nil, nil, "exceeding max payload len"
     end
@@ -152,7 +151,6 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
     else
         rest = payload_len
     end
-    -- print("rest: ", rest)
 
     local data
     if rest > 0 then
@@ -226,7 +224,7 @@ end
 
 
 local function build_frame(fin, opcode, payload_len, payload, masking)
-    -- XXX optimize this when we have string.buffer in LuaJIT 2.1
+
     local fst
     if fin then
         fst = 0x80 | opcode
@@ -249,7 +247,7 @@ local function build_frame(fin, opcode, payload_len, payload, masking)
         end
 
         snd = 127
-        -- XXX we only support 31-bit length here
+
         extra_len_bytes = char(0, 0, 0, 0,
                                 (payload_len >> 24) & 0xff,
                                 (payload_len >> 16) & 0xff,
@@ -282,33 +280,24 @@ _M.build_frame = build_frame
 
 function _M.send_frame(sock, fin, opcode, payload, max_payload_len, masking)
 
-    if not payload then
-        payload = ""
+  assert(type(payload) == 'string' and #payload <= max_payload_len, "无效的数据类型或长度超出预期")
 
-    elseif type(payload) ~= "string" then
-        payload = tostring(payload)
+  local payload_len = #payload
+
+  if opcode & 0x8 ~= 0 then
+    if payload_len > 125 then
+      return error("控制帧的有效载荷长度太多")
     end
-
-    local payload_len = #payload
-
-    if payload_len > max_payload_len then
-        return nil, "payload too big"
+    if not fin then
+        return error("畸形的控制帧")
     end
+  end
 
-    if opcode & 0x8 ~= 0 then
-        if payload_len > 125 then
-            return nil, "too much payload for control frame"
-        end
-        if not fin then
-            return nil, "fragmented control frame"
-        end
-    end
-
-    local frame, err = build_frame(fin, opcode, payload_len, payload, masking)
-    if not frame then
-        return nil, "failed to build frame: " .. err
-    end
-    return sock_send(sock, frame)
+  local frame, err = build_frame(fin, opcode, payload_len, payload, masking)
+  if not frame then
+    return error("错误的数据帧:"..err)
+  end
+  return sock_send(sock, frame)
 end
 
 return _M
