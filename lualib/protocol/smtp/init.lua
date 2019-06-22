@@ -30,7 +30,7 @@ end
 local smtp = class("smtp")
 
 function smtp:ctor (opt)
-  self.ssl = opt.SSL
+  self.ssl = opt.SSL or opt.ssl
   self.host = opt.host
   self.port = opt.port
   self.to = opt.to
@@ -45,6 +45,7 @@ end
 
 -- 发送握手包
 function smtp:hello_packet ()
+	-- 接收服务端信息
   local code, data, err
   data, err = self:recv(MAX_PACKET_SIZE)
   if not data then
@@ -74,6 +75,7 @@ end
 -- 登录认证
 function smtp:auth_packet ()
   local code, data, err
+	-- 发送登录认证请求
   local ok = self:send("AUTH LOGIN\r\n")
   if not ok then
     return nil, "AUTH LOGIN ERROR]: 发送AUTH LOGIN失败"
@@ -118,8 +120,8 @@ end
 -- 发送邮件头部
 function smtp:send_header ()
   local code, data, err
-  -- 邮件发送者
-  local ok = self:send(fmt("MAIL FROM:<%s>\r\n", self.from))
+  -- 发送邮件来源
+  local ok = self:send(fmt("MAIL FROM: <%s>\r\n", self.from))
   if not ok then
     return nil, "[MAIL FROM ERROR]: 发送FROM失败"
   end
@@ -131,8 +133,8 @@ function smtp:send_header ()
   if not code or code ~= 250 then
     return nil, time()..'[MAIL FROM ERROR]: ('.. tostring(code) .. (err or '未知错误') ..')'
   end
-  -- 邮件接收者
-  local ok = self:send(fmt("RCPT TO:<%s>\r\n", self.to))
+  -- 发送邮件接收者
+  local ok = self:send(fmt("RCPT TO: <%s>\r\n", self.to))
   if not ok then
     return nil, "[MAIL FROM ERROR]: 发送TO失败"
   end
@@ -150,7 +152,7 @@ end
 -- 发送邮件内容
 function smtp:send_content ()
   local code, data, err
-  -- DATA命令, 开始发送邮件实体
+  -- 发送DATA命令, 开始发送邮件实体
   local ok = self:send("DATA\r\n")
   if not ok then
     return nil, "[MAIL CONTENT ERROR]: 发送DATA失败"
@@ -163,23 +165,26 @@ function smtp:send_content ()
   if not code or code ~= 354 then
     return nil, time()..'[MAIL CONTENT ERROR]: ('.. tostring(code) .. (err or '未知错误') ..')'
   end
-  local FROM = fmt("from:<%s>\r\n", self.from)
-  local TO = fmt("to:<%s>\r\n", self.to)
-  local SUBJECT = fmt("subject:%s\r\n", self.subject)
   if self.mime and self.mime == 'html' then
-    self.mime = concat({
-      "Content-Type: text/html; charset=utf-8",
-      "Content-Transfer-Encoding:base64\r\n"
-    }, '\r\n')
+    self.mime = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n"
   else
-    self.mime = concat({
-      "Content-Type: text/plain; charset=utf-8",
-      "Content-Transfer-Encoding:base64\r\n"
-    }, '\r\n')
+		self.mime = "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n"
   end
-  local ok = self:send(FROM..TO..SUBJECT..self.mime..'\r\n'..base64encode(self.content)..'\r\n\r\n.\r\n')
+	-- 发送邮件实体头部
+	local ok = self:send(concat({
+		fmt("From: <%s>\r\n", self.from),
+		fmt("To: <%s>\r\n", self.to),
+		fmt("Subject: %s\r\n", self.subject),
+		self.mime,
+		'\r\n'
+	}))
+	if not ok then
+		return nil, "[MAIL CONTENT ERROR]: 发送Content Headers失败."
+	end
+	-- 发送邮件实体内容
+  local ok = self:send(base64encode(self.content)..'\r\n\r\n.\r\n')
   if not ok then
-    return nil, "[MAIL CONTENT ERROR]: 发送Content失败"
+    return nil, "[MAIL CONTENT ERROR]: 发送Content Body失败."
   end
   data, err = self:recv(MAX_PACKET_SIZE)
   if not data then
