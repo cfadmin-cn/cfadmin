@@ -65,7 +65,7 @@ function websocket:close (data)
   end
   self.closed = true
   self:add_to_queue(function ()
-    return _send_frame(self.sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..data, self.max_payload_len, self.send_masked)
+    return _send_frame(self.sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..(type(data) == 'string' and data or ""), self.max_payload_len, self.send_masked)
   end)
   self:add_to_queue(function ()
     return self.sock:close()
