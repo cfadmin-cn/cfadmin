@@ -27,30 +27,21 @@ function websocket:ctor(opt)
   self.sock._timeout = nil
 end
 
+-- 异步消息发送
 function websocket:add_to_queue (f)
   if not self.queue then
     self.queue = {f}
     return cf_fork(function (...)
-      while 1 do
-        for index, func in ipairs(self.queue) do
-          if not self.closed then
-            local ok, writeable = pcall(func)
-            if not ok then
-              Log:ERROR(writeable)
-            end
-            if not writeable then
-              self.queue = nil
-              return -- Log:WARN("断开连接或写入失败, 不再警告:", index)
-            end
-          end
+      for index, func in ipairs(self.queue) do
+        local ok, writeable = pcall(func)
+        if not ok then
+          Log:ERROR(writeable)
         end
-        self.queue = {}
-        cf_sleep(0) -- 让出协程执行权
-        if self.closed or #self.queue == 0 then
-          self.queue = nil
-          return
+        if not writeable then
+          break
         end
       end
+      self.queue = nil
     end)
   end
   return self.queue and insert(self.queue, f)
@@ -61,11 +52,10 @@ function websocket:send (data, binary)
   if self.closed then
     return
   end
-  if type(data) == 'string' and data ~= '' then
-    self:add_to_queue(function ()
-      return _send_frame(self.sock, true, binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked)
-    end)
-  end
+  assert(type(data) == 'string' and data ~= '', "websoket error: send发送的消息应该是string类型.")
+  self:add_to_queue(function ()
+    return _send_frame(self.sock, true, binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked)
+  end)
 end
 
 -- 发送close帧
@@ -74,11 +64,12 @@ function websocket:close (data)
     return
   end
   self.closed = true
-  if type(data) == 'string' and data ~= '' then
-    self:add_to_queue(function ()
-      return _send_frame(self.sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..data, self.max_payload_len, self.send_masked)
-    end)
-  end
+  self:add_to_queue(function ()
+    return _send_frame(self.sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..data, self.max_payload_len, self.send_masked)
+  end)
+  self:add_to_queue(function ()
+    return self.sock:close()
+  end)
 end
 
 -- Websocket Server 事件循环
