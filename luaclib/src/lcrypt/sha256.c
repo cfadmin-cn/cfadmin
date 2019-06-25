@@ -34,7 +34,7 @@ static const WORD K[64] = {
 	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 };
 
-
+static inline
 void sha256_transform(SHA256_CTX *ctx, const BYTE data[])
 {
 	WORD a, b, c, d, e, f, g, h, i, j, t1, t2, m[64];
@@ -77,6 +77,7 @@ void sha256_transform(SHA256_CTX *ctx, const BYTE data[])
 	ctx->state[7] += h;
 }
 
+static inline
 void sha256_init(SHA256_CTX *ctx)
 {
 	ctx->datalen = 0;
@@ -91,6 +92,7 @@ void sha256_init(SHA256_CTX *ctx)
 	ctx->state[7] = 0x5be0cd19;
 }
 
+static inline
 void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len)
 {
 	WORD i;
@@ -108,6 +110,7 @@ void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len)
 	}
 }
 
+static inline
 void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 {
 	WORD i;
@@ -155,10 +158,10 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 }
 
 static inline
-void sha256(SHA256_CTX *ctx, const char *buffer, size_t sz, char* hash){
-	sha256_init(&ctx);
-  sha256_update(&ctx, buffer, sz);
-  sha256_final(&ctx, hash);
+void sha256(SHA256_CTX *ctx, const uint8_t *buffer, size_t sz, uint8_t* hash){
+	sha256_init(ctx);
+  sha256_update(ctx, buffer, sz);
+  sha256_final(ctx, hash);
 }
 
 LUAMOD_API int
