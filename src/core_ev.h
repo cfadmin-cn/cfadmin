@@ -30,6 +30,7 @@
 
 /* eventfd 与 signalfd */
 #if defined(__linux) || defined(__linux__)
+	#define EV_USE_LINUXAIO 1
 	#define EV_USE_EPOLL 1
 	#define EV_USE_INOTIFY 1
 	#define EV_USE_SIGNALFD 1
