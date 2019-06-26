@@ -13,7 +13,7 @@ CFLAGS = -O3 -Wall -DNDEBUG -fPIC
 CC = cc
 
 INCLUDE = -I/usr/local/include
-LIB = -L/usr/local/lib
+LIB = -L/usr/local/lib -L../ -L../../../
 
 fpconv.o: fpconv.c fpconv.h
 strbuf.o: strbuf.c strbuf.h

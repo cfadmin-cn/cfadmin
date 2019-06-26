@@ -9,7 +9,7 @@ default :
 
 CC = cc
 
-LIBS += -L/usr/local/lib
+LIBS += -L./ -L/usr/local/lib
 INCLUDES += -I/usr/local/include
 
 # 使用jemalloc内存分配器请启用这段
@@ -31,11 +31,9 @@ build :
 
 	$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	mv *.so /usr/local/lib
-
 	$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore -ldl
 
-	mv cfadmin ../
+	mv cfadmin ../ && mv *.so ../
 
 rebuild:
 
@@ -43,9 +41,9 @@ rebuild:
 
 	$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	mv *.so /usr/local/lib
+	$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore -ldl
 
-	$(CC) -o cfadmin core_start.c core.c $(MACRO) $(INCLUDES) $(LIBS) -lcore -ldl
+	mv *.so ../
 
 	mv cfadmin ../
 

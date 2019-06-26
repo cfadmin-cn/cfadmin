@@ -18,7 +18,7 @@ CFLAGS = -O3 -w -shared -fPIC -DNDEBUG
 DLL =  -lcore
 
 INCLUDE = -I/usr/local/include
-LIB = -L/usr/local/lib
+LIB = -L/usr/local/lib -L../ -L../../../
 
 httpparser.o: httpparser.c httpparser.h
 lhttpparser.o: lhttpparser.c httpparser.h

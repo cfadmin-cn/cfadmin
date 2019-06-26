@@ -33,6 +33,7 @@ CWARNS = -Wall -Wextra -pedantic \
 
 CFLAGS = $(CWARNS) $(COPT) -std=c99 -I$(LUADIR) -fPIC
 CC = gcc
+LIBS = -L/usr/local/lib -L../ -L../../../
 
 FILES = lpvm.o lpcap.o lptree.o lpcode.o lpprint.o
 
@@ -45,13 +46,13 @@ macosx:
 	$(MAKE) lpeg.so "DLLFLAGS = -bundle -undefined dynamic_lookup"
 
 build: $(FILES)
-	$(CC) -o lpeg.so $(FILES) -shared -fPIC -lcore
+	$(CC) -o lpeg.so $(FILES) -shared -fPIC $(LIBS) -lcore
 	mv *.so ../../
 	rm -rf *.o *.so
 
 
 rebuild: $(FILES)
-	$(CC) -o lpeg.so $(FILES) -shared -fPIC -lcore
+	$(CC) -o lpeg.so $(FILES) -shared -fPIC $(LIBS) -lcore
 	mv *.so ../../
 	rm -rf *.o *.so
 

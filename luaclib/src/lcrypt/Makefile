@@ -14,7 +14,7 @@ CFLAGS = -O3 -w -shared -fPIC -DNDEBUG
 DLL = -lcore
 
 INCLUDE = -I/usr/local/include
-LIB = -L/usr/local/lib
+LIB = -L/usr/local/lib -L../ -L../../../
 
 build:
 	$(CC) -o lcrypt.so lcrypt.c crc.c sha1.c sha256.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
