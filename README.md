@@ -62,9 +62,11 @@
 
 ## 联系作者
 
->   [issues](https://github.com/CandyMi/core_framework/issues)
+> [issues](https://github.com/CandyMi/core_framework/issues)
 
->   <a href="mailto:869646063@qq.com">作者邮箱</a>
+> <a href="mailto:869646063@qq.com">作者邮箱</a>
+
+> QQ群:**727531854**
 
 ## 支持
 
