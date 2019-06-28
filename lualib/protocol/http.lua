@@ -35,14 +35,11 @@ local PARSER_HTTP_RESPONSE = httpparser.parser_http_response
 local RESPONSE_CHUNKED_PARSER = httpparser.parser_response_chunked
 
 local type = type
-local assert = assert
-local setmetatable = setmetatable
 local tostring = tostring
 local next = next
 local pcall = pcall
 local ipairs = ipairs
 local time = os.time
-local char = string.char
 local lower = string.lower
 local upper = string.upper
 local match = string.match
@@ -631,11 +628,11 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			if Connection == 'Connection: keep-alive' then
 				header[#header+1] = "Keep-Alive: timeout="..timeout
 			end
+			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
 			local ok = send_response(sock, header, body)
 			if not ok then
 				return sock:close()
 			end
-			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
 			if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
 				return sock:close()
 			end
