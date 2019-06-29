@@ -26,7 +26,7 @@ local cf = require "cf"
 
 if io_type(io.output()) == 'file' then
   io.output():setvbuf("full", 1 << 20)
-  cf.at(0.2, function ()
+  cf.at(0.3, function ()
     return io_flush() -- 定期刷新缓冲, 减少日志缓冲频繁导致的性能问题
   end)
 end
