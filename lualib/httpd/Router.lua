@@ -110,7 +110,7 @@ local function find_route (method, path)
 		return
 	end
 	-- 凡是找到'../'并且检查路径回退已经超出静态文件根目录返回404
-	if find(path, '%.%./') and check_path_deep(tab) then
+	if find(path, '/../', 1, true) and check_path_deep(tab) then
 		return
 	end
 	load_file = load_file or function (path)
