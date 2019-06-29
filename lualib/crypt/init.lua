@@ -64,16 +64,40 @@ function crypt.sha256 (str, hex)
   return hash
 end
 
-function crypt.xor_str (...)
-  return xor_str(...)
+function crypt.xor_str (str, sec, hex)
+  local hash = xor_str(str, sec)
+  if hash and hex then
+    local tab = new_tab(#hash, 0)
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
 end
 
-function crypt.randomkey(...)
-  return randomkey(...)
+function crypt.randomkey(hex)
+  local hash = randomkey()
+  if hash and hex then
+    local tab = new_tab(#hash, 0)
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
 end
 
-function crypt.hashkey (...)
-  return hashkey(...)
+function crypt.hashkey (key, hex)
+  local hash = hashkey(key)
+  if hash and hex then
+    local tab = new_tab(#hash, 0)
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
 end
 
 function crypt.hmac_sha1 (key, text, hex)
@@ -100,16 +124,40 @@ function crypt.hmac_sha256 (key, text, hex)
   return hash
 end
 
-function crypt.hmac_hash (...)
-  return hmac_hash(...)
+function crypt.hmac_hash (key, text, hex)
+  local hash = hmac_hash(key, text)
+  if hash and hex then
+    local tab = new_tab(#hash, 0)
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
 end
 
-function crypt.hmac64 (...)
-  return hmac64(...)
+function crypt.hmac64 (key, text, hex)
+  local hash = hmac64(key, text)
+  if hash and hex then
+    local tab = new_tab(#hash, 0)
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
 end
 
-function crypt.hmac64_md5 (...)
-  return hmac64_md5(...)
+function crypt.hmac64_md5 (key, text, hex)
+  local hash = hmac64_md5(key, text)
+  if hash and hex then
+    local tab = new_tab(#hash, 0)
+    for i = 1, #hash do
+      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    end
+    return concat(tab)
+  end
+  return hash
 end
 
 function crypt.base64encode (...)
