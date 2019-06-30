@@ -9,7 +9,7 @@ default :
 
 CC = cc
 
-CFLAGS = -O3 -w -shared -fPIC -DNDEBUG
+CFLAGS = -O3 -w -shared -fPIC
 
 DLL = -lcore
 

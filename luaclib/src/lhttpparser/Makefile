@@ -11,14 +11,13 @@ CC = cc
 
 # 如果确认是intel的CPU并且有SSE4可以自行开启这个编译参数, 经过测试http解析速度至少快2倍
 # 这里为了兼容AMD CPU不作为默认开启选项
-# CFLAGS = -O3 -w -shared -fPIC -DNDEBUG -msse4
-
-CFLAGS = -O3 -w -shared -fPIC -DNDEBUG
-
-DLL =  -lcore
+# CFLAGS = -O3 -w -shared -fPIC -msse4
 
 INCLUDE = -I/usr/local/include
 LIB = -L/usr/local/lib -L../ -L../../../
+
+CFLAGS = -O3 -w -shared -fPIC
+DLL = -lcore
 
 
 build:

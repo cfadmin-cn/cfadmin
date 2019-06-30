@@ -9,13 +9,15 @@ default :
 
 CC = gcc
 LIBS = -L/usr/local/lib -L../ -L../../../
+CFLAGS = -O2 -shared -fPIC
+DLL = -lcore
 
 build:
-	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c -O2 -shared -fPIC $(LIBS) -lcore
+	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c $(CFLAGS) $(LIBS) $(DLL)
 	mv *.so ../../
 
 rebuild:
-	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c -O2 -shared -fPIC $(LIBS) -lcore
+	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c $(CFLAGS) $(LIBS) $(DLL)
 	mv *.so ../../
 
 clean:
