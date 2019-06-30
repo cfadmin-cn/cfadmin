@@ -43,6 +43,11 @@ function ctx:get_cookie (name)
   return Cookie.getCookie(name)
 end
 
+-- 获取上传的文件
+function ctx:get_files ()
+  return self._content.files
+end
+
 -- 获取请求参数表
 function ctx:get_args ()
   local args = self._content.args
