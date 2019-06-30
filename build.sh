@@ -1,7 +1,7 @@
 # 运行这个文件可以安装libev与lua
 current=`pwd`
 
-mkdir build && cd build
+rm -rf build && mkdir build && cd build
 
 git clone https://github.com/CandyMi/lua -b v5.3.5
 git clone https://github.com/CandyMi/libev -b v4.25
@@ -14,4 +14,4 @@ cd ${current}/build/libev &&
   sh autogen.sh && ./configure --prefix=/usr/local &&
   make && make install
 
-cd ${current} && sudo rm -rf build
+cd ${current} && rm -rf build
