@@ -9,7 +9,7 @@ default :
 
 CC = cc
 
-LIBS += -L./ -L/usr/local/lib
+LIBS += -L. -L/usr/local/lib
 INCLUDES += -I/usr/local/include
 
 # 使用jemalloc内存分配器请启用这段
@@ -24,28 +24,24 @@ INCLUDES += -I/usr/local/include
 
 # 默认情况下使用系统内存分配器
 CFLAGS += -Wall -Os -fPIC --shared -fno-strict-aliasing -Wl,-rpath,/usr/local/lib
-DLL += -lev -llua
+DLL += -lev -llua -ldl
 MACRO += -w -Os -Wl,-rpath,./
 
 build :
 
 	$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore -ldl
+	$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore
 
-	mv cfadmin ../ && mv *.so ../
+	mv *.so cfadmin ../
 
 rebuild:
 
-	rm -rf *.o *.so
-
 	$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 
-	$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore -ldl
+	$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore
 
-	mv *.so ../
-
-	mv cfadmin ../
+	mv *.so cfadmin ../
 
 clean :
 
