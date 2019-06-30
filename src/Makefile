@@ -23,9 +23,9 @@ INCLUDES += -I/usr/local/include
 # MACRO += -w -Os -L./ -L../ -DTCMALLOC
 
 # 默认情况下使用系统内存分配器
-CFLAGS += -Wall -Os -fPIC --shared -fno-strict-aliasing -Wl,-rpath,/usr/local/lib
+CFLAGS += -Wall -O3 -fPIC --shared -fno-strict-aliasing -Wl,-rpath,/usr/local/lib
 DLL += -lev -llua -ldl
-MACRO += -w -Os -Wl,-rpath,./
+MACRO += -w -O3 -Wl,-rpath,./
 
 build :
 

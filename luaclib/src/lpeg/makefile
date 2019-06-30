@@ -7,70 +7,16 @@ default :
 	@echo "Please use 'make clean' command to clean all."
 	@echo "======================================="
 
-LIBNAME = lpeg
-LUADIR = ../lua/
-
-COPT = -O2 -DNDEBUG
-# COPT = -g
-
-CWARNS = -Wall -Wextra -pedantic \
-	-Waggregate-return \
-	-Wcast-align \
-	-Wcast-qual \
-	-Wdisabled-optimization \
-	-Wpointer-arith \
-	-Wshadow \
-	-Wsign-compare \
-	-Wundef \
-	-Wwrite-strings \
-	-Wbad-function-cast \
-	-Wdeclaration-after-statement \
-	-Wmissing-prototypes \
-	-Wnested-externs \
-	-Wstrict-prototypes \
-# -Wunreachable-code \
-
-
-CFLAGS = $(CWARNS) $(COPT) -std=c99 -I$(LUADIR) -fPIC
 CC = gcc
 LIBS = -L/usr/local/lib -L../ -L../../../
 
-FILES = lpvm.o lpcap.o lptree.o lpcode.o lpprint.o
-
-# For Linux
-linux:
-	$(MAKE) lpeg.so "DLLFLAGS = -shared -fPIC"
-
-# For Mac OS
-macosx:
-	$(MAKE) lpeg.so "DLLFLAGS = -bundle -undefined dynamic_lookup"
-
-build: $(FILES)
-	$(CC) -o lpeg.so $(FILES) -shared -fPIC $(LIBS) -lcore
+build:
+	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c -O2 -shared -fPIC $(LIBS) -lcore
 	mv *.so ../../
-	rm -rf *.o *.so
 
-
-rebuild: $(FILES)
-	$(CC) -o lpeg.so $(FILES) -shared -fPIC $(LIBS) -lcore
+rebuild:
+	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c -O2 -shared -fPIC $(LIBS) -lcore
 	mv *.so ../../
-	rm -rf *.o *.so
-
-
-lpeg.so: $(FILES)
-	env $(CC) $(DLLFLAGS) $(FILES) -o lpeg.so
-
-$(FILES): makefile
-
-test: test.lua re.lua lpeg.so
-	./test.lua
 
 clean:
-	rm -f $(FILES) lpeg.so
-
-
-lpcap.o: lpcap.c lpcap.h lptypes.h
-lpcode.o: lpcode.c lptypes.h lpcode.h lptree.h lpvm.h lpcap.h
-lpprint.o: lpprint.c lptypes.h lpprint.h lptree.h lpvm.h lpcap.h
-lptree.o: lptree.c lptypes.h lpcap.h lpcode.h lptree.h lpvm.h lpprint.h
-lpvm.o: lpvm.c lpcap.h lptypes.h lpvm.h lpprint.h lptree.h
+	rm -f *.so *.o

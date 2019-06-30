@@ -7,26 +7,20 @@ default :
 	@echo "Please use 'make clean' command to clean all."
 	@echo "======================================="
 
-# CFLAGS = -O3 -Wall -DNDEBUG -fPIC -DJEMALLOC -ljemalloc
-# CFLAGS = -O3 -Wall -DNDEBUG -fPIC -DTCMALLOC -ltcmalloc
-CFLAGS = -O3 -Wall -DNDEBUG -fPIC
+# CFLAGS = -O3 -Wall -DNDEBUG -DJEMALLOC -ljemalloc
+# CFLAGS = -O3 -Wall -DNDEBUG -DTCMALLOC -ltcmalloc
+CFLAGS = -O3 -Wall -DNDEBUG
 CC = cc
 
 INCLUDE = -I/usr/local/include
 LIB = -L/usr/local/lib -L../ -L../../../
 
-fpconv.o: fpconv.c fpconv.h
-strbuf.o: strbuf.c strbuf.h
-
-OBJS = fpconv.o strbuf.o
-
-build: $(OBJS)
-	$(CC) -o cjson.so lua_cjson.c $(OBJS) $(INCLUDE) $(LIB) $(CFLAGS) -shared -fPIC -lcore
+build:
+	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) -shared -fPIC -lcore
 	mv cjson.so ../../
 
 rebuild: $(OBJS)
-	$(CC) -o cjson.so lua_cjson.c $(OBJS) $(INCLUDE) $(LIB) $(CFLAGS) -shared -fPIC -lcore
-	rm -rf *.o
+	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) -shared -fPIC -lcore
 	mv cjson.so ../../
 
 clean:

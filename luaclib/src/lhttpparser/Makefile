@@ -20,17 +20,13 @@ DLL =  -lcore
 INCLUDE = -I/usr/local/include
 LIB = -L/usr/local/lib -L../ -L../../../
 
-httpparser.o: httpparser.c httpparser.h
-lhttpparser.o: lhttpparser.c httpparser.h
 
-OBJS = httpparser.o lhttpparser.o
-
-build: $(OBJS)
-	$(CC) -o httpparser.so $(OBJS) $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
+build:
+	$(CC) -o httpparser.so httpparser.c lhttpparser.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
 	mv httpparser.so ../../
 
-rebuild: $(OBJS)
-	$(CC) -o httpparser.so $(OBJS) $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
+rebuild:
+	$(CC) -o httpparser.so httpparser.c lhttpparser.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
 	mv httpparser.so ../../
 
 clean:
