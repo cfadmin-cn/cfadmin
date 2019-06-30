@@ -9,9 +9,9 @@ default :
 
 INCLUDES += -I/usr/local/include
 LIBS += -L./ -L../ -L/usr/local/lib
-# CFLAGS = -Wall -Os -fPIC --shared -DJEMALLOC -ljemalloc
-# CFLAGS = -Wall -Os -fPIC --shared -DTCMALLOC -ltcmalloc
-CFLAGS = -Wall -Os -fPIC --shared
+# CFLAGS = -Wall -O3 -fPIC --shared -DJEMALLOC -ljemalloc
+# CFLAGS = -Wall -O3 -fPIC --shared -DTCMALLOC -ltcmalloc
+CFLAGS = -Wall -O3 -fPIC --shared
 
 build :
 	$(CC) -o sys.so src/lsys.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
