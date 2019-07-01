@@ -103,11 +103,19 @@ core_signal_start(core_loop *loop, core_signal *signal){
 
 core_loop *
 core_default_loop(){
-	// 	ev_supported_backends() & EVBACKEND_EPOLL  || // Linux   使用 epoll
-	// 	ev_supported_backends() & EVBACKEND_KQUEUE || // mac|BSD 使用 kqueue
-	// 	ev_supported_backends() & EVBACKEND_SELECT || // other   使用 select
-	// 	EVFLAG_AUTO								  	  // select  都没有就自动选择
-	return ev_default_loop(ev_embeddable_backends() & ev_supported_backends() || EVFLAG_AUTO);
+
+	/* 默认使用 SELECT */
+	int BEST_BACKEND = EVBACKEND_SELECT;
+
+#ifdef EV_USE_EPOLL  /* Linux */
+	BEST_BACKEND = EVBACKEND_EPOLL;
+#endif
+
+#ifdef EV_USE_KQUEUE /* Unix | Mac */
+	BEST_BACKEND = EVBACKEND_KQUEUE;
+#endif
+
+	return ev_default_loop( BEST_BACKEND );
 }
 
 void

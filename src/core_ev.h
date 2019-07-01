@@ -14,11 +14,12 @@
 	#define EV_USE_FLOOR 1 // 如果没有math.h库, 可以定义NO_USE_FLOOR
 #endif
 
-#define EV_USE_REALTIME 1
-
-#define EV_USE_MONOTONIC 1
-
-#define EV_USE_CLOCK_SYSCALL 1
+#define EV_FORK_ENABLE 0
+#define EV_CHILD_ENABLE 0
+#define EV_CHECK_ENABLE 0
+#define EV_EMBED_ENABLE 0
+#define EV_PREPARE_ENABLE 0
+#define EV_PREPARE_ENABLE 0
 
 #define EV_USE_4HEAP 1
 
@@ -30,7 +31,7 @@
 
 /* eventfd 与 signalfd */
 #if defined(__linux) || defined(__linux__)
-	#define EV_USE_LINUXAIO 1
+	// #define EV_USE_LINUXAIO 1 /* 待完整支持AIO后再根据情况开启 */
 	#define EV_USE_EPOLL 1
 	#define EV_USE_INOTIFY 1
 	#define EV_USE_SIGNALFD 1
