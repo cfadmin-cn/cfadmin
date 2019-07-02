@@ -943,6 +943,10 @@ lxor_str(lua_State *L) {
 	return 1;
 }
 
+// defined in md5.c
+int lmd5(lua_State *L);
+int lhmac_md5(lua_State *L);
+
 // defined in crc.c
 int lcrc32(lua_State *L);
 int lcrc64(lua_State *L);
@@ -954,6 +958,9 @@ int lhmac_sha1(lua_State *L);
 // defined sha256.c
 int lsha256(lua_State *L);
 int lhmac_sha256(lua_State *L);
+
+int lsha512(lua_State *L);
+int lhmac_sha512(lua_State *L);
 
 LUAMOD_API int
 luaopen_lcrypt(lua_State *L) {
@@ -971,12 +978,16 @@ luaopen_lcrypt(lua_State *L) {
 		{ "dhsecret", ldhsecret },
 		{ "base64encode", lb64encode },
 		{ "base64decode", lb64decode },
+		{ "md5", lmd5 },
+		{ "hmac_md5", lhmac_md5 },
+		{ "crc32", lcrc32 },
+		{ "crc64", lcrc64 },
 		{ "sha1", lsha1 },
-    { "hmac_sha1", lhmac_sha1 },
     { "sha256", lsha256 },
+		{ "sha512", lsha512 },
+		{ "hmac_sha1", lhmac_sha1 },
 		{ "hmac_sha256", lhmac_sha256 },
-    { "crc32", lcrc32 },
-    { "crc64", lcrc64 },
+		{ "hmac_sha512", lhmac_sha512 },
 		{ "hmac_hash", lhmac_hash },
 		{ "xor_str", lxor_str },
 		{ NULL, NULL },

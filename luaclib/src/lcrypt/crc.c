@@ -202,11 +202,10 @@ static uint64_t CRC64[] = {
     0x536fa08fdfd90e51, 0x29b7d047efec8728,
 };
 
-LUAMOD_API int
+int
 lcrc32(lua_State *L){
   size_t len;
   const char *str = luaL_checklstring(L, 1, &len);
-  if (len <= 0) return luaL_error(L, "crc32 err: #1 need a string");
 
   uint32_t i = 0;
   uint32_t crc = 0xFFFFFFFF;
@@ -216,11 +215,10 @@ lcrc32(lua_State *L){
   return 1;
 };
 
-LUAMOD_API int
+int
 lcrc64(lua_State *L){
   size_t len;
   const char *str = luaL_checklstring(L, 1, &len);
-  if (len <= 0) return luaL_error(L, "crc64 err: #1 need a string");
 
   uint32_t i = 0;
   uint64_t crc = 0x0;
