@@ -9,7 +9,7 @@ default :
 
 CC = cc
 
-CFLAGS = -O3 -Wall -shared -fPIC
+CFLAGS = -O3 -Wall -shared -fPIC -fno-strict-aliasing
 
 DLL = -lcore
 

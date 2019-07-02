@@ -26,12 +26,12 @@ typedef struct MD5Context {
 } MD5_CTX;
 
 static void MD5Init(MD5_CTX *);
-static void MD5Update(MD5_CTX *, const u_int8_t *, size_t)
-	_BOUNDED(__string__,2,3);
-static void MD5Final(u_int8_t [MD5_DIGEST_LENGTH], MD5_CTX *)
-	_BOUNDED(__minbytes__,1,MD5_DIGEST_LENGTH);
-static void MD5Transform(u_int32_t [4], const u_int8_t [MD5_BLOCK_LENGTH])
-	_BOUNDED(__minbytes__,1,4)
-	_BOUNDED(__minbytes__,2,MD5_BLOCK_LENGTH);
+static void MD5Update(MD5_CTX *, const u_int8_t *, size_t);
+	// _BOUNDED(__string__,2,3);
+static void MD5Final(u_int8_t [MD5_DIGEST_LENGTH], MD5_CTX *);
+	// _BOUNDED(__minbytes__,1,MD5_DIGEST_LENGTH);
+static void MD5Transform(u_int32_t [4], const u_int8_t [MD5_BLOCK_LENGTH]);
+	// _BOUNDED(__minbytes__,1,4)
+	// _BOUNDED(__minbytes__,2,MD5_BLOCK_LENGTH);
 
 #endif /* _MD5_H_ */

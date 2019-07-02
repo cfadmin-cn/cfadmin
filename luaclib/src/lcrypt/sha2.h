@@ -61,10 +61,10 @@ typedef struct _SHA2_CTX {
 } SHA2_CTX;
 
 static void SHA256Init(SHA2_CTX *);
-static void SHA256Update(SHA2_CTX *, const u_int8_t *, size_t)
-	_BOUNDED(__string__,2,3);
-static void SHA256Final(u_int8_t[SHA256_DIGEST_LENGTH], SHA2_CTX *)
-	_BOUNDED(__minbytes__,1,SHA256_DIGEST_LENGTH);
+static void SHA256Update(SHA2_CTX *, const u_int8_t *, size_t);
+	// _BOUNDED(__string__,2,3);
+static void SHA256Final(u_int8_t[SHA256_DIGEST_LENGTH], SHA2_CTX *);
+	// _BOUNDED(__minbytes__,1,SHA256_DIGEST_LENGTH);
 
 // static void SHA384Init(SHA2_CTX *);
 // static void SHA384Update(SHA2_CTX *, const u_int8_t *, size_t)
@@ -73,9 +73,9 @@ static void SHA256Final(u_int8_t[SHA256_DIGEST_LENGTH], SHA2_CTX *)
 // 	_BOUNDED(__minbytes__,1,SHA384_DIGEST_LENGTH);
 
 static void SHA512Init(SHA2_CTX *);
-static void SHA512Update(SHA2_CTX *, const u_int8_t *, size_t)
-	_BOUNDED(__string__,2,3);
-static void SHA512Final(u_int8_t[SHA512_DIGEST_LENGTH], SHA2_CTX *)
-	_BOUNDED(__minbytes__,1,SHA512_DIGEST_LENGTH);
+static void SHA512Update(SHA2_CTX *, const u_int8_t *, size_t);
+	// _BOUNDED(__string__,2,3);
+static void SHA512Final(u_int8_t[SHA512_DIGEST_LENGTH], SHA2_CTX *);
+	// _BOUNDED(__minbytes__,1,SHA512_DIGEST_LENGTH);
 
 #endif /* _SHA2_H */
