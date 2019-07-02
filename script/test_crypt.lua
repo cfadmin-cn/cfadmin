@@ -6,6 +6,30 @@ Log:DEBUG("测试crc32",crypt.crc32("admin"))
 -- 测试crc64编码
 Log:DEBUG("测试crc64", crypt.crc64("admin"))
 
+-- 测试md5编码
+Log:DEBUG("测试md5", crypt.md5("admin", true))
+
+-- 测试sha1编码, 第二个参数表示进行hex
+Log:DEBUG("测试sha1", crypt.sha1("admin", true))
+
+-- 测试sha256编码, 第二个参数表示进行hex
+Log:DEBUG("测试sha256", crypt.sha256("admin", true))
+
+-- 测试sha512编码
+Log:DEBUG("测试sha512", crypt.sha512("admin", true))
+
+-- 测试hmac_sha1编码, 第二个参数表示进行hex
+Log:DEBUG("测试hmac_sha1", crypt.hmac_sha1("admin", "123", true))
+
+-- 测试hmac_sha256编码, 第二个参数表示进行hex
+Log:DEBUG("测试hmac_sha256", crypt.hmac_sha256("admin", "123", true))
+
+-- 测试hmac_sha512编码, 第二个参数表示进行hex
+Log:DEBUG("测试hmac_sha512", crypt.hmac_sha512("admin", "123", true))
+
+-- 测试hmac_md5编码
+Log:DEBUG("测试hmac_md5", crypt.hmac_md5("admin", "123", true))
+
 -- 测试hmac64编码
 Log:DEBUG("测试hmac64", crypt.hmac64("12345678", "abcdefgh", true))
 
@@ -21,19 +45,8 @@ Log:DEBUG("测试randomkey", crypt.randomkey(true))
 -- 测试hashkey编码
 Log:DEBUG("测试hashkey", crypt.hashkey("admin", true))
 
--- 测试sha1编码, 第二个参数表示进行hex
-Log:DEBUG("测试sha1", crypt.sha1("admin", true))
--- 测试hmac_sha1编码, 第二个参数表示进行hex
-Log:DEBUG("测试hmac_sha1", crypt.hmac_sha1("admin", "123", true))
-
--- 测试sha256编码, 第二个参数表示进行hex
-Log:DEBUG("测试sha256", crypt.sha256("admin", true))
--- 测试hmac_sha256编码, 第二个参数表示进行hex
-Log:DEBUG("测试hmac_sha256", crypt.hmac_sha256("admin", "123", true))
-
 -- 测试desencode编码
 Log:DEBUG("测试desencode", crypt.desencode("12345678", "87654321"))
-
 -- 测试desdecode编码
 Log:DEBUG("测试desdecode", crypt.desdecode("12345678", crypt.desencode("12345678", "87654321")) == "87654321")
 
