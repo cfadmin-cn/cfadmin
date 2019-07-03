@@ -15,7 +15,7 @@ void SETSOCKETOPT(int sockfd, int mode){
 
   int ret = 0;
 
-  int no = 0;
+  int On = 0;
 
 	/* 设置非阻塞 */
   ret = non_blocking(sockfd);
@@ -24,7 +24,7 @@ void SETSOCKETOPT(int sockfd, int mode){
     return exit(-1);
   }
 
-  ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&no, sizeof(no));
+  ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&On, sizeof(On));
   if (ret){
     LOG("ERROR", "IPV6_V6ONLY 关闭失败.");
     return exit(-1);
@@ -106,11 +106,13 @@ create_server_fd(int port, int backlog){
 	SETSOCKETOPT(sockfd, SERVER);
 
 	struct sockaddr_in6 SA;
+  memset(&SA, 0x0, sizeof(SA));
+
 	SA.sin6_family = AF_INET6;
 	SA.sin6_port = htons(port);
 	SA.sin6_addr = in6addr_any;
 
-	int bind_success = bind(sockfd, (struct sockaddr *)&SA, sizeof(struct sockaddr_in6));
+	int bind_success = bind(sockfd, (struct sockaddr *)&SA, sizeof(SA));
 	if (0 > bind_success) {
 		return -1; /* 绑定套接字失败 */
 	}
@@ -134,7 +136,9 @@ create_client_fd(const char *ipaddr, int port){
 	/* socket option set */
 	SETSOCKETOPT(sockfd, CLIENT);
 
-	struct sockaddr_in6 SA;
+  struct sockaddr_in6 SA;
+  memset(&SA, 0x0, sizeof(SA));
+
 	SA.sin6_family = AF_INET6;
 	SA.sin6_port = htons(port);
 	inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
@@ -145,7 +149,6 @@ create_client_fd(const char *ipaddr, int port){
 	}
 	return sockfd;
 }
-
 
 
 static void
@@ -200,7 +203,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 		for(;;) {
 			errno = 0;
 			struct sockaddr_in6 SA;
-			socklen_t slen = sizeof(struct sockaddr_in6);
+			socklen_t slen = sizeof(SA);
 			int client = accept(io->fd, (struct sockaddr*)&SA, &slen);
 			if (0 >= client) {
 				if (errno != EAGAIN)
