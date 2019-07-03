@@ -43,7 +43,7 @@ void SETSOCKETOPT(int sockfd, int mode){
     return exit(-1);
   }
 
-#if defined(linux)
+#ifdef TCP_DEFER_ACCEPT
   if (!mode) {
     /* 开启延迟Accept, 没数据来之前不回调accept */
     ret = setsockopt(sockfd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &Enable, sizeof(Enable));
@@ -52,7 +52,9 @@ void SETSOCKETOPT(int sockfd, int mode){
       return exit(-1);
     }
   }
+#endif
 
+#ifdef TCP_KEEPIDLE
   /* 设置 TCP keepalive 空闲时间 */
   int keepidle = 30;
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle , sizeof(keepidle));
@@ -60,9 +62,9 @@ void SETSOCKETOPT(int sockfd, int mode){
     LOG("ERROR", "TCP_KEEPIDLE 设置失败.");
     return exit(-1);
   }
-
 #endif
 
+#ifdef TCP_KEEPCNT
   /* 设置 TCP keepalive 探测总次数 */
   int keepcount = 3;
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPCNT, &keepcount , sizeof(keepcount));
@@ -70,7 +72,9 @@ void SETSOCKETOPT(int sockfd, int mode){
     LOG("ERROR", "TCP_KEEPCNT 设置失败.");
     return exit(-1);
   }
+#endif
 
+#ifdef TCP_KEEPINTVL
   /* 设置 TCP keepalive 每次探测间隔时间 */
   int keepinterval = 5;
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL, &keepinterval , sizeof(keepinterval));
@@ -78,6 +82,7 @@ void SETSOCKETOPT(int sockfd, int mode){
     LOG("ERROR", "TCP_KEEPINTVL 设置失败.");
     return exit(-1);
   }
+#endif
 
 }
 
