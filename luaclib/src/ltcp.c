@@ -15,10 +15,18 @@ void SETSOCKETOPT(int sockfd, int mode){
 
   int ret = 0;
 
+  int no = 0;
+
 	/* 设置非阻塞 */
   ret = non_blocking(sockfd);
   if (ret) {
     LOG("ERROR", "non_blocking 设置失败.");
+    return exit(-1);
+  }
+
+  ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&no, sizeof(no));
+  if (ret){
+    LOG("ERROR", "IPV6_V6ONLY 关闭失败.");
     return exit(-1);
   }
 
@@ -102,8 +110,8 @@ create_server_fd(int port, int backlog){
 	SA.sin6_port = htons(port);
 	SA.sin6_addr = in6addr_any;
 
-	int bind_siccess = bind(sockfd, (struct sockaddr *)&SA, sizeof(struct sockaddr_in6));
-	if (0 > bind_siccess) {
+	int bind_success = bind(sockfd, (struct sockaddr *)&SA, sizeof(struct sockaddr_in6));
+	if (0 > bind_success) {
 		return -1; /* 绑定套接字失败 */
 	}
 
