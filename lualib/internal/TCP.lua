@@ -269,12 +269,11 @@ end
 function TCP:connect(domain, port)
     local ok, IP = dns_resolve(domain)
     if not ok then
-        return nil, "Can't resolve this domain or ip:"..domain
+        return nil, "Can't resolve this domain or ip:"..(domain or IP or "")
     end
     self.fd = tcp_new_client_fd(IP, port)
     if not self.fd then
-        Log:ERROR("Connect This IP or Port Faild!"..domain, IP)
-        return nil, "Connect This host fault! :"
+        return nil, "Connect This host fault! "..(domain or "no domain")..":"..(port or "no port")
     end
     local co = co_self()
     self.CONNECT_IO = tcp_pop()
