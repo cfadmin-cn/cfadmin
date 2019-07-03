@@ -163,10 +163,10 @@ function httpd:listen(ip, port, backlog)
   if type(backlog) == 'number' then
     self.sock:set_backlog(toint(backlog))
   end
-  self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
+  local ok, err = self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
       return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
   end)
-  return self
+  return assert(ok and self, err)
 end
 
 -- 正确的运行方式

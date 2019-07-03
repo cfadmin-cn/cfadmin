@@ -253,7 +253,7 @@ function TCP:listen(ip, port, cb)
     self.LISTEN_IO = tcp_pop()
     self.fd = tcp_new_server_fd(ip, port, self._backlog)
     if not self.fd then
-        return Log:ERROR("this IP and port Create A bind or listen method Faild! :) ")
+        return nil, "Listen port failed. Please check if the port is already occupied."
     end
     self.co = co_new(function (fd, ipaddr)
         while 1 do
@@ -263,7 +263,7 @@ function TCP:listen(ip, port, cb)
             end
         end
     end)
-    return tcp_listen(self.LISTEN_IO, self.fd, self.co)
+    return true, tcp_listen(self.LISTEN_IO, self.fd, self.co)
 end
 
 function TCP:connect(domain, port)
