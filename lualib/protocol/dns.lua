@@ -227,7 +227,6 @@ local function dns_query(domain)
     -- print("开始解析域名:["..domain.."], 开始时间: ", start)
     local dns_client, msg = get_dns_client()
     if not dns_client then
-        dns_client:close()
         check_wait(domain, wlist, nil, msg)
         return nil, msg
     end
