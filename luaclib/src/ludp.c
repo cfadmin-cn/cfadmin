@@ -4,24 +4,30 @@
 
 static inline
 void SETSOCKETOPT(int sockfd) {
+	int Enable = 1;
+
+	int ret = 0;
+
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
 
-  int Enable = 1;
-
-	int ret = 0;
+#ifdef SO_REUSEADDR
    /* 端口重用 */
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
 	if (ret) {
 		LOG("ERROR", "设置 SO_REUSEADDR 失败.");
 		return exit(-1);
 	}
+#endif
 
+#ifdef SO_REUSEPORT
 	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
 	if (ret) {
 		LOG("ERROR", "设置 SO_REUSEPORT 失败.");
 		return exit(-1);
 	}
+#endif
+
 }
 
 int
