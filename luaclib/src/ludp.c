@@ -18,12 +18,18 @@ udp_socket_new(const char *ipaddr, int port){
   setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &ENABLE, sizeof(ENABLE));
 
 	struct sockaddr_in6 SA;
+	memset(&SA, 0x0, sizeof(SA));
+
 	SA.sin6_family = AF_INET6;
 	SA.sin6_port = htons(port);
 	inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
 
-	connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
-
+	int ret = connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
+	if (ret == -1) {
+		close(sockfd);
+		LOG("ERROR", strerror(errno));
+		return -1;
+	}
 	return sockfd;
 }
 
@@ -91,12 +97,14 @@ int
 udp_connect(lua_State *L){
 
 	const char *ip = lua_tostring(L, 1);
-	if(!ip) {lua_settop(L, 0); return 0;}
+	if(!ip) return 0;
 
 	int port = lua_tointeger(L, 2);
-	if(!port) {lua_settop(L, 0); return 0;}
+	if(!port) return 0;
 
 	int fd = udp_socket_new(ip, port);
+
+	if (0 >= fd) return 0;
 
 	lua_pushinteger(L, fd > 0 ? fd : -1);
 

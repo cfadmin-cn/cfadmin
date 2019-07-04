@@ -15,18 +15,10 @@ void SETSOCKETOPT(int sockfd, int mode){
 
   int ret = 0;
 
-  int On = 0;
-
 	/* 设置非阻塞 */
   ret = non_blocking(sockfd);
   if (ret) {
     LOG("ERROR", "non_blocking 设置失败.");
-    return exit(-1);
-  }
-
-  ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&On, sizeof(On));
-  if (ret){
-    LOG("ERROR", "IPV6_V6ONLY 关闭失败.");
     return exit(-1);
   }
 
