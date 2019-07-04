@@ -30,7 +30,7 @@ void SETSOCKETOPT(int sockfd) {
 
 }
 
-int
+static int
 udp_socket_new(const char *ipaddr, int port){
 	errno = 0;
 	/* 建立 UDP Socket */
@@ -50,6 +50,7 @@ udp_socket_new(const char *ipaddr, int port){
 		close(sockfd);
 		return -1;
 	}
+
 	int ret = connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
 	if (ret == -1) {
 		LOG("ERROR", strerror(errno));
@@ -80,7 +81,7 @@ UDP_IO_CB(CORE_P_ core_io *io, int revents){
 	}
 }
 
-int
+static int
 udp_send(lua_State *L){
 
 	int fd = lua_tointeger(L, 1);
@@ -99,7 +100,7 @@ udp_send(lua_State *L){
 
 }
 
-int
+static int
 udp_recv(lua_State *L){
 
 	int fd = lua_tointeger(L, 1);
@@ -119,7 +120,7 @@ udp_recv(lua_State *L){
 
 }
 
-int
+static int
 udp_connect(lua_State *L){
 
 	const char *ip = lua_tostring(L, 1);
@@ -138,7 +139,7 @@ udp_connect(lua_State *L){
 
 }
 
-int
+static int
 udp_start(lua_State *L){
 
 	core_io *io = (core_io *) luaL_testudata(L, 1, "__UDP__");
@@ -161,7 +162,7 @@ udp_start(lua_State *L){
 
 }
 
-int
+static int
 udp_stop(lua_State *L){
 
 	core_io *io = (core_io *) luaL_testudata(L, 1, "__UDP__");
@@ -173,7 +174,7 @@ udp_stop(lua_State *L){
 
 }
 
-int
+static int
 udp_close(lua_State *L){
 
 	int fd = lua_tointeger(L, 1);
@@ -186,7 +187,7 @@ udp_close(lua_State *L){
 
 
 
-int
+static int
 udp_new(lua_State *L){
 
 	core_io *io = (core_io *) lua_newuserdata(L, sizeof(core_io));
