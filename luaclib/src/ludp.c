@@ -44,24 +44,28 @@ udp_socket_new(const char *ipaddr, int port){
 
 	SA.sin6_family = AF_INET6;
 	SA.sin6_port = htons(port);
-	inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
-
+	int error = inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
+	if (0 >= error) {
+		LOG("ERROR", strerror(errno));
+		close(sockfd);
+		return -1;
+	}
 	int ret = connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
 	if (ret == -1) {
-		close(sockfd);
 		LOG("ERROR", strerror(errno));
+		close(sockfd);
 		return -1;
 	}
 	return sockfd;
 }
 
 static void
-UDP_IO_CB(CORE_P_ ev_io *io, int revents){
+UDP_IO_CB(CORE_P_ core_io *io, int revents){
 
 	int status = 0;
 
 	if (revents & EV_ERROR) {
-		LOG("ERROR", "Recevied a ev_io object internal error from libev.");
+		LOG("ERROR", "Recevied a core_io object internal error from libev.");
 		return ;
 	}
 
@@ -137,7 +141,7 @@ udp_connect(lua_State *L){
 int
 udp_start(lua_State *L){
 
-	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
+	core_io *io = (core_io *) luaL_testudata(L, 1, "__UDP__");
 	if(!io) return 0;
 
 	int fd = lua_tointeger(L, 2);
@@ -160,7 +164,7 @@ udp_start(lua_State *L){
 int
 udp_stop(lua_State *L){
 
-	ev_io *io = (ev_io *) luaL_testudata(L, 1, "__UDP__");
+	core_io *io = (core_io *) luaL_testudata(L, 1, "__UDP__");
 	if(!io) return 0;
 
 	core_io_stop(CORE_LOOP_ io);
@@ -185,7 +189,7 @@ udp_close(lua_State *L){
 int
 udp_new(lua_State *L){
 
-	ev_io *io = (ev_io *) lua_newuserdata(L, sizeof(ev_io));
+	core_io *io = (core_io *) lua_newuserdata(L, sizeof(core_io));
 
 	if(!io) return 0;
 
