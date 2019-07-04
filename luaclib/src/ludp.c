@@ -2,20 +2,36 @@
 
 #include "../../src/core.h"
 
-int
-udp_socket_new(const char *ipaddr, int port){
-
-	errno = 0;
-	/* 建立socket*/
-	int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
-	if (0 >= sockfd) return -1;
-
+static inline
+void SETSOCKETOPT(int sockfd) {
 	/* 设置非阻塞 */
 	non_blocking(sockfd);
 
-  int ENABLE = 1;
+  int Enable = 1;
+
+	int ret = 0;
    /* 端口重用 */
-  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &ENABLE, sizeof(ENABLE));
+  ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
+	if (ret) {
+		LOG("ERROR", "设置 SO_REUSEADDR 失败.");
+		return exit(-1);
+	}
+
+	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
+	if (ret) {
+		LOG("ERROR", "设置 SO_REUSEPORT 失败.");
+		return exit(-1);
+	}
+}
+
+int
+udp_socket_new(const char *ipaddr, int port){
+	errno = 0;
+	/* 建立 UDP Socket */
+	int sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	if (0 >= sockfd) return -1;
+
+	SETSOCKETOPT(sockfd);
 
 	struct sockaddr_in6 SA;
 	memset(&SA, 0x0, sizeof(SA));

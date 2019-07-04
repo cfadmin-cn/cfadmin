@@ -22,12 +22,19 @@ void SETSOCKETOPT(int sockfd, int mode){
     return exit(-1);
   }
 
-  /* 地址/端口重用 */
+  /* 地址重用 */
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
-  if (ret){
-    LOG("ERROR", "SO_REUSEADDR 设置失败.");
-    return exit(-1);
-  }
+	if (ret) {
+		LOG("ERROR", "设置 SO_REUSEADDR 失败.");
+		return exit(-1);
+	}
+
+  /* 端口重用 */
+	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
+	if (ret) {
+		LOG("ERROR", "设置 SO_REUSEPORT 失败.");
+		return exit(-1);
+	}
 
 	/* 关闭小包延迟合并算法 */
 	ret = setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &Enable, sizeof(Enable));
@@ -89,8 +96,8 @@ void SETSOCKETOPT(int sockfd, int mode){
 /* server fd */
 static int
 create_server_fd(int port, int backlog){
-	errno = 0;
-
+  errno = 0;
+	/* 建立 TCP Server Socket */
 	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 	if (0 >= sockfd) return -1;
 
@@ -104,24 +111,22 @@ create_server_fd(int port, int backlog){
 	SA.sin6_port = htons(port);
 	SA.sin6_addr = in6addr_any;
 
+  /* 绑定套接字失败 */
 	int bind_success = bind(sockfd, (struct sockaddr *)&SA, sizeof(SA));
-	if (0 > bind_success) {
-		return -1; /* 绑定套接字失败 */
-	}
+	if (0 > bind_success) return -1;
 
+  /* 监听套接字失败 */
 	int listen_success = listen(sockfd, backlog);
-	if (0 > listen_success) {
-		return -1; /* 监听套接字失败 */
-	}
+	if (0 > listen_success) return -1;
+
 	return sockfd;
 }
 
 /* client fd */
 static int
 create_client_fd(const char *ipaddr, int port){
-	errno = 0;
-
-	/* 建立socket */
+  errno = 0;
+	/* 建立 TCP Client Socket */
 	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 	if (0 >= sockfd) return -1;
 
@@ -134,6 +139,7 @@ create_client_fd(const char *ipaddr, int port){
 	SA.sin6_family = AF_INET6;
 	SA.sin6_port = htons(port);
 	inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
+
 	connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
 	if (errno != EINPROGRESS){
 		close(sockfd);
