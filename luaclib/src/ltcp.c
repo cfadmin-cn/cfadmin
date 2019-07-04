@@ -22,19 +22,25 @@ void SETSOCKETOPT(int sockfd, int mode){
     return exit(-1);
   }
 
+#ifdef SO_REUSEADDR
   /* 地址重用 */
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
 	if (ret) {
 		LOG("ERROR", "设置 SO_REUSEADDR 失败.");
 		return exit(-1);
 	}
+#endif
 
-  /* 端口重用 */
-	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
-	if (ret) {
-		LOG("ERROR", "设置 SO_REUSEPORT 失败.");
-		return exit(-1);
-	}
+#ifdef SO_REUSEPORT
+  if (mode == SERVER) {
+    /* 端口重用 */
+  	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
+  	if (ret) {
+  		LOG("ERROR", "设置 SO_REUSEPORT 失败.");
+  		return exit(-1);
+  	}
+  }
+#endif
 
 	/* 关闭小包延迟合并算法 */
 	ret = setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &Enable, sizeof(Enable));
@@ -51,7 +57,7 @@ void SETSOCKETOPT(int sockfd, int mode){
   }
 
 #ifdef TCP_DEFER_ACCEPT
-  if (!mode) {
+  if (mode == SERVER) {
     /* 开启延迟Accept, 没数据来之前不回调accept */
     ret = setsockopt(sockfd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &Enable, sizeof(Enable));
     if (ret){
