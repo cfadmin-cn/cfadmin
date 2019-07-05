@@ -14,7 +14,7 @@ TASK_CB(CORE_P_ core_task *task, int revents){
 	}
 }
 
-int
+static int
 task_new(lua_State *L){
 	core_task *task = lua_newuserdata(L, sizeof(core_task));
 	if (!task) return 0;
@@ -26,7 +26,7 @@ task_new(lua_State *L){
 	return 1;
 }
 
-int
+static int
 task_start(lua_State *L){
 	core_task *task = (core_task *) luaL_testudata(L, 1, "__Task__");
 	if (!task) return luaL_error(L, "attemp to pass a invaild core_task value.");
@@ -44,7 +44,7 @@ task_start(lua_State *L){
 	return 1;
 }
 
-int
+static int
 task_stop(lua_State *L){
 	core_task *task = (core_task *) luaL_testudata(L, 1, "__Task__");
 	if (!task) return luaL_error(L, "attemp to pass a invaild core_task value.");
@@ -57,17 +57,14 @@ task_stop(lua_State *L){
 
 LUAMOD_API int
 luaopen_task(lua_State *L){
-
 	luaL_checkversion(L);
-
 	luaL_newmetatable(L, "__Task__");
 	lua_pushstring (L, "__index");
 	lua_pushvalue(L, -2);
 	lua_rawset(L, -3);
-    lua_pushliteral(L, "__mode");
-    lua_pushliteral(L, "kv");
-    lua_rawset(L, -3);
-
+  lua_pushliteral(L, "__mode");
+  lua_pushliteral(L, "kv");
+  lua_rawset(L, -3);
 	luaL_Reg task_libs[] = {
 		{"new", task_new},
 		{"start", task_start},

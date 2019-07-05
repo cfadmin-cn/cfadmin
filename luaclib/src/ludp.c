@@ -56,7 +56,7 @@ udp_socket_new(const char *ipaddr, int port){
 	SA.sin6_family = AF_INET6;
 	SA.sin6_port = htons(port);
 	int error = inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
-	if (0 >= error) {
+	if (1 != error) {
 		LOG("ERROR", strerror(errno));
 		close(sockfd);
 		return -1;

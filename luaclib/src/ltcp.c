@@ -155,7 +155,7 @@ create_client_fd(const char *ipaddr, int port){
 	SA.sin6_family = AF_INET6;
 	SA.sin6_port = htons(port);
 	int error = inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
-  if (0 >= error) {
+  if (1 != error) {
 		LOG("ERROR", strerror(errno));
 		close(sockfd);
 		return -1;
@@ -220,9 +220,10 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 			errno = 0;
 			struct sockaddr_in6 SA;
 			socklen_t slen = sizeof(SA);
+      memset(&SA, 0x0, slen);
 			int client = accept(io->fd, (struct sockaddr*)&SA, &slen);
 			if (0 >= client) {
-				if (errno != EAGAIN)
+				if (errno != EWOULDBLOCK)
 					LOG("INFO", strerror(errno));
 				return ;
 			}
@@ -329,7 +330,7 @@ tcp_write(lua_State *L){
 
 		if (wsize < 0){
 			if (errno == EINTR) continue;
-			if (errno == EAGAIN){ lua_pushinteger(L, 0); return 1;}
+			if (errno == EWOULDBLOCK){ lua_pushinteger(L, 0); return 1;}
 		}
 
 	} while (0);

@@ -22,7 +22,7 @@ TIMEOUT_CB(CORE_P_ core_timer *timer, int revents){
     }
 }
 
-int
+static int
 timer_stop(lua_State *L){
 
 	core_timer *timer = (core_timer *) luaL_testudata(L, 1, "__TIMER__");
@@ -33,7 +33,7 @@ timer_stop(lua_State *L){
 	return 0;
 }
 
-int
+static int
 timer_start(lua_State *L){
 
 	core_timer *timer = (core_timer *) luaL_testudata(L, 1, "__TIMER__");
@@ -53,7 +53,7 @@ timer_start(lua_State *L){
 
 }
 
-int
+static int
 timer_new(lua_State *L){
 
 	core_timer *timer = (core_timer *) lua_newuserdata(L, sizeof(core_timer));
@@ -69,24 +69,21 @@ timer_new(lua_State *L){
 
 LUAMOD_API int
 luaopen_timer(lua_State *L){
-
 	luaL_checkversion(L);
-
-    luaL_newmetatable(L, "__TIMER__");
-    lua_pushstring (L, "__index");
-    lua_pushvalue(L, -2);
-    lua_rawset(L, -3);
-    lua_pushliteral(L, "__mode");
-    lua_pushliteral(L, "kv");
-    lua_rawset(L, -3);
-
+  luaL_newmetatable(L, "__TIMER__");
+  lua_pushstring (L, "__index");
+  lua_pushvalue(L, -2);
+  lua_rawset(L, -3);
+  lua_pushliteral(L, "__mode");
+  lua_pushliteral(L, "kv");
+  lua_rawset(L, -3);
 	luaL_Reg timer_libs[] = {
 		{"new",   	timer_new},
 		{"stop",  	timer_stop},
 		{"start", 	timer_start},
 		{NULL, NULL},
 	};
-    luaL_setfuncs(L, timer_libs, 0);
+  luaL_setfuncs(L, timer_libs, 0);
 	luaL_newlib(L, timer_libs);
-    return 1;
+  return 1;
 }
