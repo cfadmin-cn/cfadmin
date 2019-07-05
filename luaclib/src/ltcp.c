@@ -16,14 +16,10 @@ void SETSOCKETOPT(int sockfd, int mode){
   int ret = 0;
 
 	/* 设置非阻塞 */
-  ret = non_blocking(sockfd);
-  if (ret) {
-    LOG("ERROR", "non_blocking 设置失败.");
-    return exit(-1);
-  }
+  non_blocking(sockfd);
 
+/* 地址重用 */
 #ifdef SO_REUSEADDR
-  /* 地址重用 */
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
 	if (ret) {
 		LOG("ERROR", "设置 SO_REUSEADDR 失败.");
@@ -31,9 +27,9 @@ void SETSOCKETOPT(int sockfd, int mode){
 	}
 #endif
 
+/* 端口重用 */
 #ifdef SO_REUSEPORT
   if (mode == SERVER) {
-    /* 端口重用 */
   	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
   	if (ret) {
   		LOG("ERROR", "设置 SO_REUSEPORT 失败.");
@@ -42,23 +38,27 @@ void SETSOCKETOPT(int sockfd, int mode){
   }
 #endif
 
-	/* 关闭小包延迟合并算法 */
+/* 关闭小包延迟合并算法 */
+#ifdef TCP_NODELAY
 	ret = setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &Enable, sizeof(Enable));
   if (ret){
     LOG("ERROR", "TCP_NODELAY 设置失败.");
     return exit(-1);
   }
+#endif
 
-  /* 开启 TCP keepalive */
+/* 开启 TCP keepalive */
+#ifdef SO_KEEPALIVE
   ret = setsockopt(sockfd, IPPROTO_TCP, SO_KEEPALIVE, &Enable , sizeof(Enable));
   if (ret){
     LOG("ERROR", "SO_KEEPALIVE 设置失败.");
     return exit(-1);
   }
+#endif
 
+/* 开启延迟Accept, 没数据来之前不回调accept */
 #ifdef TCP_DEFER_ACCEPT
   if (mode == SERVER) {
-    /* 开启延迟Accept, 没数据来之前不回调accept */
     ret = setsockopt(sockfd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &Enable, sizeof(Enable));
     if (ret){
       LOG("ERROR", "TCP_DEFER_ACCEPT 设置失败.");
@@ -67,8 +67,8 @@ void SETSOCKETOPT(int sockfd, int mode){
   }
 #endif
 
+/* 设置 TCP keepalive 空闲时间 */
 #ifdef TCP_KEEPIDLE
-  /* 设置 TCP keepalive 空闲时间 */
   int keepidle = 30;
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle , sizeof(keepidle));
   if (ret){
@@ -77,8 +77,8 @@ void SETSOCKETOPT(int sockfd, int mode){
   }
 #endif
 
+/* 设置 TCP keepalive 探测总次数 */
 #ifdef TCP_KEEPCNT
-  /* 设置 TCP keepalive 探测总次数 */
   int keepcount = 3;
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPCNT, &keepcount , sizeof(keepcount));
   if (ret){
@@ -87,12 +87,22 @@ void SETSOCKETOPT(int sockfd, int mode){
   }
 #endif
 
+/* 设置 TCP keepalive 每次探测间隔时间 */
 #ifdef TCP_KEEPINTVL
-  /* 设置 TCP keepalive 每次探测间隔时间 */
   int keepinterval = 5;
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL, &keepinterval , sizeof(keepinterval));
   if (ret){
     LOG("ERROR", "TCP_KEEPINTVL 设置失败.");
+    return exit(-1);
+  }
+#endif
+
+/* 开启IPV6与ipv4双栈 */
+#ifdef IPV6_V6ONLY
+  int No = 0;
+  ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&No, sizeof(No));
+  if (ret){
+    LOG("ERROR", "IPV6_V6ONLY 关闭失败.");
     return exit(-1);
   }
 #endif
@@ -163,8 +173,6 @@ create_client_fd(const char *ipaddr, int port){
 static void
 TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 
-	int status = 0;
-
 	if (revents & EV_ERROR) {
 		LOG("ERROR", "Recevied a core_io object internal error from libev.");
 		return ;
@@ -172,7 +180,7 @@ TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 
 	lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 	if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-		status = lua_resume(co, NULL, 0);
+		int status = lua_resume(co, NULL, 0);
 		if (status != LUA_YIELD && status != LUA_OK){
 			LOG("ERROR", lua_tostring(co, -1));
 			core_io_stop(CORE_LOOP_ io);
@@ -191,11 +199,10 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 	if (revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			socklen_t len;
-			int status = 0, CONNECTED = 0, err = 0;
-			if(getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0 && err == 0) CONNECTED = 1;
+			int CONNECTED = 0, err = 0, len = sizeof(socklen_t);
+			if(getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, (socklen_t*)&len) == 0 && err == 0) CONNECTED = 1;
 			lua_pushboolean(co, CONNECTED);
-			status = lua_resume(co, NULL, 1);
+			int status = lua_resume(co, NULL, 1);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
 				core_io_stop(CORE_LOOP_ io);
