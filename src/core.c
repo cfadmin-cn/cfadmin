@@ -59,30 +59,25 @@ ERROR_CB(const char *msg){
 static void *
 EV_ALLOC(void *ptr, long nsize){
 	// 为libev内存hook注入日志;
-	if (ptr && 0 > nsize){
-		LOG("ERROR", "attemp to pass a negative number to malloc or free")
-		return NULL;
-	}
 	if (nsize == 0) return xfree(ptr), NULL;
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
 		if (newptr) return newptr;
-		LOG("WARN", "Allocate failed, Sleep sometime..");
-		sleep(1);
+		LOG("WARN", "Allocate memory failed, Sleep a Second");
+		ev_sleep(1);
 	}
 }
 
 static void *
 L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
 	// 为lua内存hook注入日志;
-	/* 用户自定义数据 */
-	(void)ud;  (void)osize;
+	(void)ud;  (void)osize; /* 用户自定义数据 */
 	if (nsize == 0) return xfree(ptr), NULL;
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
 		if (newptr) return newptr;
-		LOG("WARN", "Allocate failed, Sleep sometime..");
-		sleep(1);
+		LOG("WARN", "Allocate memory failed, Sleep a Second.");
+		ev_sleep(1);
 	}
 }
 
@@ -157,16 +152,19 @@ signal_init(){
 void
 init_main(){
 
-	int status;
 	L = lua_newstate(L_ALLOC, NULL);
-	if (!L) return ;
+	if (!L) {
+		LOG("ERROR", "Create Lua State failed.");
+		return ;
+	}
 
 	init_lua_libs(L);
 
+	int status = 0;
 	status = luaL_loadfile(L, "script/main.lua");
 
 	// 停止GC
-	lua_gc(L, LUA_GCSTOP, 0);
+	status = lua_gc(L, LUA_GCSTOP, 0);
 
 	// 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
 	// lua_gc(L, LUA_GCSETPAUSE, 200);
