@@ -1,10 +1,10 @@
 #include "core_sys.h"
 
 double
-now(){
-	struct timeval now;
-	gettimeofday(&now, NULL);
-	return (double)((double)now.tv_sec + (double)now.tv_usec / 1000000);
+now(void){
+	struct timespec now;
+	clock_gettime(CLOCK_REALTIME, &now);
+	return (double)((double)now.tv_sec + (double)now.tv_nsec / 1000000000);
 }
 
 int /* 此方法可用于检查是否为有效ipv4地址*/

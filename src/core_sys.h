@@ -44,7 +44,7 @@
     	content);}
 
 /* 微秒级double时间戳 */
-double now();
+double now(void);
 
 /* 检查是否为有效ipv4地址 */
 int ipv4(const char *IP);
