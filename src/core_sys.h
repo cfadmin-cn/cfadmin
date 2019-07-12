@@ -43,7 +43,7 @@
     	__FILE__, __FUNCTION__, __LINE__, \
     	content);}
 
-/* 微秒级double时间戳 */
+/* 微秒级时间戳函数 */
 double now(void);
 
 /* 检查是否为有效ipv4地址 */

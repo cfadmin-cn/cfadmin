@@ -6,7 +6,7 @@
 
 #define is_normal_char(ch) ({((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z') || ((ch) >= '0' && (ch) <= '9') ? 1 : 0;})
 
-// 提供一个精确到毫秒的时间戳
+// 提供一个精确到微秒的时间戳
 static int
 lnow(lua_State *L){
 	lua_pushnumber(L, now());

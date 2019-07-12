@@ -1,10 +1,10 @@
 #include "core_sys.h"
 
-double
+double /* 此方法提供一个精确到微秒级的时间戳 */
 now(void){
 	struct timespec now;
 	clock_gettime(CLOCK_REALTIME, &now);
-	return (double)((double)now.tv_sec + (double)now.tv_nsec / 1000000000);
+	return now.tv_sec + now.tv_nsec * 1e-9;
 }
 
 int /* 此方法可用于检查是否为有效ipv4地址*/
