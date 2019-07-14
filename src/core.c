@@ -59,25 +59,30 @@ ERROR_CB(const char *msg){
 static void *
 EV_ALLOC(void *ptr, long nsize){
 	// 为libev内存hook注入日志;
+	if (ptr && 0 > nsize){
+		LOG("ERROR", "attemp to pass a negative number to malloc or free")
+		return NULL;
+	}
 	if (nsize == 0) return xfree(ptr), NULL;
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
 		if (newptr) return newptr;
-		LOG("WARN", "Allocate memory failed, Sleep a Second");
-		ev_sleep(1);
+		LOG("WARN", "Allocate failed, Sleep sometime..");
+		sleep(1);
 	}
 }
 
 static void *
 L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
 	// 为lua内存hook注入日志;
-	(void)ud;  (void)osize; /* 用户自定义数据 */
+	/* 用户自定义数据 */
+	(void)ud;  (void)osize;
 	if (nsize == 0) return xfree(ptr), NULL;
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
 		if (newptr) return newptr;
-		LOG("WARN", "Allocate memory failed, Sleep a Second.");
-		ev_sleep(1);
+		LOG("WARN", "Allocate failed, Sleep sometime..");
+		sleep(1);
 	}
 }
 
@@ -147,46 +152,29 @@ signal_init(){
 
 }
 
-static lua_State *L;
-
 void
 init_main(){
 
-	L = lua_newstate(L_ALLOC, NULL);
-	if (!L) {
-		LOG("ERROR", "Create Lua State failed.");
-		return ;
-	}
+	int status = 0;
+
+	lua_State *L = lua_newstate(L_ALLOC, NULL);
+	if (!L) return ;
 
 	init_lua_libs(L);
 
 	// 停止GC
 	lua_gc(L, LUA_GCSTOP, 0);
+
 	// 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
 	// lua_gc(L, LUA_GCSETPAUSE, 200);
 
 	// 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
 	// lua_gc(L, LUA_GCSETSTEPMUL, 200);
 
-	int status = 0;
 	status = luaL_loadfile(L, "script/main.lua");
-
-	if(status != LUA_OK) {
-		switch(status){
-			case LUA_ERRFILE :
-				LOG("ERROR", "Can't find file or load file Error.");
-				exit(-1);
-			case LUA_ERRSYNTAX:
-				LOG("ERROR", lua_tostring(L, -1));
-				exit(-1);
-			case LUA_ERRMEM:
-				LOG("ERROR", "Memory Allocated faild.");
-				exit(-1);
-			case LUA_ERRGCMM:
-				LOG("ERROR", "An Error from lua GC Machine.");
-				exit(-1);
-		}
-		return ;
+	if (status > 1){
+		LOG("ERROR", lua_tostring(L, -1));
+		return lua_close(L), exit(-1);
 	}
 
 	status = lua_resume(L, NULL, 0);
