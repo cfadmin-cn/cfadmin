@@ -135,7 +135,7 @@ local function json(domain, headers, json, timeout)
 	return code, msg
 end
 
-local function file(domain, headers, files, times)
+local function file(domain, headers, files, timeout)
 
 	local opt, err = splite_protocol(domain)
 	if not opt then
@@ -148,7 +148,7 @@ local function file(domain, headers, files, times)
 
 	local REQ = build_file_req(opt)
 
-	local sock = sock_new():timeout(TIMEOUT or __TIMEOUT__)
+	local sock = sock_new():timeout(timeout or __TIMEOUT__)
 	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
 		sock:close()
