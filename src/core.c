@@ -104,10 +104,12 @@ init_lua_libs(lua_State *L){
 	/* 注入lua搜索域 */
   lua_getglobal(L, "package");
 
+	/* 注入lualib搜索路径 */
   lua_pushliteral(L, "lualib/?.lua;lualib/?/init.lua;./?.lua;./?/init.lua;script/?.lua;script/?/init.lua;");
   lua_setfield(L, 1, "path");
 
-  lua_pushliteral(L, "luaclib/?.so;luaclib/lib?.dylib;luaclib/?.dll;./?.so;./lib?.dylib;./?.dll");
+	/* 注入luaclib搜索路径 */
+  lua_pushliteral(L, "luaclib/?.so;luaclib/lib?.dylib;./?.so;./lib?.dylib;");
   lua_setfield(L, 1, "cpath");
 
   lua_settop(L, 0);
