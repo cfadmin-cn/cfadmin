@@ -108,8 +108,6 @@ init_lua_libs(lua_State *L){
   lua_settop(L, 0);
 }
 
-static lua_State *L;
-
 /* 注册需要忽略的信号 */
 core_signal sighup;
 core_signal sigpipe;
@@ -149,6 +147,8 @@ signal_init(){
 
 }
 
+static lua_State *L;
+
 void
 init_main(){
 
@@ -160,17 +160,16 @@ init_main(){
 
 	init_lua_libs(L);
 
-	int status = 0;
-	status = luaL_loadfile(L, "script/main.lua");
-
 	// 停止GC
-	status = lua_gc(L, LUA_GCSTOP, 0);
-
+	lua_gc(L, LUA_GCSTOP, 0);
 	// 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
 	// lua_gc(L, LUA_GCSETPAUSE, 200);
 
 	// 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
 	// lua_gc(L, LUA_GCSETSTEPMUL, 200);
+
+	int status = 0;
+	status = luaL_loadfile(L, "script/main.lua");
 
 	if(status != LUA_OK) {
 		switch(status){
