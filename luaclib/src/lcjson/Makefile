@@ -17,11 +17,11 @@ LIB = -L/usr/local/lib -L../ -L../../../
 
 build:
 	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) -lcore
-	mv cjson.so ../../
+	mv *.so ../../
 
 rebuild: $(OBJS)
 	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) -lcore
-	mv cjson.so ../../
+	mv *.so ../../
 
 clean:
 	rm -rf *.o *.so

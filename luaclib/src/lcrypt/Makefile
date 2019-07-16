@@ -18,11 +18,11 @@ LIB = -L/usr/local/lib -L../ -L../../../
 
 build:
 	$(CC) -o lcrypt.so lcrypt.c crc.c md5.c sha1.c sha2.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
-	mv lcrypt.so ../../
+	mv *.so ../../
 
 rebuild:
 	$(CC) -o lcrypt.so lcrypt.c crc.c md5.c sha1.c sha2.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
-	mv lcrypt.so ../../
+	mv *.so ../../
 
 clean:
 	rm -rf *.o *.so

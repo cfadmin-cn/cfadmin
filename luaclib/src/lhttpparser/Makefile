@@ -21,11 +21,11 @@ DLL = -lcore
 
 build:
 	$(CC) -o httpparser.so httpparser.c lhttpparser.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
-	mv httpparser.so ../../
+	mv *.so ../../
 
 rebuild:
 	$(CC) -o httpparser.so httpparser.c lhttpparser.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
-	mv httpparser.so ../../
+	mv *.so ../../
 
 clean:
 	rm -rf *.o *.so
