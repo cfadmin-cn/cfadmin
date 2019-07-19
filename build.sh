@@ -11,7 +11,7 @@ cd ${current}/build/libev &&
   make && make install
 
 cd ${current}/build/lua &&
-  make all MYCFLAGS=-fPIC MYCFLAGS+=-DLUA_USE_DLOPEN SYSLIBS="-ldl -lreadline" &&
+  make all MYCFLAGS=-fPIC MYCFLAGS+=-DLUA_USE_POSIX MYCFLAGS+=-DLUA_USE_DLOPEN MYLIBS="-ldl -lreadline" &&
   cp lua.h luaconf.h lualib.h lauxlib.h /usr/local/include && cp liblua.* /usr/local/lib
 
 cd ${current} && rm -rf build
