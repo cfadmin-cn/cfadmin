@@ -1359,7 +1359,7 @@ static void lpbD_field(lua_State *L, pb_SliceExt *s, pb_Field *f, uint32_t tag) 
 static void lpbD_map(lua_State *L, pb_SliceExt *s, pb_Field *f) {
     pb_SliceExt p;
     int mask = 0, top = lua_gettop(L) + 1;
-    uint32_t tag;
+    uint32_t tag = 0;
     lpb_fetchtable(L, f);
     lpb_readbytes(L, s, &p);
     if (f->type == NULL) return;
@@ -1397,7 +1397,7 @@ static void lpbD_repeated(lua_State *L, pb_SliceExt *s, pb_Field *f, uint32_t ta
 }
 
 static int lpb_decode(lua_State *L, pb_SliceExt *s, pb_Type *t) {
-    uint32_t tag;
+    uint32_t tag = 0;
     while (pb_readvarint32(&s->base, &tag)) {
         pb_Field *f = pb_field(t, pb_gettag(tag));
         if (f == NULL)
