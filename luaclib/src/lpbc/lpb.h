@@ -502,7 +502,7 @@ PB_API size_t pb_readbytes(pb_Slice *s, pb_Slice *pv) {
 
 PB_API size_t pb_readgroup(pb_Slice *s, uint32_t tag, pb_Slice *pv) {
     const char *p = s->p;
-    uint32_t newtag;
+    uint32_t newtag = 0;
     size_t count;
     assert(pb_gettype(tag) == PB_TGSTART);
     while ((count = pb_readvarint32(s, &newtag)) != 0) {
@@ -1338,7 +1338,7 @@ static void pbL_endmsg(pb_Loader *L, pb_Slice *pv) {
 
 static void pbL_FieldOptions(pb_Loader *L, pbL_FieldInfo *info) {
     pb_Slice s;
-    uint32_t tag;
+    uint32_t tag = 0;
     pbL_beginmsg(L, &s);
     while (pb_readvarint32(&L->s, &tag)) {
         switch (tag) {
@@ -1352,7 +1352,7 @@ static void pbL_FieldOptions(pb_Loader *L, pbL_FieldInfo *info) {
 
 static void pbL_FieldDescriptorProto(pb_Loader *L, pbL_FieldInfo *info) {
     pb_Slice s;
-    uint32_t tag;
+    uint32_t tag = 0;
     pbL_beginmsg(L, &s);
     info->packed = -1;
     while (pb_readvarint32(&L->s, &tag)) {
@@ -1384,7 +1384,7 @@ static void pbL_FieldDescriptorProto(pb_Loader *L, pbL_FieldInfo *info) {
 
 static void pbL_EnumValueDescriptorProto(pb_Loader *L, pbL_EnumValueInfo *info) {
     pb_Slice s;
-    uint32_t tag;
+    uint32_t tag = 0;
     pbL_beginmsg(L, &s);
     while (pb_readvarint32(&L->s, &tag)) {
         switch (tag) {
@@ -1400,7 +1400,7 @@ static void pbL_EnumValueDescriptorProto(pb_Loader *L, pbL_EnumValueInfo *info) 
 
 static void pbL_EnumDescriptorProto(pb_Loader *L, pbL_EnumInfo *info) {
     pb_Slice s;
-    uint32_t tag;
+    uint32_t tag = 0;
     pbL_beginmsg(L, &s);
     while (pb_readvarint32(&L->s, &tag)) {
         switch (tag) {
@@ -1416,7 +1416,7 @@ static void pbL_EnumDescriptorProto(pb_Loader *L, pbL_EnumInfo *info) {
 
 static void pbL_MessageOptions(pb_Loader *L, pbL_TypeInfo *info) {
     pb_Slice s;
-    uint32_t tag;
+    uint32_t tag = 0;
     pbL_beginmsg(L, &s);
     while (pb_readvarint32(&L->s, &tag)) {
         switch (tag) {
@@ -1430,7 +1430,7 @@ static void pbL_MessageOptions(pb_Loader *L, pbL_TypeInfo *info) {
 
 static void pbL_OneofDescriptorProto(pb_Loader *L, pbL_TypeInfo *info) {
     pb_Slice s;
-    uint32_t tag;
+    uint32_t tag = 0;
     pbL_beginmsg(L, &s);
     while (pb_readvarint32(&L->s, &tag)) {
         switch (tag) {
@@ -1444,7 +1444,7 @@ static void pbL_OneofDescriptorProto(pb_Loader *L, pbL_TypeInfo *info) {
 
 static void pbL_DescriptorProto(pb_Loader *L, pbL_TypeInfo *info) {
     pb_Slice s;
-    uint32_t tag;
+    uint32_t tag = 0;
     pbL_beginmsg(L, &s);
     while (pb_readvarint32(&L->s, &tag)) {
         switch (tag) {
@@ -1470,7 +1470,7 @@ static void pbL_DescriptorProto(pb_Loader *L, pbL_TypeInfo *info) {
 
 static void pbL_FileDescriptorProto(pb_Loader *L, pbL_FileInfo *info) {
     pb_Slice s;
-    uint32_t tag;
+    uint32_t tag = 0;
     pbL_beginmsg(L, &s);
     while (pb_readvarint32(&L->s, &tag)) {
         switch (tag) {
@@ -1491,7 +1491,7 @@ static void pbL_FileDescriptorProto(pb_Loader *L, pbL_FileInfo *info) {
 }
 
 static void pbL_FileDescriptorSet(pb_Loader *L, pbL_FileInfo **pinfo) {
-    uint32_t tag;
+    uint32_t tag = 0;
     while (pb_readvarint32(&L->s, &tag)) {
         switch (tag) {
         case pb_pair(1, PB_TBYTES): /* FileDescriptorProto file */
