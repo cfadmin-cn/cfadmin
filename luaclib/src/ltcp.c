@@ -199,7 +199,8 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 	if (revents & EV_WRITE){
 		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			int CONNECTED = 0, err = 0, len = sizeof(socklen_t);
+			int CONNECTED = 0, err = 0;
+      socklen_t len = sizeof(socklen_t);
 			if(getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, (socklen_t*)&len) == 0 && err == 0) CONNECTED = 1;
 			lua_pushboolean(co, CONNECTED);
 			int status = lua_resume(co, NULL, 1);
