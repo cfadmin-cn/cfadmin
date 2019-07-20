@@ -180,7 +180,7 @@ TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 
 	lua_State *co = (lua_State *)core_get_watcher_userdata(io);
 	if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-		int status = lua_resume(co, NULL, 0);
+		int status = CO_RESUME(co, NULL, 0);
 		if (status != LUA_YIELD && status != LUA_OK){
 			LOG("ERROR", lua_tostring(co, -1));
 			core_io_stop(CORE_LOOP_ io);
@@ -203,7 +203,7 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
       socklen_t len = sizeof(socklen_t);
 			if(getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, (socklen_t*)&len) == 0 && err == 0) CONNECTED = 1;
 			lua_pushboolean(co, CONNECTED);
-			int status = lua_resume(co, NULL, 1);
+			int status = CO_RESUME(co, NULL, 1);
 			if (status != LUA_YIELD && status != LUA_OK){
 				LOG("ERROR", lua_tostring(co, -1));
 				core_io_stop(CORE_LOOP_ io);
@@ -235,7 +235,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 				inet_ntop(AF_INET6, &SA.sin6_addr, buf, INET6_ADDRSTRLEN);
 				lua_pushinteger(co, client);
 				lua_pushlstring(co, buf, strlen(buf));
-				int status = lua_resume(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
+				int status = CO_RESUME(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
 				if (status != LUA_YIELD && status != LUA_OK) {
 					LOG("ERROR", lua_tostring(co, -1));
 					LOG("ERROR", "Error Lua Accept Method");

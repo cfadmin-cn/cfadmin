@@ -164,14 +164,7 @@ init_main(){
 
 	init_lua_libs(L);
 
-	// 停止GC
-	lua_gc(L, LUA_GCSTOP, 0);
-
-	// 设置 GC间歇率 = 每次开启一次新的GC所需的等待时间与条件; 默认为：200
-	// lua_gc(L, LUA_GCSETPAUSE, 200);
-
-	// 设置 GC步进率倍率 = 控制垃圾收集器相对于内存分配速度的倍数; 默认为：200
-	// lua_gc(L, LUA_GCSETSTEPMUL, 200);
+	CO_GCRESET(L);
 
 	status = luaL_loadfile(L, "script/main.lua");
 	if (status > 1){
@@ -179,7 +172,7 @@ init_main(){
 		return lua_close(L), exit(-1);
 	}
 
-	status = lua_resume(L, NULL, 0);
+	status = CO_RESUME(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
 		return lua_close(L), exit(-1);
@@ -187,8 +180,7 @@ init_main(){
 	if (status == LUA_YIELD) {
 		signal_init();
 	}
-	/* 重启GC */
-	lua_gc(L, LUA_GCRESTART, 0);
+
 }
 
 void

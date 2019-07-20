@@ -10,7 +10,7 @@ TIMEOUT_CB(CORE_P_ core_timer *timer, int revents){
 
       lua_State *co = (lua_State *) core_get_watcher_userdata(timer);
 
-      int status = lua_resume(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
+      int status = CO_RESUME(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
 
       if (status != LUA_OK && status != LUA_YIELD){
 

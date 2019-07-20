@@ -6,7 +6,7 @@ static void
 TASK_CB(CORE_P_ core_task *task, int revents){
 	lua_State *co = (lua_State *) core_get_watcher_userdata(task);
 	if (co && (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK)){
-		int status = lua_resume(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
+		int status = CO_RESUME(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
 		if (status != LUA_YIELD && status != LUA_OK){
 			LOG("ERROR", lua_tostring(co, -1));
 		}
