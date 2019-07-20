@@ -28,7 +28,7 @@
 
 #if LUA_VERSION_NUM >= 504
   #define CO_GCRESET(L) lua_gc(L, LUA_GCGEN, NULL, NULL);
-  #define CO_RESUME(L, from, nargs) ({int nout; lua_resume(L, from, nargs, &nout);})
+  #define CO_RESUME(L, from, nargs) ({int nout = 0; lua_resume(L, from, nargs, &nout);})
 #else
   #define CO_GCRESET(L)
   #define CO_RESUME(L, from, nargs) lua_resume(L, from, nargs)
