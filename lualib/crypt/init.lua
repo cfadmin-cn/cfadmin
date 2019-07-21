@@ -40,6 +40,9 @@ local desdecode = CRYPT.desdecode
 local dhsecret = CRYPT.dhsecret
 local dhexchange = CRYPT.dhexchange
 
+local urlencode = CRYPT.urlencode
+local urldecode = CRYPT.urldecode
+
 
 local crypt = {}
 
@@ -250,6 +253,14 @@ end
 
 function crypt.crc64 (...)
   return crc64(...)
+end
+
+function crypt.urldecode (...)
+  return urldecode(...)
+end
+
+function crypt.urlencode (...)
+  return urlencode(...)
 end
 
 return crypt

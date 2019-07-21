@@ -6,8 +6,8 @@
 -- local spliter = string.gsub
 
 -- C版实现
-local encode = require("sys").urlencode
-local decode = require("sys").urldecode
+local encode = require("crypt").urlencode
+local decode = require("crypt").urldecode
 
 --[[
 经过测试: 100万此编码/解码两者性能相差30倍, 正好是lua与C的性能差距.

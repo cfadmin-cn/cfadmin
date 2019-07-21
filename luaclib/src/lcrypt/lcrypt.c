@@ -962,6 +962,10 @@ int lhmac_sha256(lua_State *L);
 int lsha512(lua_State *L);
 int lhmac_sha512(lua_State *L);
 
+// url.c
+int lurlencode(lua_State *L);
+int lurldecode(lua_State *L);
+
 LUAMOD_API int
 luaopen_lcrypt(lua_State *L) {
 	luaL_checkversion(L);
@@ -978,6 +982,8 @@ luaopen_lcrypt(lua_State *L) {
 		{ "dhsecret", ldhsecret },
 		{ "base64encode", lb64encode },
 		{ "base64decode", lb64decode },
+		{ "urlencode", lurlencode },
+		{ "urldecode", lurldecode },
 		{ "md5", lmd5 },
 		{ "hmac_md5", lhmac_md5 },
 		{ "crc32", lcrc32 },
