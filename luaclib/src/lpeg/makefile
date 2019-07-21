@@ -9,7 +9,7 @@ default :
 
 CC = gcc
 LIBS = -L/usr/local/lib -L../ -L../../../
-CFLAGS = -O2 -shared -fPIC
+CFLAGS = -O3 -shared -fPIC
 DLL = -lcore
 
 build:

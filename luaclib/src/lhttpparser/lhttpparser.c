@@ -7,15 +7,11 @@ int
 lparser_response_chunked(lua_State *L){
   size_t buf_len;
   const char* data = luaL_checklstring(L, 1, &buf_len);
-  if (!data) return luaL_error(L, "parser_response_trunck_decode need a string buf.");
 
   char *buf = (char *)xcalloc(1, buf_len);
-  if (!buf) return luaL_error(L, "parser_response_trunck_decode create a string buf error.");
-
   strncpy(buf, data, buf_len);
 
-  struct phr_chunked_decoder decoder = {};
-  decoder.consume_trailer = 1;
+  struct phr_chunked_decoder decoder = { .consume_trailer = 1 };
 
   int last = phr_decode_chunked(&decoder, buf, &buf_len);
   if (0 > last) {
@@ -24,7 +20,7 @@ lparser_response_chunked(lua_State *L){
     xfree(buf);
     return 2;
   }
-  lua_pushlstring(L, buf, strlen(buf));
+  lua_pushlstring(L, buf, buf_len);
   xfree(buf);
   return 1;
 }
@@ -34,7 +30,6 @@ static int
 lparser_http_request(lua_State *L){
     size_t buf_len;
     const char* buf = luaL_checklstring(L, 1, &buf_len);
-    if (!buf) return luaL_error(L, "lparser_request_header need a str buf.");
 
     int minor_version, ret, i;
     const char *method;
@@ -67,7 +62,6 @@ static int
 lparser_http_response(lua_State *L){
   size_t buf_len;
   const char* buf = luaL_checklstring(L, 1, &buf_len);
-  if (!buf) return luaL_error(L, "parser_response_protocol need a str buf.");
 
   int status, minor_version, ret, i;
   size_t msg_len, num_headers;
