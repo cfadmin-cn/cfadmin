@@ -30,8 +30,6 @@ core_timer_stop(core_loop *loop, core_timer *timer){
 /* ===========  Timer  =========== */
 
 
-
-
 /* ===========  IO  =========== */
 void
 core_io_init(core_io *io, _IO_CB cb, int fd, int events){

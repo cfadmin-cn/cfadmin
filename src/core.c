@@ -1,5 +1,5 @@
 #include "core.h"
-
+/*
 const char *signame[]= {
 	"INVALID",
 	"SIGHUP",
@@ -37,6 +37,7 @@ const char *signame[]= {
 };
 
 #define signum_to_string(number) (signame[number])
+*/
 
 static void // 忽略信号
 SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
@@ -59,10 +60,6 @@ ERROR_CB(const char *msg){
 static void *
 EV_ALLOC(void *ptr, long nsize){
 	// 为libev内存hook注入日志;
-	if (ptr && 0 > nsize){
-		LOG("ERROR", "attemp to pass a negative number to malloc or free")
-		return NULL;
-	}
 	if (nsize == 0) return xfree(ptr), NULL;
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
@@ -109,7 +106,7 @@ init_lua_libs(lua_State *L){
   lua_setfield(L, 1, "path");
 
 	/* 注入luaclib搜索路径 */
-	lua_pushliteral(L, "luaclib/?.so;./?.so;");
+	lua_pushliteral(L, "luaclib/?.so;./?.so;luaclib/lib?.so;./lib?.so;luaclib/?.dylib;./?.dylib;luaclib/lib?.dylib;./lib?.dylib;");
   lua_setfield(L, 1, "cpath");
 
   lua_settop(L, 0);
