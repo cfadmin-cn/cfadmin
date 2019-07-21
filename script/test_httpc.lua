@@ -116,3 +116,12 @@ cf.timeout(5, function ()
     hc:close()
   end)
 end)
+
+-- -- 如果有需要可以开启这段注释
+-- local httpd = require "httpd"
+-- local app = httpd:new()
+-- app:api('/api', function (content)
+-- 	return "{}"
+-- end)
+-- app:listen("", 8080)
+-- app:run()
