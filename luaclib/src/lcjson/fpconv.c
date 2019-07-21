@@ -127,7 +127,7 @@ double fpconv_strtod(const char *nptr, char **endptr)
     /* Duplicate number into buffer */
     if (buflen >= FPCONV_G_FMT_BUFSIZE) {
         /* Handle unusually large numbers */
-        buf = malloc(buflen + 1);
+        buf = xmalloc(buflen + 1);
         if (!buf) {
             fprintf(stderr, "Out of memory");
             abort();
@@ -147,7 +147,7 @@ double fpconv_strtod(const char *nptr, char **endptr)
     value = strtod(buf, &endbuf);
     *endptr = (char *)&nptr[endbuf - buf];
     if (buflen >= FPCONV_G_FMT_BUFSIZE)
-        free(buf);
+        xfree(buf);
 
     return value;
 }

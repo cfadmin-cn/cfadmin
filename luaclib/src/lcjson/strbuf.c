@@ -55,7 +55,7 @@ void strbuf_init(strbuf_t *s, int len)
     s->reallocs = 0;
     s->debug = 0;
 
-    s->buf = malloc(size);
+    s->buf = xmalloc(size);
     if (!s->buf)
         die("Out of memory");
 
@@ -66,7 +66,7 @@ strbuf_t *strbuf_new(int len)
 {
     strbuf_t *s;
 
-    s = malloc(sizeof(strbuf_t));
+    s = xmalloc(sizeof(strbuf_t));
     if (!s)
         die("Out of memory");
 
@@ -103,11 +103,11 @@ void strbuf_free(strbuf_t *s)
     debug_stats(s);
 
     if (s->buf) {
-        free(s->buf);
+        xfree(s->buf);
         s->buf = NULL;
     }
     if (s->dynamic)
-        free(s);
+        xfree(s);
 }
 
 char *strbuf_free_to_string(strbuf_t *s, int *len)
@@ -123,7 +123,7 @@ char *strbuf_free_to_string(strbuf_t *s, int *len)
         *len = s->length;
 
     if (s->dynamic)
-        free(s);
+        xfree(s);
 
     return buf;
 }
@@ -170,7 +170,7 @@ void strbuf_resize(strbuf_t *s, int len)
     }
 
     s->size = newsize;
-    s->buf = realloc(s->buf, s->size);
+    s->buf = xrealloc(s->buf, s->size);
     if (!s->buf)
         die("Out of memory");
     s->reallocs++;

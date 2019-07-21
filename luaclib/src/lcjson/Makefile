@@ -14,13 +14,14 @@ CC = cc
 
 INCLUDE = -I/usr/local/include
 LIB = -L/usr/local/lib -L../ -L../../../
+DLL = -lcore
 
 build:
-	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) -lcore
+	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
 	mv *.so ../../
 
 rebuild: $(OBJS)
-	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) -lcore
+	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
 	mv *.so ../../
 
 clean:

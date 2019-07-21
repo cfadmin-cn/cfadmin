@@ -7,7 +7,7 @@ default :
 	@echo "Please use 'make clean' command to clean all."
 	@echo "======================================="
 
-CC = gcc
+CC = cc
 LIBS = -L/usr/local/lib -L../ -L../../../
 CFLAGS = -O3 -shared -fPIC
 DLL = -lcore
