@@ -17,11 +17,11 @@ DLL = -lcore
 
 build:
 	$(CC) -o lprotobuf.so lpb.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
-	mv lprotobuf.so ../../
+	mv *.so ../../
 
 rebuild:
 	$(CC) -o lprotobuf.so lpb.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
-	mv lprotobuf.so ../../
+	mv *.so ../../
 
 clean:
 	rm -rf *.o *.so

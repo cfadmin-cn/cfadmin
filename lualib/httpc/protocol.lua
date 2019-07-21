@@ -179,7 +179,7 @@ local function httpc_response(sock, SSL)
           local buf = split(DATA, posB + 1, #DATA)
           data, len = RESPONSE_CHUNKED_PARSER(buf)
           if len == -1 then
-            return nil, SSL.." 错误的http trunked"
+            return nil, SSL.." 错误的http trunked. 1"
           end
           if data then
             local Pos = find(data, CRLF..(0)..CRLF2)
@@ -195,7 +195,7 @@ local function httpc_response(sock, SSL)
 					insert(content, data)
           local data, len = RESPONSE_CHUNKED_PARSER(concat(content))
           if len == -1 then
-            return nil, SSL.." 错误的http trunked. 1"
+            return nil, SSL.." 错误的http trunked. 2"
           end
           if data then
             local Pos = find(data, CRLF..(0)..CRLF2)
