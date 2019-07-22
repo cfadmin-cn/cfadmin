@@ -84,80 +84,79 @@ function TCP:set_backlog(backlog)
 end
 
 function TCP:send(buf)
-    if self.ssl then
-        return Log:ERROR("Please use ssl_send method :)")
-    end
+  if self.ssl then
+    Log:ERROR("Please use ssl_send method :)")
+    return
+  end
+  if type(buf) ~= 'string' or buf == '' then
+    return
+  end
+  local wlen = tcp_write(self.fd, buf, #buf)
+  if not wlen or wlen == #buf then
+    return wlen == #buf
+  end
+  buf = split(buf, wlen + 1, -1)
+  local co = co_self()
+  self.SEND_IO = tcp_pop()
+  self.send_current_co = co_self()
+  self.send_co = co_new(function ( ... )
     while 1 do
-        local len = tcp_write(self.fd, buf, #buf)
-        if not len or len == #buf then
-            return len == #buf
-        end
-        if len == 0 then
-            self.SEND_IO = tcp_pop()
-            local co = co_self()
-            self.send_current_co = co_self()
-            self.send_co = co_new(function ( ... )
-                while 1 do
-                    local len = tcp_write(self.fd, buf, #buf)
-                    if not len or len == #buf then
-                        tcp_push(self.SEND_IO)
-                        tcp_stop(self.SEND_IO)
-                        self.SEND_IO = nil
-                        self.send_co = nil
-                        self.send_current_co = nil
-                        return co_wakeup(co, len == #buf)
-                    end
-                    buf = split(buf, len + 1, -1)
-                    co_wait()
-                end
-            end)
-            tcp_start(self.SEND_IO, self.fd, EVENT_WRITE, self.send_co)
-            return co_wait()
-        end
-        buf = split(buf, len + 1, -1)
+      local len = tcp_write(self.fd, buf, #buf)
+      if not len or len == #buf then
+        tcp_stop(self.SEND_IO)
+        tcp_push(self.SEND_IO)
+        self.SEND_IO = nil
+        self.send_co = nil
+        self.send_current_co = nil
+        return co_wakeup(co, len == #buf)
+      end
+      buf = split(buf, len + 1, -1)
+      co_wait()
     end
+  end)
+  tcp_start(self.SEND_IO, self.fd, EVENT_WRITE, self.send_co)
+  return co_wait()
 end
 
 function TCP:ssl_send(buf)
-    if not self.ssl then
-        return Log:ERROR("Please use send method :)")
-    end
+  if not self.ssl then
+    Log:ERROR("Please use send method :)")
+    return
+  end
+  if type(buf) ~= 'string' or buf == '' then
+    return
+  end
+  local wlen = tcp_ssl_write(self.ssl, buf, #buf)
+  if not wlen or wlen == #buf then
+    return wlen == #buf
+  end
+  buf = split(buf, wlen + 1, -1)
+  self.SEND_IO = tcp_pop()
+  local co = co_self()
+  self.send_current_co = co_self()
+  self.send_co = co_new(function ( ... )
     while 1 do
-        local len = tcp_ssl_write(self.ssl, buf, #buf)
-        if not len or len == #buf then
-            return len == #buf
-        end
-        if len == 0 then
-            self.SEND_IO = tcp_pop()
-            local co = co_self()
-            self.send_current_co = co_self()
-            self.send_co = co_new(function ( ... )
-                while 1 do
-                    local len = tcp_ssl_write(self.ssl, buf, #buf)
-                    if not len or len == #buf then
-                        tcp_push(self.SEND_IO)
-                        tcp_stop(self.SEND_IO)
-                        self.SEND_IO = nil
-                        self.send_co = nil
-                        self.send_current_co = nil
-                        -- 这里在发送数据的时候, 客户端可能已经关闭了链接
-                        -- if not len then log.error("write error.")
-                        return co_wakeup(co, len == #buf)
-                    end
-                    buf = split(buf, len + 1, -1)
-                    co_wait()
-                end
-            end)
-            tcp_start(self.SEND_IO, self.fd, EVENT_WRITE, self.send_co)
-            return co_wait()
-        end
-        buf = split(buf, len + 1, -1)
+      local len = tcp_ssl_write(self.ssl, buf, #buf)
+      if not len or len == #buf then
+        tcp_stop(self.SEND_IO)
+        tcp_push(self.SEND_IO)
+        self.SEND_IO = nil
+        self.send_co = nil
+        self.send_current_co = nil
+        return co_wakeup(co, len == #buf)
+      end
+      buf = split(buf, len + 1, -1)
+      co_wait()
     end
+  end)
+  tcp_start(self.SEND_IO, self.fd, EVENT_WRITE, self.send_co)
+  return co_wait()
 end
 
 function TCP:recv(bytes)
     if self.ssl then
-        return Log:ERROR("Please use ssl_recv method :)")
+      Log:ERROR("Please use ssl_recv method :)")
+      return
     end
     local data, len = tcp_read(self.fd, bytes)
     if not len or len > 0 then
@@ -197,7 +196,8 @@ end
 
 function TCP:ssl_recv(bytes)
     if not self.ssl then
-        return Log:ERROR("Please use recv method :)")
+      Log:ERROR("Please use recv method :)")
+      return
     end
     local buf, len = tcp_sslread(self.ssl, bytes)
     if not buf then
