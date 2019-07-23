@@ -27,11 +27,19 @@
 #include <lauxlib.h>
 
 #if LUA_VERSION_NUM >= 504
-  #define CO_GCRESET(L) lua_gc(L, LUA_GCGEN, NULL, NULL);
-  #define CO_RESUME(L, from, nargs) ({int nout = 0; lua_resume(L, from, nargs, &nout);})
+  #ifndef CO_GCRESET
+    #define CO_GCRESET(L) lua_gc(L, LUA_GCGEN, NULL, NULL);
+  #endif
+  #ifndef CO_RESUME
+    #define CO_RESUME(L, from, nargs) ({int nout = 0; lua_resume(L, from, nargs, &nout);})
+  #endif
 #else
-  #define CO_GCRESET(L)
-  #define CO_RESUME(L, from, nargs) lua_resume(L, from, nargs)
+  #ifndef CO_GCRESET
+    #define CO_GCRESET(L)
+  #endif
+  #ifndef CO_RESUME
+    #define CO_RESUME(L, from, nargs) lua_resume(L, from, nargs)
+  #endif
 #endif
 
 #ifndef EWOULDBLOCK
@@ -41,15 +49,13 @@
 #define non_blocking(socket) (fcntl(socket, F_SETFL, fcntl(socket, F_GETFL, 0) | O_NONBLOCK));
 
 /* [datetime][level][file][function][line][具体打印内容] */
-#define LOG(log_level, content) { \
-  time_t t; struct tm* lt; \
-  /*获取Unix时间戳、转为时间结构。*/ \
-  time(&t); lt = localtime(&t);  \
+#define LOG(LEVEL, CONTENT) { \
+  time_t t = time(NULL); struct tm* lt = localtime(&t);  \
   fprintf(stdout, "[%04d/%02d/%02d][%02d:%02d:%02d][%s][%s][%s:%d] : %s\n", \
     lt->tm_year + 1900, 1 + lt->tm_mon, lt->tm_mday, lt->tm_hour, lt->tm_min, lt->tm_sec, \
-    log_level, \
+    LEVEL, \
     __FILE__, __FUNCTION__, __LINE__, \
-    content); \
+    CONTENT); \
 }
 
 /* 微秒级时间戳函数 */
