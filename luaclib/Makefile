@@ -20,6 +20,7 @@ build :
 	$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore
 	### 以下为内置第三方库编译位置 ###
+	cd src/lfs && rm -rf *.o *.so && make build 	# 增加lfs库
 	cd src/lpbc && rm -rf *.o *.so && make build 	# 增加lpbc库
 	cd src/lpeg && rm -rf *.o *.so && make build 	  # 增加lpeg库
 	cd src/lcrypt && rm -rf *.o *.so && make build  # 增加lcrypt库
@@ -34,6 +35,7 @@ rebuild :
 	$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore
 	### 以下为内置第三方库编译位置 ###
+	cd src/lfs && rm -rf *.o *.so && make build 	# 增加lfs库
 	cd src/lpbc && rm -rf *.o *.so && make build 	# 增加lpbc库
 	cd src/lpeg && rm -rf *.o *.so && make build 	  # 增加lpeg库
 	cd src/lcrypt && rm -rf *.o *.so && make build  # 增加lcrypt库
