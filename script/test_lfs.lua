@@ -8,7 +8,7 @@ local function list_logs_files ()
 	local logs = {}
 	for filename in lfs.dir("logs") do
 		-- mode为"directory"表示为目录, mode为"file"表示文件
-		if lfs.attributes(filename).mode == "file" then
+		if lfs.attributes("logs".."/"..filename).mode == "file" then
 			logs[#logs+1] = filename
 		end
 	end
