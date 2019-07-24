@@ -24,7 +24,7 @@ end
 
 Log:DEBUG("lfs版本为:"..lfs._VERSION)
 
-Log:DEBUG(change_dir("/src"))
+Log:DEBUG(change_dir("/script"))
 
 Log:DEBUG(change_dir("/../"))
 
