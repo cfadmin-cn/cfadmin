@@ -221,7 +221,7 @@ static FILE *check_file (lua_State *L, int idx, const char *funcname) {
                 return 0;
         } else
                 return *fh;
-#elif LUA_VERSION_NUM >= 502 && LUA_VERSION_NUM <= 503
+#elif LUA_VERSION_NUM >= 502
         luaL_Stream *fh = (luaL_Stream *)luaL_checkudata (L, idx, "FILE*");
         if (fh->closef == 0 || fh->f == NULL) {
                 luaL_error (L, "%s: closed file", funcname);
@@ -318,7 +318,7 @@ static int lfs_lock_dir(lua_State *L) {
 }
 static int lfs_unlock_dir(lua_State *L) {
   lfs_Lock *lock = (lfs_Lock *)luaL_checkudata(L, 1, LOCK_METATABLE);
-  if(lock->fd != INVALID_HANDLE_VALUE) {    
+  if(lock->fd != INVALID_HANDLE_VALUE) {
     CloseHandle(lock->fd);
     lock->fd=INVALID_HANDLE_VALUE;
   }
