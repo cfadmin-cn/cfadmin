@@ -3,6 +3,7 @@ local timer = require "internal.Timer"
 local co = require "internal.Co"
 local class = require "class"
 local log = require "logging"
+local crypt = require "crypt"
 local Log = log:new({ dump = true, path = 'DB'})
 
 local co_self = co.self
@@ -10,10 +11,12 @@ local co_wait = co.wait
 local co_wakeup = co.wakeup
 
 local type = type
+local pairs = pairs
+local ipairs = ipairs
+local assert = assert
+local select = select
 local tostring = tostring
 local tonumber = tonumber
-local assert = assert
-local ipairs = ipairs
 
 local rep = string.rep
 local find = string.find
@@ -26,6 +29,8 @@ local insert = table.insert
 local remove = table.remove
 local concat = table.concat
 local unpack = table.unpack
+
+local randomkey = crypt.randomkey
 
 local SELECT = "SELECT"
 
@@ -85,6 +90,9 @@ local function DB_CREATE (opt)
     if not opt.INITIALIZATION then -- 设置连接超时时间
       db:query(fmt('SET GLOBAL wait_timeout=%s', WAIT_TIMEOUT))
       db:query(fmt('SET GLOBAL interactive_timeout=%s', WAIT_TIMEOUT))
+    end
+    if opt.precomp then
+      return opt:reprepare()
     end
     return db
 end
@@ -442,6 +450,58 @@ function DB:delete(table_name)
         orderby = orderby,
         execute = execute,
     }
+end
+
+-- 重新执行编译
+function DB:reprepare ()
+  for rkey, stmt in pairs(self.prepare) do
+    assert(self:query(stmt), "["..stmt.."] 预编译失败.")
+  end
+  return true
+end
+
+-- PREPARE
+function DB:prepare (sql)
+  if type(sql) ~= 'string' or sql == '' then
+    return nil, "试图传递一个无效的SQL语句"
+  end
+  if not self.precomp then
+    self.precomp = {}
+  end
+  local rkey = randomkey(true)
+  local stmt = fmt([[PREPARE %s FROM "%s"]], rkey, sql)
+  assert(self:query(stmt), "["..sql.."] 预编译失败.")
+  self.precomp[rkey] = stmt
+  return rkey
+end
+
+-- EXECUTE
+function DB:execute (rkey, ...)
+  if not self.precomp then
+    return nil, "尚未有任何预编译语句"
+  end
+  local stmt = self.precomp[rkey]
+  if not stmt then
+    return nil, "找不到这个预编译语句."
+  end
+  local qua = select("#", ...)
+  if qua <= 0 then
+    return self:query([[ EXECUTE ]]..rkey)
+  end
+  local arg_keys = {}
+  local arg_key = "@cf_args"
+  local arg_values = {...}
+  local req1 = {}
+  for q = 1, qua do
+    local key = arg_key..q
+    local value = arg_values[q]:gsub("'", "\\'")
+    arg_keys[#arg_keys+1] = key
+    req1[#req1+1] = concat({key, "=", "'", value, "'"})
+    -- Log:DEBUG(key, value)
+  end
+  -- Log:DEBUG(stmt)
+  -- Log:DEBUG(concat({"SET ", concat(req1, ", "), ";", " EXECUTE ", rkey, " USING ", concat(arg_keys, ", "), ";"}))
+  return self:query(concat({"SET ", concat(req1, ", "), ";", " EXECUTE ", rkey, " USING ", concat(arg_keys, ", "), ";"}))
 end
 
 -- 原始查询语句

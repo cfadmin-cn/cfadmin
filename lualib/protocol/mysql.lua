@@ -652,9 +652,15 @@ function MySQL.query(self, query, est_nrows)
   local ok = self:send_query(query)
   if not ok then
     self.state = nil
-    return nil, 'connection already close'
+    return nil, 'connection already close. 1'
   end
-  return self:read_result(est_nrows)
+  while 1 do
+    local ok, ret = self:read_result(est_nrows)
+    if not ok or ret ~= 'again' then
+      return ok, ret
+    end
+  end
+  -- return self:read_result(est_nrows)
 end
 
 function MySQL.set_compact_arrays(self, value)
