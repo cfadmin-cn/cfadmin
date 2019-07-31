@@ -1,38 +1,32 @@
 # Lua 轻量级网络开发框架
 <p>
-  <a href="https://github.com/CandyMi/core_framework/blob/master/LICENSE">
-  <img src="https://img.shields.io/badge/license-BSD-brightgreen.svg"></a>
-  <a href="https://www.lua.org/">
-  <img src="https://img.shields.io/badge/Language-Lua-blue.svg"></a>
-  <a href="https://github.com/CandyMi">
-  <img src="https://img.shields.io/badge/Author-CandyMi-red.svg"></a>
-  <a href="https://github.com/CandyMi">
-  <img src="https://img.shields.io/static/v1?label=Support%20Platform&message=Linux/Unix/Windows&color=ff69b4"></a>
+  <a><img src="https://img.shields.io/badge/Author-CandyMi-red.svg"></a>
+  <a><img src="https://img.shields.io/static/v1?label=Language&message=Lua&color=blue"></a>
+  <a><img src="https://img.shields.io/static/v1?label=License&message=BSD&color=green"></a>
+  <a><img src="https://img.shields.io/static/v1?label=Support%20Platform&message=Linux/MacOSX/BSD/Windows&color=9cf"></a>
 </p>
 
-<p>
-  <img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/cfadmin.png" height="20%" width="20%"/ >
-</p>
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/cfadmin.png" height="20%" width="20%"/ ></p>
 
-  **大道至简, 返璞归真.**
+>  **大道至简, 返璞归真. 简单? 不简单!**
 
-  **简单? 不简单!**
+## 优势
 
-## 介绍
+  * **高效率** —— 高效的静态语言与高效的虚拟机实现优秀的运行时框架.
 
-  * [CF是什么?](https://github.com/CandyMi/core_framework/wiki/home)
+  * **生态多** —— 集成社区库最多的框架之一, 并自行实现了一些网络协议生态.
 
-  * [CF使用到的技术栈?](https://github.com/CandyMi/core_framework/wiki/MAP)
+  * **可读性高** —— 可读性始终是维护框架的标准, 无痛入门才是值得提倡的.
 
-## 第一次安装CF
+  * **稳定性好** —— 目前已有在一些企业内部已经开始使用, 使用者也正在逐渐增多.
 
-  * [CF如何安装?](https://github.com/CandyMi/core_framework/wiki/install)
+## 文档
 
-  * [CF如何运行?](https://github.com/CandyMi/core_framework/wiki/RUN)
+  * [WIKI](https://github.com/CandyMi/core_framework/wiki)
 
-  * [如何在容器内运行?](https://github.com/CandyMi/core_framework/wiki/Docker)
+  * [在线文档](https://candymi.github.io/LuaWeb)
 
-## 内置后台预览图
+## 预览图
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-login.png"/></p>
 
@@ -52,13 +46,11 @@
 
   **[快速体验cfadmin后台](https://github.com/CandyMi/core_framework/wiki/cfadmin)**
 
-## 联系作者
+## 反馈
 
   * [issues](https://github.com/CandyMi/core_framework/issues)
 
-  * <a href="mailto:869646063@qq.com">作者邮箱</a>
-
-  * QQ群:**[727531854](https://shang.qq.com/wpa/qunwpa?idkey=5cc977ebaf4eb17391b2c6b03eb0ee36e3d3c1871bc95ba3c96ffc426a9dc907)**
+  * **QQ群**:[727531854](https://shang.qq.com/wpa/qunwpa?idkey=5cc977ebaf4eb17391b2c6b03eb0ee36e3d3c1871bc95ba3c96ffc426a9dc907)
 
 ## 支持
 
