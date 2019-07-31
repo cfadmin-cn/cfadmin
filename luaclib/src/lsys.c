@@ -13,8 +13,7 @@ static int /* 此方法可用于检查是否为有效ipv4地址*/
 lipv4(lua_State *L){
     const char *IP = lua_tostring(L, 1);
     if (!IP) return luaL_error(L, "ipv4 error: 请至少传递一个string类型参数\n");
-    if (ipv4(IP)) lua_pushboolean(L, 1);
-    else lua_pushboolean(L, 0);
+		lua_pushboolean(L, ipv4(IP));
     return 1;
 }
 
@@ -22,8 +21,7 @@ static int /* 此方法可用于检查是否为有效ipv6地址*/
 lipv6(lua_State *L){
     const char *IP = lua_tostring(L, 1);
     if (!IP) return luaL_error(L, "ipv6 error: 请至少传递一个string类型参数\n");
-    if (ipv6(IP)) lua_pushboolean(L, 1);
-    else lua_pushboolean(L, 0);
+		lua_pushboolean(L, ipv6(IP));
     return 1;
 }
 
