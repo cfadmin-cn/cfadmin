@@ -160,13 +160,16 @@ function system.user_response (content)
   end
   -- 删除用户
   if action == 'delete' then
-    local uid = toint(args.uid)
+    local uid = toint(args.id)
     if not uid then
-      return json_encode({code = 400, data = null, msg = '1. 未知的uid'})
+      return json_encode({code = 400, data = null, msg = '1. 未知的用户ID'})
+    end
+    if exists.uid == uid then
+      return json_encode({code = 401, data = null, msg = "2. 不能删除当前用户"})
     end
     local exists = user.user_exists(db, nil, uid)
     if not exists then
-      return json_encode({code = 400, data = null, msg = '2. 试图删除不存在的用户'})
+      return json_encode({code = 403, data = null, msg = '3. 试图删除不存在的用户'})
     end
     user.user_delete(db, uid)
     user_token.token_delete(db, uid) -- 清除Token
