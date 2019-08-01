@@ -69,9 +69,16 @@ end
 function role.role_delete (db, id)
   local now = os_time()
   -- 删除角色
-  db:query(fmt([[UPDATE cfadmin_roles SET active = '0', update_at = '%s' WHERE id = '%s' AND active = '1']], now, id))
+  local ok = db:query(fmt([[UPDATE cfadmin_roles SET active = '0', update_at = '%s' WHERE id = '%s' AND active = '1']], now, id))
+  if not ok then
+    return
+  end
   -- 删除角色对应的权限
-  db:query(fmt([[UPDATE cfadmin_permissions SET active = '0', update_at = '%s' WHERE role_id = '%s' AND active = '1']], now, id))
+  local ok = db:query(fmt([[UPDATE cfadmin_permissions SET active = '0', update_at = '%s' WHERE role_id = '%s' AND active = '1']], now, id))
+  if not ok then
+    return
+  end
+  return true
 end
 
 -- 更新role相关数据

@@ -184,14 +184,20 @@ function system.role_response (content)
   if args.action == 'delete' then
     local id = toint(args.id)
     if not id then
-      return json_encode({code = 400, msg = "1. 删除失败"})
+      return json_encode({code = 400, msg = "1. 错误的参数"})
     end
     local exists = role.role_id_exists(db, id)
     if not exists then
-      return json_encode({code = 400, msg = "2. 试图删除一个不存在的role"})
+      return json_encode({code = 400, msg = "2. 该角色不存在"})
     end
-    role.role_delete(db, id)
-    return json_encode({code = 0, msg = "role删除成功"})
+    if user_info.role == id then
+      return json_encode({code = 400, msg = "3. 不可删除此角色"})
+    end
+    local ok = role.role_delete(db, id)
+    if not ok then
+      return json_encode({code = 400, msg = "4. 删除此角色失败"})
+    end
+    return json_encode({code = 0, msg = "角色删除成功"})
   end
   return json_encode({code = 500, msg = '恭喜您完美的错过了所有正确参数'})
 end

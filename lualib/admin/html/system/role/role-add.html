@@ -80,7 +80,7 @@
               }
               // 没菜单不允许修改
               if (permissions.length <= 0) {
-                layer.msg('permissions was empty', {timeout: 2000}, function () {
+                layer.msg('创建失败: 请先创建菜单后再进行角色关联.', {timeout: 2000}, function () {
                   $('#submit').show();
                 });
                 return false;
