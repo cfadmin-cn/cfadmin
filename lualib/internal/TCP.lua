@@ -315,6 +315,7 @@ function TCP:ssl_connect(domain, port)
   if not self.ssl_ctx or not self.ssl then
       return nil, "create a ssl ctx error."
   end
+  local co = co_self()
   self.CONNECT_IO = tcp_pop()
   self.connect_current_co = co_self()
   self.connect_co = co_new(function ()
