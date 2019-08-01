@@ -146,3 +146,14 @@ cf.fork(function ( ... )
 
     var_dump(ret)
 end)
+
+
+cf.fork(function ( ... )
+	local rkey = db:prepare([[SELECT version() AS version]])
+	local ret, err = db:execute(rkey)
+	if not ret then
+		return print(err)
+	end
+
+	var_dump(ret)
+end)
