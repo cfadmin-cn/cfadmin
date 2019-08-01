@@ -494,7 +494,10 @@ function DB:execute (rkey, ...)
   local req1 = {}
   for q = 1, qua do
     local key = arg_key..q
-    local value = arg_values[q]:gsub("'", "\\'")
+    local value = arg_values[q]
+    if type(value) == 'string' then
+      value = value:gsub("'", "\\'")
+    end
     arg_keys[#arg_keys+1] = key
     req1[#req1+1] = concat({key, "=", "'", value, "'"})
     -- Log:DEBUG(key, value)
