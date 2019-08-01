@@ -154,11 +154,14 @@ function system.header_response (content)
   end
   if args.action == 'add' then
     if not args.url or not args.name then
-      return json_encode({ code = 400, data = null, msg = "添加导航栏参数错误"})
+      return json_encode({ code = 400, data = null, msg = "1. 添加导航栏参数错误"})
     end
     args.url = url_decode(args.url)
     args.name = url_decode(args.name)
-    header.header_add(db, args)
+    local ok = header.header_add(db, args)
+    if not ok then
+      return json_encode({code = 401, msg = "2. 添加导航失败"})
+    end
     return json_encode({code = 0, msg = "添加成功"})
   end
   if args.action == 'edit' then
@@ -172,7 +175,10 @@ function system.header_response (content)
     end
     args.url = url_decode(args.url)
     args.name = url_decode(args.name)
-    header.header_update(db, args)
+    local ok = header.header_update(db, args)
+    if not ok then
+      return json_encode({code = 401, msg = "3. 修改失败"})
+    end
     return json_encode({ code = 0, msg = "修改成功"})
   end
   return json_encode({code = 500, data = null, msg = '恭喜您完美的错过了所有正确参数'})

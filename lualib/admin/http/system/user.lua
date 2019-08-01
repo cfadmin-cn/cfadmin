@@ -152,7 +152,10 @@ function system.user_response (content)
       return json_encode({code = 400, data = null, msg = '4. 用户已存在'})
     end
     args.password = crypt.hexencode(crypt.sha1(args.password))
-    user.user_add(db, args)
+    local ok = user.user_add(db, args)
+    if not ok then
+      return json_encode({code = 401, msg = "5. 添加用户失败"})
+    end
     return json_encode({code = 0, msg = "添加成功"})
   end
   -- 删除用户
@@ -194,7 +197,10 @@ function system.user_response (content)
     end
     args.email = url_decode(args.email)
     args.password = crypt.hexencode(crypt.sha1(url_decode(args.password)))
-    user.user_update(db, args)
+    local ok = user.user_update(db, args)
+    if not ok then
+      return json_encode({code = 401, msg = "5. 更新用户信息失败"})
+    end
     user_token.token_delete(db, args.id) -- 清除Token
     return json_encode({code = 0, msg = "SUCCESS"})
   end

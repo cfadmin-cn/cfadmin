@@ -104,12 +104,12 @@ end
 
 -- 更新用户密码
 function user.user_update_password (db, opt)
-  return db:query(fmt([[UPDATE cfadmin_users SET password = '%s' WHERE id = '%s' AND active = '1']], opt.password, opt.id))
+  return db:query(fmt([[UPDATE cfadmin_users SET password = '%s', update_at = '%s' WHERE id = '%s' AND active = '1']], opt.password, os_time(), opt.id))
 end
 
 -- 更新用户信息
 function user.user_update_info (db, opt)
-  return db:query(fmt([[UPDATE cfadmin_users SET name = '%s', phone = '%s', email = '%s' WHERE id = '%s' AND active = '1']], opt.name, opt.phone, opt.email, opt.id))
+  return db:query(fmt([[UPDATE cfadmin_users SET name = '%s', phone = '%s', email = '%s', update_at = '%s' WHERE id = '%s' AND active = '1']], opt.name, opt.phone, opt.email, os_time(), opt.id))
 end
 
 return user

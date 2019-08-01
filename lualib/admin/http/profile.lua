@@ -128,17 +128,23 @@ function profile.response (content)
     if user_info.password == args.password then
       return json_encode({code = 403, msg = "4. 当前密码不正确或新老密码一致" })
     end
-    user.user_update_password(db, args)
+    local ok = user.user_update_password(db, args)
+    if not ok then
+      return json_encode({code = 401, msg = '5. 密码更新失败'})
+    end
     user_token.token_delete(db, args.id)
     return json_encode({code = 0, msg = 'Success: 密码修改成功'})
   end
   if args.action == 'update_userinfo' then
     if not args.name or not args.email or not args.phone then
-      return json_encode({code = 500, msg = "2. 错误的info参数" })
+      return json_encode({code = 500, msg = "1. 错误的info参数" })
     end
     args.name = url_decode(args.name)
     args.email = url_decode(args.email)
-    user.user_update_info(db, args)
+    local ok = user.user_update_info(db, args)
+    if not ok then
+      return json_encode({code = 401, msg = '2. 用户信息更新失败'})
+    end
     user_token.token_delete(db, args.id)
     return json_encode({code = 0, msg = 'Success: 用户信息更新成功'})
   end
