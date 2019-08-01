@@ -1,4 +1,4 @@
-local tonumber = tonumber
+local toint = math.tointeger
 local os_time = os.time
 local fmt = string.format
 
@@ -6,8 +6,8 @@ local header = {}
 
 -- header 列表
 function header.header_list (db, opt)
-  local limit = tonumber(opt.limit) or 10
-  local page = tonumber(opt.page) or 1
+  local limit = toint(opt.limit) or 10
+  local page = toint(opt.page) or 1
   return db:query(fmt([[SELECT id, name, url, create_at, update_at FROM cfadmin_headers WHERE active = '1' ORDER BY id LIMIT %s, %s]], limit * (page - 1) , limit))
 end
 
