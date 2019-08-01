@@ -34,7 +34,7 @@ end
 
 -- 用户是否存在
 function user.user_exists (db, username, uid)
-  return db:query(fmt([[
+  local user, err = db:query(fmt([[
   SELECT
     `cfadmin_users`.id,
     `cfadmin_users`.name,
@@ -44,7 +44,11 @@ function user.user_exists (db, username, uid)
   WHERE
     `cfadmin_users`.active = '1' AND `cfadmin_users`.username = '%s' OR `cfadmin_users`.id = '%s'
   LIMIT 1]],
-  tostring(username), toint(uid)))[1]
+  tostring(username), toint(uid)))
+  if not user then
+    return
+  end
+  return user[1]
 end
 
 -- 用户名或者登录名是否存在
