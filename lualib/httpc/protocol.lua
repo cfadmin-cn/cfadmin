@@ -5,6 +5,10 @@ local FILEMIME = HTTP.FILEMIME
 local PARSER_HTTP_RESPONSE = HTTP.PARSER_HTTP_RESPONSE
 local RESPONSE_CHUNKED_PARSER = HTTP.RESPONSE_CHUNKED_PARSER
 
+local type = type
+local assert = assert
+local ipairs = ipairs
+local tostring = tostring
 
 local random = math.random
 local find = string.find
@@ -17,10 +21,6 @@ local insert = table.insert
 local concat = table.concat
 local toint = math.tointeger
 local fmt = string.format
-local type = type
-local assert = assert
-local ipairs = ipairs
-local tostring = tostring
 
 local CRLF = '\x0d\x0a'
 local CRLF2 = '\x0d\x0a\x0d\x0a'
@@ -142,8 +142,6 @@ local function httpc_response(sock, SSL)
 		local posA, posB = find(DATA, CRLF2)
 		if posB then
       VERSION, CODE, STATUS, HEADER = PARSER_HTTP_RESPONSE(DATA)
-			-- CODE = RESPONSE_PROTOCOL_PARSER(split(DATA, 1, posB))
-			-- HEADER = RESPONSE_HEADER_PARSER(split(DATA, 1, posB))
 			if not CODE or not HEADER then
 				return nil, SSL.." can't resolvable protocol."
 			end
@@ -248,7 +246,7 @@ local function build_post_req (opt)
 	}
 	if type(opt.headers) == "table" then
 		for _, header in ipairs(opt.headers) do
-			assert(string.lower(header[1]) ~= 'content-length', "please don't give Content-Length")
+			assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
 			assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
 			insert(request, header[1]..': '..header[2]..CRLF)
 		end
