@@ -1,16 +1,18 @@
 local sys = require "sys"
-
-local string = string
-local fmt = string.format
-
+local now = sys.now
 local is_ipv4 = sys.ipv4
 local is_ipv6 = sys.ipv6
-local now = sys.now
 
 local type = type
+local pairs = pairs
+local ipairs = ipairs
 
 local os_date = os.date
 local os_time = os.time
+
+local modf = math.modf
+
+local fmt = string.format
 
 local System = {
   -- 类型转换函数
@@ -26,7 +28,7 @@ function System.is_int(number)
   if type(number) ~= 'number' then
     return false
   end
-  local int, float = math.modf(number)
+  local int, float = modf(number)
   return float == 0.
 end
 
@@ -35,7 +37,7 @@ function System.is_float(number)
   if type(number) ~= 'number' then
     return false
   end
-  local int, float = math.modf(number)
+  local int, float = modf(number)
   return float ~= 0.
 end
 
