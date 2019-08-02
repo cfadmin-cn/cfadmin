@@ -1,6 +1,6 @@
 local smtp = require "protocol.smtp"
 
-local tonumber = tonumber
+local toint = math.tointeger
 local match = string.match
 local os_date = os.date
 
@@ -28,7 +28,7 @@ function mail.send(opt)
 	if not check_mail(opt.from) or not check_mail(opt.to) then
 		return nil, "发送者与接受者邮箱格式不正确"
 	end
-	if not opt.host or not opt.port or opt.host == '' or (tonumber(opt.port) <= 0 or tonumber(opt.port) > 65535) then
+	if not opt.host or not opt.port or opt.host == '' or (not toint(opt.port)) or (toint(opt.port) <= 0 or toint(opt.port) > 65535) then
 		return nil, "邮件server配置错误, 请检查配置参数."
 	end
 	if not opt.subject or opt.subject == '' then
