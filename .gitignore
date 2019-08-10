@@ -37,10 +37,14 @@
 *.hex
 
 # Debug files
-*.dSYM/
+*.dSYM
 *.su
 *.idb
 *.pdb
+
+# PID And Log
+*.log
+*.PID
 
 # Code Edit
 .vscode
