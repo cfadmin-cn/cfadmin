@@ -16,7 +16,6 @@ local match = string.match
 local io_write = io.write
 local toint = math.tointeger
 
-
 -- 请求解析
 local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
 
@@ -139,14 +138,18 @@ function httpd:log(path)
   end
 end
 
-local log_fmt = "[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n"
+-- CLOSE_LOG指定为true后将不会产生任何请求日志, 这样能提升更高的性能.
+local CLOSE_LOG = false
+-- LOG_FMT用于构建日志格式
+local LOG_FMT = "[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n"
 
 function httpd:tolog(code, path, ip, ip_list, method, speed)
-  if self.logging then
-    self.logging:dump(fmt(log_fmt, os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
+  local now = os_date("%Y/%m/%d %H:%M:%S")
+  if self.logging and not CLOSE_LOG then
+    self.logging:dump(fmt(LOG_FMT, now, ip, ip_list, path, method, code, speed))
   end
-  if self.output then
-    io_write(fmt(log_fmt, os_date("%Y/%m/%d %H:%M:%S"), ip, ip_list, path, method, code, speed))
+  if self.output and not CLOSE_LOG then
+    io_write(fmt(LOG_FMT, now, ip, ip_list, path, method, code, speed))
   end
 end
 

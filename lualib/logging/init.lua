@@ -1,4 +1,6 @@
 -- logging 核心配置
+local cf = require "cf"
+
 local class = require "class"
 
 local os_date = require("sys").date
@@ -22,19 +24,22 @@ local io_type = io.type
 local fmt = string.format
 local concat = table.concat
 
-local cf = require "cf"
+-- 可以在这里手动设置是否使用异步日志
+local SYNC = false
 
-if io_type(io.output()) == 'file' then
-  io.output():setvbuf("full", 1 << 20)
-  cf.at(0.3, function ()
-    return io_flush() -- 定期刷新缓冲, 减少日志缓冲频繁导致的性能问题
-  end)
+if not SYNC then
+  if io_type(io.output()) == 'file' then
+    io.output():setvbuf("full", 2 ^ 20)
+    cf.at(0.5, function ()
+      return io_flush() -- 定期刷新缓冲, 减少日志缓冲频繁导致的性能问题
+    end)
+  end
 end
 
 -- 格式化时间: [年-月-日 时:分:秒,毫秒]
 local function fmt_Y_m_d_H_M_S()
   local ts, f = modf(now())
-  return concat({'[', os_date('%Y-%m-%d %H:%M:%S'), ',', fmt("%003d", modf(f * 1e3)), ']'})
+  return concat({'[', os_date('%Y-%m-%d %H:%M:%S', ts), ',', fmt("%003d", modf(f * 1e3)), ']'})
 end
 
 -- 格式化时间: [年-月-日 时:分:秒]
@@ -117,40 +122,56 @@ end
 
 -- 常规日志
 function Log:INFO (...)
-  io_write(FMT("\27[32m"..debuginfo(), "[INFO]".."\27[0m", ...))
-  self:dump(FMT(debuginfo(), "[INFO]", ...))
+  local info = debuginfo()
+  io_write(FMT("\27[32m"..info, "[INFO]".."\27[0m", ...))
+  if not self.dumped or type(self.path) ~= 'string' then
+    return
+  end
+  self:dump(FMT(info, "[INFO]", ...))
 end
 
 -- 错误日志
 function Log:ERROR (...)
-  io_write(FMT("\27[31m"..debuginfo(), "[ERROR]".."\27[0m", ...))
-  self:dump(FMT(debuginfo(), "[ERROR]", ...))
+  local info = debuginfo()
+  io_write(FMT("\27[31m"..info, "[ERROR]".."\27[0m", ...))
+  if not self.dumped or type(self.path) ~= 'string' then
+    return
+  end
+  self:dump(FMT(info, "[ERROR]", ...))
 end
 
 -- 调试日志
 function Log:DEBUG (...)
-  io_write(FMT("\27[36m"..debuginfo(), "[DEBUG]".."\27[0m", ...))
-  self:dump(FMT(debuginfo(), "[DEBUG]", ...))
+  local info = debuginfo()
+  io_write(FMT("\27[36m"..info, "[DEBUG]".."\27[0m", ...))
+  if not self.dumped or type(self.path) ~= 'string' then
+    return
+  end
+  self:dump(FMT(info, "[DEBUG]", ...))
 end
 
 -- 警告日志
 function Log:WARN (...)
-  io_write(FMT("\27[33m"..debuginfo(), "[WARN]".."\27[0m", ...))
-  self:dump(FMT(debuginfo(), "[WARN]", ...))
-end
-
--- dump日志到磁盘
-function Log:dump(log)
+  local info = debuginfo()
+  io_write(FMT("\27[33m"..info, "[WARN]".."\27[0m", ...))
   if not self.dumped or type(self.path) ~= 'string' then
     return
   end
+  self:dump(FMT(info, "[WARN]", ...))
+end
+
+-- 可以在这里手动设置日志路径
+local LOG_FOLDER = 'logs/'
+
+-- dump日志到磁盘
+function Log:dump(log)
   local today = Y_m_d()
   if today ~= self.today then
     if self.file then
       self.file:close()
       self.file = nil
     end
-    local file, err = io_open('logs/'..self.path..'_'..today..'.log', 'a')
+    local file, err = io_open(LOG_FOLDER..self.path..'_'..today..'.log', 'a')
     if not file then
       return io_type(io.output()) == 'file' and io_write('打开文件失败.'..(err or '')..'\n')
     end
@@ -158,7 +179,7 @@ function Log:dump(log)
     file:setvbuf("line")
   end
   if not self.file then
-    local file, err = io_open('logs/'..self.path..'_'..today..'.log', 'a')
+    local file, err = io_open(LOG_FOLDER..self.path..'_'..today..'.log', 'a')
     if not file then
       return io_type(io.output()) == 'file' and io_write('打开文件失败.'..(err or '')..'\n')
     end
