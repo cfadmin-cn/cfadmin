@@ -42,7 +42,7 @@
     #define EV_USE_KQUEUE 1
 #endif
 
-#include <ev.h>
+#include "ev.h"
 
 #define CORE_LOOP  core_default_loop()
 
