@@ -1,4 +1,16 @@
-# 运行这个文件可以安装libev与lua
+# Run this file to install libev and lua; if you already have lua and libev in your environment, you can ignore this file and try to compile directly using makefile.
+# 运行这个文件可以安装libev与lua; 如果您的环境中已经有了lua与libev后可以忽略此文件并且直接使用makefile尝试编译.
+
+# Note: This script requires a bash environment! You need to ensure that the bash environment has been installed, otherwise you may have unintended consequences.
+# 注意: 此脚本需要bash环境! 您需要保证bash环境已经被安装, 否则可能会出现意想不到的后果.
+
+# This file must be executed in the current folder directory, otherwise the installation will be wrong. Beginners need to keep in mind.
+# 必须在当前文件夹目录执行此文件, 否则安装将会出错. 初学者需要谨记.
+
+# Before executing this build file, you need to make sure that these software environments are installed: gcc/clang autoconf automake make libtool git readline-devel openssl-devel.
+# 执行这个编译文件之前需要确保安装了这些软件环境: gcc/clang autoconf automake make libtool git readline-devel openssl-devel. 如果未安装或者缺少安装, 请仔细检查并且自行尝试安装依赖环境.
+
+bash
 
 current=`pwd`
 
@@ -16,3 +28,5 @@ cd ${current}/build/lua &&
   cp lua.h luaconf.h lualib.h lauxlib.h ${current}/src && cp liblua.* ${current}/
 
 cd ${current} && rm -rf build
+
+exit
