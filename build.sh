@@ -1,4 +1,3 @@
-#!/bin/bash
 # 运行这个文件可以安装libev与lua
 
 current=`pwd`
