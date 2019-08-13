@@ -10,7 +10,7 @@ git clone https://github.com/CandyMi/libev -b v4.25
 
 cd ${current}/build/libev &&
   sh autogen.sh && ./configure --prefix=/usr/local &&
-  make && cp ev*.h ${current}/src && cp .libs/libev* ${current}/
+  make && cp e*.h ${current}/src && cp .libs/libev* ${current}/
 
 cd ${current}/build/lua &&
   make all MYCFLAGS=-fPIC MYCFLAGS+=-DLUA_USE_POSIX MYCFLAGS+=-DLUA_USE_DLOPEN MYLIBS="-ldl -lreadline" &&
