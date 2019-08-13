@@ -22,9 +22,9 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
 
 #if LUA_VERSION_NUM >= 504
   #ifndef CO_GCRESET

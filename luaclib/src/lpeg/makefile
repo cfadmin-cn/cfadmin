@@ -8,16 +8,17 @@ default :
 	@echo "======================================="
 
 CC = cc
-LIBS = -L/usr/local/lib -L../ -L../../../
+INCLUDES += -I../../../src
+LIBS += -L../ -L../../../ -L/usr/local/lib
 CFLAGS = -O3 -shared -fPIC
-DLL = -lcore
+DLL = -lcore -llua
 
 build:
-	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c $(CFLAGS) $(LIBS) $(DLL)
+	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 	mv *.so ../../
 
 rebuild:
-	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c $(CFLAGS) $(LIBS) $(DLL)
+	$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 	mv *.so ../../
 
 clean:

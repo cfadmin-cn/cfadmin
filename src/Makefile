@@ -9,8 +9,8 @@ default :
 
 CC = cc
 
-LIBS += -L. -L/usr/local/lib
-INCLUDES += -I/usr/local/include
+LIBS += -L. -L.. -L/usr/local/lib
+INCLUDES += -I. -I/usr/local/include
 
 # 使用jemalloc内存分配器请启用这段
 # CFLAGS += -Wall -Os -fPIC --shared -DJEMALLOC -fno-strict-aliasing -Wl,-rpath,/usr/local/lib
@@ -45,4 +45,4 @@ rebuild:
 
 clean :
 
-	rm -rf *.o *.so
+	rm -rf *.o *.so l*.h ev*

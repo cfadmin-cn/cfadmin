@@ -16,7 +16,7 @@ INCLUDE = -I/usr/local/include
 LIB = -L/usr/local/lib -L../ -L../../../
 
 CFLAGS = -O3 -Wall -shared -fPIC
-DLL = -lcore
+DLL = -lcore -llua
 
 
 build:

@@ -24,7 +24,7 @@ rebuild :
 	cd 3rd && make clean && make rebuild
 
 clean :
-	rm -rf main cfadmin *.so
+	rm -rf main cfadmin *.so lib* *.pid
 	cd src && make clean
 	cd luaclib && make clean
 	cd 3rd && make clean

@@ -9,11 +9,11 @@ default :
 
 CC = cc
 
-INCLUDE = -I/usr/local/include
+INCLUDE = -I/usr/local/include -I../../../src
 LIB = -L/usr/local/lib -L../ -L../../../
 
 CFLAGS = -O3 -Wall -shared -fPIC
-DLL = -lcore
+DLL = -lcore -llua
 
 build:
 	$(CC) -o lfs.so lfs.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
