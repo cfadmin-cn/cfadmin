@@ -45,4 +45,4 @@ rebuild:
 
 clean :
 
-	rm -rf *.o *.so l*.h ev*
+	rm -rf *.o *.so

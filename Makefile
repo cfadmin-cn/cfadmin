@@ -18,13 +18,13 @@ build :
 	cd 3rd && make build
 
 rebuild :
-	rm -rf main cfadmin *.so
+	rm -rf main cfadmin libcore.so *.pid
 	cd src && make clean && make rebuild
 	cd luaclib && make clean && make rebuild
 	cd 3rd && make clean && make rebuild
 
 clean :
-	rm -rf main cfadmin *.so lib* *.pid
+	rm -rf main cfadmin libcore.so *.pid
 	cd src && make clean
 	cd luaclib && make clean
 	cd 3rd && make clean
