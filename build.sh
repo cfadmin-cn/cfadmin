@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Run this file to install libev and lua; if you already have lua and libev in your environment, you can ignore this file and try to compile directly using makefile.
 # 运行这个文件可以安装libev与lua; 如果您的环境中已经有了lua与libev后可以忽略此文件并且直接使用makefile尝试编译.
 
@@ -7,19 +9,19 @@
 # Before executing this build file, you need to make sure that these software environments are installed: gcc/clang autoconf automake make libtool git readline-devel openssl-devel.
 # 执行这个编译文件之前需要确保安装了这些软件环境: gcc/clang autoconf automake make libtool git readline-devel openssl-devel. 如果未安装或者缺少安装, 请仔细检查并且自行尝试安装依赖环境.
 
-set current=`pwd`
+current=`pwd`
 
 rm -rf build && mkdir build && cd build
 
 git clone https://github.com/CandyMi/lua -b v5.3.5
 git clone https://github.com/CandyMi/libev -b v4.25
 
-cd ${current}/build/libev &&
-  sh autogen.sh && ./configure --prefix=/usr/local &&
+echo "========== build libev ==========" &&
+  cd ${current}/build/libev && sh autogen.sh && ./configure --prefix=/usr/local &&
   make && cp e*.h ${current}/src && cp .libs/libev* ${current}/
 
-cd ${current}/build/lua &&
-  make all MYCFLAGS=-fPIC MYCFLAGS+=-DLUA_USE_POSIX MYCFLAGS+=-DLUA_USE_DLOPEN MYLIBS="-ldl -lreadline" &&
+echo "========== build lua ==========" &&
+  cd ${current}/build/lua && make all MYCFLAGS=-fPIC MYCFLAGS+=-DLUA_USE_POSIX MYCFLAGS+=-DLUA_USE_DLOPEN MYLIBS="-ldl -lreadline" &&
   cp lua.h luaconf.h lualib.h lauxlib.h ${current}/src && cp liblua.* ${current}/
 
-cd ${current} && rm -rf build
+echo "========== clean build ==========" && cd ${current} && rm -rf build
