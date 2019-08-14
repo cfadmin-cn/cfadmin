@@ -1,4 +1,4 @@
-#
+<h1></h1>
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/cfadmin.png" height="25%" width="25%" />
@@ -17,17 +17,17 @@
 
   * **Multi-ecology** —— Integrate most community third-party libraries and implement many protocols on their own.
 
-  * **稳定性好** —— 目前已有在一些企业内部已经开始使用, 使用者也正在逐渐增多.
+  * **稳定性好** —— 许多领域的企业已经开始使用，并且用户数量也在逐渐增加.
 
-  * **Good stability** —— At present, it has been used within some enterprises, and users are gradually increasing.
+  * **Good stability** —— Enterprises in many fields have begun to use, and users are gradually increasing.
 
   * **高效率** —— 高效的静态语言与高效的虚拟机实现优秀的运行时框架.
 
   * **High efficiency** - Efficient static language and efficient virtual machine to achieve excellent runtime framework.
 
-  * **可读性高** —— 可读性始终是维护框架的标准, 无痛入门才是值得提倡的.
+  * **高可维护性** —— 通俗易懂的框架编写方式可以让开发者快速适应并且上手.
 
-  * **High readability** —— Readability is always the standard for maintaining the framework, and painless getting started is worth promoting.
+  * **High readability** —— The easy-to-understand framework writing method allows developers to quickly adapt and get started.
 
 ### 文档 (Document)
 
@@ -63,7 +63,7 @@
 
 ### 支持 (support)
 
-  * **如果您觉得cf还不错, 可以支持一杯咖啡予以鼓励.**
+  * **如果您使用的还算顺手, 可以支持一杯咖啡予以鼓励.**
 
   * **Encourage the price of a cup of coffee.**
 
