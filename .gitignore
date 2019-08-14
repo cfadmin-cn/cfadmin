@@ -50,7 +50,7 @@
 .vscode
 *.la
 *.lai
-ev*.h
+src/ev*.h
 src/l*.h
 cfadmin
 
