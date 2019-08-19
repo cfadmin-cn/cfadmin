@@ -4,7 +4,6 @@ local Cookie = require "admin.cookie"
 local xml2lua = require "xml2lua"
 
 local json = require "json"
-
 local json_encode = json.encode
 local json_decode = json.decode
 

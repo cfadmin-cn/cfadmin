@@ -1,5 +1,5 @@
-local template = require "template"
 local http = require "httpd.http"
+local template = require "template"
 local utils = require "admin.utils"
 local config = require "admin.config"
 local locales = require "admin.locales"
@@ -10,8 +10,11 @@ local system = require "admin.http.system"
 local profile = require "admin.http.profile"
 local dashboard = require "admin.http.dashboard"
 
+local type = type
+local ipairs = ipairs
+local assert = assert
+local toint = math.tointeger
 local find = string.find
-
 local get_path = utils.get_path
 
 local admin = {}
@@ -28,7 +31,7 @@ end
 
 -- Cookie时间
 function admin.cookie_timeout (timeout)
-  config.cookie_timeout = tonumber(timeout) or 86400
+  config.cookie_timeout = toint(timeout) or 86400
 end
 
 -- 添加某语言的字段
@@ -64,15 +67,16 @@ function admin.init_page (app, db)
 
   config.home = config.home or '/welcome.html'
 
-  -- 注册一些admin规则用于安全验证.
-  -- 接口路由需要进行验权, 页面路由由Cookie验权.
+  -- 所有/api/admin路径下的接口都需要进行token header验权.
   app:before(function (content)
     local path = get_path(content)
-    if find(path, '^/api/admin/.+') then -- 用于所有/api接口需要传递token header进行验权.
+    if find(path, '^/api/admin/.+') then
+      -- 所有路由保持在这个路径之下会相对来说较为安全.
       local token = content['headers']['token'] or content['headers']['Token']
       if not token then
         return http.throw(401, '{"code":401,"msg":"Token was not exists"}')
       end
+      -- 验证token是否有效; 无效的token在此进行过滤
       local exists = user_token.token_exists(db, token)
       if not exists then
         return http.throw(403, '{"code":401,"msg":"Token was verify failed"}')
@@ -130,7 +134,6 @@ function admin.init_page (app, db)
   app:use(config.system_role_render, system.role_render)
   app:use(config.system_role_add_render, system.role_add_render)
   app:use(config.system_role_edit_render, system.role_edit_render)
-
 
   -- profile路由
   config.profile_api = '/api/admin/profile'
