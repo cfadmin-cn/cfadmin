@@ -69,6 +69,14 @@ return {
   ['dashboard.menu.user_manage.table.options.delete.confirm'] = '确认要删除么?',
   ['dashboard.menu.user_manage.table.options.delete.confirm.success'] = '删除成功',
 
+  ['dashboard.menu.user_manage.table.search'] = "搜索",
+  ['dashboard.menu.user_manage.table.search.condition'] = "搜索条件",
+  ['dashboard.menu.user_manage.table.search.condition.userid'] = "用户ID",
+  ['dashboard.menu.user_manage.table.search.condition.username'] = "用户名称",
+  ['dashboard.menu.user_manage.table.search.condition.useraccount'] = "用户账户",
+  ['dashboard.menu.user_manage.table.search.condition.email'] = "用户邮箱",
+  ['dashboard.menu.user_manage.table.search.condition.phone'] = "用户手机",
+
   -- 用户新增页面
   ['dashboard.menu.user_manage.form.user_add.name'] = '用户名称',
   ['dashboard.menu.user_manage.form.user_add.name.notice'] = '用户显示名称',

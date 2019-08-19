@@ -39,15 +39,31 @@
       </div>
     </script>
     <script type="text/html" id="headertoolbar">
-      <div class="layui-btn-container">
-        <!-- 刷新按钮  -->
-        <button class="layui-btn layui-btn-xs" onclick='window.location.reload()'><i class="iconfont">&#59050;</i> {* locale['dashboard.menu.user_manage.table.reflush'] *}</button>
-        <!-- 新增用户按钮  -->
-        <button class="layui-btn layui-btn-xs" onclick="xadmin.open('{* locale['dashboard.menu.user_manage.table.adduser'] *}', '{*user_add_url*}', 550, 430)"><i class="iconfont">&#59065;</i> {* locale['dashboard.menu.user_manage.table.adduser'] *}</button>
+      <!-- 刷新按钮  -->
+      <button class="layui-btn layui-btn-xs" onclick='window.location.reload()'><i class="iconfont">&#59050;</i> {* locale['dashboard.menu.user_manage.table.reflush'] *}</button>
+      <!-- 新增用户按钮  -->
+      <button class="layui-btn layui-btn-xs" onclick="xadmin.open('{* locale['dashboard.menu.user_manage.table.adduser'] *}', '{*user_add_url*}', 550, 430)"><i class="iconfont">&#59065;</i> {* locale['dashboard.menu.user_manage.table.adduser'] *}</button>
+      <!-- 根据用户名或账户搜索 -->
+      <!-- <hr class="layui-bg"> -->
+      <div class="layui-input-inline">
+        <select class="layui-input-block" id="searchCondition" lay-verify="required">
+          <option value="">--{* locale['dashboard.menu.user_manage.table.search.condition'] *}--</option>
+          <option value="id">{* locale['dashboard.menu.user_manage.table.search.condition.userid'] *}</option>
+          <option value="email">{* locale['dashboard.menu.user_manage.table.search.condition.email'] *}</option>
+          <option value="phone">{* locale['dashboard.menu.user_manage.table.search.condition.phone'] *}</option>
+          <option value="name">{* locale['dashboard.menu.user_manage.table.search.condition.username'] *}</option>
+          <option value="username">{* locale['dashboard.menu.user_manage.table.search.condition.useraccount'] *}</option>
+        </select>
       </div>
+      <div class="layui-input-inline">
+        <input class="layui-input" id="searchText" type="text" lay-verify="searchText" autocomplete="off"></input>
+      </div>
+      <button class="layui-btn layui-btn-xs" onclick="searchButton()"><i class="layui-icon layui-icon-search"></i> 搜索</button>
     </script>
     <script type="text/javascript">
       var {form, table} = {};
+      var SearchName = "";
+      var SearchCondition = "";
       layui.use('table', function(){
         $ = layui.jquery;
         table = layui.table;
@@ -58,20 +74,6 @@
           if(obj.event === 'delete'){
             layer.confirm("{*locale['dashboard.menu.user_manage.table.options.delete.confirm']*}", {title:""},
             function(index){
-              // $.post('{*api_url*}', {
-              //     action: "delete",
-              //     uid: data.id,
-              //     token: "{*token*}",
-              //   },
-              //   function (data, status) {
-              //     if (data.code != 0) {
-              //       return layer.msg(data.msg, {time:2000});
-              //     }
-              //     layer.msg(data.msg, {time:1000}, function () {
-              //       return window.location.reload();
-              //     })
-              //   }
-              // );
               $.ajax({
                 url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: { action: "delete", id: data.id, token: "{*token*}"},
                 error: function (res) {
@@ -92,8 +94,24 @@
             return xadmin.open("{*locale['dashboard.menu.user_manage.table.edituser']*}", "{*user_edit_url*}?id=" + data.id, 550, 430);
           };
         });
-
       });
+      function searchButton () {
+        // 不允许搜索空条件
+        if ($("#searchText").val() == "" || $("#searchCondition").val() == "" || SearchName == $("#searchText").val() ) {
+          return false;
+        }
+        SearchName = $("#searchText").val();
+        SearchCondition = $("#searchCondition").val();
+        table.reload('table', {
+          url: "{*api_url*}", headers: {token:"{*token*}"},
+          where: {
+            action: "findUser",
+            token: "{*token*}",
+            value: SearchName,
+            condition: SearchCondition,
+          }
+        });
+      }
       </script>
   </body>
 </html>

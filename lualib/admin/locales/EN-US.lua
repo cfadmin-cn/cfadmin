@@ -67,6 +67,14 @@ return {
   ['dashboard.menu.user_manage.table.options.delete.confirm'] = 'confirm Delete it?',
   ['dashboard.menu.user_manage.table.options.delete.confirm.success'] = 'Delet Success.',
 
+  ['dashboard.menu.user_manage.table.search'] = "Search",
+  ['dashboard.menu.user_manage.table.search.condition'] = "Condition",
+  ['dashboard.menu.user_manage.table.search.condition.userid'] = "User ID",
+  ['dashboard.menu.user_manage.table.search.condition.username'] = "User Name",
+  ['dashboard.menu.user_manage.table.search.condition.useraccount'] = "User Account",
+  ['dashboard.menu.user_manage.table.search.condition.email'] = "User Email",
+  ['dashboard.menu.user_manage.table.search.condition.phone'] = "User Phone",
+
   -- 用户新增页面
   ['dashboard.menu.user_manage.form.user_add.name'] = 'Name',
   ['dashboard.menu.user_manage.form.user_add.name.notice'] = 'User Name',

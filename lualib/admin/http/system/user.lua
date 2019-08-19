@@ -131,8 +131,19 @@ function system.user_response (content)
   if not user_info or user_info.is_admin == 0 then
     return json_encode({code = 400, data = null, msg = '4. 用户权限不足'})
   end
-  -- 添加用户
   local action = args.action
+  -- 查找用户(模糊)
+  if action == 'findUser' then
+    if not args.value or not args.condition then
+      return json_encode({code = 400, data = null, msg = '1. 无效的参数'})
+    end
+    local users = user.find_by_username(db, args)
+    if not users then
+      return json_encode({code = 400, data = null, msg = '2. 无效的参数'})
+    end
+    return json_encode({code = 0, data = users })
+  end
+  -- 添加用户
   if action == 'add' then
     if not args.name or not args.username or not args.password then
       return json_encode({code = 400, data = null, msg = '1. 用户信息不完善'})

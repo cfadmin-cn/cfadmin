@@ -27,6 +27,50 @@ function user.user_list (db, opt)
   ]], limit * (page - 1), limit))
 end
 
+-- 模糊查找用户列表
+function user.find_by_username (db, opt)
+  local limit = toint(opt.limit) or 10
+  local page = toint(opt.page) or 1
+  local condition
+  if opt.condition == 'id' or opt.condition == 'email' or opt.condition == 'phone' then
+    condition = fmt("`cfadmin_users`.`%s` = '%s'", opt.condition, opt.value)
+  else
+    condition = fmt("`cfadmin_users`.`%s` LIKE '%%%s%%'", opt.condition, opt.value)
+  end
+  print(fmt([[
+  SELECT
+    `cfadmin_users`.id,
+    `cfadmin_users`.name,
+    `cfadmin_users`.username,
+    `cfadmin_roles`.name AS role_name,
+    `cfadmin_users`.email,
+    `cfadmin_users`.phone,
+    `cfadmin_users`.create_at,
+    `cfadmin_users`.update_at,
+    `cfadmin_users`.active
+  FROM cfadmin_users, cfadmin_roles
+  WHERE
+    `cfadmin_roles`.id = `cfadmin_users`.role AND `cfadmin_users`.active = 1 AND %s
+   ORDER BY `cfadmin_users`.id LIMIT %s, %s
+  ]], condition, limit * (page - 1), limit))
+  return db:query(fmt([[
+  SELECT
+    `cfadmin_users`.id,
+    `cfadmin_users`.name,
+    `cfadmin_users`.username,
+    `cfadmin_roles`.name AS role_name,
+    `cfadmin_users`.email,
+    `cfadmin_users`.phone,
+    `cfadmin_users`.create_at,
+    `cfadmin_users`.update_at,
+    `cfadmin_users`.active
+  FROM cfadmin_users, cfadmin_roles
+  WHERE
+    `cfadmin_roles`.id = `cfadmin_users`.role AND `cfadmin_users`.active = 1 AND %s
+   ORDER BY `cfadmin_users`.id LIMIT %s, %s
+  ]], condition, limit * (page - 1), limit))
+end
+
 -- 用户总数
 function user.user_count (db)
   return db:query([[SELECT count(id) AS count FROM cfadmin_users WHERE active = '1']])[1]['count']
