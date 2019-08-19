@@ -44,7 +44,7 @@
       <!-- 新增用户按钮  -->
       <button class="layui-btn layui-btn-xs" onclick="xadmin.open('{* locale['dashboard.menu.user_manage.table.adduser'] *}', '{*user_add_url*}', 550, 430)"><i class="iconfont">&#59065;</i> {* locale['dashboard.menu.user_manage.table.adduser'] *}</button>
       <!-- 根据用户名或账户搜索 -->
-      <!-- <hr class="layui-bg"> -->
+      <hr class="layui-bg"></hr>
       <div class="layui-input-inline">
         <select class="layui-input-block" id="searchCondition" lay-verify="required">
           <option value="">--{* locale['dashboard.menu.user_manage.table.search.condition'] *}--</option>
@@ -58,7 +58,7 @@
       <div class="layui-input-inline">
         <input class="layui-input" id="searchText" type="text" lay-verify="searchText" autocomplete="off"></input>
       </div>
-      <button class="layui-btn layui-btn-xs" onclick="searchButton()"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+      <button class="layui-btn layui-btn-xs" onclick="searchButton()"><i class="layui-icon layui-icon-search"></i>{* locale['dashboard.menu.user_manage.table.search'] *}</button>
     </script>
     <script type="text/javascript">
       var {form, table} = {};
