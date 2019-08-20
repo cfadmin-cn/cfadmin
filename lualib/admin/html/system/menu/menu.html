@@ -30,24 +30,25 @@
             <table class="layui-table layui-form">
               <thead>
                 <tr>
-                  <th width="10">{*locale['dashboard.menu.menu_manage.table.id']*}</th>
-                  <th width="30">{*locale['dashboard.menu.menu_manage.table.icon']*}</th>
-                  <th width="150">{*locale['dashboard.menu.menu_manage.table.name']*}</th>
-                  <th width="200">{*locale['dashboard.menu.menu_manage.table.url']*}</th>
-                  <th width="180">{*locale['dashboard.menu.menu_manage.table.options']*}</th>
+                  <th width="10" style="text-align: center">{*locale['dashboard.menu.menu_manage.table.id']*}</th>
+                  <th width="30" style="text-align: center">{*locale['dashboard.menu.menu_manage.table.icon']*}</th>
+                  <th width="150" style="text-align: center">{*locale['dashboard.menu.menu_manage.table.name']*}</th>
+                  <th width="200" style="text-align: center">{*locale['dashboard.menu.menu_manage.table.url']*}</th>
+                  <th width="180" style="text-align: center">{*locale['dashboard.menu.menu_manage.table.options']*}</th>
+                </tr>
               </thead>
               <tbody class='x-cate'>
               {% if menus and type(menus) == 'table' then%}
                 {% for index, menu in ipairs(menus) do %}
                 <tr cate-id='{*menu.id*}' fid='0'>
-                  <td>{*menu.id*}</td>
-                  <td><i class="layui-icon">{*menu.icon*}</i></td>
+                  <td style="text-align: center" >{*menu.id*}</td>
+                  <td style="text-align: center" ><i class="layui-icon">{*menu.icon*}</i></td>
                   <td>
                     {% if type(menu.list) == 'table' then %}
                       <i class="layui-icon x-show" status='true' style="color:#009688">&#xe623;</i>
                     {% end %}{{locale[menu.name] or menu.name}}
                   </td>
-                  <td>{{ menu.url or '-' }}</td>
+                  <td style="text-align: center">{{ menu.url or '-' }}</td>
                   <td class="td-manage">
                     <button class="layui-btn layui-btn-xs"  onclick="xadmin.open('{*locale['dashboard.menu.menu_manage.table.options.add']*}', '{*menu_add_url*}?id={*menu.id*}', 500, 280)" ><i class="iconfont">&#xe6b9;</i>{*locale['dashboard.menu.menu_manage.table.options.add']*}</button>
                     <button class="layui-btn layui-btn-warm layui-btn-xs"  onclick="xadmin.open('{*locale['dashboard.menu.menu_manage.table.options.edit']*}','{*menu_edit_url*}?id={*menu.id*}', 500, 280)"><i class="layui-icon">&#xe642;</i>{*locale['dashboard.menu.menu_manage.table.options.edit']*}</button>
@@ -57,8 +58,8 @@
                 {% if type(menu.list) == 'table' then%}
                   {% for index, sub in ipairs(menu.list) do%}
                   <tr cate-id='{*sub.id*}' fid='{*menu.id*}'>
-                    <td>{*sub.id*}</td>
-                    <td><i class="layui-icon">{*sub.icon*}</i></td>
+                    <td style="text-align: center" >{*sub.id*}</td>
+                    <td style="text-align: center" ><i class="layui-icon">{*sub.icon*}</i></td>
                     <td>
                       |------->
                       {% if type(sub.list) == 'table' then %}
@@ -66,7 +67,7 @@
                       {% end %}
                       {{locale[sub.name] or sub.name}}
                     </td>
-                    <td>{{ sub.url or '-' }}</td>
+                    <td style="text-align: center" >{{ sub.url or '-' }}</td>
                     <td class="td-manage">
                       <button class="layui-btn layui-btn-xs"  onclick="xadmin.open('{*locale['dashboard.menu.menu_manage.table.options.add']*}', '{*menu_add_url*}?id={*sub.id*}', 500, 280)" ><i class="iconfont">&#xe6b9;</i>{*locale['dashboard.menu.menu_manage.table.options.add']*}</button>
                       <button class="layui-btn layui-btn-warm layui-btn-xs"  onclick="xadmin.open('{*locale['dashboard.menu.menu_manage.table.options.edit']*}','{*menu_edit_url*}?id={*sub.id*}', 500, 280)"><i class="layui-icon">&#xe642;</i>{*locale['dashboard.menu.menu_manage.table.options.edit']*}</button>
@@ -76,14 +77,14 @@
                     {% if type(sub.list) == 'table' then %}
                       {% for index, it in ipairs(sub.list) do %}
                       <tr cate-id='{*it.id*}' fid='{*sub.id*}'>
-                        <td>{*it.id*}</td>
-                        <td><i class="layui-icon">{*it.icon*}</i></td>
+                        <td style="text-align: center" >{*it.id*}</td>
+                        <td style="text-align: center" ><i class="layui-icon">{*it.icon*}</i></td>
                         <td>
                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                           |-------> {{locale[it.name] or it.name}}
                         </td>
-                        <td>{*it.url*}</td>
+                        <td style="text-align: center" >{*it.url*}</td>
                         <td class="td-manage">
                           <button class="layui-btn layui-btn-warm layui-btn-xs"  onclick="xadmin.open('{*locale['dashboard.menu.menu_manage.table.options.edit']*}','{*menu_edit_url*}?id={*it.id*}', 500, 280)"><i class="layui-icon">&#xe642;</i>{*locale['dashboard.menu.menu_manage.table.options.edit']*}</button>
                           <button class="layui-btn layui-btn-danger layui-btn-xs"  onclick="member_del(this, {action: 'delete', token: '{*token*}', id:{*it.id*}})" ><i class="layui-icon">&#xe640;</i>{*locale['dashboard.menu.menu_manage.table.options.delete']*}</button>
