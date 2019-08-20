@@ -20,12 +20,13 @@
     </head>
 
     <body>
-      <div class="layui-card" style="background: rgba(255, 255, 255, 0.2);">
-        <div class="layui-card-header">
-          <button class="layui-btn" name="button" onclick="window.location.reload()"><i class="iconfont">&#59050;</i> {*locale['dashboard.menu.menu_manage.table.options.reflush']*}</button>
-          <button class="layui-btn" name="button" onclick="xadmin.open('{*locale['dashboard.menu.menu_manage.table.options.add']*}', '{*menu_add_url*}', 500, 280)"><i class="iconfont">&#xe6b9;</i> {*locale['dashboard.menu.menu_manage.table.options.add']*}</button>
-        </div>
-        <div class="layui-card-body">
+      <div class="layui-fluid">
+        <div class="layui-card" style="background: rgba(255, 255, 255, 0.2);">
+          <div class="layui-card-header">
+            <button class="layui-btn" name="button" onclick="window.location.reload()"><i class="iconfont">&#59050;</i> {*locale['dashboard.menu.menu_manage.table.options.reflush']*}</button>
+            <button class="layui-btn" name="button" onclick="xadmin.open('{*locale['dashboard.menu.menu_manage.table.options.add']*}', '{*menu_add_url*}', 500, 280)"><i class="iconfont">&#xe6b9;</i> {*locale['dashboard.menu.menu_manage.table.options.add']*}</button>
+          </div>
+          <div class="layui-card-body">
             <table class="layui-table layui-form">
               <thead>
                 <tr>
@@ -43,7 +44,7 @@
                   <td><i class="layui-icon">{*menu.icon*}</i></td>
                   <td>
                     {% if type(menu.list) == 'table' then %}
-                      <i class="layui-icon x-show" status='true'>&#xe623;</i>
+                      <i class="layui-icon x-show" status='true' style="color:#009688">&#xe623;</i>
                     {% end %}{{locale[menu.name] or menu.name}}
                   </td>
                   <td>{{ menu.url or '-' }}</td>
@@ -61,7 +62,7 @@
                     <td>
                       |------->
                       {% if type(sub.list) == 'table' then %}
-                        <i class="layui-icon x-show" status='true'>&#xe623;</i>
+                        <i class="layui-icon x-show" status='true' style="color:#009688">&#xe623;</i>
                       {% end %}
                       {{locale[sub.name] or sub.name}}
                     </td>
@@ -94,70 +95,70 @@
                 {% end %}
                 {% end %}
               {% end %}
-              </tbody>
+            </tbody>
             </table>
           </div>
         </div>
       </div>
-        <script>
-          layui.use(['form'], function(){
-            form = layui.form;
-
-          });
-
-           /*用户-删除*/
-          function member_del(obj, field){
-              layer.confirm("", {title:"", content:"{*locale['dashboard.menu.menu_manage.table.options.confirm']*}"}, function(index){
-                  $.ajax({
-                    url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: field,
-                    error: function (res) {
-                      return layer.msg('请求失败', {time:2000});
-                    },
-                    success: function (res) {
-                      if (res.code != 0) {
-                        return layer.msg(res.msg, {time:2000});
-                      }
-                      return layer.msg(res.msg, {time:1000}, function () {
-                        return window.location.reload();
-                      });
-                    },
-                  })
-              });
-          }
-
-          // 分类展开收起的分类的逻辑
-          //
-          $(function(){
-            $("tbody.x-cate tr[fid!='0']").hide();
-            // 栏目多级显示效果
-            $('.x-show').click(function () {
-                if($(this).attr('status')=='true'){
-                    $(this).html('&#xe625;');
-                    $(this).attr('status','false');
-                    cateId = $(this).parents('tr').attr('cate-id');
-                    $("tbody tr[fid="+cateId+"]").show();
-               }else{
-                    cateIds = [];
-                    $(this).html('&#xe623;');
-                    $(this).attr('status','true');
-                    cateId = $(this).parents('tr').attr('cate-id');
-                    getCateId(cateId);
-                    for (var i in cateIds) {
-                        $("tbody tr[cate-id="+cateIds[i]+"]").hide().find('.x-show').html('&#xe623;').attr('status','true');
-                    }
-               }
-            })
-          })
-
-          var cateIds = [];
-          function getCateId(cateId) {
-              $("tbody tr[fid="+cateId+"]").each(function(index, el) {
-                  id = $(el).attr('cate-id');
-                  cateIds.push(id);
-                  getCateId(id);
-              });
-          }
-
-        </script>
     </body>
+    <script>
+      layui.use(['form'], function(){
+        form = layui.form;
+
+      });
+
+       /*用户-删除*/
+      function member_del(obj, field){
+          layer.confirm("", {title:"", content:"{*locale['dashboard.menu.menu_manage.table.options.confirm']*}"}, function(index){
+              $.ajax({
+                url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: field,
+                error: function (res) {
+                  return layer.msg('请求失败', {time:2000});
+                },
+                success: function (res) {
+                  if (res.code != 0) {
+                    return layer.msg(res.msg, {time:2000});
+                  }
+                  return layer.msg(res.msg, {time:1000}, function () {
+                    return window.location.reload();
+                  });
+                },
+              })
+          });
+      }
+
+      // 分类展开收起的分类的逻辑
+      //
+      $(function(){
+        $("tbody.x-cate tr[fid!='0']").hide();
+        // 栏目多级显示效果
+        $('.x-show').click(function () {
+            if($(this).attr('status')=='true'){
+                $(this).html('&#xe625;');
+                $(this).attr('status','false');
+                cateId = $(this).parents('tr').attr('cate-id');
+                $("tbody tr[fid="+cateId+"]").show();
+           }else{
+                cateIds = [];
+                $(this).html('&#xe623;');
+                $(this).attr('status','true');
+                cateId = $(this).parents('tr').attr('cate-id');
+                getCateId(cateId);
+                for (var i in cateIds) {
+                    $("tbody tr[cate-id="+cateIds[i]+"]").hide().find('.x-show').html('&#xe623;').attr('status','true');
+                }
+           }
+        })
+      })
+
+      var cateIds = [];
+      function getCateId(cateId) {
+          $("tbody tr[fid="+cateId+"]").each(function(index, el) {
+              id = $(el).attr('cate-id');
+              cateIds.push(id);
+              getCateId(id);
+          });
+      }
+
+    </script>
 </html>
