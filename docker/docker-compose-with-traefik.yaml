@@ -28,11 +28,13 @@ services:
       - local
 
   WebDB:
-    image: mysql:5.6
+    image: mysql:5.6 #支持8.X以上版本, 但是必须开启下面的COMMAND参数.
     restart: always
     environment:
       - MYSQL_ROOT_PASSWORD=123456789
       - MYSQL_DATABASE=cfadmin
+    # 8.x以上版本必须设置为mysql_native_password, 否则无法连接到MySQL
+    # command: --default-authentication-plugin=mysql_native_password
     volumes:
       - ./db/:/docker-entrypoint-initdb.d/
       # 如需设置时区, 建议请将localtime提取到home目录下再挂在使用
