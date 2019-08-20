@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../../../src/core.h"
+#include <stdbool.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
 #ifndef HAVE_COMPLEX
