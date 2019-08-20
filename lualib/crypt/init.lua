@@ -49,11 +49,12 @@ local crypt = {}
 function crypt.md5(str, hex)
   local hash = md5(str)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -61,11 +62,12 @@ end
 function crypt.hmac_md5 (key, text, hex)
   local hash = hmac_md5(key, text)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -73,11 +75,12 @@ end
 function crypt.sha1(str, hex)
   local hash = sha1(str)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -85,11 +88,12 @@ end
 function crypt.sha256 (str, hex)
   local hash = sha256(str)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -97,11 +101,12 @@ end
 function crypt.sha512 (str, hex)
   local hash = sha512(str)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -110,11 +115,12 @@ end
 function crypt.hmac_sha1 (key, text, hex)
   local hash = hmac_sha1(key, text)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -122,11 +128,12 @@ end
 function crypt.hmac_sha256 (key, text, hex)
   local hash = hmac_sha256(key, text)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -134,11 +141,12 @@ end
 function crypt.hmac_sha512 (key, text, hex)
   local hash = hmac_sha512(key, text)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -146,11 +154,12 @@ end
 function crypt.xor_str (str, sec, hex)
   local hash = xor_str(str, sec)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -158,11 +167,12 @@ end
 function crypt.randomkey(hex)
   local hash = randomkey()
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -170,11 +180,12 @@ end
 function crypt.hashkey (key, hex)
   local hash = hashkey(key)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -182,11 +193,12 @@ end
 function crypt.hmac_hash (key, text, hex)
   local hash = hmac_hash(key, text)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -194,11 +206,12 @@ end
 function crypt.hmac64 (key, text, hex)
   local hash = hmac64(key, text)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
@@ -206,11 +219,12 @@ end
 function crypt.hmac64_md5 (key, text, hex)
   local hash = hmac64_md5(key, text)
   if hash and hex then
-    local tab = new_tab(#hash, 0)
-    for i = 1, #hash do
-      tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
-    end
-    return concat(tab)
+    -- local tab = new_tab(#hash, 0)
+    -- for i = 1, #hash do
+    --   tab[#tab+1] = fmt('%02x', byte(match(hash, '.', i)))
+    -- end
+    -- return concat(tab)
+    return hexencode(hash)
   end
   return hash
 end
