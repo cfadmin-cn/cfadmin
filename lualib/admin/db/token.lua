@@ -14,8 +14,7 @@ function token.token_add (db, uid, name, token)
       ('%s', '%s', '%s', '%s')
     ON DUPLICATE KEY UPDATE `token` = '%s', `name` = '%s', `create_at` = '%s'
   ]],
-  uid, name, token, os_time(), -- VALUES
-  token, name, os_time())) -- ON DUPLICATE VALUES
+  uid, name, token, os_time(), token, name, os_time()))
 end
 
 -- 删除Token
