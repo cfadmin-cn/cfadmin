@@ -12,16 +12,16 @@ default :
 CFLAGS = -O3 -Wall -shared -fPIC
 CC = cc
 
-INCLUDE = -I/usr/local/include
-LIB = -L/usr/local/lib -L../ -L../../../
+INCLUDES = -I../../../ -I/usr/local/include
+LIBS = -L../ -L../../../ -L/usr/local/lib
 DLL = -lcore -llua
 
 build:
-	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
+	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	mv *.so ../../
 
 rebuild: $(OBJS)
-	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
+	$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	mv *.so ../../
 
 clean:

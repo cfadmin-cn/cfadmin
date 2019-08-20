@@ -63,9 +63,9 @@
   #define LFS_MAXPATHLEN MAXPATHLEN
 #endif
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
 
 #include "lfs.h"
 

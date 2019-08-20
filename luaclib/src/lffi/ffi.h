@@ -9,45 +9,12 @@
 
 #pragma once
 
-#ifdef _MSC_VER
-#define _CRT_SECURE_NO_WARNINGS
-#endif
-
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-
-#ifdef __cplusplus
-extern "C" {
-# include <lua.h>
-# include <lauxlib.h>
-# include <lualib.h>
-}
-# define EXTERN_C extern "C"
-#else
-# include <lua.h>
-# include <lauxlib.h>
-# include <lualib.h>
-# define EXTERN_C extern
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <errno.h>
-#include <unistd.h>
+#include "../../../src/core.h"
 #include <dlfcn.h>
 #include <sys/mman.h>
 #ifndef HAVE_COMPLEX
   #define HAVE_COMPLEX
   #include <complex.h>
-#endif
-#endif
-
-#ifndef NDEBUG
-#define DASM_CHECKS
 #endif
 
 struct jit;

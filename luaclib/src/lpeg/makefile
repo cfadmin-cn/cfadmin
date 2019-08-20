@@ -8,8 +8,8 @@ default :
 	@echo "======================================="
 
 CC = cc
-INCLUDES += -I../../../src
-LIBS += -L../ -L../../../ -L/usr/local/lib
+INCLUDES += -I../../../src -I/usr/local/include
+LIBS = -L../ -L../../../ -L/usr/local/lib
 CFLAGS = -O3 -shared -fPIC
 DLL = -lcore -llua
 

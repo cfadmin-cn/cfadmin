@@ -9,18 +9,18 @@ default :
 
 CC = cc
 
-INCLUDE = -I/usr/local/include -I../../../src
-LIB = -L/usr/local/lib -L../ -L../../../
+INCLUDES += -I../../../src -I/usr/local/include
+LIBS = -L../ -L../../../ -L/usr/local/lib
 
 CFLAGS = -O3 -Wall -shared -fPIC
 DLL = -lcore -llua
 
 build:
-	$(CC) -o lfs.so lfs.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
+	$(CC) -o lfs.so lfs.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	mv *.so ../../
 
 rebuild:
-	$(CC) -o lfs.so lfs.c $(INCLUDE) $(LIB) $(CFLAGS) $(DLL)
+	$(CC) -o lfs.so lfs.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	mv *.so ../../
 
 clean:

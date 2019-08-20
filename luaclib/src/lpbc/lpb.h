@@ -63,8 +63,6 @@ typedef signed   long long  int64_t;
 # endif /* __sun__ || __digital__ */
 #endif
 
-// #include <stddef.h>
-// #include <limits.h>
 #include "../../../src/core.h"
 
 PB_NS_BEGIN
