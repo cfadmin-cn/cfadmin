@@ -16,33 +16,34 @@
       <script src="https://cdn.staticfile.org/respond.js/1.4.2/respond.min.js"></script>
     <![endif]-->
   </head>
-  <body class="index">
-    <table class="layui-table" lay-data="{id:'table', headers:{token:'{*token*}'}, url:'{*api_url*}?token={*token*}&action=list', height:'full', toolbar: '#headertoolbar', page: true}" lay-filter="table">
-      <thead>
-        <tr>
-          <th lay-data="{align:'center', type:'numbers'}">#</th>
-          <th lay-data="{field:'name', align:'center', width: 100}">{* locale['dashboard.menu.role_manage.table.name'] *}</th>
-          <th lay-data="{field:'create_at', align:'center', }">{* locale['dashboard.menu.role_manage.table.create_time'] *}</th>
-          <th lay-data="{field:'update_at', align:'center', }">{* locale['dashboard.menu.role_manage.table.update_time'] *}</th>
-          <th lay-data="{fixed:'right', align:'center', toolbar: '#optionsToolBar'}">{* locale['dashboard.menu.role_manage.table.options'] *}</th>
-        </tr>
-      </thead>
-    </table>
-    <script type="text/html" id="optionsToolBar">
-      <div class="layui-btn-container">
-        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="edit">{* locale['dashboard.menu.role_manage.table.options.edit'] *}</a>
-        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">{* locale['dashboard.menu.role_manage.table.options.delete'] *}</a>
-      </div>
-    </script>
-    <script type="text/html" id="headertoolbar">
-      <div class="layui-btn-container">
-        <!-- 刷新按钮  -->
-        <button class="layui-btn layui-btn-xs" onclick='window.location.reload()'><i class="iconfont">&#59050;</i> {*locale['dashboard.menu.role_manage.table.reflush']*}</button>
-        <!-- 新增用户按钮  -->
-        <button class="layui-btn layui-btn-xs" onclick='xadmin.open("{* locale['dashboard.menu.user_manage.table.adduser'] *}", "{*role_add_url*}", 550, 430)'><i class="iconfont">&#59065;</i> {*locale['dashboard.menu.role_manage.table.options.add']*}</button>
-        <!-- <button class="layui-btn layui-btn-xs" onclick='newuser()'><i class="iconfont">&#59065;</i> {* locale['dashboard.menu.role_manage.table.adduser'] *}</button> -->
-      </div>
-    </script>
+  <body>
+    <div class="layui-fluid">
+      <table class="layui-table" lay-data="{id:'table', headers:{token:'{*token*}'}, url:'{*api_url*}?token={*token*}&action=list', height:'full', toolbar: '#headertoolbar', page: true}" lay-filter="table">
+        <thead>
+          <tr>
+            <th lay-data="{align:'center', type:'numbers'}">#</th>
+            <th lay-data="{field:'name', align:'center', width: 100}">{* locale['dashboard.menu.role_manage.table.name'] *}</th>
+            <th lay-data="{field:'create_at', align:'center', }">{* locale['dashboard.menu.role_manage.table.create_time'] *}</th>
+            <th lay-data="{field:'update_at', align:'center', }">{* locale['dashboard.menu.role_manage.table.update_time'] *}</th>
+            <th lay-data="{fixed:'right', align:'center', toolbar: '#optionsToolBar'}">{* locale['dashboard.menu.role_manage.table.options'] *}</th>
+          </tr>
+        </thead>
+      </table>
+      <script type="text/html" id="optionsToolBar">
+        <div class="layui-btn-container">
+          <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="edit">{* locale['dashboard.menu.role_manage.table.options.edit'] *}</a>
+          <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">{* locale['dashboard.menu.role_manage.table.options.delete'] *}</a>
+        </div>
+      </script>
+      <script type="text/html" id="headertoolbar">
+        <div class="layui-btn-container">
+          <!-- 刷新按钮  -->
+          <button class="layui-btn layui-btn-xs" onclick='window.location.reload()'><i class="iconfont">&#59050;</i> {*locale['dashboard.menu.role_manage.table.reflush']*}</button>
+          <!-- 新增用户按钮  -->
+          <button class="layui-btn layui-btn-xs" onclick='xadmin.open("{* locale['dashboard.menu.user_manage.table.adduser'] *}", "{*role_add_url*}", 550, 430)'><i class="iconfont">&#59065;</i> {*locale['dashboard.menu.role_manage.table.options.add']*}</button>
+        </div>
+      </script>
+    </div>
     <script type="text/javascript">
       var {form, table} = {};
       layui.use('table', function(){
