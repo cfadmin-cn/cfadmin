@@ -15,7 +15,7 @@ INSERT INTO
     (`id`, `name`, `username`, `password`, `email`, `phone`, `role`, `create_at`, `update_at`, `active`)
   VALUES
     ('1', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '1')]],
-'管理员', 'admin', crypt.hexencode(crypt.sha1('admin')), '869646063@qq.com', '13000000000', '1', os_time(), os_time())
+'管理员', 'admin', crypt.sha1('admin', true), '869646063@qq.com', '13000000000', '1', os_time(), os_time())
 
 local create_admin_role = fmt([[
 INSERT INTO

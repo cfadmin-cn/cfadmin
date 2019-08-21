@@ -1,5 +1,4 @@
-local tonumber = tonumber
-local tostring = tostring
+local toint = math.tointeger
 local concat = table.concat
 local os_time = os.time
 local os_date = os.date
@@ -9,8 +8,8 @@ local role = {}
 
 -- 角色列表
 function role.role_list (db, opt)
-  local limit = tonumber(opt.limit) or 10
-  local page = tonumber(opt.page) or 1
+  local limit = toint(opt.limit) or 10
+  local page = toint(opt.page) or 1
   local roles, err = db:query(fmt([[SELECT id, name, create_at, update_at FROM cfadmin_roles WHERE active = '1' ORDER BY id LIMIT %s, %s]], limit * (page - 1) , limit))
   if not roles then
     return
