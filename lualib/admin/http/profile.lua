@@ -123,8 +123,8 @@ function profile.response (content)
     if args.password == args.cupassword then
       return json_encode({code = 403, msg = "3. 新老密码不能一样" })
     end
-    args.password = crypt.hexencode(crypt.sha1(url_decode(args.password)))
-    args.cupassword = crypt.hexencode(crypt.sha1(url_decode(args.cupassword)))
+    args.password = crypt.sha1(url_decode(args.password), true)
+    args.cupassword = crypt.sha1(url_decode(args.cupassword), true)
     if user_info.password == args.password then
       return json_encode({code = 403, msg = "4. 当前密码不正确或新老密码一致" })
     end
@@ -141,6 +141,7 @@ function profile.response (content)
     end
     args.name = url_decode(args.name)
     args.email = url_decode(args.email)
+    args.phone = toint(args.phone)
     local ok = user.user_update_info(db, args)
     if not ok then
       return json_encode({code = 401, msg = '2. 用户信息更新失败'})

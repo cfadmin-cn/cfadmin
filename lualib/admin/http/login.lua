@@ -33,7 +33,7 @@ end
 -- 登录接口逻辑
 function login.response (content)
   local db = config.db
-  local args = content['args']
+  local args = content.args
   if type(args) ~= 'table' then
     return json_encode({code = 401, msg = "1. 非法的参数"})
   end
@@ -44,7 +44,7 @@ function login.response (content)
   end
   -- 获取登录信息
   local user_info = user.user_exists(db, username)
-  if not user_info or crypt.hexencode(crypt.sha1(password)) ~= user_info.password then
+  if not user_info or crypt.sha1(password, true) ~= user_info.password then
     return json_encode({code = 403, msg = "3. 用户不存在或者密码错误"})
   end
   local uid, name = user_info.id, user_info.name

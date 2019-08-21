@@ -162,7 +162,7 @@ function system.user_response (content)
     if exists then
       return json_encode({code = 400, data = null, msg = '4. 用户已存在'})
     end
-    args.password = crypt.hexencode(crypt.sha1(args.password))
+    args.password = crypt.sha1(args.password, true)
     local ok = user.user_add(db, args)
     if not ok then
       return json_encode({code = 401, msg = "5. 添加用户失败"})
@@ -210,7 +210,7 @@ function system.user_response (content)
       return json_encode({code = 400, data = null, msg = "4. 邮箱与手机号"})
     end
     args.email = url_decode(args.email)
-    args.password = crypt.hexencode(crypt.sha1(url_decode(args.password)))
+    args.password = crypt.sha1(args.password, true)
     local ok = user.user_update(db, args)
     if not ok then
       return json_encode({code = 401, msg = "5. 更新用户信息失败"})
