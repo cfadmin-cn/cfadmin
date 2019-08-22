@@ -1,11 +1,8 @@
 <!-- 顶部开始 -->
 <div class="container">
-    <div class="logo">
-        <a href="{*logo*}">{* locale['dashboard.header.logo'] *}</a>
-    </div>
-    <div class="left_open">
-        <a><i class="iconfont">&#xe699;</i></a> <!-- 左侧栏展开按钮 -->
-    </div>
+    <div class="logo"><a href="{*logo*}">{* locale['dashboard.header.logo'] *}</a></div>
+    <!-- 左侧栏展开按钮 -->
+    <div class="left_open"><a><i class="iconfont">&#xe699;</i></a></div>
     <ul class="layui-nav right fast-add">
         {% if type(headers) == 'table' then %}
           {% for index = 1, 8 do %}
