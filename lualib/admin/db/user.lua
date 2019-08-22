@@ -111,7 +111,7 @@ function user.user_info (db, uid)
   FROM
   	cfadmin_users, cfadmin_roles
   WHERE
-  	`cfadmin_users`.role = `cfadmin_roles`.id AND `cfadmin_users`.id = '%s'
+  	`cfadmin_users`.role = `cfadmin_roles`.id AND `cfadmin_users`.active = '1' AND `cfadmin_users`.id = '%s'
   LIMIT 1]], uid))
   return ret[1]
 end
@@ -130,6 +130,7 @@ function user.user_delete (db, uid)
   return db:query(fmt([[UPDATE cfadmin_users SET active = '0', update_at = '%s' WHERE id = '%s']], os_time(), uid))
 end
 
+-- 更新用户信息 1
 function user.user_update (db, opt)
   return db:query(fmt([[
   UPDATE cfadmin_users
@@ -142,7 +143,7 @@ function user.user_update_password (db, opt)
   return db:query(fmt([[UPDATE cfadmin_users SET password = '%s', update_at = '%s' WHERE id = '%s' AND active = '1']], opt.password, os_time(), opt.id))
 end
 
--- 更新用户信息
+-- 更新用户信息 2
 function user.user_update_info (db, opt)
   return db:query(fmt([[UPDATE cfadmin_users SET name = '%s', phone = '%s', email = '%s', update_at = '%s' WHERE id = '%s' AND active = '1']], opt.name, opt.phone, opt.email, os_time(), opt.id))
 end
