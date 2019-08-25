@@ -282,10 +282,8 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
 #endif
 
 #ifdef EV_USE_EPOLL
-    int tag = 0;
     for (;;) {
-      tag = sendfile(io->fd, sf->fd, &sf->pos, sf->offset);
-      sf->pos += tag;
+      int tag = sendfile(io->fd, sf->fd, &sf->pos, sf->offset);
       if (0 > tag) {
         if (errno == EINTR) continue;
         if (errno == EWOULDBLOCK) return;
@@ -296,6 +294,8 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
         lua_pushboolean(sf->L, 1);
         break;
       }
+      sf->pos += tag;
+    }
 #endif
 
 #ifdef EV_USE_SELECT
