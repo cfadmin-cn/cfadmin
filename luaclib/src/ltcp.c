@@ -258,28 +258,27 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
     errno = 0;
     struct io_sendfile *sf = core_get_watcher_userdata(io);
 
-// #ifdef EV_USE_KQUEUE
-//     int tag = 0; off_t nBytes = 0;
-//     for (;;) {
-// #if defined(__APPLE__)
-//       tag = sendfile(sf->fd, io->fd, sf->pos, &nBytes, NULL, 0);
-// #else
-//       tag = sendfile(sf->fd, io->fd, sf->pos, 0, NULL, &nBytes, SF_NODISKIO | SF_NOCACHE);
-// #endif
-//       sf->pos += nBytes;
-//       // printf("tag = %d, pos = %lu, nBytes = %ld, errno = %d, err = %s\n", tag, sf->pos, nBytes, errno, strerror(errno));
-//       if (0 > tag) {
-//         if (errno == EINTR) continue;
-//         if (errno == EWOULDBLOCK) return;
-//         lua_pushboolean(sf->L, 0);
-//         break;
-//       }
-//       if ( !nBytes ){
-//         lua_pushboolean(sf->L, 1);
-//         break;
-//       }
-//     }
-// #endif
+#ifdef EV_USE_KQUEUE
+    int tag = 0; off_t nBytes = 0;
+    for (;;) {
+#if defined(__APPLE__)
+      tag = sendfile(sf->fd, io->fd, sf->pos, &nBytes, NULL, 0);
+#else
+      tag = sendfile(sf->fd, io->fd, sf->pos, 0, NULL, &nBytes, SF_NODISKIO | SF_NOCACHE);
+#endif
+      sf->pos += nBytes;
+      if (0 > tag) {
+        if (errno == EINTR) continue;
+        if (errno == EWOULDBLOCK) return;
+        lua_pushboolean(sf->L, 0);
+        break;
+      }
+      if ( !nBytes ){
+        lua_pushboolean(sf->L, 1);
+        break;
+      }
+    }
+#endif
 
 #ifdef EV_USE_EPOLL
     #include <sys/sendfile.h>
@@ -297,7 +296,9 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
       }
       sf->pos += tag;
     }
-#else
+#endif
+
+#ifdef EV_USE_SELECT
     char buf[sf->offset];
     for (;;) {
       memset(buf, 0x0, sf->offset);
