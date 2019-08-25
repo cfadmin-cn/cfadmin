@@ -264,34 +264,38 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
 #if defined(__APPLE__)
       tag = sendfile(sf->fd, io->fd, sf->pos, &nBytes, NULL, 0);
 #else
-      tag = sendfile(sf->fd, io->fd, sf->pos, &nBytes, NULL, NULL, 0);
+      tag = sendfile(sf->fd, io->fd, sf->pos, 0, NULL, &nBytes, SF_NODISKIO | SF_NOCACHE);
 #endif
       sf->pos += nBytes;
+      // printf("tag = %d, pos = %lu, nBytes = %ld, errno = %d, err = %s\n", tag, sf->pos, nBytes, errno, strerror(errno));
       if (0 > tag) {
         if (errno == EINTR) continue;
         if (errno == EWOULDBLOCK) return;
         lua_pushboolean(sf->L, 0);
         break;
       }
-      lua_pushboolean(sf->L, 1);
-      break;
+      if ( !nBytes ){
+        lua_pushboolean(sf->L, 1);
+        break;
+      }
     }
 #endif
 
 #ifdef EV_USE_EPOLL
-    int tag = 0; off_t nBytes = 0;
+    int tag = 0;
     for (;;) {
-      wBytes = sendfile(io->fd, sf->fd, sf->pos, sf->offset);
+      tag = sendfile(io->fd, sf->fd, &sf->pos, sf->offset);
+      sf->pos += tag;
       if (0 > tag) {
         if (errno == EINTR) continue;
         if (errno == EWOULDBLOCK) return;
         lua_pushboolean(sf->L, 0);
         break;
       }
-      sf->pos += wBytes;
-      lua_pushboolean(sf->L, 1);
-      break;
-    }
+      if ( !tag ){
+        lua_pushboolean(sf->L, 1);
+        break;
+      }
 #endif
 
 #ifdef EV_USE_SELECT
@@ -306,7 +310,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
         lseek(sf->fd, lseek(sf->fd, 0, SEEK_CUR) - rBytes, SEEK_SET);
         if (errno == EINTR) continue ;
         if (errno == EWOULDBLOCK) return;
-        LOG("DEBUG", strerror(errno));
+        // LOG("DEBUG", strerror(errno));
         lua_pushboolean(sf->L, 0);
         break;
       }
