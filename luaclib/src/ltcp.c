@@ -258,32 +258,33 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
     errno = 0;
     struct io_sendfile *sf = core_get_watcher_userdata(io);
 
-#ifdef EV_USE_KQUEUE
-    int tag = 0; off_t nBytes = 0;
-    for (;;) {
-#if defined(__APPLE__)
-      tag = sendfile(sf->fd, io->fd, sf->pos, &nBytes, NULL, 0);
-#else
-      tag = sendfile(sf->fd, io->fd, sf->pos, 0, NULL, &nBytes, SF_NODISKIO | SF_NOCACHE);
-#endif
-      sf->pos += nBytes;
-      // printf("tag = %d, pos = %lu, nBytes = %ld, errno = %d, err = %s\n", tag, sf->pos, nBytes, errno, strerror(errno));
-      if (0 > tag) {
-        if (errno == EINTR) continue;
-        if (errno == EWOULDBLOCK) return;
-        lua_pushboolean(sf->L, 0);
-        break;
-      }
-      if ( !nBytes ){
-        lua_pushboolean(sf->L, 1);
-        break;
-      }
-    }
-#endif
+// #ifdef EV_USE_KQUEUE
+//     int tag = 0; off_t nBytes = 0;
+//     for (;;) {
+// #if defined(__APPLE__)
+//       tag = sendfile(sf->fd, io->fd, sf->pos, &nBytes, NULL, 0);
+// #else
+//       tag = sendfile(sf->fd, io->fd, sf->pos, 0, NULL, &nBytes, SF_NODISKIO | SF_NOCACHE);
+// #endif
+//       sf->pos += nBytes;
+//       // printf("tag = %d, pos = %lu, nBytes = %ld, errno = %d, err = %s\n", tag, sf->pos, nBytes, errno, strerror(errno));
+//       if (0 > tag) {
+//         if (errno == EINTR) continue;
+//         if (errno == EWOULDBLOCK) return;
+//         lua_pushboolean(sf->L, 0);
+//         break;
+//       }
+//       if ( !nBytes ){
+//         lua_pushboolean(sf->L, 1);
+//         break;
+//       }
+//     }
+// #endif
 
 #ifdef EV_USE_EPOLL
+    #include <sys/sendfile.h>
     for (;;) {
-      int tag = sendfile(io->fd, sf->fd, &sf->pos, sf->offset);
+      int tag = sendfile(io->fd, sf->fd, (off_t *)&sf->pos, sf->offset);
       if (0 > tag) {
         if (errno == EINTR) continue;
         if (errno == EWOULDBLOCK) return;
@@ -296,9 +297,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
       }
       sf->pos += tag;
     }
-#endif
-
-#ifdef EV_USE_SELECT
+#else
     char buf[sf->offset];
     for (;;) {
       memset(buf, 0x0, sf->offset);
@@ -330,7 +329,6 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
 
 static int
 tcp_sendfile(lua_State *L){
-  // LOG("DEBUG", "开始注册.");
   core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
   lua_State *t = lua_tothread(L, 2);
   const char* path = luaL_checkstring(L, 3);
@@ -348,7 +346,6 @@ tcp_sendfile(lua_State *L){
   core_set_watcher_userdata(io, sf);
   core_io_init(io, IO_SENDFILE, iofd, EV_WRITE);
   core_io_start(CORE_LOOP_ io);
-  // LOG("DEBUG", "注册完成.");
   return 1;
 }
 
