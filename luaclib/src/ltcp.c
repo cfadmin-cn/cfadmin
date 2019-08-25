@@ -245,6 +245,71 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 	}
 }
 
+struct io_sendfile {
+  uint32_t offset;
+  uint32_t fd;
+  lua_State *L;
+};
+
+static void
+IO_SENDFILE(CORE_P_ core_io *io, int revents){
+  if (revents & EV_WRITE){
+    errno = 0;
+    struct io_sendfile *sf = core_get_watcher_userdata(io);
+    char buf[sf->offset];
+    for (;;) {
+      memset(buf, 0x0, sf->offset);
+      int rBytes = read(sf->fd, buf, sf->offset);
+      // printf("rBytes = %d, offset = %d\n", rBytes, sf->offset);
+      if (0 == rBytes) { lua_pushboolean(sf->L, 1); break; } // 所有数据写入发送完毕.
+      int wBytes = write(io->fd, buf, rBytes);
+      if (wBytes <= 0) {
+        /* 如果写入失败后需要重试, 则需要先恢复到上次写入位置*/
+        lseek(sf->fd, lseek(sf->fd, 0, SEEK_CUR) - rBytes, SEEK_SET);
+        if (errno == EINTR) continue ;
+        if (errno == EWOULDBLOCK) return;
+        LOG("DEBUG", strerror(errno));
+        lua_pushboolean(sf->L, 0);
+        break;
+      }
+      // LOG("DEBUG", "写入成功.");
+      // 如果文件发送字符数量小于读取数量, 就需要重新设置读写位置。
+      if (rBytes > wBytes) lseek(sf->fd, lseek(sf->fd, 0, SEEK_CUR) - (rBytes - wBytes), SEEK_SET);
+    }
+    // LOG("DEBUG", "写入完毕.");
+    core_set_watcher_userdata(io, NULL);
+    int status = CO_RESUME(sf->L, NULL, lua_status(sf->L) == LUA_YIELD ? lua_gettop(sf->L) : lua_gettop(sf->L) - 1);
+    if (status != LUA_YIELD && status != LUA_OK) {
+      LOG("ERROR", lua_tostring(sf->L, -1));
+      LOG("ERROR", "Error Lua SENDFILE Method");
+    }
+    close(sf->fd); xfree(sf);
+    }
+}
+
+static int
+tcp_sendfile(lua_State *L){
+  // LOG("DEBUG", "开始注册.");
+  core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
+  lua_State *t = lua_tothread(L, 2);
+  const char* path = luaL_checkstring(L, 3);
+  lua_Integer iofd = luaL_checkinteger(L, 4);
+  lua_Integer offset = luaL_checkinteger(L, 5);
+
+  int fd = open(path, O_RDONLY);
+  if (0 > fd) return luaL_error(L, strerror(errno));
+
+  struct io_sendfile *sf = xmalloc(sizeof(struct io_sendfile));
+  sf->fd = fd;
+  sf->offset = offset;
+  sf->L = t;
+  core_set_watcher_userdata(io, sf);
+  core_io_init(io, IO_SENDFILE, iofd, EV_WRITE);
+  core_io_start(CORE_LOOP_ io);
+  // LOG("DEBUG", "注册完成.");
+  return 1;
+}
+
 static int
 tcp_read(lua_State *L){
 
@@ -567,40 +632,41 @@ tcp_close(lua_State *L){
 
 LUAMOD_API int
 luaopen_tcp(lua_State *L){
-	luaL_checkversion(L);
-	/* 添加SSL支持 */
+  luaL_checkversion(L);
+  /* 添加SSL支持 */
   SSL_library_init();
   SSL_load_error_strings();
   // ERR_load_crypto_strings();
   // CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
   // OpenSSL_add_ssl_algorithms();
-	/* 添加SSL支持 */
-	luaL_newmetatable(L, "__TCP__");
-	lua_pushstring (L, "__index");
-	lua_pushvalue(L, -2);
-	lua_rawset(L, -3);
+  /* 添加SSL支持 */
+  luaL_newmetatable(L, "__TCP__");
+  lua_pushstring (L, "__index");
+  lua_pushvalue(L, -2);
+  lua_rawset(L, -3);
   lua_pushliteral(L, "__mode");
   lua_pushliteral(L, "kv");
   lua_rawset(L, -3);
-	luaL_Reg tcp_libs[] = {
-		{"read", tcp_read},
-		{"write", tcp_write},
-		{"ssl_read", tcp_sslread},
-		{"ssl_write", tcp_sslwrite},
-		{"stop", tcp_stop},
-		{"start", tcp_start},
-		{"close", tcp_close},
-		{"listen", tcp_listen},
-		{"connect", tcp_connect},
-		{"ssl_connect", tcp_sslconnect},
-		{"new", tcp_new},
-		{"new_ssl", ssl_new},
-		{"free_ssl", ssl_free},
-		{"new_server_fd", new_server_fd},
-		{"new_client_fd", new_client_fd},
-		{NULL, NULL}
-	};
-	luaL_setfuncs(L, tcp_libs, 0);
-	luaL_newlib(L, tcp_libs);
-	return 1;
+  luaL_Reg tcp_libs[] = {
+    {"read", tcp_read},
+    {"write", tcp_write},
+    {"ssl_read", tcp_sslread},
+    {"ssl_write", tcp_sslwrite},
+    {"stop", tcp_stop},
+    {"start", tcp_start},
+    {"close", tcp_close},
+    {"listen", tcp_listen},
+    {"connect", tcp_connect},
+    {"ssl_connect", tcp_sslconnect},
+    {"new", tcp_new},
+    {"new_ssl", ssl_new},
+    {"free_ssl", ssl_free},
+    {"new_server_fd", new_server_fd},
+    {"new_client_fd", new_client_fd},
+    {"sendfile", tcp_sendfile},
+    {NULL, NULL}
+  };
+  luaL_setfuncs(L, tcp_libs, 0);
+  luaL_newlib(L, tcp_libs);
+  return 1;
 }

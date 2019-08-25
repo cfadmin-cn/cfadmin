@@ -33,6 +33,7 @@ local tcp_sslread = tcp.ssl_read
 local tcp_write = tcp.write
 local tcp_ssl_write = tcp.ssl_write
 local tcp_listen = tcp.listen
+local tcp_sendfile = tcp.sendfile
 
 local tcp_new_client_fd = tcp.new_client_fd
 local tcp_new_server_fd = tcp.new_server_fd
@@ -43,10 +44,10 @@ local EVENT_WRITE = 0x02
 
 local POOL = {}
 local function tcp_pop()
-    if #POOL > 0 then
-        return remove(POOL)
-    end
-    return tcp_new()
+  if #POOL > 0 then
+      return remove(POOL)
+  end
+  return tcp_new()
 end
 
 local function tcp_push(tcp)
@@ -81,6 +82,24 @@ function TCP:set_backlog(backlog)
         self._backlog = backlog
     end
     return self
+end
+
+function TCP:sendfile (filename, offset)
+  if type(filename) == 'string' and filename ~= '' then
+    local co = co_self()
+    self.SEND_IO = tcp_pop()
+    self.sendfile_current_co = co_self()
+    self.sendfile_co = co_new(function (ok)
+      tcp_stop(self.SEND_IO)
+      tcp_push(self.SEND_IO)
+      self.SEND_IO = nil
+      self.sendfile_co = nil
+      self.sendfile_current_co = nil
+      return co_wakeup(co, ok)
+    end)
+    tcp_sendfile(self.SEND_IO, self.sendfile_co, filename, self.fd, offset or 4096)
+    return co_wait()
+  end
 end
 
 function TCP:send(buf)
@@ -378,6 +397,7 @@ function TCP:close()
         tcp_push(self.SEND_IO)
         self.SEND_IO = nil
         self.send_co = nil
+        self.sendfile_co = nil
     end
 
     if self.CONNECT_IO then
@@ -400,6 +420,11 @@ function TCP:close()
     if self.read_current_co then
         co_wakeup(self.read_current_co)
         self.read_current_co = nil
+    end
+
+    if self.sendfile_current_co then
+      co_wakeup(self.sendfile_current_co)
+      self.sendfile_current_co = nil
     end
 
     if self._timeout then

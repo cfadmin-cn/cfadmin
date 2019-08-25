@@ -377,12 +377,16 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
 	return wsserver:new({cls = cls, sock = sock}):start()
 end
 
-local response = {nil, CRLF2, nil}
-local function send_response (sock, headers, body)
-	response[1], response[3] = concat(headers, CRLF), body
-	local ok = sock:send(concat(response))
-	response[1], response[3] = nil, nil
-	return ok
+local function send_header (sock, header)
+	header[#header+1] = CRLF
+	return sock:send(concat(header, CRLF))
+end
+
+local function send_body (sock, body, filepath)
+	if not body then
+		return sock:sendfile(filepath, 128)
+	end
+	return sock:send(body)
 end
 
 function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
@@ -515,7 +519,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 
 			local header = { }
-			local ok, body, static, statucode
+			local ok, body, body_len, filepath, static, statucode
 
 			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
 				-- 如果httpd开启了记录Cookie字段, 则每次尝试是否deCookie
@@ -562,14 +566,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				if pos then
 					path = split(PATH, 1, pos - 1)
 				end
-				ok, body, file_type = pcall(cls, path)
-				if not ok then
+				body_len, filepath, file_type = cls(path)
+				if not body_len then
 					Log:ERROR(body)
-					statucode = 500
-					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
-					return sock:close()
-				end
-				if not body then
 					statucode = 404
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
@@ -595,27 +594,20 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				Connection = 'Connection: close'
 			end
 			header[#header+1] = Connection
-			if body then
-				if type(body) == 'string' then
+			if Connection == 'Connection: keep-alive' then
+				header[#header+1] = "Keep-Alive: timeout="..timeout
+			end
+			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
+				if typ == HTTP_PROTOCOL.API then
+					header[#header+1] = 'Content-Type: '..REQUEST_MIME_RESPONSE('json')
+				else
+					header[#header+1] = concat({'Content-Type: ', REQUEST_MIME_RESPONSE('html'), ';charset=utf-8'})
+				end
+				if type(body) == 'string' and #body >= 0 then
 					header[#header+1] = 'Content-Length: '.. #body
 				else
-					Log:WARN('response body not a string type.'..'('..tostring(body)..')')
-					header[#header+1] = 'Content-Length: 0'
-					body = ''
-				end
-			else
-				header[#header+1] = 'Content-Length: 0'
-				body = ''
-			end
-			if typ == HTTP_PROTOCOL.API then
-				if #body > 0 then
-					header[#header+1] = 'Content-Type: '..REQUEST_MIME_RESPONSE('json')
-				end
-				header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
-				header[#header+1] = 'Cache-Control: no-cache'
-			elseif typ == HTTP_PROTOCOL.USE then
-				if #body > 0 then
-					header[#header+1] = concat({'Content-Type: ', REQUEST_MIME_RESPONSE('html'), ';charset=utf-8'})
+					Log:WARN("response body can't be a string type.")
+					return sock:close()
 				end
 				header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
 				header[#header+1] = 'Cache-Control: no-cache'
@@ -623,13 +615,14 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				if ttl then
 					header[#header+1] = HTTP_EXPIRES(time() + ttl)
 				end
+				if body_len then
+					header[#header+1] = 'Content-Length: '.. body_len
+				end
 				header[#header+1] = static
 			end
-			if Connection == 'Connection: keep-alive' then
-				header[#header+1] = "Keep-Alive: timeout="..timeout
-			end
+			-- 根据实际情况分块发送
+			local ok = send_header(sock, header) and send_body(sock, body, filepath) or false
 			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
-			local ok = send_response(sock, header, body)
 			if not ok then
 				return sock:close()
 			end

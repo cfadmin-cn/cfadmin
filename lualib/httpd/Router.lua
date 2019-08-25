@@ -105,8 +105,8 @@ local function find_route (method, path)
 	if not prefix and not type then
 		return
 	end
-	-- 非GET方法不查找静态文件
-	if method ~= 'GET' then
+	-- 非GET/HEAD方法不查找静态文件
+	if method ~= 'GET' and method ~= 'HEAD' then
 		return
 	end
 	-- 凡是找到'../'并且检查路径回退已经超出静态文件根目录返回404
@@ -114,13 +114,14 @@ local function find_route (method, path)
 		return
 	end
 	load_file = load_file or function (path)
-		local f, error = io_open(prefix..path, 'rb')
+		local filepath = prefix..path
+		local f, error = io_open(filepath, 'rb')
 		if not f then
 			return
 		end
-		local file = f:read('*a')
+		local body_len = f:seek("end")
 		f:close()
-		return file, match(path, '.+%.([%a]+)')
+		return body_len, filepath, match(path, '.+%.([%a]+)')
 	end
 	return load_file, type
 end
