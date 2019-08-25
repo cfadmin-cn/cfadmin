@@ -248,6 +248,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
 struct io_sendfile {
   uint32_t offset;
   uint32_t fd;
+  uint64_t pos;
   lua_State *L;
 };
 
@@ -256,11 +257,48 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
   if (revents & EV_WRITE){
     errno = 0;
     struct io_sendfile *sf = core_get_watcher_userdata(io);
+
+#ifdef EV_USE_KQUEUE
+    int tag = 0; off_t nBytes = 0;
+    for (;;) {
+#if defined(__APPLE__)
+      tag = sendfile(sf->fd, io->fd, sf->pos, &nBytes, NULL, 0);
+#else
+      tag = sendfile(sf->fd, io->fd, sf->pos, &nBytes, NULL, NULL, 0);
+#endif
+      sf->pos += nBytes;
+      if (0 > tag) {
+        if (errno == EINTR) continue;
+        if (errno == EWOULDBLOCK) return;
+        lua_pushboolean(sf->L, 0);
+        break;
+      }
+      lua_pushboolean(sf->L, 1);
+      break;
+    }
+#endif
+
+#ifdef EV_USE_EPOLL
+    int tag = 0; off_t nBytes = 0;
+    for (;;) {
+      wBytes = sendfile(io->fd, sf->fd, sf->pos, sf->offset);
+      if (0 > tag) {
+        if (errno == EINTR) continue;
+        if (errno == EWOULDBLOCK) return;
+        lua_pushboolean(sf->L, 0);
+        break;
+      }
+      sf->pos += wBytes;
+      lua_pushboolean(sf->L, 1);
+      break;
+    }
+#endif
+
+#ifdef EV_USE_SELECT
     char buf[sf->offset];
     for (;;) {
       memset(buf, 0x0, sf->offset);
       int rBytes = read(sf->fd, buf, sf->offset);
-      // printf("rBytes = %d, offset = %d\n", rBytes, sf->offset);
       if (0 == rBytes) { lua_pushboolean(sf->L, 1); break; } // 所有数据写入发送完毕.
       int wBytes = write(io->fd, buf, rBytes);
       if (wBytes <= 0) {
@@ -272,11 +310,10 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
         lua_pushboolean(sf->L, 0);
         break;
       }
-      // LOG("DEBUG", "写入成功.");
       // 如果文件发送字符数量小于读取数量, 就需要重新设置读写位置。
       if (rBytes > wBytes) lseek(sf->fd, lseek(sf->fd, 0, SEEK_CUR) - (rBytes - wBytes), SEEK_SET);
     }
-    // LOG("DEBUG", "写入完毕.");
+#endif
     core_set_watcher_userdata(io, NULL);
     int status = CO_RESUME(sf->L, NULL, lua_status(sf->L) == LUA_YIELD ? lua_gettop(sf->L) : lua_gettop(sf->L) - 1);
     if (status != LUA_YIELD && status != LUA_OK) {
@@ -284,7 +321,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
       LOG("ERROR", "Error Lua SENDFILE Method");
     }
     close(sf->fd); xfree(sf);
-    }
+  }
 }
 
 static int
@@ -300,6 +337,7 @@ tcp_sendfile(lua_State *L){
   if (0 > fd) return luaL_error(L, strerror(errno));
 
   struct io_sendfile *sf = xmalloc(sizeof(struct io_sendfile));
+  sf->pos = 0;
   sf->fd = fd;
   sf->offset = offset;
   sf->L = t;
