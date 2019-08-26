@@ -273,32 +273,26 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
         lua_pushboolean(sf->L, 0);
         break;
       }
-      if ( !nBytes ){
-        lua_pushboolean(sf->L, 1);
+      // 当nBytes与tag同时为0时说明发送成功, 其它情况下都当做发送失败.
+      if (0 == nBytes){ lua_pushboolean(sf->L, 1); break; }
+    }
+#endif
+
+#ifdef EV_USE_EPOLL
+    #include <sys/sendfile.h>
+    for (;;) {
+      int tag = sendfile(io->fd, sf->fd, NULL, sf->offset);
+      if (0 => tag) {
+        if (!tag){ lua_pushboolean(sf->L, 1); break; }
+        if (errno == EINTR) continue;
+        if (errno == EWOULDBLOCK) return;
+        lua_pushboolean(sf->L, 0);
         break;
       }
     }
-// #endif
+#endif
 
-// #ifdef EV_USE_EPOLL
-//     #include <sys/sendfile.h>
-//     for (;;) {
-//       int tag = sendfile(io->fd, sf->fd, (off_t *)&sf->pos, sf->offset);
-//       if (0 > tag) {
-//         if (errno == EINTR) continue;
-//         if (errno == EWOULDBLOCK) return;
-//         lua_pushboolean(sf->L, 0);
-//         break;
-//       }
-//       if ( !tag ){
-//         lua_pushboolean(sf->L, 1);
-//         break;
-//       }
-//       sf->pos += tag;
-//     }
-// #endif
-#else
-// #ifdef EV_USE_SELECT
+#ifdef EV_USE_SELECT
     char buf[sf->offset];
     for (;;) {
       memset(buf, 0x0, sf->offset);
