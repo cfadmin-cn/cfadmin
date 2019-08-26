@@ -384,7 +384,7 @@ end
 
 local function send_body (sock, body, filepath)
 	if not body then
-		return sock:sendfile(filepath, 128)
+		return sock:sendfile(filepath, 65535)
 	end
 	return sock:send(body)
 end

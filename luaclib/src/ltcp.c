@@ -278,27 +278,27 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
         break;
       }
     }
-#endif
+// #endif
 
-#ifdef EV_USE_EPOLL
-    #include <sys/sendfile.h>
-    for (;;) {
-      int tag = sendfile(io->fd, sf->fd, (off_t *)&sf->pos, sf->offset);
-      if (0 > tag) {
-        if (errno == EINTR) continue;
-        if (errno == EWOULDBLOCK) return;
-        lua_pushboolean(sf->L, 0);
-        break;
-      }
-      if ( !tag ){
-        lua_pushboolean(sf->L, 1);
-        break;
-      }
-      sf->pos += tag;
-    }
-#endif
-
-#ifdef EV_USE_SELECT
+// #ifdef EV_USE_EPOLL
+//     #include <sys/sendfile.h>
+//     for (;;) {
+//       int tag = sendfile(io->fd, sf->fd, (off_t *)&sf->pos, sf->offset);
+//       if (0 > tag) {
+//         if (errno == EINTR) continue;
+//         if (errno == EWOULDBLOCK) return;
+//         lua_pushboolean(sf->L, 0);
+//         break;
+//       }
+//       if ( !tag ){
+//         lua_pushboolean(sf->L, 1);
+//         break;
+//       }
+//       sf->pos += tag;
+//     }
+// #endif
+#else
+// #ifdef EV_USE_SELECT
     char buf[sf->offset];
     for (;;) {
       memset(buf, 0x0, sf->offset);
@@ -310,7 +310,6 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
         lseek(sf->fd, lseek(sf->fd, 0, SEEK_CUR) - rBytes, SEEK_SET);
         if (errno == EINTR) continue ;
         if (errno == EWOULDBLOCK) return;
-        // LOG("DEBUG", strerror(errno));
         lua_pushboolean(sf->L, 0);
         break;
       }
@@ -344,6 +343,7 @@ tcp_sendfile(lua_State *L){
   sf->fd = fd;
   sf->offset = offset;
   sf->L = t;
+
   core_set_watcher_userdata(io, sf);
   core_io_init(io, IO_SENDFILE, iofd, EV_WRITE);
   core_io_start(CORE_LOOP_ io);
