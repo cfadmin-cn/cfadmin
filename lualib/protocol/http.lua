@@ -568,7 +568,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				end
 				body_len, filepath, file_type = cls(path)
 				if not body_len then
-					Log:ERROR(body)
 					statucode = 404
 					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
