@@ -282,7 +282,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
     #include <sys/sendfile.h>
     for (;;) {
       int tag = sendfile(io->fd, sf->fd, NULL, sf->offset);
-      if (0 => tag) {
+      if (0 >= tag) {
         if (!tag){ lua_pushboolean(sf->L, 1); break; }
         if (errno == EINTR) continue;
         if (errno == EWOULDBLOCK) return;
