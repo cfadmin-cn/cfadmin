@@ -546,9 +546,8 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					clCookie()
 				end
 				if not ok then
-					Log:ERROR(body)
-					statucode = 500
-					sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+					Log:ERROR(body or "empty response.")
+					sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
 				end
 				statucode = 200
@@ -602,12 +601,12 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				else
 					header[#header+1] = concat({'Content-Type: ', REQUEST_MIME_RESPONSE('html'), ';charset=utf-8'})
 				end
-				if type(body) == 'string' and #body >= 0 then
-					header[#header+1] = 'Content-Length: '.. #body
-				else
-					Log:WARN("response body can't be a string type.")
+				if type(body) ~= 'string' or body == '' then
+					Log:ERROR("Response Error ["..(split(PATH , 1, (find(PATH, '?') or 0 ) - 1)).."]: response must be a string and not empty.")
+					sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
 					return sock:close()
 				end
+				header[#header+1] = 'Content-Length: '.. #body
 				header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
 				header[#header+1] = 'Cache-Control: no-cache'
 			else
@@ -619,9 +618,10 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 				end
 				header[#header+1] = static
 			end
+			-- 不计算数据传输时间, 仅计算实际回调处理所用时间.
+			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
 			-- 根据实际情况分块发送
 			local ok = send_header(sock, header) and send_body(sock, body, filepath) or false
-			http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
 			if not ok then
 				return sock:close()
 			end
