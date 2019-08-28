@@ -117,7 +117,7 @@ local function json(domain, headers, json, timeout)
 	opt.headers = headers
 	opt.server = SERVER
 
-	local REQ = build_post_req(opt)
+	local REQ = build_json_req(opt)
 
 	local sock = sock_new():timeout(timeout or __TIMEOUT__)
 	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
