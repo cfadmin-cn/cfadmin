@@ -115,7 +115,8 @@ local function find_route (method, path)
 	end
 	load_file = load_file or function (path)
 		local filepath = prefix..path
-		local f, error = io_open(filepath, 'rb')
+		-- 使用r+测试是否可读可写; 如果filepath是目录则无法被打开, 但单独的r模式可以.
+		local f, error = io_open(filepath, 'r+')
 		if not f then
 			return
 		end
