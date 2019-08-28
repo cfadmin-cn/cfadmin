@@ -1,5 +1,8 @@
 local tcp = require "internal.TCP"
 
+local url = require "url"
+local url_encode = url.encode
+
 local HTTP = require "protocol.http"
 local FILEMIME = HTTP.FILEMIME
 local PARSER_HTTP_RESPONSE = HTTP.PARSER_HTTP_RESPONSE
@@ -218,8 +221,8 @@ local function build_get_req (opt)
   if type(opt.args) == "table" then
     local args = {}
     for _, arg in ipairs(opt.args) do
-      assert(#arg == 2, "args need key[1]->value[2] (2 values)")
-      insert(args, arg[1]..'='..arg[2])
+      assert(#arg == 2, "args need key[1]->value[2] (2 values and must be string)")
+      insert(args, url_encode(arg[1])..'='..url_encode(arg[2]))
     end
     request[1] = fmt("GET %s HTTP/1.1", opt.path..'?'..concat(args, "&"))
   end
@@ -252,12 +255,11 @@ local function build_post_req (opt)
 		end
 	end
 	insert(request, CRLF)
-
 	if type(opt.body) == "table" then
 		local body = {}
 		for _, b in ipairs(opt.body) do
 			assert(#b == 2, "if BODY is TABLE, BODY need key[1]->value[2] (2 values)")
-			insert(body, fmt("%s=%s", b[1], b[2]))
+			insert(body, url_encode(b[1])..'='..url_encode(b[2]))
 		end
 		insert(request, concat(body, "&"))
 		insert(request, #request - 2, fmt("Content-length: %s\r\n", #request[#request]))
