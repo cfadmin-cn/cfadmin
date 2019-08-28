@@ -137,11 +137,11 @@ function system.user_response (content)
     if not args.value or not args.condition then
       return json_encode({code = 400, data = null, msg = '1. 无效的参数'})
     end
-    local users = user.find_by_username(db, args)
-    if not users then
+    local users, count = user.find_user(db, args)
+    if not users or not count then
       return json_encode({code = 400, data = null, msg = '2. 无效的参数'})
     end
-    return json_encode({code = 0, data = users })
+    return json_encode({code = 0, data = users, count = count})
   end
   -- 添加用户
   if action == 'add' then

@@ -28,7 +28,7 @@ function user.user_list (db, opt)
 end
 
 -- 模糊查找用户列表
-function user.find_by_username (db, opt)
+function user.find_user (db, opt)
   local limit = toint(opt.limit) or 10
   local page = toint(opt.page) or 1
   local condition
@@ -37,22 +37,27 @@ function user.find_by_username (db, opt)
   else
     condition = fmt("`cfadmin_users`.`%s` LIKE '%%%s%%'", opt.condition, opt.value)
   end
-  return db:query(fmt([[
-  SELECT
-    `cfadmin_users`.id,
-    `cfadmin_users`.name,
-    `cfadmin_users`.username,
-    `cfadmin_roles`.name AS role_name,
-    `cfadmin_users`.email,
-    `cfadmin_users`.phone,
-    `cfadmin_users`.create_at,
-    `cfadmin_users`.update_at,
-    `cfadmin_users`.active
-  FROM cfadmin_users, cfadmin_roles
-  WHERE
-    `cfadmin_roles`.id = `cfadmin_users`.role AND `cfadmin_users`.active = 1 AND %s
-   ORDER BY `cfadmin_users`.id LIMIT %s, %s
-  ]], condition, limit * (page - 1), limit))
+  local counts = db:query(fmt([[SELECT COUNT(id) as count FROM cfadmin_users WHERE active = 1 AND %s ]], condition))
+  if not counts or not counts[1] then
+    return
+  end
+  local data_sql = fmt([[
+    SELECT
+      `cfadmin_users`.id,
+      `cfadmin_users`.name,
+      `cfadmin_users`.username,
+      `cfadmin_roles`.name AS role_name,
+      `cfadmin_users`.email,
+      `cfadmin_users`.phone,
+      `cfadmin_users`.create_at,
+      `cfadmin_users`.update_at,
+      `cfadmin_users`.active
+    FROM cfadmin_users, cfadmin_roles
+    WHERE
+      `cfadmin_roles`.id = `cfadmin_users`.role AND `cfadmin_users`.active = 1 AND %s
+    ORDER BY `cfadmin_users`.id LIMIT %s, %s
+  ]], condition, limit * (page - 1), limit)
+  return db:query(data_sql), counts[1]['count']
 end
 
 -- 用户总数
