@@ -3,9 +3,13 @@ local urlencode = url.encode
 local urldecode = url.decode
 
 local type = type
+
 local string = string
-local table = table
+local sub = string.sub
+local find = string.find
 local splite = string.gmatch
+
+local table = table
 local insert = table.insert
 -- require "utils"
 
@@ -13,6 +17,17 @@ local form = {
 	FILE = 0,
 	ARGS = 1,
 }
+
+function form.get_args (path)
+	if type(path) ~= 'string' or path == '' then
+		return
+	end
+	local s, e = find(path, '?'), #path
+	if not s or e - s < 3 then
+			return
+	end
+	return form.urlencode(sub(path, s + 1, e))
+end
 
 -- 将body解析为x-www-form-urlencoded
 function form.urlencode(body)
