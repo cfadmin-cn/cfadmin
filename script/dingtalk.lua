@@ -1,5 +1,7 @@
 local wb = require "webhook.dingtalk"
 
+-- dingtalk API文档: https://ding-doc.dingtalk.com/doc#/serverapi2/qf2nxq
+
 local token = "just_your_token_not_url_and_token" -- such as "de2b0b8a3c4b8d454f47584354a794a12657aa9ff7ccf36b521368d566949e7f"
 
 print(wb.send_text({
