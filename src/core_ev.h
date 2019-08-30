@@ -39,7 +39,11 @@
 #endif
 
 #if defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-    #define EV_USE_KQUEUE 1
+  #define EV_USE_KQUEUE 1
+#endif
+
+#if !defined(EV_USE_KQUEUE) && !defined(EV_USE_EPOLL)
+  #define EV_USE_SELECT 1
 #endif
 
 #include "ev.h"
