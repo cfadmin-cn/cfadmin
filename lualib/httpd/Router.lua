@@ -1,6 +1,9 @@
 local log = require "logging"
 local Log = log:new({dump = true, path = 'httpd-Router'})
 
+local url = require "url"
+local url_decode = url.decode
+
 local new_tab = require("sys").new_tab
 
 local math = math
@@ -114,7 +117,7 @@ local function find_route (method, path)
 		return
 	end
 	load_file = load_file or function (path)
-		local filepath = prefix..path
+		local filepath = prefix..url_decode(path)
 		-- 使用r+测试是否可读可写; 如果filepath是目录则无法被打开, 但单独的r模式可以.
 		local f, error = io_open(filepath, 'r+')
 		if not f then

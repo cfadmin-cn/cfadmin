@@ -578,7 +578,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 					header[#header+1] = 'Content-Disposition: attachment' -- 确保浏览器提示需要下载
 					static = fmt('Content-Type: %s', 'application/octet-stream')
 				else
-					static = fmt('Content-Type: %s', conten_type)
+					static = fmt('Content-Type: %s', conten_type..'; charset=utf-8')
 				end
 				-- 如果是静态文件, 增加默认跨域访问支持
 				header[#header+1] = "Access-Control-Allow-Origin: *"
