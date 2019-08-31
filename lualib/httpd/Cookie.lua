@@ -2,7 +2,7 @@ local Co = require "internal.Co"
 local co_self = Co.self
 
 local crypt = require "crypt"
-local xore_str = crypt.xor_str
+local xor_str = crypt.xor_str
 local hexencode = crypt.hexencode
 local hexdecode = crypt.hexdecode
 
@@ -19,12 +19,12 @@ local secure = 'http://github.com/candymi/core_framework'
 
 -- 加密Cookie Value
 local function encode_value (value)
-  return hexencode(xore_str(value, secure)):upper()
+  return hexencode(xor_str(value, secure)):upper()
 end
 
 -- 解密Cookie Value
 local function decode_value (value)
-  return xore_str(hexdecode(value:lower()), secure)
+  return xor_str(hexdecode(value:lower()), secure)
 end
 
 -- 当前协程注册的cookie

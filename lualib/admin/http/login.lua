@@ -11,9 +11,10 @@ local json = require "json"
 local json_decode = json.decode
 local json_encode = json.encode
 
+local type = type
 local get_locale = utils.get_locale
 
-template_path = 'lualib/admin/html/login/base.html'
+local template_path = 'lualib/admin/html/login/base.html'
 
 local login = {}
 
