@@ -23,10 +23,10 @@
           <tr>
             <th lay-data="{align:'center', type:'numbers'}">#</th>
             <th lay-data="{field:'name', align:'center'}">{* locale['dashboard.menu.user_manage.table.name'] *}</th>
-            <th lay-data="{field:'username',align:'center'}">{* locale['dashboard.menu.user_manage.table.username'] *}</th>
-            <th lay-data="{field:'role_name',align:'center'}">{* locale['dashboard.menu.user_manage.table.permission_name'] *}</th>
-            <th lay-data="{field:'email', align:'center'}">{* locale['dashboard.menu.user_manage.table.email'] *}</th>
-            <th lay-data="{field:'phone', align:'center'}">{* locale['dashboard.menu.user_manage.table.phone'] *}</th>
+            <th lay-data="{field:'username', align:'center'}">{* locale['dashboard.menu.user_manage.table.username'] *}</th>
+            <th lay-data="{field:'role_name', align:'center'}">{* locale['dashboard.menu.user_manage.table.permission_name'] *}</th>
+            <th lay-data="{field:'email', align:'center', templet: '#tp_email'}">{* locale['dashboard.menu.user_manage.table.email'] *}</th>
+            <th lay-data="{field:'phone', align:'center', templet: '#tp_phone'}">{* locale['dashboard.menu.user_manage.table.phone'] *}</th>
             <th lay-data="{field:'create_at', align:'center'}">{* locale['dashboard.menu.user_manage.table.create_time'] *}</th>
             <th lay-data="{field:'update_at', align:'center'}">{* locale['dashboard.menu.user_manage.table.update_time'] *}</th>
             <th lay-data="{fixed:'right', align:'center', toolbar: '#optionsToolBar'}">{* locale['dashboard.menu.user_manage.table.options'] *}</th>
@@ -62,6 +62,11 @@
         <button class="layui-btn layui-btn-xs" onclick="searchButton()"><i class="layui-icon layui-icon-search"></i>{* locale['dashboard.menu.user_manage.table.search'] *}</button>
       </script>
     </div>
+    {-raw-}
+    <!-- 模板用于修饰并调用本地mail与tel程序 -->
+    <script type="text/html" id="tp_email"> <a href="mailto:{{d.email}}" class="layui-table-link">{{d.email}}</a> </script>
+    <script type="text/html" id="tp_phone"> <a href="tel:{{d.phone}}" class="layui-table-link">{{d.phone}}</a> </script>
+    {-raw-}
     <script type="text/javascript">
       var {form, table} = {};
       var SearchName = "";
