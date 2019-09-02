@@ -19,10 +19,17 @@ local template_path = 'lualib/admin/html/dashboard/base.html'
 local function verify_permission (content, db)
   local args = content.args
   if type(args) == 'table' then
-    local lang, token = args.lang, args.token
+    local lang, token, logout = args.lang, args.token, args.logout
     if lang then  -- 切换语言
       Cookie.setCookie('CFLANG', config.locales[lang] and lang or config.locale)
       return false, config.dashboard
+    end
+    if logout then -- 注销登录
+      local tk = Cookie.getCookie('CFTOKEN')
+      if tk then   -- 注销的时候有token必须清除
+        user_token.token_delete(db, nil, tk)
+      end
+      return false, config.login_render
     end
     if token then -- 登录授权
       local exists = user_token.token_exists(db, token)
@@ -121,7 +128,7 @@ function dashboard.render(content)
     headers = get_headers(db),
     username = user.name,
     is_admin = user.is_admin,
-    logout = config.login_render,
+    logout = config.dashboard .."?logout=true",
     user = config.system_user_render,
     menu = config.system_menu_render,
     header = config.system_header_render,

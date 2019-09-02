@@ -18,8 +18,8 @@ function token.token_add (db, uid, name, token)
 end
 
 -- 删除Token
-function token.token_delete (db, id)
-  return db:query(fmt([[DELETE FROM cfadmin_tokens WHERE uid = '%s' LIMIT 1]], id))
+function token.token_delete (db, id, tk)
+  return db:query(fmt([[DELETE FROM cfadmin_tokens WHERE uid = '%s' or token = '%s' LIMIT 1]], id, tk))
 end
 
 -- Token 是否存在
