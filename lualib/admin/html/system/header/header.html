@@ -23,7 +23,7 @@
           <tr>
             <th lay-data="{align:'center', type:'numbers'}">#</th>
             <th lay-data="{field:'name', align:'center'}">{* locale['dashboard.menu.header_manage.table.name'] *}</th>
-            <th lay-data="{field:'url',align:'center'}">{* locale['dashboard.menu.header_manage.table.url'] *}</th>
+            <th lay-data="{field:'url',align:'center', templet:'#tp_url'}">{* locale['dashboard.menu.header_manage.table.url'] *}</th>
             <th lay-data="{field:'create_at', align:'center'}">{* locale['dashboard.menu.header_manage.table.create_time'] *}</th>
             <th lay-data="{field:'update_at', align:'center'}">{* locale['dashboard.menu.header_manage.table.update_time'] *}</th>
             <th lay-data="{fixed:'right', align:'center', toolbar: '#optionsToolBar'}">{* locale['dashboard.menu.header_manage.table.options'] *}</th>
@@ -44,6 +44,10 @@
           <button class="layui-btn layui-btn-xs" onclick='xadmin.open("{* locale['dashboard.menu.header_manage.table.addnavi'] *}", "{*header_add_url*}", 500, 230)'><i class="iconfont">&#59065;</i> {* locale['dashboard.menu.header_manage.table.addnavi'] *}</button>
         </div>
       </script>
+      {-raw-}
+      <!-- 模板用于修饰并调用新窗口打开链接 -->
+      <script type="text/html" id="tp_url"><a href="{{d.url}}" target="view_window" class="layui-table-link">{{d.url}}</a></script>
+      {-raw-}
     </div>
     <script type="text/javascript">
       layui.use('table', function(){

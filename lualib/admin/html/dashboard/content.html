@@ -1,23 +1,19 @@
 <div class="page-content">
-    <div class="layui-tab tab" lay-filter="xbs_tab" lay-allowclose="false">
-        <ul class="layui-tab-title">
-            <li class="home">
-              <i class="layui-icon">&#xe665;</i>{{ locale['dashboard.crumbs.home'] }}
-            </li>
-        </ul>
-        <div class="layui-unselect layui-form-select layui-form-selected" id="tab_right">
-            <dl>
-                <dd data-type="this">{{ locale['dashboard.crumbs.close_this'] }}</dd>
-                <dd data-type="other">{{ locale['dashboard.crumbs.close_other'] }}</dd>
-                <dd data-type="all">{{ locale['dashboard.crumbs.close_all'] }}</dd>
-            </dl>
-        </div>
-        <div class="layui-tab-content">
-            <div class="layui-tab-item layui-show">
-                <iframe src="{*home*}" frameborder="0" scrolling="yes" class="x-iframe"></iframe>
-            </div>
-        </div>
-        <div id="tab_show"></div>
+    <div class="layui-tab layui-tab-card tab" lay-filter="xbs_tab" lay-allowclose="false">
+      <ul class="layui-tab-title">
+        <li class="home"><i class="layui-icon">&#xe665;</i>{{ locale['dashboard.crumbs.home'] }}</li>
+      </ul>
+      <div class="layui-unselect layui-form-select layui-form-selected" id="tab_right">
+        <dl>
+          <dd data-type="this">{{ locale['dashboard.crumbs.close_this'] }}</dd>
+          <dd data-type="other">{{ locale['dashboard.crumbs.close_other'] }}</dd>
+          <dd data-type="all">{{ locale['dashboard.crumbs.close_all'] }}</dd>
+        </dl>
+      </div>
+      <div class="layui-tab-content">
+        <div class="layui-tab-item layui-show"><iframe src="{*home*}" frameborder="0" scrolling="yes" class="x-iframe"></iframe></div>
+      </div>
+      <div id="tab_show"></div>
     </div>
 </div>
 <div class="page-content-bg"></div>

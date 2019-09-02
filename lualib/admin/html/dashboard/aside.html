@@ -11,7 +11,7 @@
           {% if is_admin then %}
             <li>
               <a href="javascript:;">
-                <i class="layui-icon">&#xe716;</i><cite>
+                <i class="layui-icon">&#xe716;</i>
                 <cite>{* locale['dashboard.menu.system'] *}</cite>
                 <i class="iconfont nav_right">&#xe697;</i>
               </a>
@@ -48,7 +48,7 @@
               </a>
             {% elseif type(menu[2]) == 'table' then %}
               <a href="javascript:;">
-                <i class="layui-icon left-nav-li">{*menu[3]*}</i><cite>
+                <i class="layui-icon left-nav-li">{*menu[3]*}</i>
                 <cite>{{locale[menu[1]] or menu[1]}}</cite>
                 <i class="iconfont nav_right">&#xe697;</i>
               </a>
