@@ -37,13 +37,6 @@
     color: #fff;
     font-size: 16px;
 }
-.login #darkbannerwrap {
-    background: url(../images/aiwrap.png);
-    width: 18px;
-    height: 10px;
-    margin: 0 0 20px -58px;
-    position: relative;
-}
 
 .login input[type=text],
 .login input[type=file],

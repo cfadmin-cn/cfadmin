@@ -1,11 +1,15 @@
-<div class="login layui-anim layui-anim-scale">
-    <div class="message">{* locale['login.form.title'] *}</div>
-    <div id="darkbannerwrap"></div>
-    <form method="post" class="layui-form" >
-      <input name="username" placeholder="{* locale['login.form.username'] *}"  type="text" lay-verify="required" class="layui-input" />
-      <hr class="hr20">
-      <input name="password" placeholder="{* locale['login.form.password'] *}"  type="password" lay-verify="required" class="layui-input" />
-      <hr class="hr20">
-      <input id="sub" type="submit" value="{* locale['login.form.submit'] *}" lay-submit lay-filter="login" style="width:100%;" />
+<div class="login layui-anim layui-anim-scale layui-card">
+  <div class="layui-card-title" style="text-align: center">
+    <img src="{*cdn*}images/logo.png" width="30%" height="30%"/>
+    <fieldset class="layui-elem-field layui-field-title"><legend>{* locale['login.form.title'] *}</legend></fieldset>
+  </div>
+  <div class="layui-card-body">
+    <form method="post" class="layui-form">
+      <input name="username" placeholder="{* locale['login.form.username'] *}" autocomplete="off" type="text" lay-verify="required" class="layui-input"/>
+      <hr class="hr20"/>
+      <input name="password" placeholder="{* locale['login.form.password'] *}" autocomplete="off" type="password" lay-verify="required" class="layui-input"/>
+      <hr class="hr20"/>
+      <input id="sub" type="submit" value="{* locale['login.form.submit'] *}" autocomplete="off" lay-submit lay-filter="login"/>
     </form>
+  </div>
 </div>
