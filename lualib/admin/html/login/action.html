@@ -3,31 +3,28 @@
     var form = layui.form;
     //监听提交
     form.on('submit(login)', function(data){
-      $('#sub').hide();
-      $.ajax({
-        url: "{*login_api*}",
-        type: "POST",
-        data: data.field,
-        success: function (res) {
-          if (res.code != 0) {
-            return layer.msg(res.msg, { time: 2000 }, function () {
-              $('#sub').show();
-            });
-          }
-          return layer.msg(res.msg, { time: 1000 }, function () {
-              window.location.href = res.url + '?token=' + res.token
-          });
-        },
-        error: function (res) {
-          return layer.msg("请求失败", { time: 2000}, function () {
-            $('#sub').show();
-          });
-        }
-      })
+      // 判断登录按钮是否隐藏, 隐藏之后不允许重复提交登录.
+      if (!$('#sub').is(":hidden")) {
+        $('#sub').hide();
+        $.ajax({
+          url: "{*login_api*}",
+          type: "POST",
+          data: data.field,
+          success: function (res) {
+            if (res.code != 0)
+              // 登录失败
+              return layer.msg(res.msg, {time: 2000},  function(){ return $('#sub').show(); });
+            // 登录成功
+            return layer.msg(res.msg, {time: 1000}, function(){ return window.location.href = res.url + '?token=' + res.token; });
+          },
+          error: function(res) { // 网络请求失败
+            return layer.msg("请求失败", {time: 2000}, () => $('#sub').show());
+          },
+        })
+      }
       return false;
     });
   });
-  // console.log(window.self === window.top);
   if (self && top && self != top) {
     parent.window.location.reload();
   }
