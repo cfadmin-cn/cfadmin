@@ -207,15 +207,19 @@ function system.user_response (content)
     if not args.username or not args.password then
       return json_encode({code = 400, data = null, msg = "3. 未知的账户与密码"})
     end
+    if #args.username < 6 or #args.username > 20 or #args.password < 6 or #args.password > 20 then
+      return json_encode({code = 401, msg = "4. 账户/密码应该为6-20个字符."})
+    end
+    args.phone = toint(args.phone)
+    args.password = crypt.sha1(args.password, true)
     args.username = utils.escape_script(url.decode(args.username))
     if not args.phone or not args.email then
-      return json_encode({code = 400, data = null, msg = "4. 邮箱与手机号"})
+      return json_encode({code = 400, data = null, msg = "5. 无效的邮箱与手机号"})
     end
     args.email = utils.escape_script(url.decode(args.email))
-    args.password = crypt.sha1(args.password, true)
     local ok = user.user_update(db, args)
     if not ok then
-      return json_encode({code = 401, msg = "5. 更新用户信息失败"})
+      return json_encode({code = 401, msg = "6. 更新用户信息失败"})
     end
     user_token.token_delete(db, args.id) -- 清除Token
     return json_encode({code = 0, msg = "SUCCESS"})
