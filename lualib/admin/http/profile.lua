@@ -139,8 +139,8 @@ function profile.response (content)
     if not args.name or not args.email or not args.phone then
       return json_encode({code = 500, msg = "1. 错误的info参数" })
     end
-    args.name = utils.escape(url_decode(args.name))
-    args.email = utils.escape(url_decode(args.email))
+    args.name = utils.escape_script(url_decode(args.name))
+    args.email = utils.escape_script(url_decode(args.email))
     args.phone = toint(args.phone)
     local ok = user.user_update_info(db, args)
     if not ok then
