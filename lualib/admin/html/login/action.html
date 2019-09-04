@@ -27,4 +27,8 @@
       return false;
     });
   });
+  // console.log(window.self === window.top);
+  if (self && top && self != top) {
+    parent.window.location.reload();
+  }
 </script>
