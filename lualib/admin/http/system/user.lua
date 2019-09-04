@@ -156,8 +156,9 @@ function system.user_response (content)
     if #args.username < 6 or #args.username > 20 or #args.password < 6 or #args.password > 20 then
       return json_encode({code = 400, data = null, msg = '3. 用户名与密码需要在6~20字符之间'})
     end
-    args.name = url.decode(args.name)
-    args.email = url.decode(args.email)
+    args.name = utils.escape(url.decode(args.name))
+    args.email = utils.escape(url.decode(args.email))
+    args.username = utils.escape(url.decode(args.username))
     local exists = user.user_name_or_username_exists(db, args.name, args.username)
     if exists then
       return json_encode({code = 400, data = null, msg = '4. 用户已存在'})
@@ -196,20 +197,21 @@ function system.user_response (content)
     return json_encode({code = 0, msg = "SUCCESS", count = user.user_count(db), data = users})
   end
   if action == 'edit' then
-    if not args.name then
-      return json_encode({code = 400, data = null, msg = "1. 未知的用户名"})
-    end
-    args.name = url_decode(args.name)
     if not args.id or not args.role then
-      return json_encode({code = 400, data = null, msg = "2. 未知的用户与权限"})
+      return json_encode({code = 400, data = null, msg = "1. 未知的用户与权限"})
     end
+    if not args.name then
+      return json_encode({code = 400, data = null, msg = "2. 未知的用户名"})
+    end
+    args.name = utils.escape(url.decode(args.name))
     if not args.username or not args.password then
       return json_encode({code = 400, data = null, msg = "3. 未知的账户与密码"})
     end
+    args.username = utils.escape(url.decode(args.username))
     if not args.phone or not args.email then
       return json_encode({code = 400, data = null, msg = "4. 邮箱与手机号"})
     end
-    args.email = url_decode(args.email)
+    args.email = utils.escape(url.decode(args.email))
     args.password = crypt.sha1(args.password, true)
     local ok = user.user_update(db, args)
     if not ok then
