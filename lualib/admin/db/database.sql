@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS `cfadmin_headers` (
   `name` varchar(255) NOT NULL COMMENT '头部名称',
   `url` varchar(255) NOT NULL COMMENT '头部URL',
   `create_at` int(11) unsigned NOT NULL COMMENT '创建时间',
-  `update_at` int(10) unsigned NOT NULL COMMENT '修改时间',
+  `update_at` int(11) unsigned NOT NULL COMMENT '修改时间',
   `active` tinyint(4) unsigned NOT NULL COMMENT '删除标志',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
