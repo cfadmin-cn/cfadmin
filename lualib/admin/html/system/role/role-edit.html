@@ -72,55 +72,57 @@
             })
 
             form.on("submit(add)", function (data) {
-              $('#submit').hide();
-              var permissions = [];
-              var nodes = dtree.getCheckbarNodesParam("dataTree");
-              for (let index in nodes) {
-                permissions[index] = {menu_id: nodes[index].nodeId}
-              }
-              // 没菜单不允许添加
-              if (permissions.length <= 0) {
-                layer.msg('permissions was empty', {timeout: 2000}, function () {
-                  $('#submit').show();
-                });
-                return false;
-              }
-              // 判断菜单权限是否改变
-              var isChange = dtree.changeCheckbarNodes("dataTree");
-              if (!isChange) {
-                permissions = [];
-              }
+              if (!$('#submit').is(":hidden")) {
+                $('#submit').hide();
+                var permissions = [];
+                var nodes = dtree.getCheckbarNodesParam("dataTree");
+                for (let index in nodes) {
+                  permissions[index] = {menu_id: nodes[index].nodeId}
+                }
+                // 没菜单不允许添加
+                if (permissions.length <= 0) {
+                  layer.msg('permissions was empty', {timeout: 2000}, function () {
+                    $('#submit').show();
+                  });
+                  return false;
+                }
+                // 判断菜单权限是否改变
+                var isChange = dtree.changeCheckbarNodes("dataTree");
+                if (!isChange) {
+                  permissions = [];
+                }
 
-              $.ajax({
-                url: "{*api_url*}",
-                type: "POST",
-                dataType:"json",
-                headers:{token:'{*token*}'},
-                contentType: "application/json",
-                data: JSON.stringify({
-                  id: "{*id*}",
-                  name : data.field.name,
-                  token : data.field.token,
-                  action : data.field.action,
-                  permissions: permissions,
-                }),
-                success: function (res) {
-                  if (res.code != 0) {
+                $.ajax({
+                  url: "{*api_url*}",
+                  type: "POST",
+                  dataType:"json",
+                  headers:{token:'{*token*}'},
+                  contentType: "application/json",
+                  data: JSON.stringify({
+                    id: "{*id*}",
+                    name : data.field.name,
+                    token : data.field.token,
+                    action : data.field.action,
+                    permissions: permissions,
+                  }),
+                  success: function (res) {
+                    if (res.code != 0) {
+                      return layer.msg(res.msg, {time: 2000}, function () {
+                        $('#submit').show();
+                      });
+                    }
+                    return layer.msg(res.msg, {time: 1000}, function () {
+                      xadmin.close();
+                      xadmin.father_reload();
+                    });
+                  },
+                  error: function (res) {
                     return layer.msg(res.msg, {time: 2000}, function () {
                       $('#submit').show();
                     });
                   }
-                  return layer.msg(res.msg, {time: 1000}, function () {
-                    xadmin.close();
-                    xadmin.father_reload();
-                  });
-                },
-                error: function (res) {
-                  return layer.msg(res.msg, {time: 2000}, function () {
-                    $('#submit').show();
-                  });
-                }
-              })
+                })
+              }
               return false;
             });
         });

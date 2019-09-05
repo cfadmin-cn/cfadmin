@@ -108,6 +108,7 @@
                 var {form, layer} = layui;
                 //监听提交
                 form.on('submit(add)', function(data) {
+                  if (!$('#submit').is(":hidden")) {
                   $('#submit').hide();
                    $.ajax({
                      url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: data.field,
@@ -128,9 +129,9 @@
                        });
                      },
                    })
-                    return false;
+                  }
+                  return false;
                 });
-
             });
           </script>
     </body>

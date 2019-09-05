@@ -72,48 +72,50 @@
             })
 
             form.on("submit(add)", function (data) {
-              $('#submit').hide();
-              var permissions = [];
-              var nodes = dtree.getCheckbarNodesParam("dataTree");
-              for (let index in nodes) {
-                permissions[index] = {menu_id: nodes[index].nodeId}
-              }
-              // 没菜单不允许修改
-              if (permissions.length <= 0) {
-                layer.msg('创建失败: 请先创建菜单后再进行角色关联.', {timeout: 2000}, function () {
-                  $('#submit').show();
-                });
-                return false;
-              }
-              $.ajax({
-                url: "{*api_url*}",
-                type: "POST",
-                dataType:"json",
-                headers:{token:'{*token*}'},
-                contentType: "application/json",
-                data: JSON.stringify({
-                  name : data.field.name,
-                  token : data.field.token,
-                  action : data.field.action,
-                  permissions: permissions,
-                }),
-                success: function (res) {
-                  if (res.code != 0) {
-                    return layer.msg(res.msg, {time: 2000}, function () {
+              if (!$('#submit').is(":hidden")) {
+                $('#submit').hide();
+                var permissions = [];
+                var nodes = dtree.getCheckbarNodesParam("dataTree");
+                for (let index in nodes) {
+                  permissions[index] = {menu_id: nodes[index].nodeId}
+                }
+                // 没菜单不允许修改
+                if (permissions.length <= 0) {
+                  layer.msg('创建失败: 请先创建菜单后再进行角色关联.', {timeout: 2000}, function () {
+                    $('#submit').show();
+                  });
+                  return false;
+                }
+                $.ajax({
+                  url: "{*api_url*}",
+                  type: "POST",
+                  dataType:"json",
+                  headers:{token:'{*token*}'},
+                  contentType: "application/json",
+                  data: JSON.stringify({
+                    name : data.field.name,
+                    token : data.field.token,
+                    action : data.field.action,
+                    permissions: permissions,
+                  }),
+                  success: function (res) {
+                    if (res.code != 0) {
+                      return layer.msg(res.msg, {time: 2000}, function () {
+                        $('#submit').show();
+                      });
+                    }
+                    return layer.msg(res.msg, {time: 1000}, function () {
+                      xadmin.close();
+                      xadmin.father_reload();
+                    });
+                  },
+                  error: function (res) {
+                    layer.msg(res.msg, {time: 2000}, function () {
                       $('#submit').show();
                     });
                   }
-                  return layer.msg(res.msg, {time: 1000}, function () {
-                    xadmin.close();
-                    xadmin.father_reload();
-                  });
-                },
-                error: function (res) {
-                  layer.msg(res.msg, {time: 2000}, function () {
-                    $('#submit').show();
-                  });
-                }
-              })
+                })
+              }
               return false;
             });
         });

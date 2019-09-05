@@ -61,31 +61,32 @@
             </div>
         </div>
         <script>
-
           layui.use(['form', 'layer'], function() {
               $ = layui.jquery;
               var {form, layer} = layui;
               form.on('submit(add)',function(data) {
-                $('#submit').hide();
-                $.ajax({
-                  url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: data.field,
-                  error: function (res) {
-                    return layer.msg('请求失败', {time:2000}, function () {
-                      $('#submit').show();
-                    });
-                  },
-                  success: function (res) {
-                    if (res.code != 0) {
-                      return layer.msg(res.msg, {time:2000}, function () {
+                if (!$('#submit').is(":hidden")) {
+                  $('#submit').hide();
+                  $.ajax({
+                    url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: data.field,
+                    error: function (res) {
+                      return layer.msg('请求失败', {time:2000}, function () {
                         $('#submit').show();
                       });
-                    }
-                    return layer.msg(res.msg, {time:1000}, function () {
-                      xadmin.close();
-                      xadmin.father_reload();
-                    });
-                  },
-                });
+                    },
+                    success: function (res) {
+                      if (res.code != 0) {
+                        return layer.msg(res.msg, {time:2000}, function () {
+                          $('#submit').show();
+                        });
+                      }
+                      return layer.msg(res.msg, {time:1000}, function () {
+                        xadmin.close();
+                        xadmin.father_reload();
+                      });
+                    },
+                  });
+                }
                 return false;
               });
             });
