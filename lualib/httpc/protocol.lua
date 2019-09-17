@@ -212,11 +212,11 @@ end
 local function build_get_req (opt)
   local request = {
     fmt("GET %s HTTP/1.1", opt.path),
-    fmt("Host: %s", opt.domain..':'..opt.port),
+    fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
     'Accept: */*',
-    'Accept-encoding: identity',
+    'Accept-Encoding: identity',
     fmt("Connection: keep-alive"),
-    fmt("User-agent: %s", opt.server),
+    fmt("User-Agent: %s", opt.server),
   }
   if type(opt.args) == "table" then
     local args = {}
@@ -240,11 +240,11 @@ end
 local function build_post_req (opt)
   local request = {
 		fmt("POST %s HTTP/1.1\r\n", opt.path),
-		fmt("Host: %s\r\n", opt.domain..':'..opt.port),
+		fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
 		'Accept: */*\r\n',
-		'Accept-encoding: identity\r\n',
+		'Accept-Encoding: identity\r\n',
 		'Connection: keep-alive\r\n',
-		fmt("User-agent: %s\r\n", opt.server),
+		fmt("User-Agent: %s\r\n", opt.server),
 		'Content-Type: application/x-www-form-urlencoded\r\n',
 	}
 	if type(opt.headers) == "table" then
@@ -274,11 +274,11 @@ end
 local function build_json_req (opt)
   local request = {
 		fmt("POST %s HTTP/1.1", opt.path),
-		fmt("Host: %s", opt.domain..':'..opt.port),
+		fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
 		'Accept: */*',
-		'Accept-encoding: identity',
+		'Accept-Encoding: identity',
 		"Connection: keep-alive",
-		fmt("User-agent: %s", opt.server),
+		fmt("User-Agent: %s", opt.server),
 		fmt("Content-length: %s", #opt.json),
 		'Content-Type: application/json',
 	}
@@ -296,7 +296,7 @@ end
 local function build_file_req (opt)
   local request = {
     fmt("POST %s HTTP/1.1\r\n", opt.path),
-    fmt("Host: %s\r\n", opt.domain..':'..opt.port),
+    fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
     'Accept: */*\r\n',
     'Accept-Encoding: identity\r\n',
     fmt("Connection: keep-alive\r\n"),
