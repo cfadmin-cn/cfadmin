@@ -39,8 +39,8 @@ cf.timeout(3, function ( ... )
 
     -- http 上传文件示例
     local code, body = httpc.file(domain..'/api', nil, {
-        {name='1', filename='1.jpg', file='1', type='abc'},
-        {name='2', filename='2.jpg', file='2', type='abc'},
+        {name='1', filename='1.jpg', file='1', type='jpg'},
+        {name='2', filename='2.jpg', file='2', type='jpg'},
         })
     print(code, body)
 
@@ -110,8 +110,8 @@ cf.timeout(5, function ()
         method = "file",
         headers = {{"Auth", "admin"}},
         files = {
-          {name='1', filename='1.jpg', file='1', type='abc'},
-          {name='2', filename='2.jpg', file='2', type='abc'},
+          {name='1', filename='1.jpg', file='1', type='jpg'},
+          {name='2', filename='2.jpg', file='2', type='jpg'},
         }
       }
     }
