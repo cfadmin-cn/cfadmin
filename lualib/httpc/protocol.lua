@@ -240,7 +240,7 @@ end
 local function build_post_req (opt)
   local request = {
 		fmt("POST %s HTTP/1.1\r\n", opt.path),
-		fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
+		fmt("Host: %s\r\n", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
 		'Accept: */*\r\n',
 		'Accept-Encoding: identity\r\n',
 		'Connection: keep-alive\r\n',
@@ -290,7 +290,7 @@ local function build_delete_req (opt)
       insert(request, fmt("Content-Length: %s", #opt.body))
     end
 	end
-  return concat(request, CRLF) .. CRLF2 .. ( opt.body or '')
+  return concat(request, CRLF) .. CRLF2 .. ( opt.body or '' )
 end
 
 local function build_json_req (opt)
@@ -318,7 +318,7 @@ end
 local function build_file_req (opt)
   local request = {
     fmt("POST %s HTTP/1.1\r\n", opt.path),
-    fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
+    fmt("Host: %s\r\n", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
     'Accept: */*\r\n',
     'Accept-Encoding: identity\r\n',
     fmt("Connection: keep-alive\r\n"),
@@ -359,6 +359,26 @@ local function build_file_req (opt)
   return concat(request)
 end
 
+local function build_put_req (opt)
+  local request = {
+    fmt("PUT %s HTTP/1.1", opt.path),
+    fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
+    'Accept: */*',
+    'Accept-Encoding: identity',
+    fmt("Connection: keep-alive"),
+    fmt("Content-Length: %s", #opt.body),
+    fmt("User-Agent: %s", opt.server),
+  }
+  if type(opt.headers) == "table" then
+    for _, header in ipairs(opt.headers) do
+      assert(lower(header[1]) ~= 'Content-Length', "please don't give Content-Length")
+      assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
+      insert(request, header[1]..': '..header[2])
+    end
+  end
+  return concat(request, CRLF) .. CRLF2 .. ( opt.body or '' )
+end
+
 return {
   sock_new = sock_new,
   sock_recv = sock_recv,
@@ -370,5 +390,6 @@ return {
   build_post_req = build_post_req,
   build_json_req = build_json_req,
   build_file_req = build_file_req,
+  build_put_req = build_put_req,
   build_delete_req = build_delete_req,
 }

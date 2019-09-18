@@ -19,6 +19,7 @@ local build_get_req = protocol.build_get_req
 local build_post_req = protocol.build_post_req
 local build_json_req = protocol.build_json_req
 local build_file_req = protocol.build_file_req
+local build_put_req = protocol.build_put_req
 local build_delete_req = protocol.build_delete_req
 
 local type = type
@@ -118,6 +119,36 @@ local function delete(domain, headers, body, timeout)
 	opt.server = SERVER
 
 	local REQ = build_delete_req(opt)
+
+	local sock = sock_new():timeout(timeout or __TIMEOUT__)
+	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+	if not ok then
+		sock:close()
+		return ok, err
+	end
+	local ok, err = sock_send(sock, opt.protocol, REQ)
+	if not ok then
+		sock:close()
+		return ok, err
+	end
+	local code, msg = httpc_response(sock, opt.protocol)
+	sock:close()
+	return code, msg
+end
+
+-- HTTP PUT
+local function put(domain, headers, body, timeout)
+
+	local opt, err = splite_protocol(domain)
+	if not opt then
+		return nil, err
+	end
+
+	opt.body = body
+	opt.headers = headers
+	opt.server = SERVER
+
+	local REQ = build_put_req(opt)
 
 	local sock = sock_new():timeout(timeout or __TIMEOUT__)
 	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
@@ -249,5 +280,6 @@ return {
 	delete = delete,
 	json = json,
 	file = file,
+	put = put,
 	multi_request = multi_request,
 }
