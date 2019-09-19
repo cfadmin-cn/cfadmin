@@ -3,8 +3,6 @@
 #include "../../../src/core.h"
 #include "httpparser.h"
 
-#define ALLOCA_MAX 65535
-
 static int
 lparser_response_chunked(lua_State *L){
   size_t buf_len;
