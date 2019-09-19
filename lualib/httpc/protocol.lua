@@ -282,7 +282,7 @@ local function build_delete_req (opt)
       insert(request, header[1]..': '..header[2])
     end
   end
-  if type(opt.body) == "string" then
+  if type(opt.body) == "string" and opt.body ~= '' then
     insert(request, fmt("Content-Length: %s", #opt.body))
   end
   return concat(request, CRLF) .. CRLF2 .. ( type(opt.body) == "string" and opt.body or '' )
@@ -296,8 +296,6 @@ local function build_json_req (opt)
     'Accept-Encoding: identity',
     "Connection: keep-alive",
     fmt("User-Agent: %s", opt.server),
-    fmt("Content-Length: %s", #opt.json),
-    'Content-Type: application/json',
 	}
 	if type(opt.headers) == "table" then
     for _, header in ipairs(opt.headers) do
@@ -305,6 +303,10 @@ local function build_json_req (opt)
       assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
       insert(request, header[1]..': '..header[2])
     end
+  end
+  if type(opt.json) == 'string' and opt.json ~= '' then
+    insert(request, 'Content-Type: application/json')
+    insert(request, fmt("Content-Length: %s", #opt.json))
   end
   return concat(request, CRLF) .. CRLF2 .. opt.json
 end
@@ -327,28 +329,40 @@ local function build_file_req (opt)
     end
   end
 
-  if opt.files then
+  if type(opt.files) == 'table' then
     local bd = random(1000000000, 9999999999)
     local boundary_start = fmt("------CFWebService%d", bd)
     local boundary_end   = fmt("------CFWebService%d--", bd)
     insert(request, fmt('Content-Type: multipart/form-data; boundary=----CFWebService%s\r\n', bd))
     local body = {}
-    local header = ""
-    for _, file in ipairs(opt.files) do
+    local cd = 'Content-Disposition: form-data; %s'
+    local ct = 'Content-Type: %s'
+    for index, file in ipairs(opt.files) do
+      assert(file.file, "files index : [" .. index .. "] unknown multipart/form-data content.")
       insert(body, boundary_start)
-      if file.name and file.filename then
-        header = fmt(' name="%s"; filename="%s"', file.name, file.filename)
+      local name = file.name
+      local filename = file.filename
+      if not file.type then
+        if type(name) ~= 'string' or name == '' then
+          name = ''
+        end
+        insert(body, fmt(cd, fmt('name="%s"', name)) .. CRLF)
+      else
+        if type(name) ~= 'string' or name == '' then
+          name = ''
+        end
+        if type(filename) ~= 'string' or filename == '' then
+          filename = ''
+        end
+        insert(body, fmt(cd, fmt('name="%s"', name) .. '; ' .. fmt('filename="%s"', filename)))
+        insert(body, fmt(ct, FILEMIME(file.type or '') or 'application/octet-stream') .. CRLF)
       end
-      insert(body, fmt('Content-Disposition: form-data;%s', header))
-      insert(body, fmt('Content-Type: %s\r\n', FILEMIME(file.type or '') or 'application/octet-stream'))
       insert(body, file.file)
     end
+    insert(body, boundary_end)
     body = concat(body, CRLF)
-    insert(request, fmt("Content-Length: %s\r\n", #body + 2 + #boundary_end))
-    insert(request, CRLF)
+    insert(request, fmt("Content-Length: %s\r\n\r\n", #body))
     insert(request, body)
-    insert(request, CRLF)
-    insert(request, boundary_end)
   end
   return concat(request)
 end
@@ -369,7 +383,7 @@ local function build_put_req (opt)
       insert(request, header[1]..': '..header[2])
     end
   end
-  if type(opt.body) == "string" then
+  if type(opt.body) == "string" and opt.body ~= '' then
     insert(request, fmt("Content-Length: %s", #opt.body))
   end
   return concat(request, CRLF) .. CRLF2 .. ( type(opt.body) == "string" and opt.body or '' )
