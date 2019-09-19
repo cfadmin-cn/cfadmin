@@ -654,9 +654,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 			end
 			if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
 				if typ == HTTP_PROTOCOL.API then
-					header[#header+1] = 'Content-Type: '..REQUEST_MIME_RESPONSE('json')
+					header[#header+1] = 'Content-Type: ' .. REQUEST_MIME_RESPONSE('json') .. "; charset=utf-8"
 				else
-					header[#header+1] = concat({'Content-Type: ', REQUEST_MIME_RESPONSE('html'), ';charset=utf-8'})
+					header[#header+1] = 'Content-Type: ' .. REQUEST_MIME_RESPONSE('html') .. "; charset=utf-8"
 				end
 				if type(body) ~= 'string' or body == '' then
 					Log:ERROR("Response Error ["..(split(PATH , 1, (find(PATH, '?') or 0 ) - 1)).."]: response must be a string and not empty.")
