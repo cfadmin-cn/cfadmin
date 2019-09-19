@@ -3,13 +3,18 @@
 #include "../../../src/core.h"
 #include "httpparser.h"
 
-int
+#define ALLOCA_MAX 65535
+
+static int
 lparser_response_chunked(lua_State *L){
   size_t buf_len;
   const char* data = luaL_checklstring(L, 1, &buf_len);
-
-  char *buf = (char *)xcalloc(1, buf_len);
-  strncpy(buf, data, buf_len);
+  char* buf = xmalloc(buf_len);
+  if (!buf){
+    LOG("ERROR", "Alloca memory falt.");
+    return 0;
+  }
+  memmove(buf, data, buf_len);
 
   struct phr_chunked_decoder decoder = { .consume_trailer = 1 };
 
@@ -24,7 +29,6 @@ lparser_response_chunked(lua_State *L){
   xfree(buf);
   return 1;
 }
-
 
 static int
 lparser_http_request(lua_State *L){

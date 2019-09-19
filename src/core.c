@@ -48,7 +48,8 @@ SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
 static void // 退出信号
 SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
 	// LOG("ERROR", signum_to_string(signal->signum));
-	return exit(-1);
+	_exit(-1);
+	return ;
 }
 
 static void
@@ -166,13 +167,13 @@ init_main(){
 	status = luaL_loadfile(L, "script/main.lua");
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
-		return lua_close(L), exit(-1);
+		return lua_close(L), _exit(-1);
 	}
 
 	status = CO_RESUME(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
-		return lua_close(L), exit(-1);
+		return lua_close(L), _exit(-1);
 	}
 	if (status == LUA_YIELD) {
 		signal_init();
