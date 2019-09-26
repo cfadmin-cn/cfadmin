@@ -6,7 +6,7 @@ local ffi = require "lffi"
 -- Log:DEBUG("uint16_t长度为:"..ffi.sizeof(ffi.new("uint16_t")))
 -- Log:DEBUG("uint32_t长度为:"..ffi.sizeof(ffi.new("uint32_t")))
 -- Log:DEBUG("uint64_t长度为:"..ffi.sizeof(ffi.new("uint64_t")))
-
+--
 -- -- 字符串测试
 -- local cdata = ffi.new("char [?]", #"admin", "admin")
 -- Log:DEBUG("将lua字符串转换为cdata:", cdata)
@@ -15,13 +15,13 @@ local ffi = require "lffi"
 --
 -- Log:DEBUG("测试cdata字符串类型是否可以索引:", cdata[0], cdata[1], cdata[2], cdata[3], cdata[4])
 -- Log:DEBUG("测试cdata字符串类型是否可以转换:", string.char(cdata[0])..string.char(cdata[1])..string.char(cdata[2])..string.char(cdata[3])..string.char(cdata[4]))
-
+--
 -- -- 整型数组测试
 -- local array = ffi.new("int[?]", 3, 1, 2, 3) -- 初始化方法 1
 -- local array = ffi.new("int[3]", 1, 2, 3) -- 初始化方法 2
 -- Log:DEBUG(array[0], array[1], array[2])
-
--- 结构体创建测试
+--
+-- -- 结构体创建测试
 -- ffi.cdef [[
 --   typedef struct cuboid { uint8_t h, w, l; } cuboid_t;
 -- ]]

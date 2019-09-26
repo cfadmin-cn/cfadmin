@@ -1,10 +1,11 @@
 local wb = require "webhook.dingtalk"
+local LOG = require "logging"
 
 -- dingtalk API文档: https://ding-doc.dingtalk.com/doc#/serverapi2/qf2nxq
 
 local token = "just_your_token_not_url_and_token" -- such as "de2b0b8a3c4b8d454f47584354a794a12657aa9ff7ccf36b521368d566949e7f"
 
-print(wb.send_text({
+LOG:DEBUG(wb.send_text({
 	token = token,
 	content = "一条测试消息哦.",
   -- ignore mobiles if atall equal true.
@@ -12,7 +13,7 @@ print(wb.send_text({
 	-- atall = true,
 }))
 
-print(wb.send_link {
+LOG:DEBUG(wb.send_link {
 	token = token,
 	msg_title = "这是一条测试公告",
 	msg_link = "https://github.com/candymi",
@@ -21,7 +22,7 @@ print(wb.send_link {
 	msg_describe = "这是测试公告的描述信息, 它描述了这条公告的一些外链关键内容.",
 })
 
-print(wb.send_actioncard{
+LOG:DEBUG(wb.send_actioncard{
 	token = token,
 	msg_title = "## 消息头部",
 	msg_describe = "## 消息内容",
@@ -31,7 +32,7 @@ print(wb.send_actioncard{
 	}
 })
 
-print(wb.send_actioncard{
+LOG:DEBUG(wb.send_actioncard{
 	token = token,
 	-- 头部
 	msg_title = "## 消息头部",
@@ -48,7 +49,7 @@ print(wb.send_actioncard{
 	}
 })
 
-print(wb.send_feedcard {
+LOG:DEBUG(wb.send_feedcard {
 	token = token,
 	msg_links = {
 		{
