@@ -14,19 +14,19 @@ default :
 
 build :
 
-	### 编译核心库与可执行文件 ###
-	@$(MAKE) -C src build
-	@$(MAKE) -C luaclib build
-	@$(MAKE) -C 3rd build
+	@$(MAKE) -s -C src build
+	@$(MAKE) -s -C luaclib internal
+	@$(MAKE) -s -C luaclib 3part
+	@$(MAKE) -s -C 3rd build
 
 rebuild :
 
-	### 编译核心库与可执行文件 ###
-	@$(MAKE) -C src rebuild
-	@$(MAKE) -C luaclib rebuild
-	@$(MAKE) -C 3rd rebuild
+	@$(MAKE) -s -C src build
+	@$(MAKE) -s -C luaclib internal
+	@$(MAKE) -s -C luaclib 3part
+	@$(MAKE) -s -C 3rd build
 
 clean :
-
-	### 清理所有编译文件与库 ###
+	@echo "********** Clean All Files **********"
 	rm -rf cfadmin libcore.so luaclib/*.so
+	@$(MAKE) -s -C 3rd clean

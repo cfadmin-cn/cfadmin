@@ -18,10 +18,3 @@ DLL = -lcore -llua
 build:
 	@$(CC) -o lffi.so ffi.c parser.c ctype.c $(CFLAGS) $(INCLUDE) $(LIB) $(DLL)
 	@mv *.so ../../
-
-rebuild:
-	@$(CC) -o lffi.so ffi.c parser.c ctype.c $(CFLAGS) $(INCLUDE) $(LIB) $(DLL)
-	@mv *.so ../../
-
-clean:
-	rm -rf *.o *.so

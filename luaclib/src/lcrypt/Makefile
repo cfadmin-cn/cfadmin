@@ -18,10 +18,3 @@ LIBS = -L../ -L../../../ -L/usr/local/lib
 build:
 	@$(CC) -o lcrypt.so lcrypt.c crc.c md5.c url.c sha1.c sha2.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	@mv *.so ../../
-
-rebuild:
-	@$(CC) -o lcrypt.so lcrypt.c crc.c md5.c url.c sha1.c sha2.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
-	@mv *.so ../../
-
-clean:
-	rm -rf *.o *.so

@@ -19,10 +19,3 @@ DLL = -lcore -llua
 build:
 	@$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	@mv *.so ../../
-
-rebuild: $(OBJS)
-	@$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
-	@mv *.so ../../
-
-clean:
-	rm -rf *.o *.so

@@ -29,14 +29,7 @@ MACRO += -w -O3 -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
 
 build :
 
-	@echo "CC	-	libcore"
-	@$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
-	@echo "CC	-	cfadmin"
-	@$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore
-	@mv *.so cfadmin ../
-
-rebuild:
-
+	@echo "********** Core library and executable **********"
 	@echo "CC	-	libcore"
 	@$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
 	@echo "CC	-	cfadmin"

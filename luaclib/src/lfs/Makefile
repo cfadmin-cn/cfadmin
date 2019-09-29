@@ -18,10 +18,3 @@ DLL = -lcore -llua
 build:
 	@$(CC) -o lfs.so lfs.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	@mv *.so ../../
-
-rebuild:
-	@$(CC) -o lfs.so lfs.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
-	@mv *.so ../../
-
-clean:
-	rm -rf *.o *.so

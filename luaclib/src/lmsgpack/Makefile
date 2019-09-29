@@ -18,10 +18,3 @@ DLL = -lcore -llua
 build:
 	@$(CC) -o lmsgpack.so lmsgpack.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	@mv *.so ../../
-
-rebuild:
-	@$(CC) -o lmsgpack.so lmsgpack.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
-	@mv *.so ../../
-
-clean:
-	rm -rf *.o *.so
