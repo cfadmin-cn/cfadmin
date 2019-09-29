@@ -20,12 +20,12 @@ DLL = -lcore -llua
 
 
 build:
-	$(CC) -o httpparser.so httpparser.c lhttpparser.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
-	mv *.so ../../
+	@$(CC) -o httpparser.so httpparser.c lhttpparser.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
+	@mv *.so ../../
 
 rebuild:
-	$(CC) -o httpparser.so httpparser.c lhttpparser.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
-	mv *.so ../../
+	@$(CC) -o httpparser.so httpparser.c lhttpparser.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
+	@mv *.so ../../
 
 clean:
 	rm -rf *.o *.so

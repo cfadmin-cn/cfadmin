@@ -16,12 +16,12 @@ CFLAGS = -O3 -Wall -shared -fPIC -Wno-unused-function -fno-strict-aliasing -Wno-
 DLL = -lcore -llua
 
 build:
-	$(CC) -o lffi.so ffi.c parser.c ctype.c $(CFLAGS) $(INCLUDE) $(LIB) $(DLL)
-	mv *.so ../../
+	@$(CC) -o lffi.so ffi.c parser.c ctype.c $(CFLAGS) $(INCLUDE) $(LIB) $(DLL)
+	@mv *.so ../../
 
 rebuild:
-	$(CC) -o lffi.so ffi.c parser.c ctype.c $(CFLAGS) $(INCLUDE) $(LIB) $(DLL)
-	mv *.so ../../
+	@$(CC) -o lffi.so ffi.c parser.c ctype.c $(CFLAGS) $(INCLUDE) $(LIB) $(DLL)
+	@mv *.so ../../
 
 clean:
 	rm -rf *.o *.so

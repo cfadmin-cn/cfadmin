@@ -29,19 +29,19 @@ MACRO += -w -O3 -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
 
 build :
 
-	$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
-
-	$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore
-
-	mv *.so cfadmin ../
+	@$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
+	@echo "CC	-	libcore"
+	@$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore
+	@echo "CC	-	cfadmin"
+	@mv *.so cfadmin ../
 
 rebuild:
 
-	$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
-
-	$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore
-
-	mv *.so cfadmin ../
+	@$(CC) -o libcore.so core.c core_ev.c core_memory.c core_sys.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)
+	@echo "CC	-	libcore"
+	@$(CC) -o cfadmin core_start.c $(MACRO) $(INCLUDES) $(LIBS) -lcore
+	@echo "CC	-	cfadmin"
+	@mv *.so cfadmin ../
 
 clean :
 

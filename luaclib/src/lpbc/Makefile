@@ -16,12 +16,12 @@ CFLAGS = -O3 -Wall -shared -fPIC
 DLL = -lcore -llua
 
 build:
-	$(CC) -o lprotobuf.so lpb.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
-	mv *.so ../../
+	@$(CC) -o lprotobuf.so lpb.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
+	@mv *.so ../../
 
 rebuild:
-	$(CC) -o lprotobuf.so lpb.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
-	mv *.so ../../
+	@$(CC) -o lprotobuf.so lpb.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
+	@mv *.so ../../
 
 clean:
 	rm -rf *.o *.so
