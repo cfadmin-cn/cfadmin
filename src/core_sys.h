@@ -53,9 +53,8 @@
   time_t t = time(NULL); struct tm* lt = localtime(&t);  \
   fprintf(stdout, "[%04d/%02d/%02d][%02d:%02d:%02d][%s][%s][%s:%d] : %s\n", \
     lt->tm_year + 1900, 1 + lt->tm_mon, lt->tm_mday, lt->tm_hour, lt->tm_min, lt->tm_sec, \
-    LEVEL, \
-    __FILE__, __FUNCTION__, __LINE__, \
-    CONTENT); \
+    LEVEL, __FILE__, __FUNCTION__, __LINE__, CONTENT); \
+  fflush(stdout); \
 }
 
 /* 微秒级时间戳函数 */
