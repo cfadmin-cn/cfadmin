@@ -28,21 +28,28 @@ build :
 	@$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore -llua
 	### 以下为内置第三方库编译位置 ###
 	@echo "CC	-	lfs"
-	@cd src/lfs && rm -rf *.o *.so && make build 	# 增加lfs库
+	@$(MAKE) -C src/lfs build
+
 	@echo "CC	-	lffi"
-	@cd src/lffi && rm -rf *.o *.so && make build 	# 增加lffi库
+	@$(MAKE) -C src/lffi build
+
 	@echo "CC	-	lpbc"
-	@cd src/lpbc && rm -rf *.o *.so && make build 	# 增加lpbc库
+	@$(MAKE) -C src/lpbc build
+
 	@echo "CC	-	lpeg"
-	@cd src/lpeg && rm -rf *.o *.so && make build 	  # 增加lpeg库
+	@$(MAKE) -C src/lpeg build
+
 	@echo "CC	-	lcrypt"
-	@cd src/lcrypt && rm -rf *.o *.so && make build  # 增加lcrypt库
+	@$(MAKE) -C src/lcrypt build
+
 	@echo "CC	-	lcjson"
-	@cd src/lcjson && rm -rf *.o *.so && make build 	# 增加cjson库
+	@$(MAKE) -C src/lcjson build
+
 	@echo "CC	-	lmsgpack"
-	@cd src/lmsgpack && rm -rf *.o *.so && make build 	# 增加lmsgpack库
+	@$(MAKE) -C src/lmsgpack build
+
 	@echo "CC	-	lhttpparser"
-	@cd src/lhttpparser && rm -rf *.o *.so && make build # 增加PicoHTTPParser库
+	@$(MAKE) -C src/lhttpparser build
 
 rebuild :
 
@@ -59,23 +66,25 @@ rebuild :
 	@$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore -llua
 	### 以下为内置第三方库编译位置 ###
 	@echo "CC	-	lfs"
-	@cd src/lfs && rm -rf *.o *.so && make build 	# 增加lfs库
+	@$(MAKE) -C src/lfs build
+
 	@echo "CC	-	lffi"
-	@cd src/lffi && rm -rf *.o *.so && make build 	# 增加lffi库
+	@$(MAKE) -C src/lffi build
+
 	@echo "CC	-	lpbc"
-	@cd src/lpbc && rm -rf *.o *.so && make build 	# 增加lpbc库
+	@$(MAKE) -C src/lpbc build
+
 	@echo "CC	-	lpeg"
-	@cd src/lpeg && rm -rf *.o *.so && make build 	  # 增加lpeg库
+	@$(MAKE) -C src/lpeg build
+
 	@echo "CC	-	lcrypt"
-	@cd src/lcrypt && rm -rf *.o *.so && make build  # 增加lcrypt库
+	@$(MAKE) -C src/lcrypt build
+
 	@echo "CC	-	lcjson"
-	@cd src/lcjson && rm -rf *.o *.so && make build 	# 增加cjson库
+	@$(MAKE) -C src/lcjson build
+
 	@echo "CC	-	lmsgpack"
-	@cd src/lmsgpack && rm -rf *.o *.so && make build 	# 增加lmsgpack库
+	@$(MAKE) -C src/lmsgpack build
+
 	@echo "CC	-	lhttpparser"
-	@cd src/lhttpparser && rm -rf *.o *.so && make build # 增加PicoHTTPParser库
-
-
-clean :
-
-	rm -rf *.so
+	@$(MAKE) -C src/lhttpparser build

@@ -14,20 +14,19 @@ default :
 
 build :
 
-	@cd src && make build
-	@cd luaclib && make build
-	@cd 3rd && make build
+	### 编译核心库与可执行文件 ###
+	@$(MAKE) -C src build
+	@$(MAKE) -C luaclib build
+	@$(MAKE) -C 3rd build
 
 rebuild :
 
-	@rm -rf main cfadmin libcore.so *.pid
-	@cd src && make clean && make rebuild
-	@cd luaclib && make clean && make rebuild
-	@cd 3rd && make clean && make rebuild
+	### 编译核心库与可执行文件 ###
+	@$(MAKE) -C src rebuild
+	@$(MAKE) -C luaclib rebuild
+	@$(MAKE) -C 3rd rebuild
 
 clean :
 
-	@rm -rf main cfadmin libcore.so *.pid
-	@cd src && make clean
-	@cd luaclib && make clean
-	@cd 3rd && make clean
+	### 清理所有编译文件与库 ###
+	rm -rf cfadmin libcore.so luaclib/*.so
