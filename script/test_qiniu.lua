@@ -1,39 +1,108 @@
+local token = require "cloud.qiniu.token"
+local censor = require "cloud.qiniu.censor"
+local Stream = require "cloud.qiniu.Stream"
 local sms = require "cloud.qiniu.sms"
 local oss = require "cloud.qiniu.oss"
+local LOG = require "logging"
 
 local AccessKey = 'Your_Real_AccessKey'
 local SecretKey = 'Your_Real_SecretKey'
 
--- 发送短信
+-- -- *******短信服务********
+--
+-- -- 发送短信
 -- local ok, err = sms.sendSMS(AccessKey, SecretKey, { template_id = '1174104085482180608', mobiles = {'+8613000000000'}, parameters = { code = tostring(math.random(1, 1024)) }})
--- require"logging":DEBUG(ok, err)
-
--- 获取短信模板列表
+-- LOG:DEBUG(ok, err)
+--
+-- -- 获取短信模板列表
 -- local ok, err = sms.getTemplates(AccessKey, SecretKey, { page = 1, page_size = 100 })
--- require"logging":DEBUG(ok, err)
-
--- 获取短信签名列表
+-- LOG:DEBUG(ok, err)
+--
+-- -- 获取短信签名列表
 -- local ok, err = sms.getSignatures(AccessKey, SecretKey, { page = 1, page_size = 90 })
--- require"logging":DEBUG(ok, err)
-
--- 获取发送短信记录
+-- LOG:DEBUG(ok, err)
+--
+-- -- 获取发送短信记录
 -- local ok, err = sms.getSMSRecord(AccessKey, SecretKey, { start = '1568131200', ['end'] = '1568822399'})
--- require"logging":DEBUG(ok, err)
-
--- 删除模板
+-- LOG:DEBUG(ok, err)
+--
+-- -- 删除模板
 -- local ok, err = sms.detTemplate(AccessKey, SecretKey, '1174104085482180608')
--- require"logging":DEBUG(ok, err)
-
--- 删除签名
+-- LOG:DEBUG(ok, err)
+--
+-- -- 删除签名
 -- local ok, err = sms.delSignature(AccessKey, SecretKey, '1174104085482180608')
--- require"logging":DEBUG(ok, err)
-
---  ***************
-
--- 生成上传token
+-- LOG:DEBUG(ok, err)
+--
+-- -- *******Token与验权********
+--
+-- -- 生成上传token
 -- local upToken = oss.getUploadToken(AccessKey, SecretKey, { bucket = 'candymi' })
--- require"logging":DEBUG(upToken)
-
--- 生成下载token
--- local upToken = oss.getDownloadToken(AccessKey, SecretKey, { url = 'https://www.gitub.com/a.img', expires = os.time() + 180 })
--- require"logging":DEBUG(upToken)
+-- LOG:DEBUG(upToken)
+--
+-- -- 生成下载token
+-- local upToken, err = oss.getDownloadToken(AccessKey, SecretKey, { url = 'https://www.gitub.com/a.img', expires = os.time() + 180 })
+-- LOG:DEBUG(upToken, err)
+--
+--
+-- local url = "http://rs.qiniu.com/move/bmV3ZG9jczpmaW5kX21hbi50eHQ=/bmV3ZG9jczpmaW5kLm1hbi50eHQ="
+-- LOG:DEBUG(token.getAccessToken(AccessKey, SecretKey, { path = "/move/bmV3ZG9jczpmaW5kX21hbi50eHQ=/bmV3ZG9jczpmaW5kLm1hbi50eHQ=" }))
+--
+-- -- *******直播服务********
+--
+-- -- 创建推流
+-- local code, ret = Stream.createStream(AccessKey, SecretKey, 'hub', 'candymi')
+-- LOG:DEBUG(code, ret)
+--
+-- -- 查询推流
+-- local code, ret = Stream.queryStream(AccessKey, SecretKey, 'hub', 'candymi')
+-- LOG:DEBUG(code, ret)
+--
+-- -- 关闭推流
+-- local code, ret = Stream.disableStream(AccessKey, SecretKey, 'hub', 'candymi')
+-- LOG:DEBUG(code, ret)
+--
+-- -- 查询推流详情
+-- local code, ret = Stream.getStreamLive(AccessKey, SecretKey, 'hub', 'candymi')
+-- LOG:DEBUG(code, ret)
+--
+-- -- 批量查询推流详情
+-- local code, ret = Stream.getStreamLives(AccessKey, SecretKey, 'hub', {'candymi', "abc", "def"})
+-- LOG:DEBUG(code, ret)
+--
+-- -- 批量查询推流历史记录
+-- local code, ret = Stream.getStreamHistory(AccessKey, SecretKey, 'hub', 'candymi', {["start"] = os.time(), ["end"] = os.time()})
+-- LOG:DEBUG(code, ret)
+--
+-- -- rtmp推流地址
+-- local url = Stream.rtmpPublishUrl(AccessKey, SecretKey, "pub-rtmp.test.com", 'hub', 'candymi')
+-- LOG:DEBUG(url)
+--
+-- -- rtmp观看地址
+-- local url = Stream.rtmpSubscribeUrl("sub-rtmp.test.com", 'hub', 'candymi')
+-- LOG:DEBUG(url)
+--
+-- -- hls观看地址
+-- local url = Stream.hlsSubscribeUrl("sub-hls.test.com", 'hub', 'candymi')
+-- LOG:DEBUG(url)
+--
+-- -- hdl观看地址
+-- local url = Stream.hdlSubscribeUrl("sub-hdl.test.com", 'hub', 'candymi')
+-- LOG:DEBUG(url)
+--
+-- -- 封面快照地址
+-- local url = Stream.getSnapshot("snap-shot.test.com", 'hub', 'candymi')
+-- LOG:DEBUG(url)
+--
+-- -- *******内容服务********
+--
+-- local code, ret = censor.newImageCensor(AccessKey, SecretKey, "http://img3.redocn.com/20120528/Redocn_2012052817213559.jpg")
+-- LOG:DEBUG(code, ret)
+--
+-- local code, ret = censor.newVideoCensor(AccessKey, SecretKey, "https://www.w3school.com.cn/i/movie.ogg")
+-- LOG:DEBUG(code, ret)
+--
+-- local job_id = "5d90cb95093ff70008e32e0a"
+--
+-- local code, ret = censor.getVideoCensorResult(AccessKey, SecretKey, job_id)
+-- LOG:DEBUG(code, ret)

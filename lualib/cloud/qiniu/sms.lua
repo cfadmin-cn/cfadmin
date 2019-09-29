@@ -1,29 +1,15 @@
+local token = require "cloud.qiniu.token"
 local httpc = require "httpc"
 local crypt = require "crypt"
 local json = require "json"
 
 local type = type
 
-local sms = { __Version__ = 0.1 }
+local sms = { __Version__ = 0.1, newAuthorization = token.newAuthorization }
 --[[
 此为七牛云短信服务的lua版实现.
 提供了包含短信的发送/记录查询/获取模板/删除模板/获取签名/删除签名/
 ]]
-
--- 生成管理凭证
-function sms.newAuthorization (AccessKey, SecretKey, opt)
-  local auth = opt.method .. ' ' .. opt.path
-  if opt.query then
-    auth = auth .. opt.query
-  end
-  auth = auth .. '\nHost: ' .. opt.host
-  if opt.body then
-    auth = auth .. '\nContent-Type: application/json\n\n' .. opt.body
-  else
-    auth = auth .. '\n\n'
-  end
-  return 'Qiniu'.. ' ' .. AccessKey .. ':' .. crypt.base64encode(crypt.hmac_sha1(SecretKey, auth))
-end
 
 -- 获取短信模板列表
 function sms.getTemplates (AccessKey, SecretKey, opt)
