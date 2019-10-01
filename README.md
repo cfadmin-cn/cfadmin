@@ -35,6 +35,12 @@
 
   * [在线文档](https://candymi.github.io/LuaWeb)(Sorry! Only Chinese.)
 
+### 安装与运行(Build And Run)
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/build.gif"/></p>
+
+<p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/run.gif"/></p>
+
 ### 预览图 (preview)
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/pre-login.png"/></p>
