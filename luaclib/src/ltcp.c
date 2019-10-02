@@ -21,29 +21,29 @@ void SETSOCKETOPT(int sockfd, int mode){
 /* 地址重用 */
 #ifdef SO_REUSEADDR
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
-	if (ret) {
-		LOG("ERROR", "设置 SO_REUSEADDR 失败.");
-		return exit(-1);
-	}
+  if (ret) {
+    LOG("ERROR", "设置 SO_REUSEADDR 失败.");
+    return _exit(-1);
+  }
 #endif
 
 /* 端口重用 */
 #ifdef SO_REUSEPORT
   if (mode == SERVER) {
-  	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
-  	if (ret) {
-  		LOG("ERROR", "设置 SO_REUSEPORT 失败.");
-  		return exit(-1);
-  	}
+    ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
+    if (ret) {
+      LOG("ERROR", "设置 SO_REUSEPORT 失败.");
+      return _exit(-1);
+    }
   }
 #endif
 
 /* 关闭小包延迟合并算法 */
 #ifdef TCP_NODELAY
-	ret = setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &Enable, sizeof(Enable));
+  ret = setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &Enable, sizeof(Enable));
   if (ret){
     LOG("ERROR", "TCP_NODELAY 设置失败.");
-    return exit(-1);
+    return _exit(-1);
   }
 #endif
 
@@ -52,7 +52,7 @@ void SETSOCKETOPT(int sockfd, int mode){
   ret = setsockopt(sockfd, IPPROTO_TCP, SO_KEEPALIVE, &Enable , sizeof(Enable));
   if (ret){
     LOG("ERROR", "SO_KEEPALIVE 设置失败.");
-    return exit(-1);
+    return _exit(-1);
   }
 #endif
 
@@ -62,7 +62,7 @@ void SETSOCKETOPT(int sockfd, int mode){
     ret = setsockopt(sockfd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &Enable, sizeof(Enable));
     if (ret){
       LOG("ERROR", "TCP_DEFER_ACCEPT 设置失败.");
-      return exit(-1);
+      return _exit(-1);
     }
   }
 #endif
@@ -73,7 +73,7 @@ void SETSOCKETOPT(int sockfd, int mode){
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle , sizeof(keepidle));
   if (ret){
     LOG("ERROR", "TCP_KEEPIDLE 设置失败.");
-    return exit(-1);
+    return _exit(-1);
   }
 #endif
 
@@ -83,7 +83,7 @@ void SETSOCKETOPT(int sockfd, int mode){
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPCNT, &keepcount , sizeof(keepcount));
   if (ret){
     LOG("ERROR", "TCP_KEEPCNT 设置失败.");
-    return exit(-1);
+    return _exit(-1);
   }
 #endif
 
@@ -93,7 +93,7 @@ void SETSOCKETOPT(int sockfd, int mode){
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL, &keepinterval , sizeof(keepinterval));
   if (ret){
     LOG("ERROR", "TCP_KEEPINTVL 设置失败.");
-    return exit(-1);
+    return _exit(-1);
   }
 #endif
 
@@ -103,7 +103,7 @@ void SETSOCKETOPT(int sockfd, int mode){
   ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&No, sizeof(No));
   if (ret){
     LOG("ERROR", "IPV6_V6ONLY 关闭失败.");
-    return exit(-1);
+    return _exit(-1);
   }
 #endif
 

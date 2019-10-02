@@ -14,19 +14,19 @@ void SETSOCKETOPT(int sockfd) {
 /* 地址重用 */
 #ifdef SO_REUSEADDR
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
-	if (ret) {
-		LOG("ERROR", "设置 SO_REUSEADDR 失败.");
-		return exit(-1);
-	}
+  if (ret) {
+    LOG("ERROR", "设置 SO_REUSEADDR 失败.");
+    return _exit(-1);
+  }
 #endif
 
 /* 端口重用 */
 #ifdef SO_REUSEPORT
-	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
-	if (ret) {
-		LOG("ERROR", "设置 SO_REUSEPORT 失败.");
-		return exit(-1);
-	}
+  ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
+  if (ret) {
+    LOG("ERROR", "设置 SO_REUSEPORT 失败.");
+    return _exit(-1);
+  }
 #endif
 
 /* 开启IPV6与ipv4双栈 */
@@ -35,7 +35,7 @@ void SETSOCKETOPT(int sockfd) {
   ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&No, sizeof(No));
   if (ret){
     LOG("ERROR", "IPV6_V6ONLY 关闭失败.");
-    return exit(-1);
+    return _exit(-1);
   }
 #endif
 
