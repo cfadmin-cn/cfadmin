@@ -14,6 +14,7 @@
 #include <time.h>
 #include <errno.h>
 
+#include <netdb.h>
 #include <netinet/tcp.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

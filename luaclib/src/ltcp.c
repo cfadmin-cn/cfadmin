@@ -142,31 +142,36 @@ create_server_fd(int port, int backlog){
 static int
 create_client_fd(const char *ipaddr, int port){
   errno = 0;
-	/* 建立 TCP Client Socket */
-	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-	if (0 >= sockfd) return -1;
+  struct addrinfo hints;
+  struct addrinfo *hints_ptr = NULL;
+  struct addrinfo *hints_list = NULL;
 
-	/* socket option set */
-	SETSOCKETOPT(sockfd, CLIENT);
+  memset(&hints, 0x0, sizeof(struct addrinfo));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
 
-  struct sockaddr_in6 SA;
-  memset(&SA, 0x0, sizeof(SA));
+  char Port[16];
+  sprintf(Port, "%d", port);
 
-	SA.sin6_family = AF_INET6;
-	SA.sin6_port = htons(port);
-	int error = inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
-  if (1 != error) {
-		LOG("ERROR", strerror(errno));
-		close(sockfd);
-		return -1;
-	}
-
-	int ret = connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
-  if (ret < 0 && errno != EINPROGRESS){
-		close(sockfd);
-		return -1;
+  int status = getaddrinfo(ipaddr, Port, &hints, &hints_list);
+  if (status)
+    return -1;
+  int sockfd = -1;
+  for (hints_ptr = hints_list; hints_ptr; hints_ptr = hints_ptr->ai_next) {
+    sockfd = socket(hints_ptr->ai_family, hints_ptr->ai_socktype, hints_ptr->ai_protocol);
+    if (sockfd < 0)
+      continue;
+    SETSOCKETOPT(sockfd, CLIENT);
+    int ok = connect(sockfd, hints_ptr->ai_addr, hints_ptr->ai_addrlen);
+    if (ok < 0 && errno != EINPROGRESS){
+      sockfd = -1;
+      close(sockfd);
+      continue;
+    }
+    break;
   }
-	return sockfd;
+  return sockfd;
 }
 
 
