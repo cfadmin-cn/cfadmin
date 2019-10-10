@@ -171,6 +171,7 @@ create_client_fd(const char *ipaddr, int port){
     }
     break;
   }
+  freeaddrinfo(hints_list);
   return sockfd;
 }
 
