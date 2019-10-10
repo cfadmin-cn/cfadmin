@@ -310,7 +310,7 @@ function TCP:connect(domain, port)
     if connected then
         return co_wakeup(co, true)
     end
-    return co_wakeup(co, false, '连接失败')
+    return co_wakeup(co, false, 'connect failed')
   end)
   self.timer = ti_timeout(self._timeout, function ( ... )
       tcp_push(self.CONNECT_IO)
@@ -319,7 +319,7 @@ function TCP:connect(domain, port)
       self.CONNECT_IO = nil
       self.connect_co = nil
       self.connect_current_co = nil
-      return co_wakeup(co, nil, 'connect timeot.')
+      return co_wakeup(co, nil, 'connect timeout.')
   end)
   tcp_connect(self.CONNECT_IO, self.fd, self.connect_co)
   return co_wait()
@@ -368,7 +368,7 @@ function TCP:ssl_connect(domain, port)
       self.CONNECT_IO = nil
       self.connect_co = nil
       self.connect_current_co = nil
-      return co_wakeup(co, nil, 'ssl_connect timeot.')
+      return co_wakeup(co, nil, 'ssl_connect timeout.')
   end)
   tcp_start(self.CONNECT_IO, self.fd, EVENT_WRITE, self.connect_co)
   return co_wait()
