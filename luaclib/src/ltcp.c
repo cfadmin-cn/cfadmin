@@ -113,67 +113,68 @@ void SETSOCKETOPT(int sockfd, int mode){
 static int
 create_server_fd(int port, int backlog){
   errno = 0;
-	/* 建立 TCP Server Socket */
-	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-	if (0 >= sockfd) return -1;
+  /* 建立 TCP Server Socket */
+  int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+  if (0 >= sockfd)
+    return -1;
 
-	/* socket option set */
-	SETSOCKETOPT(sockfd, SERVER);
+  /* socket option set */
+  SETSOCKETOPT(sockfd, SERVER);
 
-	struct sockaddr_in6 SA;
+  struct sockaddr_in6 SA;
   memset(&SA, 0x0, sizeof(SA));
 
-	SA.sin6_family = AF_INET6;
-	SA.sin6_port = htons(port);
-	SA.sin6_addr = in6addr_any;
+  SA.sin6_family = AF_INET6;
+  SA.sin6_port = htons(port);
+  SA.sin6_addr = in6addr_any;
 
   /* 绑定套接字失败 */
-	int bind_success = bind(sockfd, (struct sockaddr *)&SA, sizeof(SA));
-	if (0 > bind_success) return -1;
+  int bind_success = bind(sockfd, (struct sockaddr *)&SA, sizeof(SA));
+  if (0 > bind_success) {
+    close(sockfd);
+    return -1;
+  }
 
   /* 监听套接字失败 */
-	int listen_success = listen(sockfd, backlog);
-	if (0 > listen_success) return -1;
+  int listen_success = listen(sockfd, backlog);
+  if (0 > listen_success) {
+    close(sockfd);
+    return -1;
+  }
 
-	return sockfd;
+  return sockfd;
 }
 
 /* client fd */
 static int
 create_client_fd(const char *ipaddr, int port){
   errno = 0;
-  struct addrinfo hints;
-  struct addrinfo *hints_ptr = NULL;
-  struct addrinfo *hints_list = NULL;
+	/* 建立 TCP Client Socket */
+	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+	if (0 >= sockfd) return -1;
 
-  memset(&hints, 0x0, sizeof(struct addrinfo));
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = IPPROTO_TCP;
+	/* socket option set */
+	SETSOCKETOPT(sockfd, CLIENT);
 
-  char Port[16];
-  sprintf(Port, "%d", port);
+  struct sockaddr_in6 SA;
+  memset(&SA, 0x0, sizeof(SA));
 
-  int status = getaddrinfo(ipaddr, Port, &hints, &hints_list);
-  if (status)
+	SA.sin6_family = AF_INET6;
+	SA.sin6_port = htons(port);
+	int error = inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
+  if (1 != error) {
+    LOG("ERROR", strerror(errno));
+    close(sockfd);
     return -1;
-  int sockfd = -1;
-  for (hints_ptr = hints_list; hints_ptr; hints_ptr = hints_ptr->ai_next) {
-    sockfd = socket(hints_ptr->ai_family, hints_ptr->ai_socktype, hints_ptr->ai_protocol);
-    if (sockfd < 0)
-      continue;
-    SETSOCKETOPT(sockfd, CLIENT);
-    int ok = connect(sockfd, hints_ptr->ai_addr, hints_ptr->ai_addrlen);
-    if (ok < 0 && errno != EINPROGRESS){
-      sockfd = -1;
-      close(sockfd);
-      continue;
-    }
-    break;
+	}
+
+	int ret = connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
+  if (ret < 0 && errno != EINPROGRESS){
+    LOG("ERROR", strerror(errno));
+    close(sockfd);
+    return -1;
   }
-  if (hints_list)
-    freeaddrinfo(hints_list);
-  return sockfd;
+	return sockfd;
 }
 
 
@@ -223,29 +224,30 @@ IO_CONNECT(CORE_P_ core_io *io, int revents){
 static void /* 接受链接 */
 IO_ACCEPT(CORE_P_ core_io *io, int revents){
 
-	if (revents & EV_READ){
-		for(;;) {
-			errno = 0;
-			struct sockaddr_in6 SA;
-			socklen_t slen = sizeof(SA);
+  if (revents & EV_READ){
+    for(;;) {
+      errno = 0;
+      struct sockaddr_in6 SA;
+      socklen_t slen = sizeof(SA);
       memset(&SA, 0x0, slen);
-			int client = accept(io->fd, (struct sockaddr*)&SA, &slen);
-			if (0 >= client) {
-				if (errno != EWOULDBLOCK)
-					LOG("INFO", strerror(errno));
-				return ;
-			}
+      int client = accept(io->fd, (struct sockaddr*)&SA, &slen);
+      if (0 >= client) {
+        if (errno != EWOULDBLOCK)
+          LOG("INFO", strerror(errno));
+        return ;
+      }
       non_blocking(client); //在某些平台下, 这个socket是阻塞的.
-			lua_State *co = (lua_State *) core_get_watcher_userdata(io);
-			if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-				char buf[INET6_ADDRSTRLEN];
-				inet_ntop(AF_INET6, &SA.sin6_addr, buf, INET6_ADDRSTRLEN);
-				lua_pushinteger(co, client);
-				lua_pushlstring(co, buf, strlen(buf));
-				int status = CO_RESUME(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
-				if (status != LUA_YIELD && status != LUA_OK) {
-					LOG("ERROR", lua_tostring(co, -1));
-					LOG("ERROR", "Error Lua Accept Method");
+      lua_State *co = (lua_State *) core_get_watcher_userdata(io);
+      if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+        char buf[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, &SA.sin6_addr, buf, INET6_ADDRSTRLEN);
+        lua_pushinteger(co, client);
+        lua_pushlstring(co, buf, strlen(buf));
+        int status = CO_RESUME(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
+        if (status != LUA_YIELD && status != LUA_OK) {
+          LOG("ERROR", lua_tostring(co, -1));
+          LOG("ERROR", "Error Lua Accept Method");
+          core_io_stop(CORE_LOOP_ io);
 				}
 			}
 		}
