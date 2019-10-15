@@ -21,6 +21,7 @@ local concat = table.concat
 local insert = table.insert
 
 local now = os.time
+local random = math.random
 local fmt = string.format
 local match = string.match
 local splite = string.gmatch
@@ -35,8 +36,8 @@ local prefix = '::ffff:'
 local dns = {}
 
 local QTYPE = {
-    A = 1,
-    AAAA = 28,
+  A = 1,
+  AAAA = 28,
 }
 
 local dns_cache = {}
@@ -51,28 +52,30 @@ local function gen_id()
 end
 
 local function check_cache(domain)
-    local query = dns_cache[domain]
-    if not query then
-        return
-    end
-    if query then
-        if not query.ttl or query.ttl > now() then
-            return query.ip
-        end
-        dns_cache[domain] = nil
-    end
+  local query = dns_cache[domain]
+  if not query then
     return
+  end
+  local ttl = query.ttl
+  if not ttl then
+    return query.ip
+  end
+  if ttl > now() then
+    return query.ip
+  end
+  dns_cache[domain] = nil
+  return
 end
 
 local function check_ip(ip)
-    if ip then
-        if check_ipv4(ip) then
-            return true, 4
-        end
-        if check_ipv6(ip) then
-            return true, 6
-        end
+  if type(ip) == 'string' and ip ~= '' then
+    if check_ipv4(ip) then
+      return true, 4
     end
+    if check_ipv6(ip) then
+      return true, 6
+    end
+  end
 end
 
 local function gen_cache()
@@ -80,18 +83,13 @@ local function gen_cache()
     if file then
       for line in file:lines() do
           local ip, domain = match(line, '([^#%G]*)[%G]+([^%G]+)')
-          -- print(line, 'ip=['..(ip or '')..']', 'domain=['..(domain or '')..']')
           local ok, v = check_ip(ip)
           if ok then
-            if v == 4 then
-                if not dns_cache[domain] then
-                    dns_cache[domain] = {ip = prefix..ip}
-                end
-            end
-            if v == 6 then
-              if not dns_cache[domain] then
-                  dns_cache[domain] = {ip = ip}
+            if not dns_cache[domain] then
+              if v == 4 then
+                ip = prefix..ip
               end
+              dns_cache[domain] = {ip = ip}
             end
           end
         end
@@ -101,38 +99,38 @@ local function gen_cache()
 end
 
 if #dns_list < 1 then
-    local file = io.open("/etc/resolv.conf", "r")
-    if file then
-      for line in file:lines() do
-        local ip = match(line, "nameserver (.-)$")
-        local ok = check_ip(ip)
-        if ok then
-          insert(dns_list, ip)
-        end
+  local file = io.open("/etc/resolv.conf", "r")
+  if file then
+    for line in file:lines() do
+      local ip = match(line, "nameserver (.-)$")
+      local ok, v = check_ip(ip)
+      if ok and v then
+        insert(dns_list, ip)
       end
-      file:close()
     end
-    if #dns_list < 1 then
-      dns_list = {"114.114.114.114", "8.8.8.8"}
-    end
-    gen_cache()
+    file:close()
+  end
+  if #dns_list < 1 then
+    dns_list = {"114.114.114.114", "8.8.8.8"}
+  end
+  gen_cache()
 end
 
 local function get_dns_client()
-    if #dns_list >= 1 then
-      local ip = dns_list[1]
-      local udp = UDP:new():timeout(dns._timeout or 30)
-      local ok, v = check_ip(ip)
-      if v == 4 then
-          ip = prefix..ip
-      end
-      local ok = udp:connect(ip, 53)
-      if not ok then
-          return nil, 'Create UDP Socket error.'
-      end
-      return udp, v
+  if #dns_list >= 1 then
+    local ip = dns_list[random(1, #dns_list)]
+    local udp = UDP:new():timeout(dns._timeout or 30)
+    local ok, v = check_ip(ip)
+    if v == 4 then
+      ip = prefix .. ip
     end
-    return nil, "Can't find system dns in /etc/resolve.conf."
+    local ok = udp:connect(ip, 53)
+    if not ok then
+      return nil, 'Create UDP Socket error.'
+    end
+    return udp, v
+  end
+  return nil, "Can't find system dns in /etc/resolve.conf."
 end
 
 local function pack_header()
@@ -148,13 +146,13 @@ local function pack_question(name, version)
     -- local Query_Type  = QTYPE.AAAA -- IPv6
     local qtype = QTYPE.A
     if version == 6 then
-        qtype = QTYPE.AAAA
+      qtype = QTYPE.AAAA
     end
     local Query_Type  = qtype
     local Query_Class = 0x01 -- IN internet
     local question = {}
     for sp in splite(name, "([^%.]*)") do
-        insert(question, pack(">s1", sp))
+      insert(question, pack(">s1", sp))
     end
     insert(question, "\0")
     insert(question, pack(">HH", Query_Type, Query_Class))
@@ -162,8 +160,8 @@ local function pack_question(name, version)
 end
 
 local function unpack_header(chunk)
-    local tid, flags, qdcount, ancount, nscount, arcount, nbyte = unpack(">HHHHHH", chunk)
-    return { tid = tid, flags = flags, qdcount = qdcount, ancount = ancount}, nbyte
+  local tid, flags, qdcount, ancount, nscount, arcount, nbyte = unpack(">HHHHHH", chunk)
+  return { tid = tid, flags = flags, qdcount = qdcount, ancount = ancount}, nbyte
 end
 
 local function unpack_name(chunk, nbyte)
@@ -202,14 +200,14 @@ local function unpack_answer(chunk, nbyte)
 end
 
 local function unpack_rdata(chunk, qtype)
-    if qtype == QTYPE.AAAA then
-        return fmt('%x:%x:%x:%x:%x:%x:%x:%x', unpack(">HHHHHHHH", chunk))
-    end
-    return fmt("%d.%d.%d.%d", unpack(">BBBB", chunk))
+  if qtype == QTYPE.AAAA then
+    return fmt('%x:%x:%x:%x:%x:%x:%x:%x', unpack(">HHHHHHHH", chunk))
+  end
+  return fmt("%d.%d.%d.%d", unpack(">BBBB", chunk))
 end
 
-
 local cos = {}
+
 -- 如果有其它协程也在等待查询, 那么一起唤醒它们
 local function check_wait(domain, wlist, ...)
   for _, w in ipairs(wlist) do
@@ -218,126 +216,116 @@ local function check_wait(domain, wlist, ...)
   cos[domain] = nil
 end
 
-
-
 local function dns_query(domain)
-    local wlist = {}
-    cos[domain] = wlist
-    -- local start = os.time() + os.clock()
-    -- print("开始解析域名:["..domain.."], 开始时间: ", start)
-    local dns_client, msg = get_dns_client()
-    if not dns_client then
-        check_wait(domain, wlist, nil, msg)
-        return nil, msg
-    end
-    local dns_resp, len, readable
-    cf_fork(function ()
-      local req = pack_header()..pack_question(domain, msg)
-      local times = 1
-      while 1 do
-        dns_client:send(req)
-        cf_sleep(1)
-        if readable then
-          return
-        end
-        Log:WARN("第"..times.."次尝试解析["..domain.."]:")
-        times = times + 1
+  local wlist = {}
+  cos[domain] = wlist
+  local dns_client, msg = get_dns_client()
+  if not dns_client then
+    check_wait(domain, wlist, nil, msg)
+    return nil, msg
+  end
+  local dns_resp, len, readable
+  cf_fork(function ()
+    local req = pack_header()..pack_question(domain, msg)
+    local times = 1
+    while 1 do
+      dns_client:send(req)
+      cf_sleep(1)
+      if readable then
+        return
       end
-    end)
-    dns_resp, len = dns_client:recv()
-    dns_client:close()
-    readable = true
-    if not dns_resp or not len or len < LIMIT_HEADER_LEN then
-      local err = "1. dns解析失败."
-      check_wait(domain, wlist, nil, err)
-      return nil, err
+      Log:WARN("第"..times.."次尝试解析["..domain.."]:")
+      times = times + 1
     end
-    local answer_header, nbyte = unpack_header(dns_resp)
-    if answer_header.qdcount ~= 1 then
-        local err = "2. 错误的DNS回应."
-        check_wait(domain, wlist, nil, err)
-        return nil, err
-    end
-    if not answer_header.ancount or answer_header.ancount < 1 then
-        local err = "3. 无法解析的域名."
-        check_wait(domain, wlist, nil, err)
-        return nil, err
-    end
-    local question, nbyte = unpack_question(dns_resp, nbyte)
-
-    if question.name ~= domain then
-      local err = "4. 回应域名与请求解析的域名不一致."
-      check_wait(domain, wlist, nil, err)
-      return nil, err
-    end
-    local answer
-    local t = now()
-    for i = 1, answer_header.ancount do
-      answer, nbyte = unpack_answer(dns_resp, nbyte)
-      if answer.atype == QTYPE.A or answer.atype == QTYPE.AAAA then
-        answer.ip = unpack_rdata(answer.rdata, answer.atype)
-        local cache = dns_cache[domain]
-        if not cache then
+  end)
+  dns_resp, len = dns_client:recv()
+  dns_client:close()
+  readable = true
+  if not dns_resp or not len or len < LIMIT_HEADER_LEN then
+    check_wait(domain, wlist, nil, "1. Malformed message length.")
+    return nil, err
+  end
+  local answer_header, nbyte = unpack_header(dns_resp)
+  if answer_header.qdcount ~= 1 then
+    check_wait(domain, wlist, nil, "2. Malformed message response.")
+    return nil, err
+  end
+  if not answer_header.ancount or answer_header.ancount < 1 then
+    check_wait(domain, wlist, nil, "3. Unresolved domain name.")
+    return nil, err
+  end
+  local question, nbyte = unpack_question(dns_resp, nbyte)
+  if question.name ~= domain then
+    check_wait(domain, wlist, nil, "4. Inconsistent query domain.")
+    return nil, err
+  end
+  local answer
+  local t = now()
+  for i = 1, answer_header.ancount do
+    answer, nbyte = unpack_answer(dns_resp, nbyte)
+    if answer.atype == QTYPE.A or answer.atype == QTYPE.AAAA then
+      answer.ip = unpack_rdata(answer.rdata, answer.atype)
+      local cache = dns_cache[domain]
+      if not cache then
+        dns_cache[domain] = {ip = answer.ip, ttl = t + answer.ttl}
+      else
+        if cache.ttl and cache.ttl < t + answer.ttl then
           dns_cache[domain] = {ip = answer.ip, ttl = t + answer.ttl}
-        else
-          if cache.ttl and cache.ttl < t + answer.ttl then
-            dns_cache[domain] = {ip = answer.ip, ttl = t + answer.ttl}
-          end
         end
       end
     end
-    local ok, v = check_ip(answer.ip)
-    if not ok then
-      local err = "5. 未知的IP地址."
-      check_wait(domain, wlist, nil, err..domain)
-      return nil, err..domain
-    end
-    if ok and v == 4 then
-      answer.ip = prefix..answer.ip
-    end
-    check_wait(domain, wlist, true, answer.ip)
-    return true, answer.ip
+  end
+  local ok, v = check_ip(answer.ip)
+  if not ok then
+    check_wait(domain, wlist, nil, "5. Unknown IP address." .. domain)
+    return nil, err..domain
+  end
+  if ok and v == 4 then
+    answer.ip = prefix..answer.ip
+  end
+  check_wait(domain, wlist, true, answer.ip)
+  return true, answer.ip
 end
 
 function dns.flush()
-    dns_cache = {}
-    gen_cache()
+  dns_cache = {}
+  gen_cache()
 end
 
 -- 这里设置每个dns查询请求的timeout与retry时间
 function dns.timeout(timeout)
-    dns._timeout = timeout
+  dns._timeout = timeout
 end
 
 function dns.resolve(domain)
-    -- 如果传进来一个空值, 则直接返回false
-    if not domain or domain == '' then
-        return nil, "attemp to resolve a nil or empty host name."
+  -- 检查参数是否有效
+  if type(domain) ~= 'string' or domain == '' then
+    return nil, "attempt to pass an invalid domain."
+  end
+  -- 如果是正确的ipv4地址直接返回
+  local ok, v = check_ip(domain)
+  if ok then
+    if 6 == v then
+      return ok, domain
     end
-    -- 如果是正确的ipv4地址直接返回
-    local ok, v = check_ip(domain)
-    if ok then
-        if 6 == v then
-            return ok, domain
-        end
-        return ok, prefix..domain
+    return ok, prefix..domain
+  end
+  -- 如果有dns缓存直接返回
+  local ip = check_cache(domain)
+  if ip then
+    if check_ipv6(ip) then
+      return true, ip
     end
-    -- 如果有dns缓存直接返回
-    local ip = check_cache(domain)
-    if ip then
-        if check_ipv6(ip) then
-            return true, ip
-        end
-        return true, prefix..ip
-    end
-    -- 如果有其他协程也正巧在查询这个域名, 那么就加入到等待列表内
-    local wlist = cos[domain]
-    if wlist then
-        local co = cf_self()
-        insert(wlist, co)
-        return cf_wait()
-    end
-    return dns_query(domain)
+    return true, prefix..ip
+  end
+  -- 如果有其他协程也正巧在查询这个域名, 那么就加入到等待列表内
+  local wlist = cos[domain]
+  if wlist then
+    local co = cf_self()
+    insert(wlist, co)
+    return cf_wait()
+  end
+  return dns_query(domain)
 end
 -- require "utils"
 -- var_dump(dns_cache)
