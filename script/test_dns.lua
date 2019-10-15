@@ -1,137 +1,49 @@
-
+local LOG = require "logging"
 local dns = require "protocol.dns"
 local dns_resolve = dns.resolve
 
 local cf = require "cf"
+local fork = cf.fork
 
 local system = require "system"
 local now = system.now
 local fmt = string.format
+local find = string.find
+local match = string.match
 
--- 百度
-for i = 1, 10 do
-  cf.fork(function ( ... )
-    local t1 = now()
-    local domain = 'www.baidu.com'
-		if i == 1 then
-    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
-		end
-    local ok, ip = dns_resolve(domain)
-    local t2 = now()
-		if i == 10 then
-    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
-		end
-  end)
+local pairs = pairs
+
+-- 去除ipv4->ipv6映射前缀
+local function delete_ipv4_prefix (ip)
+  if system.is_ipv4(ip) then
+    return ip
+  end
+  return find(ip, '::ffff') and match(ip, "::[fF]+:([%d%.]+)") or ip
 end
 
--- 腾讯
-for i = 1, 10 do
-  cf.fork(function ( ... )
-    local t1 = now()
-    local domain = 'www.qq.com'
-		if i == 1 then
-    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
-		end
-    local ok, ip = dns_resolve(domain)
-    local t2 = now()
-		if i == 10 then
-    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
-		end
-  end)
-end
+local domains = {
+  ["百度"] = "www.baidu.com",
+  ["腾讯"] = "www.qq.com",
+  ["淘宝"] = "www.taobao.com",
+  ["谷歌"] = "www.google.com",
+  ["网易"] = "www.163.com",
+  ["京东"] = "www.jd.com",
+  ["唯品会"] = "www.vip.com",
+  ["盛大"] = "www.sdo.com",
+}
 
--- 淘宝
-for i = 1, 10 do
-  cf.fork(function ( ... )
-    local t1 = now()
-    local domain = 'www.taobao.com'
-		if i == 1 then
-    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
-		end
-    local ok, ip = dns_resolve(domain)
-    local t2 = now()
-		if i == 10 then
-    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
-		end
-  end)
-end
+-- 查询次数
+local min, max = 1, 10000
 
--- 谷歌
-for i = 1, 10 do
-  cf.fork(function ( ... )
-    local t1 = now()
-    local domain = 'www.google.com'
-		if i == 1 then
-    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
-		end
-    local ok, ip = dns_resolve(domain)
-    local t2 = now()
-		if i == 10 then
-    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
-		end
-  end)
-end
-
--- 网易
-for i = 1, 10 do
-  cf.fork(function ( ... )
-    local t1 = now()
-    local domain = 'www.163.com'
-		if i == 1 then
-    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
-		end
-    local ok, ip = dns_resolve(domain)
-    local t2 = now()
-		if i == 10 then
-    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
-		end
-  end)
-end
-
--- 京东
-for i = 1, 10 do
-  cf.fork(function ( ... )
-    local t1 = now()
-    local domain = 'www.jd.com'
-		if i == 1 then
-    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
-		end
-    local ok, ip = dns_resolve(domain)
-    local t2 = now()
-		if i == 10 then
-    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
-		end
-  end)
-end
-
--- 唯品会
-for i = 1, 10 do
-  cf.fork(function ( ... )
-    local t1 = now()
-    local domain = 'www.vip.com'
-		if i == 1 then
-    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
-		end
-    local ok, ip = dns_resolve(domain)
-    local t2 = now()
-		if i == 10 then
-    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
-		end
-  end)
-end
-
--- 盛大
-for i = 1, 10 do
-  cf.fork(function ( ... )
-    local t1 = now()
-    local domain = 'www.sdo.com'
-		if i == 1 then
-    	print("开始解析 :", domain, "时间:", fmt("%0.8f/Sec", t1))
-		end
-    local ok, ip = dns_resolve(domain)
-    local t2 = now()
-		if i == 10 then
-    	print("结束解析 :", domain, "时间:", fmt("%0.8f/Sec", t2), "耗时:", fmt("%0.8f/Sec", t2 - t1))
-		end
-  end)
+for company, domain in pairs(domains) do
+  local t1 = now()
+  for i = min, max do
+    fork(function (...)
+      local ok, ip = dns_resolve(domain)
+      if i == max then
+        local t2 = now()
+        LOG:DEBUG("结束解析 : ".. company .. "[".. domain .."]" , "[".. delete_ipv4_prefix(ip) .."]", "总耗时: " .. fmt("%0.8f/Sec", t2 - t1))
+      end
+    end)
+  end
 end
