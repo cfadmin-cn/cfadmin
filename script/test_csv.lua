@@ -1,8 +1,7 @@
 local csv = require "csv"
 
-local Log = require("logging"):new()
+local LOG = require("logging")
 
-Log:DEBUG(csv.loadfile("./Excel.csv"))
+LOG:DEBUG(csv.loadfile("./Excel.csv"))
 
-
-local csv.dump("./Excel-1.csv", csv.loadfile("./Excel.csv"))
+LOG:DEBUG(csv.writefile("./Excel-1.csv", csv.loadfile("./Excel.csv")))
