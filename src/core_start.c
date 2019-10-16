@@ -18,7 +18,8 @@ void write_pid(const char *filename) {
 
 void check_args(int argc, char const *argv[]) {
   if (argc > 1) {
-    for (uint32_t index = 0; index < argc; index ++) {
+    uint32_t index;
+    for (index = 0; index < argc; index ++) {
       if (!strcmp("-d", argv[index])){
         daemon(1, 0);
         continue;
