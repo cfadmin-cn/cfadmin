@@ -48,10 +48,12 @@ function csv.writefile (path, t)
   if not file then
     return nil, err
   end
-  local headers = t[1]
-  file:write(concat(headers, ",") .. '\n')
-  for index = 2, #t do
-    file:write(concat(t[index], ',') .. '\n')
+  file:setvbuf("full", 1 << 20)
+  for index = 1, #t do
+    local contents = t[index]
+    if type(contents) == 'table' then
+      file:write(concat(contents, ',') .. '\n')
+    end
   end
   file:flush()
   file:close()
