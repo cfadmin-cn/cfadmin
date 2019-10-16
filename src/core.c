@@ -86,7 +86,7 @@ L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
 
 void
 init_lua_libs(lua_State *L){
-    /* lua 标准库 */
+  /* lua 标准库 */
 	luaL_openlibs(L);
 
 	lua_pushglobaltable(L);
@@ -153,7 +153,7 @@ signal_init(){
 }
 
 void
-init_main(){
+init_main(const char script_entry[]){
 
 	int status = 0;
 
@@ -164,7 +164,7 @@ init_main(){
 
 	CO_GCRESET(L);
 
-	status = luaL_loadfile(L, "script/main.lua");
+	status = luaL_loadfile(L, script_entry);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
 		return lua_close(L), _exit(-1);
@@ -175,23 +175,20 @@ init_main(){
 		LOG("ERROR", lua_tostring(L, -1));
 		return lua_close(L), _exit(-1);
 	}
-	if (status == LUA_YIELD) {
+
+	if (status == LUA_YIELD)
 		signal_init();
-	}
 
 }
 
 void
-core_sys_init(){
-
+core_sys_init(const char script_entry[]){
 	/* hook libev 内存分配 */
 	core_ev_set_allocator(EV_ALLOC);
-
 	/* hook 事件循环错误信息 */
 	core_ev_set_syserr_cb(ERROR_CB);
-
 	/* 初始化Lua脚本 */
-	init_main();
+	init_main(script_entry);
 
 }
 
