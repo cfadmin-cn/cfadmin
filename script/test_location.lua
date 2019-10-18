@@ -11,7 +11,7 @@ local sn = "Your_SN_Key"
 -- local code, ret = location.getIpLocation(accesskey, sn, '8.8.8.8')
 -- print(code, ret)
 
--- local code, ret = location.getDistrictList(accesskey, sn,)
+-- local code, ret = location.getDistrictList(accesskey, sn)
 -- print(code, ret)
 
 -- local code, ret = location.getDistrictChildren(accesskey, sn, 110000)
