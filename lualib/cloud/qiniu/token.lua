@@ -1,8 +1,8 @@
 local json = require "json"
-local crypt = require "crypt"
+local crypt = require "cloud.qiniu.crypt"
 local hmac_sha1 = crypt.hmac_sha1
 local urlencode = crypt.urlencode
-local base64encode = crypt.base64encode
+local base64encode = crypt.urlsafe_base64encode
 
 local type = type
 local next = next
@@ -69,7 +69,7 @@ function Token.newAuthorization (AccessKey, SecretKey, opt)
   else
     auth = auth .. '\n\n'
   end
-  return 'Qiniu'.. ' ' .. AccessKey .. ':' .. crypt.base64encode(crypt.hmac_sha1(SecretKey, auth))
+  return 'Qiniu'.. ' ' .. AccessKey .. ':' .. base64encode(hmac_sha1(SecretKey, auth))
 end
 
 -- 上传凭证
@@ -97,8 +97,8 @@ function Token.getUploadToken (AccessKey, SecretKey, roles)
     fileType = toint(roles.filetype) ~= 0 and 1 or 0,                      -- 文件存储类型(0 为普通存储,1 为低频存储) 默认为: 0
     mimeLimit = type(roles.mimeLimit) == 'string' and roles.mimeLimit or nil,  -- 限制文件类型
   }
-  local encodedPutPolicy = crypt.base64encode(json.encode(Policy))
-  return AccessKey .. ':' .. crypt.base64encode(crypt.hmac_sha1(SecretKey, encodedPutPolicy)) .. ':' .. encodedPutPolicy
+  local encodedPutPolicy = base64encode(json.encode(Policy))
+  return AccessKey .. ':' .. base64encode(hmac_sha1(SecretKey, encodedPutPolicy)) .. ':' .. encodedPutPolicy
 end
 
 -- 下载凭证
@@ -112,7 +112,7 @@ function Token.getDownloadToken (AccessKey, SecretKey, opt)
   if type(opt) ~= 'table' or not opt.url or not toint(opt.expires) then
     return nil, "invaild roles."
   end
-  return concat({ opt.url .. '?'..'e='.. opt.expires, 'token='.. AccessKey .. ':' .. crypt.base64encode(crypt.hmac_sha1(SecretKey, opt.url)) }, '&')
+  return concat({ opt.url .. '?'..'e='.. opt.expires, 'token='.. AccessKey .. ':' .. base64encode(hmac_sha1(SecretKey, opt.url)) }, '&')
 end
 
 return Token
