@@ -1,6 +1,7 @@
 local token = require "cloud.qiniu.token"
 local censor = require "cloud.qiniu.censor"
 local Stream = require "cloud.qiniu.Stream"
+local ocr = require "cloud.qiniu.ocr"
 local sms = require "cloud.qiniu.sms"
 local oss = require "cloud.qiniu.oss"
 local LOG = require "logging"
@@ -105,4 +106,9 @@ local SecretKey = 'Your_Real_SecretKey'
 -- local job_id = "5d90cb95093ff70008e32e0a"
 --
 -- local code, ret = censor.getVideoCensorResult(AccessKey, SecretKey, job_id)
+-- LOG:DEBUG(code, ret)
+--
+-- -- *******身份证识别********
+--
+-- local code, ret = ocr.idcard(AccessKey, SecretKey, "http://5b0988e595225.cdn.sohucs.com/images/20190111/fe9b7bb1afac482c89963174b2feac14.jpeg")
 -- LOG:DEBUG(code, ret)
