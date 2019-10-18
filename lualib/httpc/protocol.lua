@@ -3,10 +3,10 @@ local tcp = require "internal.TCP"
 local url = require "url"
 local url_encode = url.encode
 
-local HTTP = require "protocol.http"
-local FILEMIME = HTTP.FILEMIME
-local PARSER_HTTP_RESPONSE = HTTP.PARSER_HTTP_RESPONSE
-local RESPONSE_CHUNKED_PARSER = HTTP.RESPONSE_CHUNKED_PARSER
+local HTTP_PARSER = require "protocol.http.parser"
+local FILEMIME = require "protocol.http.mime"
+local PARSER_HTTP_RESPONSE = HTTP_PARSER.PARSER_HTTP_RESPONSE
+local RESPONSE_CHUNKED_PARSER = HTTP_PARSER.RESPONSE_CHUNKED_PARSER
 
 local type = type
 local assert = assert
@@ -355,7 +355,7 @@ local function build_file_req (opt)
           filename = ''
         end
         insert(body, fmt(cd, fmt('name="%s"', name) .. '; ' .. fmt('filename="%s"', filename)))
-        insert(body, fmt(ct, FILEMIME(file.type or '') or 'application/octet-stream') .. CRLF)
+        insert(body, fmt(ct, FILEMIME[file.type or ''] or 'application/octet-stream') .. CRLF)
       end
       insert(body, file.file)
     end
