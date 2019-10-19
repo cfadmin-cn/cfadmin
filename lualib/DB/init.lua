@@ -21,47 +21,41 @@ local select = select
 local tostring = tostring
 local tonumber = tonumber
 
-local rep = string.rep
-local find = string.find
 local fmt = string.format
-local lower = string.lower
-local upper = string.upper
-local match = string.match
 
 local insert = table.insert
 local remove = table.remove
 local concat = table.concat
-local unpack = table.unpack
 
 -- 空闲连接时间
 local WAIT_TIMEOUT = 31536000
 
 -- 数据库连接创建函数
 local function DB_CREATE (opt)
-    local times = 1
-    local db
-    while 1 do
-        db = mysql:new()
-        db:set_timeout(3)
-        local connect, err = db:connect(opt)
-        if connect then
-          break
-        end
-        Log:WARN('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
-        db:close()
-        times = times + 1
-        timer.sleep(3)
-    end
-    if not opt.INITIALIZATION then -- 设置连接超时时间
-      db:query(fmt('SET GLOBAL wait_timeout=%s', WAIT_TIMEOUT))
-      db:query(fmt('SET GLOBAL interactive_timeout=%s', WAIT_TIMEOUT))
-    end
-    if opt.stmts then
-      for rkey, stmt in pairs(opt.stmts) do
-        assert(db:query(stmt), "["..stmt.."] 预编译失败.")
+  local times = 1
+  local db
+  while 1 do
+      db = mysql:new()
+      db:set_timeout(3)
+      local connect, err = db:connect(opt)
+      if connect then
+        break
       end
+      Log:WARN('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
+      db:close()
+      times = times + 1
+      timer.sleep(3)
+  end
+  if not opt.INITIALIZATION then -- 设置连接超时时间
+    db:query(fmt('SET GLOBAL wait_timeout=%s', WAIT_TIMEOUT))
+    db:query(fmt('SET GLOBAL interactive_timeout=%s', WAIT_TIMEOUT))
+  end
+  if opt.stmts then
+    for rkey, stmt in pairs(opt.stmts) do
+      assert(db:query(stmt), "["..stmt.."] 预编译失败.")
     end
-    return db
+  end
+  return db
 end
 
 local function add_wait(self, co)
@@ -69,7 +63,7 @@ local function add_wait(self, co)
 end
 
 local function pop_wait(self)
-    return remove(self.co_pool)
+  return remove(self.co_pool)
 end
 
 local function add_db(self, db)
@@ -78,15 +72,15 @@ end
 
 -- 负责创建连接/加入等待队列
 local function pop_db(self)
-    if #self.db_pool > 0 then
-      return remove(self.db_pool)
-    end
-    if self.current < self.max then
-      self.current = self.current + 1
-      return DB_CREATE(self)
-    end
-    add_wait(self, co_self())
-    return co_wait()
+  if #self.db_pool > 0 then
+    return remove(self.db_pool)
+  end
+  if self.current < self.max then
+    self.current = self.current + 1
+    return DB_CREATE(self)
+  end
+  add_wait(self, co_self())
+  return co_wait()
 end
 
 local DB = class("DB")
@@ -158,33 +152,28 @@ function DB:execute (rkey, ...)
     end
     arg_keys[#arg_keys+1] = key
     req1[#req1+1] = concat({key, "=", "'", value, "'"})
-    -- Log:DEBUG(key, value)
   end
-  -- Log:DEBUG(stmt)
-  -- Log:DEBUG(concat({"SET ", concat(req1, ", "), ";", " EXECUTE ", rkey, " USING ", concat(arg_keys, ", "), ";"}))
   return self:query(concat({"SET ", concat(req1, ", "), ";", " EXECUTE ", rkey, " USING ", concat(arg_keys, ", "), ";"}))
 end
 
 -- 原始查询语句
 function DB:query(query)
   if not self.INITIALIZATION then
-      return nil, "DB尚未初始化"
+    return nil, "DB尚未初始化"
   end
   assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
-  -- Log:DEBUG(query)
   local db, ret, err
   while 1 do
-      db = pop_db(self)
-      if db then
-        ret, err = db:query(query)
-        if db.state then
-            break
-        end
-        -- Log:ERROR(err)
-        db:close()
-        self.current = self.current - 1
-        db, ret, err = nil, nil, nil
+    db = pop_db(self)
+    if db then
+      ret, err = db:query(query)
+      if db.state then
+        break
       end
+      db:close()
+      self.current = self.current - 1
+      db, ret, err = nil, nil, nil
+    end
   end
   local co = pop_wait(self)
   if co then
