@@ -136,7 +136,7 @@ local function httpc_response(sock, SSL)
 	local content = {}
 	local times = 0
 	while 1 do
-		local data, len = sock_recv(sock, SSL, 2048)
+		local data, len = sock_recv(sock, SSL, 65535)
 		if not data then
 			return nil, SSL.." A peer of remote server close this connection."
 		end
@@ -163,7 +163,7 @@ local function httpc_response(sock, SSL)
 				local content = {split(DATA, posB + 1, #DATA)}
         local Len = #content[1]
 				while 1 do
-					local data, len = sock_recv(sock, SSL, 2048)
+					local data, len = sock_recv(sock, SSL, 65535)
 					if not data then
 						return nil, SSL.."[Content_Length] A peer of remote server close this connection."
 					end
@@ -189,7 +189,7 @@ local function httpc_response(sock, SSL)
           insert(content, buf)
 				end
 				while 1 do
-					local data, len = sock_recv(sock, SSL, 2048)
+					local data, len = sock_recv(sock, SSL, 65535)
 					if not data then
 						return CODE, SSL.."[chunked] A peer of remote server close this connection A."
 					end

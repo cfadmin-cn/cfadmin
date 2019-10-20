@@ -127,7 +127,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
       if RECV_BODY then
         local buffers = {BODY}
         while 1 do
-          local buf = sock:recv(1024)
+          local buf = sock:recv(65535)
           if not buf then
             return
           end
@@ -276,7 +276,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
   secCookie(cookie_secure) -- 如果需要
   local sock = tcp:new():set_fd(fd):timeout(timeout)
   while 1 do
-    local buf = sock:recv(1024)
+    local buf = sock:recv(65535)
     if not buf then
       return sock:close()
     end
