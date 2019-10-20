@@ -167,6 +167,14 @@ function crypt.base64decode (...)
   return base64decode(...)
 end
 
+function crypt.base64urlencode(data)
+  return base64encode(data):gsub('+', '-'):gsub('/', '_')
+end
+
+function crypt.base64urldecode(data)
+  return base64decode(data:gsub('-', '+'):gsub('_', '/'))
+end
+
 function crypt.hexencode (...)
   return hexencode(...)
 end
