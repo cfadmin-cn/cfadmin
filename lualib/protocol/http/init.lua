@@ -10,6 +10,7 @@ local sha1 = crypt.sha1
 local base64encode = crypt.base64encode
 local now = sys.now
 local DATE = require("sys").date
+local new_tab = require("sys").new_tab
 local insert = table.insert
 
 local form = require "httpd.Form"
@@ -23,7 +24,6 @@ local clCookie = Cookie.clean   -- 清理
 local secCookie = Cookie.setSecure -- 设置Cookie加密字段
 local seCookie = Cookie.serialization -- 序列化
 local deCookie = Cookie.deserialization -- 反序列化
-
 
 local Router = require "httpd.Router"
 local ROUTE_FIND = Router.find
@@ -39,6 +39,7 @@ local lower = string.lower
 local upper = string.upper
 local match = string.match
 local fmt = string.format
+local ceil = math.ceil
 local toint = math.tointeger
 local find = string.find
 local split = string.sub
@@ -78,7 +79,7 @@ local HTTP_PROTOCOL = {
 
 -- 以下为 HTTP Server 所需所用方法
 local function REQUEST_STATUCODE_RESPONSE(code)
-  return HTTP_CODE[code] or "attempt to Passed A Invaid Code to response message."
+  return HTTP_CODE[code] or "attempt to passed a invalid code to response message."
 end
 
 local function REQUEST_MIME_RESPONSE(mime)
@@ -125,19 +126,20 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
         end
       end
       if RECV_BODY then
-        local buffers = {BODY}
+        local buf_len = #BODY
+        local buffers = body_len > 65535 and new_tab(ceil(body_len / 65535), 0) or {}
         while 1 do
-          local buf = sock:recv(65535)
+          local buf, len = sock:recv(65535)
           if not buf then
             return
           end
-          buffers[#buffers+1] = buf
-          local buffer = concat(buffers)
-          if #buffer >= (max_body_size or 1024 * 1024) then
+          buf_len = buf_len + len
+          if buf_len >= (max_body_size or 1024 * 1024) then
             return nil, 413
           end
-          if #buffer == body_len then
-            BODY = buffer
+          buffers[#buffers + 1] = buf
+          if buf_len == body_len then
+            BODY = concat(buffers)
             break
           end
         end
@@ -276,7 +278,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
   secCookie(cookie_secure) -- 如果需要
   local sock = tcp:new():set_fd(fd):timeout(timeout)
   while 1 do
-    local buf = sock:recv(65535)
+    local buf = sock:recv(8192)
     if not buf then
       return sock:close()
     end
