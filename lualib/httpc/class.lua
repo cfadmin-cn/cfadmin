@@ -16,6 +16,8 @@ local build_json_req = protocol.build_json_req
 local build_file_req = protocol.build_file_req
 local build_put_req = protocol.build_put_req
 local build_delete_req = protocol.build_delete_req
+local build_jwt = protocol.build_jwt
+local build_basic_authorization = protocol.build_basic_authorization
 
 local type = type
 local assert = assert
@@ -46,6 +48,14 @@ local httpc = class("httpc")
 function httpc:ctor (opt)
   self.server = "cf/0.1"
   self.timeout = opt.timeout or 15
+end
+
+function httpc:jwt(...)
+  return build_jwt(...)
+end
+
+function httpc:basic_authorization( ... )
+  return build_basic_authorization(...)
 end
 
 -- get 请求

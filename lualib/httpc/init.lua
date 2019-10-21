@@ -21,6 +21,8 @@ local build_json_req = protocol.build_json_req
 local build_file_req = protocol.build_file_req
 local build_put_req = protocol.build_put_req
 local build_delete_req = protocol.build_delete_req
+local build_jwt = protocol.build_jwt
+local build_basic_authorization = protocol.build_basic_authorization
 
 local type = type
 local assert = assert
@@ -282,4 +284,6 @@ return {
 	file = file,
 	put = put,
 	multi_request = multi_request,
+	jwt = build_jwt,
+	basic_authorization = build_basic_authorization,
 }

@@ -1,7 +1,13 @@
 local tcp = require "internal.TCP"
 
-local url = require "url"
-local url_encode = url.encode
+local json = require "json"
+local json_encode = json.encode
+
+local crypt = require "crypt"
+local url_encode = crypt.urlencode
+local hmac_sha256 = crypt.hmac_sha256
+local base64encode = crypt.base64encode
+local base64urlencode = crypt.base64urlencode
 
 local HTTP_PARSER = require "protocol.http.parser"
 local FILEMIME = require "protocol.http.mime"
@@ -389,6 +395,24 @@ local function build_put_req (opt)
   return concat(request, CRLF) .. CRLF2 .. ( type(opt.body) == "string" and opt.body or '' )
 end
 
+-- http base authorization
+local function build_basic_authorization(username, password)
+  return "Authorization", "Basic " .. base64encode(username .. ":" .. password)
+end
+
+-- Json Web Token
+local function build_jwt(secret, payload)
+  local content = {nil, nil, nil}
+  -- header
+  content[#content + 1] = base64urlencode(json_encode{ alg = "HS256", typ = "JWT" })
+  -- payload
+  content[#content + 1] = base64urlencode(payload)
+  -- signature
+  content[#content + 1] = hmac_sha256(secret, concat(content, "."), true)
+  -- result.
+  return "Authorization", "Bearer " .. concat(content, ".")
+end
+
 return {
   sock_new = sock_new,
   sock_recv = sock_recv,
@@ -402,4 +426,6 @@ return {
   build_file_req = build_file_req,
   build_put_req = build_put_req,
   build_delete_req = build_delete_req,
+  build_jwt = build_jwt,
+  build_basic_authorization = build_basic_authorization,
 }
