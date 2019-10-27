@@ -68,6 +68,12 @@ function view.get_cdn ()
   return config.cdn
 end
 
-view.template = template.compile
+-- 模板渲染
+function view.template( ... )
+  if not config.cache then
+    template.cache = {}
+  end
+  return template.compile(...)
+end
 
 return view
