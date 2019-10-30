@@ -126,6 +126,7 @@ function dashboard.render(content)
     logo = config.dashboard,
     menus = get_menus(db, {is_admin = user.is_admin, roles = user.roles}),
     headers = get_headers(db),
+    token = user.token,
     username = user.name,
     is_admin = user.is_admin,
     logout = config.dashboard .."?logout=true",
