@@ -268,7 +268,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
   local buffers = {}
   local ttl = http.ttl
   local server = http.__server
-  local timeout = http.__timeout or 30
+  local timeout = http.__timeout or 0
   local cookie = http.__cookie
   local cookie_secure = http.__cookie_secure
   local before_func = http._before_func
@@ -468,7 +468,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
       end
       header[#header+1] = Connection
       if Connection == 'Connection: keep-alive' then
-        header[#header+1] = "Keep-Alive: timeout="..timeout
+        header[#header+1] = "Keep-Alive: timeout="..(timeout <= 0 and 86400 or timeout)..', max='..(1 << 12)
       end
       if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
         if typ == HTTP_PROTOCOL.API then
