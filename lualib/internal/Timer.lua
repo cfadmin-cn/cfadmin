@@ -12,7 +12,10 @@ local co_spwan = co.spwan
 local co_wakeup = co.wakeup
 local co_self = co.self
 
-local insert = table.insert
+local co_self_ex = coroutine.running
+local co_wait_ex = coroutine.yield
+local co_wakeup_ex = coroutine.resume
+
 local remove = table.remove
 
 local Timer = {}
@@ -21,123 +24,102 @@ local TIMER_LIST = {}
 
 -- 内部函数防止被误用
 local function Timer_new()
-    if #TIMER_LIST > 0 then
-        return remove(TIMER_LIST)
-    end
-    return ti_new()
+  if #TIMER_LIST > 0 then
+    return remove(TIMER_LIST)
+  end
+  return ti_new()
 end
 
 local function Timer_release(t)
-    ti_stop(t)
-    insert(TIMER_LIST, t)
+  ti_stop(t)
+  TIMER_LIST[#TIMER_LIST+1] = t
 end
 
-function Timer.count( ... )
-    return #TIMER_LIST
+local function Timer_stop(self)
+  if self and not self.stoped then
+    self.stoped = true
+    if self.t then
+      Timer_release(self.t)
+      self.t = nil
+    end
+    Timer[self] = nil
+  end
+end
+
+function Timer.count()
+  return #TIMER_LIST
 end
 
 -- 超时器 --
 function Timer.timeout(timeout, cb)
-    if type(timeout) ~= 'number' or timeout <= 0 then
-        return
-    end
-    if type(cb) ~= 'function' then
+  if type(timeout) ~= 'number' or timeout <= 0 then
+    return
+  end
+  if type(cb) ~= 'function' then
+    return
+  end
+  local t = Timer_new()
+  if not t then
+    return
+  end
+  local once = {stoped = false, timeout = timeout, stop = Timer_stop, t = t, co = nil}
+  once.co = co_new(function( ... )
+    if once.stoped then
       return
     end
-    local t = Timer_new()
-    if not t then
-        return
-    end
-    local timer = {STOP = false}
-    timer.stop = function (...)
-        if timer.STOP then
-          return
-        end
-        Timer_release(t)
-        timer.STOP = true
-        timer.co = nil
-        Timer[timer] = nil
-    end
-    timer.co = co_new(function (...)
-      if timer.STOP then
-          return
-      end
-      Timer_release(t)
-      co_spwan(cb)
-      if timer.STOP then
-        return
-      end
-      Timer[timer] = nil
-      timer.STOP = true
-      timer.co = nil
-    end)
-    Timer[timer] = timer
-    ti_start(t, timeout, timer.co)
-    return timer
+    co_spwan(cb)
+    Timer_stop(once)
+  end)
+  Timer[once] = once
+  ti_start(t, timeout, once.co)
+  return once
 end
 
 -- 循环定时器 --
 function Timer.at(repeats, cb)
-    if type(repeats) ~= 'number' or repeats <= 0 then
+  if type(repeats) ~= 'number' or repeats <= 0 then
+    return
+  end
+  if type(cb) ~= 'function' then
+    return
+  end
+  local t = Timer_new()
+  if not t then
+    return
+  end
+  local at = {stoped = false, repeats = repeats, stop = Timer_stop, t = t, co = nil}
+  at.co = co_new(function( ... )
+    while 1 do
+      if at.stoped then
         return
+      end
+      co_spwan(cb)
+      co_wait_ex()
     end
-    if type(cb) ~= 'function' then
-      return
-    end
-    local t = Timer_new()
-    if not t then
-        return
-    end
-    local timer = { STOP = false }
-    timer.stop = function (...)
-        if timer.STOP then
-            return
-        end
-        Timer_release(t)
-        timer.STOP = true
-        timer.co = nil
-        Timer[timer] = nil
-    end
-    timer.co = co_new(function ()
-      local co_wait = coroutine.yield
-        while 1 do
-          if timer.STOP then
-              return
-          end
-          co_spwan(cb)
-          if timer.STOP then
-            return
-          end
-          co_wait()
-        end
-    end)
-    Timer[timer] = timer
-    ti_start(t, repeats, timer.co)
-    return timer
+  end)
+  Timer[at] = at
+  ti_start(t, repeats, at.co)
+  return at
 end
 
 -- 休眠 --
-function Timer.sleep(repeats)
-    if type(repeats) ~= 'number' or repeats <= 0 then
-        return
-    end
-    local t = Timer_new()
-    if not t then
-        return
-    end
-    local timer = {}
-    timer.current_co = co_self()
-    timer.co = co_new(function (...)
-        local current_co = timer.current_co
-        Timer[timer] = nil
-        timer.current_co = nil
-        timer.co = nil
-        Timer_release(t)
-        return co_wakeup(current_co)
-    end)
-    Timer[timer] = timer
-    ti_start(t, repeats, timer.co)
-    return co_wait()
+function Timer.sleep(timeout)
+  if type(timeout) ~= 'number' or timeout <= 0 then
+    return
+  end
+  local t = Timer_new()
+  if not t then
+    return
+  end
+  local sleep = {stoped = false, stop = Timer_stop, t = t }
+  local co = co_self()
+  sleep.co = co_new(function (...)
+    Timer_stop(sleep)
+    return co_wakeup(co)
+  end)
+  Timer[sleep] = sleep
+  ti_start(t, timeout, sleep.co)
+  return co_wait()
 end
 
 return Timer
