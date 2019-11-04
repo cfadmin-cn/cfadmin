@@ -35,6 +35,11 @@ local function Timer_release(t)
   TIMER_LIST[#TIMER_LIST+1] = t
 end
 
+local function Timer_start(self)
+  Timer[self] = self
+  ti_start(self.t, self.timeout or self.repeats, self.co)
+end
+
 local function Timer_stop(self)
   if self and not self.stoped then
     self.stoped = true
@@ -70,8 +75,7 @@ function Timer.timeout(timeout, cb)
     co_spwan(cb)
     Timer_stop(once)
   end)
-  Timer[once] = once
-  ti_start(t, timeout, once.co)
+  Timer_start(once)
   return once
 end
 
@@ -97,8 +101,7 @@ function Timer.at(repeats, cb)
       co_wait_ex()
     end
   end)
-  Timer[at] = at
-  ti_start(t, repeats, at.co)
+  Timer_start(at)
   return at
 end
 
@@ -111,14 +114,13 @@ function Timer.sleep(timeout)
   if not t then
     return
   end
-  local sleep = {stoped = false, stop = Timer_stop, t = t }
+  local sleep = {stoped = false, timeout = timeout, t = t, co = nil }
   local co = co_self()
   sleep.co = co_new(function (...)
     Timer_stop(sleep)
     return co_wakeup(co)
   end)
-  Timer[sleep] = sleep
-  ti_start(t, timeout, sleep.co)
+  Timer_start(sleep)
   return co_wait()
 end
 
