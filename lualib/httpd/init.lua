@@ -163,9 +163,9 @@ function httpd:listen(ip, port, backlog)
     self.logging:dump(fmt('[%s] [INFO] httpd listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
   end
   self.sock:set_backlog(toint(backlog))
-  return self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
+  return assert(self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
       return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
-  end)
+  end))
 end
 
 -- 监听unixsock
@@ -178,9 +178,9 @@ function httpd:listenx(unix_domain_path, backlog)
     self.logging:dump(fmt('[%s] [INFO] httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), unix_domain_path))
   end
   self.sock:set_backlog(toint(backlog))
-  return self.sock:listen_ex(unix_domain_path, true, function (fd, ipaddr)
+  return assert(self.sock:listen_ex(unix_domain_path, true, function (fd, ipaddr)
     return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
-  end)
+  end))
 end
 
 -- 正确的运行方式
