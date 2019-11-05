@@ -51,6 +51,7 @@ local concat = table.concat
 local CRLF = '\x0d\x0a'
 local CRLF2 = '\x0d\x0a\x0d\x0a'
 local RE_CRLF2 = '[\x0d]?\x0a[\x0d]?\x0a'
+local COMMA = '\x2c'
 
 local SERVER = 'cf web/0.1'
 
@@ -107,7 +108,7 @@ local function HTTP_EXPIRES(timestamp)
 end
 
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
-  local content = {}
+  local content = new_tab(0, 8)
   if METHOD == "GET" then
     local spl_pos = find(PATH, '%?')
     if spl_pos and spl_pos < #PATH then
@@ -184,21 +185,11 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
   return true, content
 end
 
-local function X_Forwarded_FORMAT(tab)
-  local ip_list
-  if tab and type(tab) == 'string' then
-    for ip in splite(tab, '([^ ,;]+)') do
-      if not ip_list then
-        ip_list = {ip}
-      else
-        if ip ~= ip_list[#ip_list] then
-          ip_list[#ip_list+1] = ip
-        end
-      end
-    end
-    return concat(ip_list, ' -> ')
+local function X_Forwarded_FORMAT(ip_list)
+  if find(ip_list, ',') then
+    return ip_list:gsub(COMMA, "->")
   end
-  return tab
+  return ip_list
 end
 -- 一些错误返回
 local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
@@ -393,7 +384,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         end
       end
 
-      local header = { }
+      local header = new_tab(16, 0)
       local ok, body, body_len, filepath, static, statucode
 
       if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
