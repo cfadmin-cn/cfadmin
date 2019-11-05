@@ -1,12 +1,13 @@
 #define LUA_LIB
 
+#include "../../src/core.h"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
-#include "../../src/core.h"
 
-#define SERVER 0
-#define CLIENT 1
+#define None (-1)
+#define SERVER (0)
+#define CLIENT (1)
 
 static inline
 void SETSOCKETOPT(int sockfd, int mode){
@@ -49,10 +50,12 @@ void SETSOCKETOPT(int sockfd, int mode){
 
 /* 开启 TCP keepalive */
 #ifdef SO_KEEPALIVE
-  ret = setsockopt(sockfd, IPPROTO_TCP, SO_KEEPALIVE, &Enable , sizeof(Enable));
-  if (ret){
-    LOG("ERROR", "SO_KEEPALIVE 设置失败.");
-    return _exit(-1);
+  if (mode != None){
+    ret = setsockopt(sockfd, IPPROTO_TCP, SO_KEEPALIVE, &Enable , sizeof(Enable));
+    if (ret){
+      LOG("ERROR", "SO_KEEPALIVE 设置失败.");
+      return _exit(-1);
+    }
   }
 #endif
 
@@ -99,7 +102,7 @@ void SETSOCKETOPT(int sockfd, int mode){
 
 /* 开启IPV6与ipv4双栈 */
 #ifdef IPV6_V6ONLY
-  if (mode == SERVER) {
+  if (mode != None) {
     int No = 0;
     ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&No, sizeof(No));
     if (ret){
@@ -117,9 +120,10 @@ create_server_fd(int port, int backlog){
   errno = 0;
   /* 建立 TCP Server Socket */
   int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-  if (0 >= sockfd)
+  if (0 >= sockfd){
+    LOG("DEBUG", strerror(errno));
     return -1;
-
+  }
   /* socket option set */
   SETSOCKETOPT(sockfd, SERVER);
 
@@ -153,7 +157,10 @@ create_client_fd(const char *ipaddr, int port){
   errno = 0;
 	/* 建立 TCP Client Socket */
 	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-	if (0 >= sockfd) return -1;
+	if (0 >= sockfd) {
+    LOG("DEBUG", strerror(errno));
+    return -1;
+  }
 
 	/* socket option set */
 	SETSOCKETOPT(sockfd, CLIENT);
@@ -179,6 +186,41 @@ create_client_fd(const char *ipaddr, int port){
 	return sockfd;
 }
 
+static int
+create_unixsock_fd(const char* path, size_t path_len, int backlog) {
+  errno = 0;
+  int sockfd = socket(AF_LOCAL, SOCK_STREAM, IPPROTO_IP);
+  if (0 >= sockfd){
+    LOG("DEBUG", strerror(errno));
+    return -1;
+  } 
+
+  struct sockaddr_un UN;
+  memset(&UN, 0x0, sizeof(UN));
+
+  UN.sun_family = AF_LOCAL;
+  memmove(UN.sun_path, path, path_len);
+
+  non_blocking(sockfd);
+
+  /* 绑定套接字失败 */
+  int bind_success = bind(sockfd, (struct sockaddr *)&UN, sizeof(UN));
+  if (0 > bind_success) {
+    LOG("DEBUG", strerror(errno));
+    close(sockfd);
+    return -1;
+  }
+
+  /* 监听套接字失败 */
+  int listen_success = listen(sockfd, backlog);
+  if (0 > listen_success) {
+    LOG("DEBUG", strerror(errno));
+    close(sockfd);
+    return -1;
+  }
+
+  return sockfd;
+}
 
 static void
 TCP_IO_CB(CORE_P_ core_io *io, int revents) {
@@ -227,6 +269,12 @@ static void /* 接受链接 */
 IO_ACCEPT(CORE_P_ core_io *io, int revents){
 
   if (revents & EV_READ){
+    lua_State *co = (lua_State *) core_get_watcher_userdata(io);
+    int status = lua_status(co);
+    if (status != LUA_YIELD && status != LUA_OK) {
+      LOG("ERROR", "accept get a invalid lua vm.");
+      return ;
+    }
     for(;;) {
       errno = 0;
       struct sockaddr_in6 SA;
@@ -238,22 +286,52 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
           LOG("INFO", strerror(errno));
         return ;
       }
-      SETSOCKETOPT(client, CLIENT);
-      lua_State *co = (lua_State *) core_get_watcher_userdata(io);
-      if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-        char buf[INET6_ADDRSTRLEN];
-        inet_ntop(AF_INET6, &SA.sin6_addr, buf, INET6_ADDRSTRLEN);
-        lua_pushinteger(co, client);
-        lua_pushlstring(co, buf, strlen(buf));
-        int status = CO_RESUME(co, NULL, lua_status(co) == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
-        if (status != LUA_YIELD && status != LUA_OK) {
-          LOG("ERROR", lua_tostring(co, -1));
-          LOG("ERROR", "Error Lua Accept Method");
-          core_io_stop(CORE_LOOP_ io);
-				}
-			}
+      SETSOCKETOPT(client, None);
+      char buf[INET6_ADDRSTRLEN];
+      inet_ntop(AF_INET6, &SA.sin6_addr, buf, INET6_ADDRSTRLEN);
+      lua_pushinteger(co, client);
+      lua_pushlstring(co, buf, strlen(buf));
+      status = CO_RESUME(co, NULL, status == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
+      if (status != LUA_YIELD && status != LUA_OK) {
+        LOG("ERROR", lua_tostring(co, -1));
+        LOG("ERROR", "Error Lua Accept Method");
+        core_io_stop(CORE_LOOP_ io);
+      }
 		}
 	}
+}
+
+static void
+IO_ACCEPT_EX(CORE_P_ core_io *io, int revents) {
+  if (revents & EV_READ){
+    lua_State *co = (lua_State *) core_get_watcher_userdata(io);
+    int status = lua_status(co);
+    if (status != LUA_YIELD && status != LUA_OK) {
+      LOG("ERROR", "accept_ex get a invalid lua vm.");
+      return ;
+    }
+    for (;;) {
+      errno = 0;
+      struct sockaddr_un UN;
+      socklen_t slen = sizeof(UN);
+      memset(&UN, 0x0, slen);
+      int client = accept(io->fd, (struct sockaddr *)&UN, &slen);
+      if (0 >= client) {
+        if (errno != EWOULDBLOCK)
+          LOG("INFO", strerror(errno));
+        return ;
+      }
+      non_blocking(client);
+      lua_pushinteger(co, client);
+      // lua_pushlstring(co, UN.sun_path, strlen(UN.sun_path)); // unix domain path
+      status = CO_RESUME(co, NULL, status == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
+      if (status != LUA_YIELD && status != LUA_OK) {
+        LOG("ERROR", lua_tostring(co, -1));
+        LOG("ERROR", "Error Lua Accept Method");
+        core_io_stop(CORE_LOOP_ io);
+      }
+    }
+  }
 }
 
 struct io_sendfile {
@@ -509,6 +587,32 @@ new_client_fd(lua_State *L){
 }
 
 static int
+new_unixsock_fd(lua_State *L) {
+  size_t size = 0;
+  const char* path = luaL_checklstring(L, 1, &size);
+  if (!path)
+    return 0;
+
+  /* 传递rm为非nil与false值, 删除已经存在的文件 */
+  int rm = lua_toboolean(L, 2);
+
+  /* 文件存在或无法删除的情况下都将创建unixsock失败 */
+  if (!access(path, F_OK)) {
+    if (!rm || unlink(path))
+      return 0;
+  }
+
+  int backlog = luaL_checkinteger(L, 3);
+
+  int fd = create_unixsock_fd(path, size, 0 >= backlog ? 128 : backlog);
+  if (fd <= 0)
+    return 0;
+
+  lua_pushinteger(L, fd);
+  return 1;
+}
+
+static int
 tcp_listen(lua_State *L){
 	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
 	if(!io) return 0;
@@ -527,7 +631,28 @@ tcp_listen(lua_State *L){
 
 	core_io_start(CORE_LOOP_ io);
 
-	return 0;
+	return 1;
+}
+
+static int
+tcp_listen_ex(lua_State *L) {
+  core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
+  if (!io) return 0;
+
+  /* socket文件描述符 */
+  int fd = lua_tointeger(L, 2);
+  if (0 >= fd) return 0;
+  /* 回调协程 */
+  lua_State *co = lua_tothread(L, 3);
+  if (!co) return 0;
+
+  core_set_watcher_userdata(io, co);
+
+  core_io_init(io, IO_ACCEPT_EX, fd, EV_READ);
+
+  core_io_start(CORE_LOOP_ io);
+
+  return 1;
 }
 
 static int
@@ -701,6 +826,7 @@ luaopen_tcp(lua_State *L){
     {"start", tcp_start},
     {"close", tcp_close},
     {"listen", tcp_listen},
+    {"listen_ex", tcp_listen_ex},
     {"connect", tcp_connect},
     {"ssl_connect", tcp_sslconnect},
     {"new", tcp_new},
@@ -708,6 +834,7 @@ luaopen_tcp(lua_State *L){
     {"free_ssl", ssl_free},
     {"new_server_fd", new_server_fd},
     {"new_client_fd", new_client_fd},
+    {"new_unixsock_fd", new_unixsock_fd},
     {"sendfile", tcp_sendfile},
     {NULL, NULL}
   };
