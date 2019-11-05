@@ -98,7 +98,8 @@ end)
 app:static('static')
 
 -- httpd监听端口
-app:listen("0.0.0.0", 8080)
+app:listen("0.0.0.0", 8080, 128)
+-- app:listenx("cfadmin.sock", 128)
 
 -- 运行
 app:run()
