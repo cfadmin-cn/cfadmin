@@ -1,5 +1,7 @@
 local class = require "class"
 
+local new_tab = require("sys").new_tab
+
 local log = require "logging"
 local Log = log:new({ dump = true, path = 'internal-TCP' })
 
@@ -42,7 +44,7 @@ local tcp_new_server_fd = tcp.new_server_fd
 local EVENT_READ  = 0x01
 local EVENT_WRITE = 0x02
 
-local POOL = {}
+local POOL = new_tab(1 << 10, 0)
 local function tcp_pop()
   if #POOL > 0 then
       return remove(POOL)

@@ -1,6 +1,8 @@
 local co = require "internal.Co"
 local ti = require "timer"
 
+local new_tab = require("sys").new_tab
+
 local type = type
 local ti_new = ti.new
 local ti_start = ti.start
@@ -18,9 +20,9 @@ local co_wakeup_ex = coroutine.resume
 
 local remove = table.remove
 
-local Timer = {}
+local Timer = new_tab(0, 1 << 10)
 
-local TIMER_LIST = {}
+local TIMER_LIST = new_tab(1 << 10, 0)
 
 -- 内部函数防止被误用
 local function Timer_new()

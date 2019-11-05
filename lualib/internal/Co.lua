@@ -1,4 +1,5 @@
 local task = require "task"
+local new_tab = require("sys").new_tab
 
 local task_new = task.new
 local task_stop = task.stop
@@ -18,12 +19,12 @@ local error = error
 local insert = table.insert
 local remove = table.remove
 
-local cos = {}
+local cos = new_tab(0, 1 << 10)
 
 local main_co = co_self()
 local main_task = task_new()
 
-local TASK_POOL = {}
+local TASK_POOL = new_tab(1 << 10, 0)
 
 local function task_pop()
 	if #TASK_POOL > 0 then
@@ -36,7 +37,7 @@ local function task_push(task)
 	return insert(TASK_POOL, task)
 end
 
-local CO_POOL = {}
+local CO_POOL = new_tab(1 << 10, 0)
 
 local function co_pop(func)
 	if #CO_POOL > 0 then
