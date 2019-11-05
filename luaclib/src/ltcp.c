@@ -99,11 +99,13 @@ void SETSOCKETOPT(int sockfd, int mode){
 
 /* 开启IPV6与ipv4双栈 */
 #ifdef IPV6_V6ONLY
-  int No = 0;
-  ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&No, sizeof(No));
-  if (ret){
-    LOG("ERROR", "IPV6_V6ONLY 关闭失败.");
-    return _exit(-1);
+  if (mode == SERVER) {
+    int No = 0;
+    ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&No, sizeof(No));
+    if (ret){
+      LOG("ERROR", "IPV6_V6ONLY 设置失败.");
+      return _exit(-1);
+    }
   }
 #endif
 
@@ -236,7 +238,7 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
           LOG("INFO", strerror(errno));
         return ;
       }
-      non_blocking(client); //在某些平台下, 这个socket是阻塞的.
+      SETSOCKETOPT(client, CLIENT);
       lua_State *co = (lua_State *) core_get_watcher_userdata(io);
       if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
         char buf[INET6_ADDRSTRLEN];
