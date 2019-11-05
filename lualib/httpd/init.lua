@@ -155,31 +155,42 @@ end
 
 -- 监听请求
 function httpd:listen(ip, port, backlog)
-  if type(ip) == 'string' and type(port) == 'number' then
-    if io.type(io.output()) == 'file' then
-      io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd正在监听: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
-    end
-    if self.logging then
-      self.logging:dump(fmt('[%s] [INFO] httpd正在监听: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
-    end
+  assert(type(ip) == 'string' and toint(port), "httpd error: invalid ip or port")
+  if io.type(io.output()) == 'file' then
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
   end
-  if type(backlog) == 'number' then
-    self.sock:set_backlog(toint(backlog))
+  if self.logging then
+    self.logging:dump(fmt('[%s] [INFO] httpd listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
   end
-  local ok, err = self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
+  self.sock:set_backlog(toint(backlog))
+  return self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
       return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
   end)
-  return assert(ok and self, err)
+end
+
+-- 监听unixsock
+function httpd:listenx(unix_domain_path, backlog)
+  assert(type(unix_domain_path) == 'string' and unix_domain_path ~= '', "httpd error: invalid unix domain path")
+  if io.type(io.output()) == 'file' then
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s \n', os_date("%Y/%m/%d %H:%M:%S"), unix_domain_path))
+  end
+  if self.logging then
+    self.logging:dump(fmt('[%s] [INFO] httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), unix_domain_path))
+  end
+  self.sock:set_backlog(toint(backlog))
+  return self.sock:listen_ex(unix_domain_path, true, function (fd, ipaddr)
+    return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
+  end)
 end
 
 -- 正确的运行方式
 function httpd:run()
   if io.type(io.output()) == 'file' then
     self.output = true
-    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd正在运行Web Server服务...\n', os_date("%Y/%m/%d %H:%M:%S")))
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd Web Server Running...\n', os_date("%Y/%m/%d %H:%M:%S")))
   end
   if self.logging then
-    self.logging:dump(fmt('[%s] [INFO] httpd正在运行Web Server服务...\n', os_date("%Y/%m/%d %H:%M:%S")))
+    self.logging:dump(fmt('[%s] [INFO] httpd Web Server Running...\n', os_date("%Y/%m/%d %H:%M:%S")))
   end
   return cf.wait()
 end
