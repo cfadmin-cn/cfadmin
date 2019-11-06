@@ -60,6 +60,8 @@ local CHARSET_MAP = {
     gb18030   = 248
 }
 
+local class = require "class"
+
 local MySQL = class("MySQL")
 
 local STATE_CONNECTED = 1
