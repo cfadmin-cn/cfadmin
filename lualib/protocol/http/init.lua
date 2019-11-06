@@ -483,7 +483,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         end
         header[#header+1] = 'Content-Length: ' .. #body
         header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
-        header[#header+1] = 'Cache-Control: no-cache'
       else
         if ttl then
           header[#header+1] = HTTP_EXPIRES(time() + ttl)
