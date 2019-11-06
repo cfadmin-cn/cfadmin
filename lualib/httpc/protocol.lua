@@ -1,5 +1,9 @@
 local tcp = require "internal.TCP"
 
+local lz = require"lz"
+local uncompress = lz.uncompress
+local gzuncompress = lz.gzuncompress
+
 local json = require "json"
 local json_encode = json.encode
 
@@ -142,7 +146,7 @@ local function httpc_response(sock, SSL)
 	local content = {}
 	local times = 0
 	while 1 do
-		local data, len = sock_recv(sock, SSL, 65535)
+		local data, len = sock_recv(sock, SSL, 1024)
 		if not data then
 			return nil, SSL.." A peer of remote server close this connection."
 		end
@@ -154,6 +158,7 @@ local function httpc_response(sock, SSL)
 			if not CODE or not HEADER then
 				return nil, SSL.." can't resolvable protocol."
 			end
+      local Content_Encoding = HEADER['Content-Encoding'] or HEADER['Content-encoding']
 			local Content_Length = toint(HEADER['Content-Length'] or HEADER['Content-length'] or HEADER['content-length'])
 			local chunked = HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding'] or HEADER['transfer-encoding']
 			if not chunked and not Content_Length then
@@ -164,7 +169,11 @@ local function httpc_response(sock, SSL)
 			end
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
-					return CODE, split(DATA, posB + 1, #DATA)
+          local res = split(DATA, posB + 1, #DATA)
+          if Content_Encoding == "gzip" then
+            res = gzuncompress(res)
+          end
+					return CODE, res
 				end
 				local content = {split(DATA, posB + 1, #DATA)}
         local Len = #content[1]
@@ -176,7 +185,11 @@ local function httpc_response(sock, SSL)
 					insert(content, data)
           Len = Len + len
           if Len >= Content_Length then
-            return CODE, concat(content)
+            local res = concat(content)
+            if Content_Encoding == "gzip" then
+              res = gzuncompress(res)
+            end
+            return CODE, res
           end
 				end
 			end
@@ -190,7 +203,11 @@ local function httpc_response(sock, SSL)
           end
           if data then
             local Pos = find(data, CRLF..(0)..CRLF2)
-            return CODE, split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
+            local res = split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
+            if Content_Encoding == "gzip" then
+              res = gzuncompress(res)
+            end
+            return CODE, res
           end
           insert(content, buf)
 				end
@@ -206,9 +223,13 @@ local function httpc_response(sock, SSL)
           end
           if data then
             local Pos = find(data, CRLF..(0)..CRLF2)
-            return CODE, split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
+            local res = split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
+            if Content_Encoding == "gzip" then
+              res = gzuncompress(res)
+            end
+            return CODE, res
           end
-				end
+        end
 			end
 		end
 	end
@@ -220,7 +241,7 @@ local function build_get_req (opt)
     fmt("GET %s HTTP/1.1", opt.path),
     fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
     'Accept: */*',
-    'Accept-Encoding: identity',
+    'Accept-Encoding: gzip, identity',
     fmt("Connection: keep-alive"),
     fmt("User-Agent: %s", opt.server),
   }
@@ -247,7 +268,7 @@ local function build_post_req (opt)
 		fmt("POST %s HTTP/1.1\r\n", opt.path),
 		fmt("Host: %s\r\n", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
 		'Accept: */*\r\n',
-		'Accept-Encoding: identity\r\n',
+		'Accept-Encoding: gzip, identity\r\n',
 		'Connection: keep-alive\r\n',
 		fmt("User-Agent: %s\r\n", opt.server),
 	}
@@ -279,7 +300,7 @@ local function build_delete_req (opt)
     fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
     fmt("User-Agent: %s", opt.server),
     'Accept: */*',
-    'Accept-Encoding: identity',
+    'Accept-Encoding: gzip, identity',
     "Connection: keep-alive",
   }
   if type(opt.headers) == "table" then
@@ -299,7 +320,7 @@ local function build_json_req (opt)
     fmt("POST %s HTTP/1.1", opt.path),
     fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
     'Accept: */*',
-    'Accept-Encoding: identity',
+    'Accept-Encoding: gzip, identity',
     "Connection: keep-alive",
     fmt("User-Agent: %s", opt.server),
 	}
@@ -322,7 +343,7 @@ local function build_file_req (opt)
     fmt("POST %s HTTP/1.1\r\n", opt.path),
     fmt("Host: %s\r\n", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
     'Accept: */*\r\n',
-    'Accept-Encoding: identity\r\n',
+    'Accept-Encoding: gzip, identity\r\n',
     fmt("Connection: keep-alive\r\n"),
     fmt("User-Agent: %s\r\n", opt.server),
   }
@@ -378,7 +399,7 @@ local function build_put_req (opt)
     fmt("PUT %s HTTP/1.1", opt.path),
     fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
     'Accept: */*',
-    'Accept-Encoding: identity',
+    'Accept-Encoding: gzip, identity',
     fmt("Connection: keep-alive"),
     fmt("User-Agent: %s", opt.server),
   }

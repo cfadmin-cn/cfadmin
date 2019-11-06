@@ -30,6 +30,9 @@ internal :
 3part :
 
 	@echo "********** Third party modules **********"
+	@echo "CC	-	lz"
+	@$(MAKE) -C src/lz build
+
 	@echo "CC	-	lfs"
 	@$(MAKE) -C src/lfs build
 
