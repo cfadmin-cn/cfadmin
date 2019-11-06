@@ -106,7 +106,7 @@ local function fmt(...)
 end
 
 -- 格式化日志
-function FMT (where, level, ...)
+local function FMT (where, level, ...)
   return concat({ fmt_Y_m_d_H_M_S(), where, level, ':', fmt(...), '\n'}, ' ')
 end
 
