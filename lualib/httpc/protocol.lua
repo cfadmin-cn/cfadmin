@@ -4,6 +4,8 @@ local lz = require"lz"
 local uncompress = lz.uncompress
 local gzuncompress = lz.gzuncompress
 
+local new_tab = require "sys".new_tab
+
 local json = require "json"
 local json_encode = json.encode
 
@@ -143,10 +145,10 @@ local function httpc_response(sock, SSL)
 	end
 	local VERSION, CODE, STATUS, HEADER, BODY
 	local Content_Length
-	local content = {}
+	local content = new_tab(8, 0)
 	local times = 0
 	while 1 do
-		local data, len = sock_recv(sock, SSL, 1024)
+		local data, len = sock_recv(sock, SSL, 4096)
 		if not data then
 			return nil, SSL.." A peer of remote server close this connection."
 		end
@@ -158,15 +160,12 @@ local function httpc_response(sock, SSL)
 			if not CODE or not HEADER then
 				return nil, SSL.." can't resolvable protocol."
 			end
-      local Content_Encoding = HEADER['Content-Encoding'] or HEADER['Content-encoding']
-			local Content_Length = toint(HEADER['Content-Length'] or HEADER['Content-length'] or HEADER['content-length'])
-			local chunked = HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding'] or HEADER['transfer-encoding']
-			if not chunked and not Content_Length then
-				return nil, "不支持的请求体解析方式:"..(
-        (HEADER['Content-Length'] or HEADER['Content-length'] or HEADER['content-length']) or
-        (HEADER['Transfer-Encoding'] or HEADER['Transfer-encoding'] or HEADER['transfer-encoding']) or
-        "未知的解析方式")
-			end
+      local Content_Encoding = HEADER['Content-Encoding'] or HEADER['content-encoding']
+      local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
+      local Chunked = HEADER['Transfer-Encoding'] or HEADER['transfer-encoding']
+      if not Content_Length and not Chunked then
+        return nil, "Unsupported response body parsing."
+      end
 			if Content_Length then
 				if (#DATA - posB) == Content_Length then
           local res = split(DATA, posB + 1, #DATA)
@@ -175,7 +174,8 @@ local function httpc_response(sock, SSL)
           end
 					return CODE, res
 				end
-				local content = {split(DATA, posB + 1, #DATA)}
+        local content = new_tab(8, 0)
+				content[#content+1] = split(DATA, posB + 1, #DATA)
         local Len = #content[1]
 				while 1 do
 					local data, len = sock_recv(sock, SSL, 65535)
@@ -193,8 +193,8 @@ local function httpc_response(sock, SSL)
           end
 				end
 			end
-			if chunked and chunked == "chunked" then
-				local content = {}
+			if Chunked and Chunked == "chunked" then
+				local content = new_tab(8, 0)
 				if #DATA > posB then
           local buf = split(DATA, posB + 1, #DATA)
           data, len = RESPONSE_CHUNKED_PARSER(buf)
@@ -237,16 +237,15 @@ end
 
 
 local function build_get_req (opt)
-  local request = {
-    fmt("GET %s HTTP/1.1", opt.path),
-    fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
-    'Accept: */*',
-    'Accept-Encoding: gzip, identity',
-    fmt("Connection: keep-alive"),
-    fmt("User-Agent: %s", opt.server),
-  }
+  local request = new_tab(16, 0)
+  insert(request, fmt("GET %s HTTP/1.1", opt.path))
+  insert(request, fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port))
+  insert(request, fmt("User-Agent: %s", opt.server))
+  insert(request, 'Accept: */*')
+  insert(request, 'Accept-Encoding: gzip, identity')
+  insert(request, 'Connection: keep-alive')
   if type(opt.args) == "table" then
-    local args = {}
+    local args = new_tab(8, 0)
     for _, arg in ipairs(opt.args) do
       assert(#arg == 2, "args need key[1]->value[2] (2 values and must be string)")
       insert(args, url_encode(arg[1])..'='..url_encode(arg[2]))
@@ -264,14 +263,13 @@ local function build_get_req (opt)
 end
 
 local function build_post_req (opt)
-  local request = {
-		fmt("POST %s HTTP/1.1\r\n", opt.path),
-		fmt("Host: %s\r\n", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
-		'Accept: */*\r\n',
-		'Accept-Encoding: gzip, identity\r\n',
-		'Connection: keep-alive\r\n',
-		fmt("User-Agent: %s\r\n", opt.server),
-	}
+  local request = new_tab(16, 0)
+  insert(request, fmt("POST %s HTTP/1.1\r\n", opt.path))
+  insert(request, fmt("Host: %s\r\n", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port))
+  insert(request, fmt("User-Agent: %s\r\n", opt.server))
+  insert(request, 'Accept: */*\r\n')
+  insert(request, 'Accept-Encoding: gzip, identity\r\n')
+  insert(request, 'Connection: keep-alive\r\n')
   if type(opt.headers) == "table" then
     for _, header in ipairs(opt.headers) do
       assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
@@ -281,7 +279,7 @@ local function build_post_req (opt)
   end
   insert(request, CRLF)
   if type(opt.body) == "table" then
-    local body = {}
+    local body = new_tab(8, 0)
     for _, item in ipairs(opt.body) do
       assert(#item == 2, "if BODY is TABLE, BODY need key[1]->value[2] (2 values)")
       insert(body, url_encode(item[1])..'='..url_encode(item[2]))
@@ -295,14 +293,13 @@ local function build_post_req (opt)
 end
 
 local function build_delete_req (opt)
-  local request = {
-    fmt("DELETE %s HTTP/1.1", opt.path),
-    fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
-    fmt("User-Agent: %s", opt.server),
-    'Accept: */*',
-    'Accept-Encoding: gzip, identity',
-    "Connection: keep-alive",
-  }
+  local request = new_tab(16, 0)
+  insert(request, fmt("DELETE %s HTTP/1.1", opt.path))
+  insert(request, fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port))
+  insert(request, fmt("User-Agent: %s", opt.server))
+  insert(request, 'Accept: */*')
+  insert(request, 'Accept-Encoding: gzip, identity')
+  insert(request, 'Connection: keep-alive')
   if type(opt.headers) == "table" then
     for _, header in ipairs(opt.headers) do
       assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
@@ -316,14 +313,13 @@ local function build_delete_req (opt)
 end
 
 local function build_json_req (opt)
-  local request = {
-    fmt("POST %s HTTP/1.1", opt.path),
-    fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
-    'Accept: */*',
-    'Accept-Encoding: gzip, identity',
-    "Connection: keep-alive",
-    fmt("User-Agent: %s", opt.server),
-	}
+  local request = new_tab(16, 0)
+  insert(request, fmt("POST %s HTTP/1.1", opt.path))
+  insert(request, fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port))
+  insert(request, fmt("User-Agent: %s", opt.server))
+  insert(request, 'Accept: */*')
+  insert(request, 'Accept-Encoding: gzip, identity')
+  insert(request, 'Connection: keep-alive')
 	if type(opt.headers) == "table" then
     for _, header in ipairs(opt.headers) do
       assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
@@ -339,15 +335,13 @@ local function build_json_req (opt)
 end
 
 local function build_file_req (opt)
-  local request = {
-    fmt("POST %s HTTP/1.1\r\n", opt.path),
-    fmt("Host: %s\r\n", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
-    'Accept: */*\r\n',
-    'Accept-Encoding: gzip, identity\r\n',
-    fmt("Connection: keep-alive\r\n"),
-    fmt("User-Agent: %s\r\n", opt.server),
-  }
-
+  local request = new_tab(16, 0)
+  insert(request, fmt("POST %s HTTP/1.1\r\n", opt.path))
+  insert(request, fmt("Host: %s\r\n", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port))
+  insert(request, fmt("User-Agent: %s\r\n", opt.server))
+  insert(request, 'Accept: */*\r\n')
+  insert(request, 'Accept-Encoding: gzip, identity\r\n')
+  insert(request, 'Connection: keep-alive\r\n')
   if type(opt.headers) == "table" then
     for _, header in ipairs(opt.headers) do
       assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
@@ -361,7 +355,7 @@ local function build_file_req (opt)
     local boundary_start = fmt("------CFWebService%d", bd)
     local boundary_end   = fmt("------CFWebService%d--", bd)
     insert(request, fmt('Content-Type: multipart/form-data; boundary=----CFWebService%s\r\n', bd))
-    local body = {}
+    local body = new_tab(16, 0)
     local cd = 'Content-Disposition: form-data; %s'
     local ct = 'Content-Type: %s'
     for index, file in ipairs(opt.files) do
@@ -395,14 +389,13 @@ local function build_file_req (opt)
 end
 
 local function build_put_req (opt)
-  local request = {
-    fmt("PUT %s HTTP/1.1", opt.path),
-    fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port),
-    'Accept: */*',
-    'Accept-Encoding: gzip, identity',
-    fmt("Connection: keep-alive"),
-    fmt("User-Agent: %s", opt.server),
-  }
+  local request = new_tab(16, 0)
+  insert(request, fmt("PUT %s HTTP/1.1", opt.path))
+  insert(request, fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port))
+  insert(request, fmt("User-Agent: %s", opt.server))
+  insert(request, 'Accept: */*')
+  insert(request, 'Accept-Encoding: gzip, identity')
+  insert(request, 'Connection: keep-alive')
   if type(opt.headers) == "table" then
     for _, header in ipairs(opt.headers) do
       assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
@@ -423,7 +416,7 @@ end
 
 -- Json Web Token
 local function build_jwt(secret, payload)
-  local content = {nil, nil, nil}
+  local content = new_tab(3, 0)
   -- header
   content[#content + 1] = base64urlencode(json_encode{ alg = "HS256", typ = "JWT" })
   -- payload
