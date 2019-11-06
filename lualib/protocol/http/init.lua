@@ -13,6 +13,9 @@ local DATE = require("sys").date
 local new_tab = require("sys").new_tab
 local insert = table.insert
 
+local lz = require "lz"
+local gzcompress = lz.gzcompress
+
 local form = require "httpd.Form"
 local FILE_TYPE = form.FILE
 local ARGS_TYPE = form.ARGS
@@ -261,6 +264,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
   local server = http.__server
   local timeout = http.__timeout or 0
   local cookie = http.__cookie
+  local enable_gzip = http.__enable_gzip
   local cookie_secure = http.__cookie_secure
   local before_func = http._before_func
   local max_path_size = http.__max_path_size
@@ -472,7 +476,12 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
           sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
           return sock:close()
         end
-        header[#header+1] = 'Content-Length: '.. #body
+        local accept_encoding = HEADER['Accept-Encoding']
+        if enable_gzip and accept_encoding and find(accept_encoding, "gzip") then
+          header[#header+1] = 'Content-Encoding: gzip'
+          body = gzcompress(body)
+        end
+        header[#header+1] = 'Content-Length: ' .. #body
         header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
         header[#header+1] = 'Cache-Control: no-cache'
       else

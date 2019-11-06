@@ -108,6 +108,11 @@ function httpd:timeout(timeout)
     end
 end
 
+-- 开启gzip压缩支持
+function httpd:enable_gzip()
+  self.__enable_gzip = true
+end
+
 -- 是否记录解析cookie
 function httpd:enable_cookie ()
   self.__cookie = true
