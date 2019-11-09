@@ -3,6 +3,8 @@ local class = require "class"
 local Co = require "internal.Co"
 local tcp = require "internal.TCP"
 
+local new_tab = require "sys".new_tab
+
 local Log = log:new({ dump = true, path = 'protocol-redis' })
 
 local co_spwan = Co.spwan
@@ -39,8 +41,7 @@ local function read_response(sock)
 			break
 		end
 	end
-	local firstchar = byte(result)
-	return redcmd[firstchar](sock, sub(result, 2))
+	return redcmd[byte(result)](sock, sub(result, 2))
 end
 
 redcmd[36] = function(sock, data) -- '$'
@@ -70,9 +71,9 @@ redcmd[42] = function(sock, data)	-- '*'
 	if n < 0 then
 		return true, nil
 	end
-	local bulk = {}
+	local bulk = new_tab(n, 0)
 	local noerr = true
-	for i = 1,n do
+	for i = 1, n do
 		local ok, v = read_response(sock)
 		if not ok then
 			noerr = false
@@ -85,7 +86,8 @@ end
 -- 格式化命令为redis protocol
 local function CMD(...)
 	local tab = {...}
-	local lines = { "*"..#tab }
+	local lines = new_tab(#tab, 0)
+	lines[#lines+1] = "*"..#tab
 	for index = 1, #tab do
 		lines[#lines+1] = "$"..#tostring(tab[index])
 		lines[#lines+1] = tab[index]
@@ -128,8 +130,8 @@ function redis:ctor(opt)
 	self.sock = tcp:new()
 	self.host = opt.host
 	self.port = opt.port
-	self.db = opt.db
 	self.auth = opt.auth
+	self.db = opt.db
 end
 
 function redis:connect()
@@ -222,9 +224,9 @@ function redis:pipeline(opt)
 	end
 	local max_read_times = #cmds
 	if max_read_times > 0 then
-		local rets = {}
 		local sock = self.sock
 		sock:send(concat(cmds))
+		local rets = new_tab(max_read_times, 0)
 		for i = 1, max_read_times do
 			rets[#rets+1] = {read_response(sock)}
 		end
@@ -236,6 +238,7 @@ end
 function redis:close()
 	if self.sock then
 		self.sock:close()
+		self.sock = nil
 	end
 end
 
