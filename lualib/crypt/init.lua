@@ -1,11 +1,6 @@
 local CRYPT = require "lcrypt"
 local new_tab = require("sys").new_tab
 
-local fmt = string.format
-local byte = string.byte
-local match = string.match
-local concat = table.concat
-
 local md5 = CRYPT.md5
 local hmac64 = CRYPT.hmac64
 local hmac_md5 = CRYPT.hmac_md5
@@ -159,20 +154,20 @@ function crypt.hmac64_md5 (key, text, hex)
   return hash
 end
 
-function crypt.base64encode (...)
-  return base64encode(...)
-end
-
-function crypt.base64decode (...)
-  return base64decode(...)
-end
-
 function crypt.base64urlencode(data)
   return base64encode(data):gsub('+', '-'):gsub('/', '_')
 end
 
 function crypt.base64urldecode(data)
   return base64decode(data:gsub('-', '+'):gsub('_', '/'))
+end
+
+function crypt.base64encode (...)
+  return base64encode(...)
+end
+
+function crypt.base64decode (...)
+  return base64decode(...)
 end
 
 function crypt.hexencode (...)
