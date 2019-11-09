@@ -9,7 +9,7 @@ local crypt = require "crypt"
 local sha1 = crypt.sha1
 local base64encode = crypt.base64encode
 local now = sys.now
-local DATE = require("sys").date
+local DATE = os.date
 local new_tab = require("sys").new_tab
 local insert = table.insert
 
