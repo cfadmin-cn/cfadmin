@@ -3,6 +3,8 @@ local PARSER_HTTP_REQUEST = httpparser.parser_http_request
 local PARSER_HTTP_RESPONSE = httpparser.parser_http_response
 local RESPONSE_CHUNKED_PARSER = httpparser.parser_response_chunked
 
+local pcall = pcall
+
 local http_parser = {}
 
 function http_parser.PARSER_HTTP_REQUEST (buffer)
