@@ -3,10 +3,10 @@ local cf = require "cf"
 
 local class = require "class"
 
-local os_date = require("sys").date
+local new_tab = require "sys".new_tab
+local now = require "sys".now
 
-local system = require "system"
-local now = system.now
+local os_date = os.date
 
 local type = type
 local select = select
@@ -55,7 +55,7 @@ end
 
 -- 格式化
 local function table_format(t)
-  local tab = {}
+  local tab = new_tab(16, 0)
   while 1 do
     local mt = getmetatable(t)
     for key, value in pairs(t) do
@@ -86,10 +86,10 @@ local function table_format(t)
   return concat({'{', concat(tab, ', '), '}'})
 end
 
-local function fmt(...)
+local function info_fmt(...)
   local args = {...}
   local index, len = 1, select('#', ...)
-  local tab = {}
+  local tab = new_tab(16, 0)
   while 1 do
     local arg = args[index]
     if type(arg) == 'table' then
@@ -107,7 +107,7 @@ end
 
 -- 格式化日志
 local function FMT (where, level, ...)
-  return concat({ fmt_Y_m_d_H_M_S(), where, level, ':', fmt(...), '\n'}, ' ')
+  return concat({ fmt_Y_m_d_H_M_S(), where, level, ':', info_fmt(...), '\n'}, ' ')
 end
 
 local Log = class("Log")
@@ -173,7 +173,7 @@ function Log:dump(log)
     end
     local file, err = io_open(LOG_FOLDER..self.path..'_'..today..'.log', 'a')
     if not file then
-      return io_type(io.output()) == 'file' and io_write('打开文件失败.'..(err or '')..'\n')
+      return io_type(io.output()) == 'file' and io_write('打开文件失败: '..(('['..err..']') or '')..'\n')
     end
     self.file, self.today = file, today
     file:setvbuf("line")
@@ -181,7 +181,7 @@ function Log:dump(log)
   if not self.file then
     local file, err = io_open(LOG_FOLDER..self.path..'_'..today..'.log', 'a')
     if not file then
-      return io_type(io.output()) == 'file' and io_write('打开文件失败.'..(err or '')..'\n')
+      return io_type(io.output()) == 'file' and io_write('打开文件失败: '..(('['..err..']') or '')..'\n')
     end
     file:setvbuf("line")
     self.file = file
