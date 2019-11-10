@@ -20,7 +20,7 @@ lparser_response_chunked(lua_State *L){
     lua_pushinteger(L, last);
     return 2;
   }
-  lua_pushlstring(L, buf, buf_len);
+  luaL_pushresultsize(&B, buf_len);
   return 1;
 }
 
