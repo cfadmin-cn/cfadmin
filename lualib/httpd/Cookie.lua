@@ -7,6 +7,7 @@ local hexencode = crypt.hexencode
 local hexdecode = crypt.hexdecode
 
 local type = type
+local pcall = pcall
 local assert = assert
 local ipairs = ipairs
 local os_date = os.date
@@ -19,12 +20,16 @@ local secure = 'http://github.com/candymi/core_framework'
 
 -- 加密Cookie Value
 local function encode_value (value)
-  return hexencode(xor_str(value, secure)):upper()
+  return xor_str(value, secure, true):upper()
 end
 
 -- 解密Cookie Value
 local function decode_value (value)
-  return xor_str(hexdecode(value:lower()), secure)
+  local ok, msg = pcall(hexdecode, value:lower())
+  if not ok then
+    return msg
+  end
+  return xor_str(msg, secure)
 end
 
 -- 当前协程注册的cookie
