@@ -3,6 +3,8 @@
 #include "../../../src/core.h"
 #include "httpparser.h"
 
+#define MAX_HEADER (128)
+
 static int
 lparser_response_chunked(lua_State *L){
   size_t buf_len;
@@ -34,10 +36,10 @@ lparser_http_request(lua_State *L){
   const char *path;
   size_t method_len, path_len, num_headers;
 
-  struct phr_header headers[128];
-  memset(headers, 0x0, sizeof(headers));
+  struct phr_header headers[MAX_HEADER];
+  memset(headers, 0x0, sizeof(struct phr_header) * MAX_HEADER);
 
-  num_headers = sizeof(headers) / sizeof(headers[0]);
+  num_headers = MAX_HEADER;
   ret = phr_parse_request(buf, buf_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
   if (0 > ret) return 0;
 
@@ -45,8 +47,8 @@ lparser_http_request(lua_State *L){
   lua_pushlstring(L, path, path_len);  // PATH
   lua_pushnumber(L, minor_version > 0 ? 1.1 : 1.0); // VERSION
 
-  lua_createtable(L, 0, 128);
-  for (i = 0; i < 128; i++){
+  lua_createtable(L, 0, MAX_HEADER);
+  for (i = 0; i < MAX_HEADER; i++){
     if (!headers[i].name || !headers[i].value)
       break;
     lua_pushlstring(L, headers[i].name, headers[i].name_len);
@@ -65,10 +67,10 @@ lparser_http_response(lua_State *L){
   size_t msg_len, num_headers;
   const char* msg;
 
-  struct phr_header headers[128];
-  memset(headers, 0x0, sizeof(headers));
+  struct phr_header headers[MAX_HEADER];
+  memset(headers, 0x0, sizeof(struct phr_header) * MAX_HEADER);
 
-  num_headers = sizeof(headers) / sizeof(headers[0]);
+  num_headers = MAX_HEADER;
   ret = phr_parse_response(buf, buf_len, &minor_version, &status, &msg, &msg_len, headers, &num_headers, 0);
   if (0 > ret) return 0;
 
@@ -76,8 +78,8 @@ lparser_http_response(lua_State *L){
   lua_pushinteger(L, status); // STATUS CODE
   lua_pushlstring(L, msg, msg_len);  // STATUS MSG
 
-  lua_createtable(L, 0, 128);
-  for (i = 0; i < 128; i++){
+  lua_createtable(L, 0, MAX_HEADER);
+  for (i = 0; i < MAX_HEADER; i++){
     if (!headers[i].name || !headers[i].value)
       break;
     lua_pushlstring(L, headers[i].name, headers[i].name_len);
