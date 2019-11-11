@@ -67,7 +67,7 @@ end
 
 -- 加入到连接池内
 local function add_cache(self, cache)
-  insert(self.cache_pool, 1, cache)
+  insert(self.cache_pool, cache)
 end
 
 -- 从连接池内取出一个cache对象
@@ -85,7 +85,7 @@ end
 
 -- 加入到协程池内
 local function add_wait(self, co)
-  insert(self.co_pool, 1, co)
+  insert(self.co_pool, co)
 end
 
 -- 弹出一个等待协程

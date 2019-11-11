@@ -59,7 +59,7 @@ local function DB_CREATE (opt)
 end
 
 local function add_wait(self, co)
-  insert(self.co_pool, 1, co)
+  insert(self.co_pool, co)
 end
 
 local function pop_wait(self)
@@ -67,7 +67,7 @@ local function pop_wait(self)
 end
 
 local function add_db(self, db)
-  insert(self.db_pool, 1, db)
+  insert(self.db_pool, db)
 end
 
 -- 负责创建连接/加入等待队列
