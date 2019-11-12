@@ -58,6 +58,26 @@ function view.api (path, f)
   end)
 end
 
+-- 首页
+function view.home(path, f)
+  assert(type(path) == 'string', 'view use path failed.')
+  assert(type(f) == 'function', 'view use handle failed.')
+  local db, app = config.db, config.app
+  config.home = path or config.home
+  return app:use(path, function (content)
+    local token = Cookie.getCookie("CFTOKEN")
+    if not token then
+      return false, config.login_render
+    end
+    local info = user_token.token_to_userinfo(db, token)
+    if not info then
+      return utils.redirect(config.login_render)
+    end
+    local ok, res = pcall(f, httpctx:new{content = content}, db)
+    return res
+  end)
+end
+
 -- 获取当前用户语言表
 function view.get_locale ()
   return utils.get_locale(Cookie.getCookie("CFLANG"))
