@@ -34,6 +34,7 @@ function view.use (path, f)
   assert(type(path) == 'string', 'view use path failed.')
   assert(type(f) == 'function', 'view use handle failed.')
   local db, app = config.db, config.app
+  assert(db and app, "view.use need db session and http context.")
   return app:use(path, function (content)
     local ok, url = verify_permission(content, db)
     if not ok then
@@ -52,6 +53,7 @@ function view.api (path, f)
   assert(type(path) == 'string', 'view api path failed.')
   assert(type(f) == 'function', 'view api handle failed.')
   local db, app = config.db, config.app
+  assert(db and app, "view.api need db session and http context.")
   return app:api(path, function (content)
     local ok, res = pcall(f, httpctx:new{content = content}, db)
     return res
@@ -62,8 +64,9 @@ end
 function view.home(path, f)
   assert(type(path) == 'string', 'view use path failed.')
   assert(type(f) == 'function', 'view use handle failed.')
+  config.home = path
   local db, app = config.db, config.app
-  config.home = path or config.home
+  assert(db and app, "view.home need db session and http context.")
   return app:use(path, function (content)
     local token = Cookie.getCookie("CFTOKEN")
     if not token then
