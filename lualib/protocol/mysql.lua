@@ -403,7 +403,7 @@ end
 
 
 function MySQL.set_timeout(self, timeout)
-    return self.sock:timeout(timeout)
+    self.sock._timeout = timeout
 end
 
 

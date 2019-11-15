@@ -55,6 +55,7 @@ local function DB_CREATE (opt)
       assert(db:query(stmt), "["..stmt.."] 预编译失败.")
     end
   end
+  db:set_timeout(0)
   return db
 end
 
