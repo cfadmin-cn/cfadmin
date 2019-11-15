@@ -47,9 +47,11 @@ local function CREATE_CACHE(opt)
   local rds
   while 1 do
       rds = redis:new(opt)
+      rds:set_timeout(3)
       local ok, err = rds:connect()
       if ok then
-          break
+        rds:set_timeout(0)
+        break
       end
       Log:WARN('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
       rds:close()

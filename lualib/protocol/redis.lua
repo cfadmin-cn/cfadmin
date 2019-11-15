@@ -150,6 +150,10 @@ function redis:connect()
 	return true
 end
 
+function redis:set_timeout(timeout)
+  self.sock._timeout = timeout
+end
+
 -- 订阅
 function redis:psubscribe(pattern, func)
 	local sock = self.sock
