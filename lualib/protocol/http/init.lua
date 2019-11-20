@@ -478,8 +478,11 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         end
         local accept_encoding = HEADER['Accept-Encoding']
         if enable_gzip and accept_encoding and find(accept_encoding, "gzip") then
-          header[#header+1] = 'Content-Encoding: gzip'
-          body = gzcompress(body)
+          local compress_body = gzcompress(body)
+          if compress_body then
+            header[#header+1] = 'Content-Encoding: gzip'
+            body = compress_body
+          end
         end
         header[#header+1] = 'Content-Length: ' .. #body
         header[#header+1] = 'Cache-Control: no-cache, no-store, must-revalidate'
