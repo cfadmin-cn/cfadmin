@@ -170,7 +170,7 @@ local function httpc_response(sock, SSL)
 				if (#DATA - posB) == Content_Length then
           local res = split(DATA, posB + 1, #DATA)
           if Content_Encoding == "gzip" then
-            res = gzuncompress(res)
+            res = gzuncompress(res) or res
           end
 					return CODE, res
 				end
@@ -187,7 +187,7 @@ local function httpc_response(sock, SSL)
           if Len >= Content_Length then
             local res = concat(content)
             if Content_Encoding == "gzip" then
-              res = gzuncompress(res)
+              res = gzuncompress(res) or res
             end
             return CODE, res
           end
@@ -205,7 +205,7 @@ local function httpc_response(sock, SSL)
             local Pos = find(data, CRLF..(0)..CRLF2)
             local res = split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
             if Content_Encoding == "gzip" then
-              res = gzuncompress(res)
+              res = gzuncompress(res) or res
             end
             return CODE, res
           end
@@ -225,7 +225,7 @@ local function httpc_response(sock, SSL)
             local Pos = find(data, CRLF..(0)..CRLF2)
             local res = split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
             if Content_Encoding == "gzip" then
-              res = gzuncompress(res)
+              res = gzuncompress(res) or res
             end
             return CODE, res
           end
