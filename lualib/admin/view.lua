@@ -20,11 +20,16 @@ local function verify_permission (content, db)
   if not token then
     return false, config.login_render
   end
+  -- 无效token则需要登录
   local info = user_token.token_to_userinfo(db, token)
-  if info and (info.is_admin == 1 or permission.user_have_menu_permission(db, info.id, get_path(content))) then
-    return true
+  if not info then
+    return false, config.login_render
   end
-  return false, config.login_render
+  -- 有效token需要验证访问权限
+  if info.is_admin ~= 1 and permission.user_have_menu_permission(db, info.id, get_path(content)) then
+    return false, config.login_render
+  end
+  return true
 end
 
 local view = {}
