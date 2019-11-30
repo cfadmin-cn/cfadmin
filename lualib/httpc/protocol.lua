@@ -48,71 +48,71 @@ local function sock_new ()
 end
 
 local function sock_recv (sock, PROTOCOL, byte)
-	if PROTOCOL == 'https' then
-		local data, len = sock:ssl_recv(byte)
-		if data then
-			return data, len
-		end
-	end
-	if PROTOCOL == 'http' then
-		local data, len = sock:recv(byte)
-		if data then
-			return data, len
-		end
-	end
-	return nil, '服务端断开了连接'
+  if PROTOCOL == 'https' then
+    local data, len = sock:ssl_recv(byte)
+    if data then
+      return data, len
+    end
+  end
+  if PROTOCOL == 'http' then
+    local data, len = sock:recv(byte)
+    if data then
+      return data, len
+    end
+  end
+  return nil, '服务端断开了连接'
 end
 
 local function sock_send(sock, PROTOCOL, DATA)
-	if PROTOCOL == 'https' then
-		local ok = sock:ssl_send(DATA)
-		if ok then
-			return true
-		end
-	end
+  if PROTOCOL == 'https' then
+    local ok = sock:ssl_send(DATA)
+    if ok then
+      return true
+    end
+  end
 
-	if PROTOCOL == 'http' then
-		local ok = sock:send(DATA)
-		if ok then
-			return true
-		end
-	end
-	return nil, "httpc发送请求失败"
+  if PROTOCOL == 'http' then
+    local ok = sock:send(DATA)
+    if ok then
+      return true
+    end
+  end
+  return nil, "httpc发送请求失败"
 end
 
 local function sock_connect(sock, PROTOCOL, DOAMIN, PORT)
-	if PROTOCOL == 'https' then
-		local ok, err = sock:ssl_connect(DOAMIN, PORT)
-		if ok then
-			return true
-		end
-	end
-	if PROTOCOL == 'http' then
-		local ok, err = sock:connect(DOAMIN, PORT)
-		if ok then
-			return true
-		end
-	end
-	return nil, 'httpc连接失败.'
+  if PROTOCOL == 'https' then
+    local ok, err = sock:ssl_connect(DOAMIN, PORT)
+    if ok then
+      return true
+    end
+  end
+  if PROTOCOL == 'http' then
+    local ok, err = sock:connect(DOAMIN, PORT)
+    if ok then
+      return true
+    end
+  end
+  return nil, 'httpc连接失败.'
 end
 
 local function splite_protocol(domain)
-	if type(domain) ~= 'string' then
-		return nil, '1. 非法的域名'
-	end
+  if type(domain) ~= 'string' then
+    return nil, '1. 非法的域名'
+  end
 
-	local protocol, domain_port, path = match(domain, '^(http[s]?)://([^/]+)(.*)')
-	if not protocol or not domain_port or not path then
-		return nil, '2. 错误的url'
-	end
+  local protocol, domain_port, path = match(domain, '^(http[s]?)://([^/]+)(.*)')
+  if not protocol or not domain_port or not path then
+    return nil, '2. 错误的url'
+  end
 
-	if not path or path == '' then
-		return nil, "3. http无path需要以'/'结尾."
-	end
+  if not path or path == '' then
+    return nil, "3. http无path需要以'/'结尾."
+  end
 
-	local domain, port
-	if find(domain_port, ':') then
-		local _, Bracket_Pos = find(domain_port, '[%[%]]')
+  local domain, port
+  if find(domain_port, ':') then
+    local _, Bracket_Pos = find(domain_port, '[%[%]]')
     if Bracket_Pos then
       domain, port = match(domain_port, '%[(.+)%][:]?(%d*)')
     else
@@ -123,79 +123,82 @@ local function splite_protocol(domain)
     end
     port = toint(port)
     if not port then
-			port = 80
-			if protocol == 'https' then
-      	port = 443
-			end
+      port = 80
+      if protocol == 'https' then
+        port = 443
+      end
     end
-	else
-		domain, port = domain_port, protocol == 'https' and 443 or 80
-	end
-	return {
-		protocol = protocol,
-		domain = domain,
-		port = port,
-		path = path,
-	}
+  else
+    domain, port = domain_port, protocol == 'https' and 443 or 80
+  end
+  return {
+    protocol = protocol,
+    domain = domain,
+    port = port,
+    path = path,
+  }
 end
 
 local function httpc_response(sock, SSL)
-	if not sock then
-		return nil, "Can't used this method before other httpc method.."
-	end
-	local VERSION, CODE, STATUS, HEADER, BODY
-	local Content_Length
-	local content = new_tab(8, 0)
-	local times = 0
-	while 1 do
-		local data, len = sock_recv(sock, SSL, 4096)
-		if not data then
-			return nil, SSL.." A peer of remote server close this connection."
-		end
-		insert(content, data)
-		local DATA = concat(content)
-		local posA, posB = find(DATA, CRLF2)
-		if posB then
+  if not sock then
+    return nil, "Can't used this method before other httpc method.."
+  end
+  local VERSION, CODE, STATUS, HEADER, BODY
+  local Content_Length
+  local content = new_tab(8, 0)
+  local times = 0
+  while 1 do
+    local data, len = sock_recv(sock, SSL, 4096)
+    if not data then
+      return nil, SSL.." A peer of remote server close this connection."
+    end
+    insert(content, data)
+    local DATA = concat(content)
+    local posA, posB = find(DATA, CRLF2)
+    if posB then
       VERSION, CODE, STATUS, HEADER = PARSER_HTTP_RESPONSE(DATA)
-			if not CODE or not HEADER then
-				return nil, SSL.." can't resolvable protocol."
-			end
+      if not CODE or not HEADER then
+        return nil, SSL.." can't resolvable protocol."
+      end
+      if CODE == 302 or CODE == 301 then
+        return CODE, HEADER['Location'] or HEADER['location']
+      end
       local Content_Encoding = HEADER['Content-Encoding'] or HEADER['content-encoding']
       local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
       local Chunked = HEADER['Transfer-Encoding'] or HEADER['transfer-encoding']
       if not Content_Length and not Chunked then
         return nil, "Unsupported response body parsing."
       end
-			if Content_Length then
-				if (#DATA - posB) == Content_Length then
+      if Content_Length then
+        if (#DATA - posB) == Content_Length then
           local res = split(DATA, posB + 1, #DATA)
           if Content_Encoding == "gzip" then
-            res = gzuncompress(res) or res
+            res = gzuncompress(res)
           end
-					return CODE, res
-				end
+          return CODE, res
+        end
         local content = new_tab(8, 0)
-				content[#content+1] = split(DATA, posB + 1, #DATA)
+        content[#content+1] = split(DATA, posB + 1, #DATA)
         local Len = #content[1]
-				while 1 do
-					local data, len = sock_recv(sock, SSL, 65535)
-					if not data then
-						return nil, SSL.."[Content_Length] A peer of remote server close this connection."
-					end
-					insert(content, data)
+        while 1 do
+          local data, len = sock_recv(sock, SSL, 65535)
+          if not data then
+            return nil, SSL.."[Content_Length] A peer of remote server close this connection."
+          end
+          insert(content, data)
           Len = Len + len
           if Len >= Content_Length then
             local res = concat(content)
             if Content_Encoding == "gzip" then
-              res = gzuncompress(res) or res
+              res = gzuncompress(res)
             end
             return CODE, res
           end
-				end
-			end
-			if Chunked and Chunked == "chunked" then
-				local content = new_tab(8, 0)
-				if #DATA > posB then
+        end
+      end
+      if Chunked and Chunked == "chunked" then
+        local content = new_tab(8, 0)
+        if #DATA > posB then
           local buf = split(DATA, posB + 1, #DATA)
           data, len = RESPONSE_CHUNKED_PARSER(buf)
           if len == -1 then
@@ -205,18 +208,18 @@ local function httpc_response(sock, SSL)
             local Pos = find(data, CRLF..(0)..CRLF2)
             local res = split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
             if Content_Encoding == "gzip" then
-              res = gzuncompress(res) or res
+              res = gzuncompress(res)
             end
             return CODE, res
           end
           insert(content, buf)
-				end
-				while 1 do
-					local data, len = sock_recv(sock, SSL, 65535)
-					if not data then
-						return CODE, SSL.."[chunked] A peer of remote server close this connection A."
-					end
-					insert(content, data)
+        end
+        while 1 do
+          local data, len = sock_recv(sock, SSL, 65535)
+          if not data then
+            return CODE, SSL.."[chunked] A peer of remote server close this connection A."
+          end
+          insert(content, data)
           local data, len = RESPONSE_CHUNKED_PARSER(concat(content))
           if len == -1 then
             return nil, SSL.." 错误的http trunked. 2"
@@ -225,14 +228,14 @@ local function httpc_response(sock, SSL)
             local Pos = find(data, CRLF..(0)..CRLF2)
             local res = split(data, 1,  Pos and Pos - #CRLF2 - 1 or -1)
             if Content_Encoding == "gzip" then
-              res = gzuncompress(res) or res
+              res = gzuncompress(res)
             end
             return CODE, res
           end
         end
-			end
-		end
-	end
+      end
+    end
+  end
 end
 
 
@@ -320,7 +323,7 @@ local function build_json_req (opt)
   insert(request, 'Accept: */*')
   insert(request, 'Accept-Encoding: gzip, identity')
   insert(request, 'Connection: keep-alive')
-	if type(opt.headers) == "table" then
+  if type(opt.headers) == "table" then
     for _, header in ipairs(opt.headers) do
       assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
       assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
