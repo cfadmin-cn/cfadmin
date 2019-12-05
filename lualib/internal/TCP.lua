@@ -153,7 +153,6 @@ function TCP:ssl_send(buf)
   if not wlen or wlen == #buf then
     return wlen == #buf
   end
-  buf = split(buf, wlen + 1, -1)
   self.SEND_IO = tcp_pop()
   local co = co_self()
   self.send_current_co = co_self()
@@ -168,7 +167,6 @@ function TCP:ssl_send(buf)
         self.send_current_co = nil
         return co_wakeup(co, len == #buf)
       end
-      buf = split(buf, len + 1, -1)
       co_wait()
     end
   end)
