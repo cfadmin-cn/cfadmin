@@ -24,7 +24,7 @@ end
 
 -- Token 是否存在
 function token.token_exists (db, token)
-  local ret, err = db:query(fmt([[SELECT uid, name, token FROM cfadmin_tokens WHERE token = '%s']], token))
+  local ret, err = db:query(fmt([[SELECT uid, name, token FROM cfadmin_tokens WHERE token = '%s']], token:gsub("'", "\\'")))
   if not ret or #ret == 0 then
     return
   end
@@ -53,7 +53,7 @@ function token.token_to_userinfo (db, token)
   	`cfadmin_tokens`.uid = `cfadmin_users`.id AND
     `cfadmin_roles`.id = `cfadmin_users`.role AND
   	`cfadmin_tokens`.token = '%s'
-  LIMIT 1]], token))[1]
+  LIMIT 1]], token:gsub("'", "\\'")))[1]
 end
 
 return token

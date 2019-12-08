@@ -69,9 +69,9 @@ end
 function user.user_exists (db, username, uid)
   local condition
   if username then
-    condition = fmt([[`cfadmin_users`.username = '%s']], username)
+    condition = fmt([[`cfadmin_users`.username = '%s']], username:gsub("'", "\\'"))
   elseif uid then
-    condition = fmt([[`cfadmin_users`.id = '%s']], uid)
+    condition = fmt([[`cfadmin_users`.id = '%s']], tostring(uid):gsub("'", "\\'"))
   else
     return
   end
