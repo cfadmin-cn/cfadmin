@@ -17,12 +17,12 @@ lparser_response_chunked(lua_State *L){
   struct phr_chunked_decoder decoder = { .consume_trailer = 1 };
   int last = phr_decode_chunked(&decoder, buf, &buf_len);
   if (0 > last) {
-    luaL_pushresultsize(&B, 0);
+    luaL_pushresult(&B);
     lua_pushnil(L);
     lua_pushinteger(L, last);
     return 2;
   }
-  luaL_pushresultsize(&B, buf_len);
+  luaL_pushresult(&B);
   return 1;
 }
 
