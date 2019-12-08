@@ -39,10 +39,8 @@ local function DB_CREATE (opt)
     db:set_timeout(3)
     local connect, err = db:connect(opt)
     if connect then
-      if not opt.INITIALIZATION then -- 设置连接超时时间
-        assert(db:query(fmt('SET GLOBAL wait_timeout=%s', WAIT_TIMEOUT)), "SET GLOBAL wait_timeout faild.")
-        assert(db:query(fmt('SET GLOBAL interactive_timeout=%s', WAIT_TIMEOUT)), "SET GLOBAL interactive_timeout faild.")
-      end
+      assert(db:query(fmt('SET wait_timeout=%s', WAIT_TIMEOUT)), "SET wait_timeout faild.")
+      assert(db:query(fmt('SET interactive_timeout=%s', WAIT_TIMEOUT)), "SET interactive_timeout faild.")
       if opt.stmts then
         for rkey, stmt in pairs(opt.stmts) do
           assert(db:query(stmt), "["..stmt.."] 预编译失败.")
