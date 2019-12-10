@@ -7,6 +7,7 @@ local httpctx = require "admin.httpctx"
 local user_token = require "admin.db.token"
 local permission = require "admin.db.permission"
 
+local LOG = require "logging"
 
 local type = type
 local pcall = pcall
@@ -49,6 +50,9 @@ function view.use (path, f)
       template.cache = {}
     end
     local ok, html = pcall(f, httpctx:new{content = content}, db)
+    if not ok then
+      LOG:ERROR(html)
+    end
     return html
   end)
 end
@@ -61,6 +65,9 @@ function view.api (path, f)
   assert(db and app, "view.api need db session and http context.")
   return app:api(path, function (content)
     local ok, res = pcall(f, httpctx:new{content = content}, db)
+    if not ok then
+      LOG:ERROR(res)
+    end
     return res
   end)
 end
@@ -82,6 +89,9 @@ function view.home(path, f)
       return utils.redirect(config.login_render)
     end
     local ok, res = pcall(f, httpctx:new{content = content}, db)
+    if not ok then
+      LOG:ERROR(res)
+    end
     return res
   end)
 end
