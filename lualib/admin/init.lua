@@ -70,7 +70,7 @@ function admin.init_page (app, db)
   -- 所有/api/admin路径下的接口都需要进行token header验权.
   app:before(function (content)
     local path = get_path(content)
-    if find(path, '^/api/admin/.+') then
+    if find(path, '^[/]+api[/]+admin[/]*.+') then
       -- 所有路由保持在这个路径之下会相对来说较为安全.
       local token = content['headers']['token'] or content['headers']['Token']
       if not token then
