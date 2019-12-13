@@ -95,7 +95,11 @@ local function info_fmt(...)
     if type(arg) == 'table' then
       tab[#tab+1] = table_format(arg)
     else
-      tab[#tab+1]= tostring(arg)
+      if type(arg) == 'string' then
+        tab[#tab+1]= '"' .. tostring(arg) .. '"'
+      else
+        tab[#tab+1]= tostring(arg)
+      end
     end
     if index >= len then
       break
