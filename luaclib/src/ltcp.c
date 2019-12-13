@@ -503,26 +503,28 @@ tcp_write(lua_State *L){
 
 	errno = 0;
 
-	int fd = lua_tointeger(L, 1);
-	if (0 >= fd) return 0;
+  size_t resp_len = 0;
 
-	const char *response = lua_tostring(L, 2);
-	if (!response) return 0;
+  int fd = lua_tointeger(L, 1);
 
-	int resp_len = lua_tointeger(L, 3);
+  const char *response = luaL_checklstring(L, 2, &resp_len);
+  if (!response)
+    return luaL_error(L, "tcp_write ERROR: attempt to write an empty string.");
 
-	do {
+  int offset = lua_tointeger(L, 3);
 
-		int wsize = write(fd, response, resp_len);
+  do {
 
-		if (wsize > 0) { lua_pushinteger(L, wsize); return 1; }
+   int wsize = write(fd, response + offset, resp_len - offset);
 
-		if (wsize < 0){
-			if (errno == EINTR) continue;
-			if (errno == EWOULDBLOCK){ lua_pushinteger(L, 0); return 1;}
-		}
+   if (wsize > 0) { lua_pushinteger(L, wsize); return 1; }
 
-	} while (0);
+   if (wsize < 0){
+     if (errno == EINTR) continue;
+     if (errno == EWOULDBLOCK){ lua_pushinteger(L, 0); return 1;}
+   }
+
+  } while (0);
 
 	return 0;
 }
@@ -531,10 +533,12 @@ static int
 tcp_sslwrite(lua_State *L){
 
 	SSL *ssl = lua_touserdata(L, 1);
-	if (!ssl) return 0;
+	if (!ssl)
+    return 0;
 
 	const char *response = lua_tostring(L, 2);
-	if (!response) return 0;
+	if (!response)
+    return luaL_error(L, "tcp_sslwrite ERROR: attempt to write an empty string.");
 
 	int resp_len = lua_tointeger(L, 3);
 

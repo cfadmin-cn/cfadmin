@@ -109,31 +109,30 @@ end
 function TCP:send(buf)
   if self.ssl then
     Log:ERROR("Please use ssl_send method :)")
-    return
+    return nil, "Please use ssl_send method"
   end
   if type(buf) ~= 'string' or buf == '' then
     return
   end
-  local wlen = tcp_write(self.fd, buf, #buf)
+  local wlen = tcp_write(self.fd, buf, 0)
   if not wlen or wlen == #buf then
     return wlen == #buf
   end
-  buf = split(buf, wlen + 1, -1)
   local co = co_self()
   self.SEND_IO = tcp_pop()
   self.send_current_co = co_self()
   self.send_co = co_new(function ( ... )
     while 1 do
-      local len = tcp_write(self.fd, buf, #buf)
-      if not len or len == #buf then
+      local len = tcp_write(self.fd, buf, wlen)
+      if not len or len + wlen == #buf then
         tcp_stop(self.SEND_IO)
         tcp_push(self.SEND_IO)
         self.SEND_IO = nil
         self.send_co = nil
         self.send_current_co = nil
-        return co_wakeup(co, len == #buf)
+        return co_wakeup(co, (len or 0) + wlen == #buf)
       end
-      buf = split(buf, len + 1, -1)
+      wlen = wlen + len
       co_wait()
     end
   end)
@@ -144,7 +143,7 @@ end
 function TCP:ssl_send(buf)
   if not self.ssl then
     Log:ERROR("Please use send method :)")
-    return
+    return nil, "Please use send method :)"
   end
   if type(buf) ~= 'string' or buf == '' then
     return
