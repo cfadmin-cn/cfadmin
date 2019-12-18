@@ -78,6 +78,13 @@
   <a><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/weixin.jpeg" height="37%" width="37%"></a>
 </p>
 
+### 用户列表
+
+  <ul>
+    <li><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/company-1.png"></li>
+    <li><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/company-2.png"></li>
+  </ul>
+
 ### 授权协议 (License agreement)
 
   [BSD LICENSE](https://github.com/CandyMi/core_framework/blob/master/LICENSE)
