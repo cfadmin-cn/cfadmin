@@ -80,10 +80,10 @@
 
 ### 用户列表
 
-  <ul>
-    <li><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/company-1.png"></li>
-    <li><img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/company-2.png"></li>
-  </ul>
+  |项目名称(Project Name)|项目图片(Project Logo)|
+  |:-:|:-:|
+  |商票易|![](https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/company-2.png)|
+  |爆款捕手|![](https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/company-1.png)|
 
 ### 授权协议 (License agreement)
 
