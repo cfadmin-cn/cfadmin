@@ -7,7 +7,8 @@ local httpctx = require "admin.httpctx"
 local user_token = require "admin.db.token"
 local permission = require "admin.db.permission"
 
-local LOG = require "logging"
+local log = require "logging"
+local LOG = log:new { dump = true, path = "admin-view" }
 
 local type = type
 local pcall = pcall
