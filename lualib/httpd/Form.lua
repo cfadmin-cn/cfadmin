@@ -24,7 +24,7 @@ function form.get_args (path)
 	end
 	local s, e = find(path, '?'), #path
 	if not s or e - s < 3 then
-			return
+		return
 	end
 	return form.urlencode(sub(path, s + 1, e))
 end
@@ -35,7 +35,7 @@ function form.urlencode(body)
 		return
 	end
 	local ARGS = {}
-	for key, value in splite(body, "([^%?&]-)=([^%?&]+)") do
+	for key, value in splite(body, "([^&]-)=([^&]+)") do
 		ARGS[urldecode(key)] = urldecode(value)
 	end
 	return ARGS
