@@ -106,8 +106,8 @@ function crypt.hmac_sha512 (key, text, hex)
   return hash
 end
 
-function crypt.xor_str (str, sec, hex)
-  local hash = xor_str(str, sec)
+function crypt.xor_str (key, text, hex)
+  local hash = xor_str(key, text)
   if hash and hex then
     return hexencode(hash)
   end
@@ -178,12 +178,19 @@ function crypt.hexdecode (...)
   return hexdecode(...)
 end
 
-function crypt.desencode (...)
-  return desencode(...)
+function crypt.desencode (key, text, hex)
+  local hash = desencode(key, text)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
 end
 
-function crypt.desdecode (...)
-  return desdecode(...)
+function crypt.desdecode (key, text, hex)
+  if hex then
+    text = hexdecode(text)
+  end
+  return desdecode(key, text)
 end
 
 function crypt.dhsecret (...)
