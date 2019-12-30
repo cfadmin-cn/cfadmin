@@ -123,7 +123,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
     if body_len and body_len > 0 then
       local BODY = ''
       local RECV_BODY = true
-      local CRLF_START, CRLF_END = find(buffer, CRLF2)
+      local CRLF_START, CRLF_END = find(buffer, RE_CRLF2)
       if #buffer > CRLF_END then
         BODY = split(buffer, CRLF_END + 1, -1)
         if #BODY == body_len then
@@ -133,6 +133,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
       if RECV_BODY then
         local buf_len = #BODY
         local buffers = body_len > 65535 and new_tab(ceil(body_len / 65535), 0) or {}
+        buffers[#buffers + 1] = BODY
         while 1 do
           local buf, len = sock:recv(65535)
           if not buf then
