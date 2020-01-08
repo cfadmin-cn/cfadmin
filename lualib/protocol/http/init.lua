@@ -245,7 +245,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
   if not ok then
     return
   end
-  return wsserver:new({cls = cls, sock = sock}):start()
+  return wsserver.start {cls = cls, sock = sock}
 end
 
 local function send_header (sock, header)

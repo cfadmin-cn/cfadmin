@@ -6,8 +6,7 @@ local wbproto = require "protocol.websocket.protocol"
 local _recv_frame = wbproto.recv_frame
 local _send_frame = wbproto.send_frame
 
-local log = require "logging"
-local Log = log:new({ dump = true, path = 'protocol-websocket-server'})
+local Log = require "logging":new({ dump = true, path = 'protocol-websocket-server'})
 
 local type = type
 local pcall = pcall
@@ -17,18 +16,26 @@ local char = string.char
 
 local class = require "class"
 
-local websocket = class("websocket-server")
+local ws = class("ws")
 
-function websocket:ctor(opt)
-  self._VERSION = '0.07'
-  self.cls = opt.cls
+function ws:ctor(opt)
   self.sock = opt.sock
-  self.closed = nil
-  self.sock._timeout = nil
+  self.send_masked = nil
+  self.max_payload_len = 65535
+end
+
+-- 设置发送掩码
+function ws:set_send_masked(send_masked)
+  self.send_masked = send_masked
+end
+
+-- 设置最大数据载荷长度
+function ws:set_max_payload_len(max_payload_len)
+  self.max_payload_len = max_payload_len
 end
 
 -- 异步消息发送
-function websocket:add_to_queue (f)
+function ws:add_to_queue (f)
   if not self.queue then
     self.queue = {f}
     return cf_fork(function (...)
@@ -37,7 +44,7 @@ function websocket:add_to_queue (f)
         if not ok then
           Log:ERROR(writeable)
         end
-        if not writeable then
+        if not ok or not writeable then
           break
         end
       end
@@ -47,8 +54,8 @@ function websocket:add_to_queue (f)
   return self.queue and insert(self.queue, f)
 end
 
--- send_text、send_binary
-function websocket:send (data, binary)
+-- 发送text/binary消息
+function ws:send (data, binary)
   if self.closed then
     return
   end
@@ -59,7 +66,7 @@ function websocket:send (data, binary)
 end
 
 -- 发送close帧
-function websocket:close (data)
+function ws:close(data)
   if self.closed then
     return
   end
@@ -72,27 +79,33 @@ function websocket:close (data)
   end)
 end
 
+local Websocket = { __Version__ = 1.0 }
+
 -- Websocket Server 事件循环
-function websocket:start()
-  local sock = self.sock
-  local cls = self.cls:new { ws = self }
+function Websocket.start(opt)
+  local sock = opt.sock
+  local w = ws:new { sock = sock }
+
+  local cls = opt.cls:new { ws = w }
   local on_open = cls.on_open
   local on_message = cls.on_message
   local on_error = cls.on_error
   local on_close = cls.on_close
-  self.cls = nil
-  self.sock._timeout = cls.timeout
-  self.send_masked = cls.send_masked
-  self.max_payload_len = cls.max_payload_len or 65535
+
+  sock._timeout = cls.timeout or nil
+  local send_masked = cls.send_masked or nil
+  local max_payload_len = cls.max_payload_len or 65535
+  w:set_send_masked(send_masked)
+  w:set_max_payload_len(max_payload_len)
   local ok, err = pcall(on_open, cls)
   if not ok then
-    self.sock = nil
-    return Log:ERROR(err)
+    Log:ERROR(err)
+    return
   end
   while 1 do
-    local data, typ, err = _recv_frame(sock, self.max_payload_len, self.send_masked)
+    local data, typ, err = _recv_frame(sock, max_payload_len, send_masked)
     if (not data and not typ) or typ == 'close' then
-      self.closed = true
+      w.closed = true
       if err and err ~= 'read timeout' then
         local ok, err = pcall(on_error, cls, err)
         if not ok then
@@ -103,15 +116,16 @@ function websocket:start()
       if not ok then
         Log:ERROR(err)
       end
-      return
+      break
     end
     if typ == 'ping' then
-      self:add_to_queue(function () return _send_frame(sock, true, 0xA, data or '', self.max_payload_len, self.send_masked) end)
+      w:add_to_queue(function () return _send_frame(sock, true, 0xA, data or '', max_payload_len, send_masked) end)
     end
     if typ == 'text' or typ == 'binary' then
       cf_fork(on_message, cls, data, typ == 'binary')
     end
   end
+  return
 end
 
-return websocket
+return Websocket

@@ -111,7 +111,7 @@ function TCP:send(buf)
     Log:ERROR("Please use ssl_send method :)")
     return nil, "Please use ssl_send method"
   end
-  if type(buf) ~= 'string' or buf == '' then
+  if not self.fd or type(buf) ~= 'string' or buf == '' then
     return
   end
   local wlen = tcp_write(self.fd, buf, 0)
@@ -145,7 +145,7 @@ function TCP:ssl_send(buf)
     Log:ERROR("Please use send method :)")
     return nil, "Please use send method :)"
   end
-  if type(buf) ~= 'string' or buf == '' then
+  if not self.fd or type(buf) ~= 'string' or buf == '' then
     return
   end
   local wlen = tcp_ssl_write(self.ssl, buf, #buf)
@@ -176,6 +176,9 @@ end
 function TCP:recv(bytes)
     if self.ssl then
       Log:ERROR("Please use ssl_recv method :)")
+      return nil, "Please use ssl_recv method :)"
+    end
+    if not self.fd then
       return
     end
     local data, len = tcp_read(self.fd, bytes)
@@ -186,87 +189,90 @@ function TCP:recv(bytes)
     self.READ_IO = tcp_pop()
     self.read_current_co = co_self()
     self.read_co = co_new(function ( ... )
-        local buf, len = tcp_read(self.fd, bytes)
-        if self.timer then
-            self.timer:stop()
-            self.timer = nil
-        end
-        tcp_push(self.READ_IO)
-        tcp_stop(self.READ_IO)
-        self.READ_IO = nil
-        self.read_co = nil
-        self.read_current_co =nil
-        if not buf then
-            return co_wakeup(co)
-        end
-        return co_wakeup(co, buf, len)
+      local buf, len = tcp_read(self.fd, bytes)
+      if self.timer then
+        self.timer:stop()
+        self.timer = nil
+      end
+      tcp_push(self.READ_IO)
+      tcp_stop(self.READ_IO)
+      self.READ_IO = nil
+      self.read_co = nil
+      self.read_current_co =nil
+      if not buf then
+        return co_wakeup(co)
+      end
+      return co_wakeup(co, buf, len)
     end)
     self.timer = ti_timeout(self._timeout, function ( ... )
-        tcp_push(self.READ_IO)
-        tcp_stop(self.READ_IO)
-        self.timer = nil
-        self.read_co = nil
-        self.READ_IO = nil
-        self.read_current_co = nil
-        return co_wakeup(co, nil, "read timeout")
+      tcp_push(self.READ_IO)
+      tcp_stop(self.READ_IO)
+      self.timer = nil
+      self.read_co = nil
+      self.READ_IO = nil
+      self.read_current_co = nil
+      return co_wakeup(co, nil, "read timeout")
     end)
     tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
     return co_wait()
 end
 
 function TCP:ssl_recv(bytes)
-    if not self.ssl then
-      Log:ERROR("Please use recv method :)")
-      return
-    end
-    local buf, len = tcp_sslread(self.ssl, bytes)
-    if not buf then
-        local co = co_self()
-        self.read_current_co = co_self()
-        self.READ_IO = tcp_pop()
-        self.read_co = co_new(function ( ... )
-            while 1 do
-                local buf, len = tcp_sslread(self.ssl, bytes)
-                if not buf and not len then
-                    if self.timer then
-                        self.timer:stop()
-                        self.timer = nil
-                    end
-                    tcp_push(self.READ_IO)
-                    tcp_stop(self.READ_IO)
-                    self.READ_IO = nil
-                    self.read_co = nil
-                    self.read_current_co = nil
-                    return co_wakeup(co)
-                end
-                if buf and len then
-                    if self.timer then
-                        self.timer:stop()
-                        self.timer = nil
-                    end
-                    tcp_push(self.READ_IO)
-                    tcp_stop(self.READ_IO)
-                    self.READ_IO = nil
-                    self.read_co = nil
-                    self.read_current_co = nil
-                    return co_wakeup(co, buf, len)
-                end
-                co_wait()
-            end
-        end)
-        self.timer = ti_timeout(self._timeout, function ( ... )
-            tcp_push(self.READ_IO)
-            tcp_stop(self.READ_IO)
+  if not self.ssl then
+    Log:ERROR("Please use recv method :)")
+    return nil, "Please use recv method :)"
+  end
+  if not self.fd then
+    return
+  end
+  local buf, len = tcp_sslread(self.ssl, bytes)
+  if not buf then
+    local co = co_self()
+    self.read_current_co = co_self()
+    self.READ_IO = tcp_pop()
+    self.read_co = co_new(function ( ... )
+      while 1 do
+        local buf, len = tcp_sslread(self.ssl, bytes)
+        if not buf and not len then
+          if self.timer then
+            self.timer:stop()
             self.timer = nil
-            self.READ_IO = nil
-            self.read_co = nil
-            self.read_current_co = nil
-            return co_wakeup(co, nil, "read timeout")
-        end)
-        tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
-        return co_wait()
-    end
-    return buf, len
+          end
+          tcp_push(self.READ_IO)
+          tcp_stop(self.READ_IO)
+          self.READ_IO = nil
+          self.read_co = nil
+          self.read_current_co = nil
+          return co_wakeup(co)
+        end
+        if buf and len then
+          if self.timer then
+            self.timer:stop()
+            self.timer = nil
+          end
+          tcp_push(self.READ_IO)
+          tcp_stop(self.READ_IO)
+          self.READ_IO = nil
+          self.read_co = nil
+          self.read_current_co = nil
+          return co_wakeup(co, buf, len)
+        end
+        co_wait()
+      end
+    end)
+    self.timer = ti_timeout(self._timeout, function ( ... )
+      tcp_push(self.READ_IO)
+      tcp_stop(self.READ_IO)
+      self.timer = nil
+      self.READ_IO = nil
+      self.read_co = nil
+      self.read_current_co = nil
+      return co_wakeup(co, nil, "read timeout")
+    end)
+    tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
+    return co_wait()
+  end
+  return buf, len
 end
 
 function TCP:listen(ip, port, cb)
@@ -447,8 +453,8 @@ function TCP:close()
   end
 
   if self.sendfile_current_co then
-  co_wakeup(self.sendfile_current_co)
-  self.sendfile_current_co = nil
+    co_wakeup(self.sendfile_current_co)
+    self.sendfile_current_co = nil
   end
 
   if self._timeout then
