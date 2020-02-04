@@ -372,7 +372,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
                     'Server: ' .. (server or SERVER),
                     'Connection: close',
                     'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
-                    'Content-Length: '..tostring(#data),
+                    'Content-Length: ' .. tostring(#data),
                   }, CRLF), CRLF2, data}))
                   return sock:close()
                 end
@@ -448,9 +448,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
         if not conten_type then
           header[#header+1] = 'Content-Disposition: attachment' -- 确保浏览器提示需要下载
-          static = fmt('Content-Type: %s', 'application/octet-stream')
+          static = 'Content-Type: application/octet-stream'
         else
-          static = fmt('Content-Type: %s', conten_type..'; charset=utf-8')
+          static = 'Content-Type: ' .. conten_type .. '; charset=utf-8'
         end
         -- 如果是静态文件, 增加默认跨域访问支持
         header[#header+1] = "Access-Control-Allow-Origin: *"
@@ -495,6 +495,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         if body_len then
           header[#header+1] = 'Content-Length: '.. body_len
         end
+        header[#header+1] = 'Accept-Ranges: none'
         header[#header+1] = static
       end
       -- 不计算数据传输时间, 仅计算实际回调处理所用时间.
