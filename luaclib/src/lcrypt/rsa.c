@@ -103,7 +103,7 @@ int lrsa_private_key_decode(lua_State *L) {
 
   RSA* key = new_private_key(L);
   if (!key)
-    return luaL_error(L, "Can't find public key or Invalid public key");
+    return luaL_error(L, "Can't find private key or Invalid private key");
 
   luaL_Buffer b;
   unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(key));
@@ -132,7 +132,7 @@ int lrsa_private_key_encode(lua_State *L){
 
   RSA* key = new_private_key(L);
   if (!key)
-    return luaL_error(L, "Can't find public key or Invalid public key");
+    return luaL_error(L, "Can't find private key or Invalid private key");
 
   luaL_Buffer b;
   unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(key));
