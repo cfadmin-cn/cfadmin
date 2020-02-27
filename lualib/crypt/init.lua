@@ -54,6 +54,12 @@ local rsa_private_key_decode = CRYPT.rsa_private_key_decode
 local rsa_private_key_encode = CRYPT.rsa_private_key_encode
 local rsa_public_key_decode = CRYPT.rsa_public_key_decode
 
+local sha128WithRsa_sign = CRYPT.sha128WithRsa_sign
+local sha128WithRsa_verify = CRYPT.sha128WithRsa_verify
+
+local sha256WithRsa_sign = CRYPT.sha256WithRsa_sign
+local sha256WithRsa_verify = CRYPT.sha256WithRsa_verify
+
 local crypt = {}
 
 function crypt.md5(str, hex)
@@ -314,6 +320,38 @@ end
 -- text 为加密后的内容, public_key_path 为公钥路径, b64 为是否为text先进行base64解码
 function crypt.rsa_public_key_decode(text, public_key_path, b64)
   return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path)
+end
+
+
+-- sha with rsa sign/verify
+function crypt.sha128_with_rsa_sign(text, private_key_path, hex)
+  local hash = sha128WithRsa_sign(text, private_key_path)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.sha128_with_rsa_verify(text, public_key_path, sign, hex)
+  if hex and sign then
+    sign = hexdecode(sign)
+  end
+  return sha128WithRsa_verify(text, public_key_path, sign)
+end
+
+function crypt.sha256_with_rsa_sign(text, private_key_path, hex)
+  local hash = sha256WithRsa_sign(text, private_key_path)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.sha256_with_rsa_verify(text, public_key_path, sign, hex)
+  if hex and sign then
+    sign = hexdecode(sign)
+  end
+  return sha256WithRsa_verify(text, public_key_path, sign)
 end
 
 return crypt

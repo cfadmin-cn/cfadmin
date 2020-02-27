@@ -1,5 +1,5 @@
 #include "lcrypt.h"
-#include <openssl/err.h>
+// #include <openssl/err.h>
 
 static inline RSA* READ_PEM_PUB_KEY(FILE *f) {
   RSA *key = NULL ;
@@ -174,5 +174,122 @@ int lrsa_public_key_decode(lua_State *L){
 
   RSA_free(key);
 
+  return 1;
+}
+
+
+int lSha256WithRsa_sign(lua_State *L){
+
+  size_t text_size = 0;
+  const uint8_t* text = get_text(L, &text_size);
+  if (!text || text_size < 1)
+    return luaL_error(L, "Invalid text");
+
+  RSA* rsa = new_private_key(L);
+  if (!rsa)
+    return luaL_error(L, "Can't find valide private rsa.");
+
+  unsigned char sha_data[SHA256_DIGEST_LENGTH];
+  SHA256((const unsigned char*) text, text_size, sha_data);
+
+  luaL_Buffer b;
+  unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(rsa));
+  uint32_t result_size = 0;
+
+  if (1 != RSA_sign(NID_sha256, sha_data, SHA256_DIGEST_LENGTH, result, &result_size, rsa)) {
+    RSA_free(rsa);
+    return luaL_error(L, "computing result size failed.");
+  }
+
+  luaL_pushresultsize(&b, result_size);
+
+  RSA_free(rsa);
+
+  return 1;
+}
+
+int lSha256WithRsa_verify(lua_State *L){
+
+  size_t text_size = 0;
+  const uint8_t* text = get_text(L, &text_size);
+  if (!text || text_size < 1)
+    return luaL_error(L, "Invalid text");
+
+  RSA* rsa = new_public_key(L);
+  if (!rsa)
+    return luaL_error(L, "Can't find valide private rsa.");
+
+  size_t sign_size = 0;
+  const uint8_t *sign = (const uint8_t*)luaL_checklstring(L, 3, &sign_size);
+  if (!text || text_size < 1)
+    return luaL_error(L, "Invalid text");
+
+  unsigned char sha_data[SHA256_DIGEST_LENGTH];
+  SHA256((const unsigned char*) text, text_size, sha_data);
+
+  if (1 != RSA_verify(NID_sha256, sha_data, SHA256_DIGEST_LENGTH, sign, sign_size, rsa)) {
+    RSA_free(rsa);
+    return 0;
+  }
+  RSA_free(rsa);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
+int lSha128WithRsa_sign(lua_State *L){
+
+  size_t text_size = 0;
+  const uint8_t* text = get_text(L, &text_size);
+  if (!text || text_size < 1)
+    return luaL_error(L, "Invalid text");
+
+  RSA* rsa = new_private_key(L);
+  if (!rsa)
+    return luaL_error(L, "Can't find valide private rsa.");
+
+  unsigned char sha_data[SHA_DIGEST_LENGTH];
+  SHA256((const unsigned char*) text, text_size, sha_data);
+
+  luaL_Buffer b;
+  unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(rsa));
+  uint32_t result_size = 0;
+
+  if (1 != RSA_sign(NID_sha1, sha_data, SHA_DIGEST_LENGTH, result, &result_size, rsa)) {
+    RSA_free(rsa);
+    return luaL_error(L, "computing result size failed.");
+  }
+
+  luaL_pushresultsize(&b, result_size);
+
+  RSA_free(rsa);
+
+  return 1;
+}
+
+int lSha128WithRsa_verify(lua_State *L){
+
+  size_t text_size = 0;
+  const uint8_t* text = get_text(L, &text_size);
+  if (!text || text_size < 1)
+    return luaL_error(L, "Invalid text");
+
+  RSA* rsa = new_public_key(L);
+  if (!rsa)
+    return luaL_error(L, "Can't find valide private rsa.");
+
+  size_t sign_size = 0;
+  const uint8_t *sign = (const uint8_t*)luaL_checklstring(L, 3, &sign_size);
+  if (!text || text_size < 1)
+    return luaL_error(L, "Invalid text");
+
+  unsigned char sha_data[SHA_DIGEST_LENGTH];
+  SHA256((const unsigned char*) text, text_size, sha_data);
+
+  if (1 != RSA_verify(NID_sha1, sha_data, SHA_DIGEST_LENGTH, sign, sign_size, rsa)) {
+    RSA_free(rsa);
+    return 0;
+  }
+  RSA_free(rsa);
+  lua_pushboolean(L, 1);
   return 1;
 }

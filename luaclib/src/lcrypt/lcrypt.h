@@ -64,3 +64,8 @@ int lrsa_private_key_decode(lua_State *L);
 
 int lrsa_private_key_encode(lua_State *L);
 int lrsa_public_key_decode(lua_State *L);
+
+int lSha128WithRsa_sign(lua_State *L);
+int lSha128WithRsa_verify(lua_State *L);
+int lSha256WithRsa_sign(lua_State *L);
+int lSha256WithRsa_verify(lua_State *L);

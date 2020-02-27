@@ -265,6 +265,18 @@ local function test_rsa()
 
   end
 
+  local function test_sha_with_rsa( ... )
+    local publick_key_path = "public1024.pem"
+    local private_key_path = "private1024.pem"
+    local text = [[{"code":200,"data":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,]}]]
+
+    local sign = crypt.sha128_with_rsa_sign(text, private_key_path, true)
+    assert(crypt.sha128_with_rsa_verify(text, publick_key_path, sign, true), "sha128 with rsa签名/验证失败.")
+
+    local sign = crypt.sha256_with_rsa_sign(text, private_key_path, true)
+    assert(crypt.sha256_with_rsa_verify(text, publick_key_path, sign, true), "sha256 with rsa签名/验证失败.")
+  end
+
   print("----------*** 开始测试 rsa public/private encode/decode ***----------")
 
   test_rsa_1024()
@@ -272,6 +284,8 @@ local function test_rsa()
   test_rsa_2048()
 
   test_rsa_4096()
+
+  test_sha_with_rsa()
 
   print("----------*** rsa public/private encode/decode 测试完成 ***----------")
 
@@ -301,7 +315,7 @@ local function main()
 
     -- test_other,
 
-    test_rsa(),
+    test_rsa,
 
   }
 
@@ -311,9 +325,7 @@ local function main()
 
   end
 
-  if #examples > 0 then
-    Log:DEBUG("总共完成了" .. #examples .. "个测试用例.")
-  end
+  Log:DEBUG("总共完成了" .. #examples .. "个测试用例.")
 
 end
 

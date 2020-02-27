@@ -80,6 +80,11 @@ luaopen_lcrypt(lua_State *L) {
     // 私钥加密 -> 公钥解密
     {"rsa_private_key_encode", lrsa_private_key_encode},
     {"rsa_public_key_decode", lrsa_public_key_decode},
+    //shawithrsa
+    {"sha128WithRsa_sign", lSha128WithRsa_sign},
+    {"sha128WithRsa_verify", lSha128WithRsa_verify},
+    {"sha256WithRsa_sign", lSha256WithRsa_sign},
+    {"sha256WithRsa_verify", lSha256WithRsa_verify},
     // aes 加密
     {"aes_ecb_encrypt", laes_ecb_encrypt},
     {"aes_cbc_encrypt", laes_cbc_encrypt},
