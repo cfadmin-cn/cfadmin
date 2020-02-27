@@ -1,6 +1,4 @@
-#define LUA_LIB
-
-#include "../../../src/core.h"
+#include "lcrypt.h"
 
 /* CRC32 TAB */
 static uint32_t CRC32[] = {
@@ -202,8 +200,7 @@ static uint64_t CRC64[] = {
     0x536fa08fdfd90e51, 0x29b7d047efec8728,
 };
 
-int
-lcrc32(lua_State *L){
+int lcrc32(lua_State *L){
   size_t len;
   const char *str = luaL_checklstring(L, 1, &len);
 
@@ -215,8 +212,7 @@ lcrc32(lua_State *L){
   return 1;
 };
 
-int
-lcrc64(lua_State *L){
+int lcrc64(lua_State *L){
   size_t len;
   const char *str = luaL_checklstring(L, 1, &len);
 

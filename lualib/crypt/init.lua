@@ -7,11 +7,15 @@ local hmac_md5 = CRYPT.hmac_md5
 local hmac64_md5 = CRYPT.hmac64_md5
 
 local sha1 = CRYPT.sha1
+local sha224 = CRYPT.sha224
 local sha256 = CRYPT.sha256
+local sha384 = CRYPT.sha384
 local sha512 = CRYPT.sha512
 
 local hmac_sha1 = CRYPT.hmac_sha1
+-- local hmac_sha224 = CRYPT.hmac_sha224
 local hmac_sha256 = CRYPT.hmac_sha256
+-- local hmac_sha384 = CRYPT.hmac_sha384
 local hmac_sha512 = CRYPT.hmac_sha512
 
 local crc32 = CRYPT.crc32
@@ -38,6 +42,17 @@ local dhexchange = CRYPT.dhexchange
 local urlencode = CRYPT.urlencode
 local urldecode = CRYPT.urldecode
 
+local aes_ecb_encrypt = CRYPT.aes_ecb_encrypt
+local aes_ecb_decrypt = CRYPT.aes_ecb_decrypt
+
+local aes_cbc_encrypt = CRYPT.aes_cbc_encrypt
+local aes_cbc_decrypt = CRYPT.aes_cbc_decrypt
+
+local rsa_public_key_encode = CRYPT.rsa_public_key_encode
+local rsa_private_key_decode = CRYPT.rsa_private_key_decode
+
+local rsa_private_key_encode = CRYPT.rsa_private_key_encode
+local rsa_public_key_decode = CRYPT.rsa_public_key_decode
 
 local crypt = {}
 
@@ -65,8 +80,24 @@ function crypt.sha1(str, hex)
   return hash
 end
 
+function crypt.sha224 (str, hex)
+  local hash = sha224(str)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
 function crypt.sha256 (str, hex)
   local hash = sha256(str)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.sha384 (str, hex)
+  local hash = sha384(str)
   if hash and hex then
     return hexencode(hash)
   end
@@ -90,6 +121,14 @@ function crypt.hmac_sha1 (key, text, hex)
   return hash
 end
 
+-- function crypt.hmac_sha224 (key, text, hex)
+--   local hash = hmac_sha224(key, text)
+--   if hash and hex then
+--     return hexencode(hash)
+--   end
+--   return hash
+-- end
+
 function crypt.hmac_sha256 (key, text, hex)
   local hash = hmac_sha256(key, text)
   if hash and hex then
@@ -97,6 +136,14 @@ function crypt.hmac_sha256 (key, text, hex)
   end
   return hash
 end
+
+-- function crypt.hmac_sha384 (key, text, hex)
+--   local hash = hmac_sha384(key, text)
+--   if hash and hex then
+--     return hexencode(hash)
+--   end
+--   return hash
+-- end
 
 function crypt.hmac_sha512 (key, text, hex)
   local hash = hmac_sha512(key, text)
@@ -152,6 +199,30 @@ function crypt.hmac64_md5 (key, text, hex)
     return hexencode(hash)
   end
   return hash
+end
+
+function crypt.aes_128_cbc_encrypt(key, text, iv, hex)
+  local hash = aes_cbc_encrypt(16, key, text, (type(iv) == 'string' and #iv == 16) and iv or "")
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_128_ecb_encrypt(key, text, iv, hex)
+  local hash = aes_ecb_encrypt(16, key, text, (type(iv) == 'string' and #iv == 16) and iv or "")
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_128_cbc_decrypt(key, text, iv)
+  return aes_cbc_decrypt(16, key, text, (type(iv) == 'string' and #iv == 16) and iv or "")
+end
+
+function crypt.aes_128_ecb_decrypt(key, text, iv)
+  return aes_ecb_decrypt(16, key, text, (type(iv) == 'string' and #iv == 16) and iv or "")
 end
 
 function crypt.base64urlencode(data)
@@ -215,6 +286,34 @@ end
 
 function crypt.urlencode (...)
   return urlencode(...)
+end
+
+-- text 为原始文本内容, public_key_path 为公钥路径, b64 为是否为结果进行base64编码
+function crypt.rsa_public_key_encode(text, public_key_path, b64)
+  local hash = rsa_public_key_encode(text, public_key_path)
+  if hash and b64 then
+    return base64encode(hash)
+  end
+  return hash
+end
+
+-- text 为加密后的内容, private_key_path 为私钥路径, b64 为是否为text先进行base64解码
+function crypt.rsa_private_key_decode(text, private_key_path, b64)
+  return rsa_private_key_decode(b64 and base64decode(text) or text, private_key_path)
+end
+
+-- text 为原始文本内容, private_key_path 为公钥路径, b64 为是否为结果进行base64编码
+function crypt.rsa_private_key_encode(text, private_key_path, b64)
+  local hash = rsa_private_key_encode(text, private_key_path)
+  if hash and b64 then
+    return base64encode(hash)
+  end
+  return hash
+end
+
+-- text 为加密后的内容, public_key_path 为公钥路径, b64 为是否为text先进行base64解码
+function crypt.rsa_public_key_decode(text, public_key_path, b64)
+  return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path)
 end
 
 return crypt

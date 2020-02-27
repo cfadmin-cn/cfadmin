@@ -9,12 +9,12 @@ default :
 
 CC = cc
 
-CFLAGS = -O3 -Wall -shared -fPIC -fno-strict-aliasing
-DLL = -lcore -llua
+CFLAGS = -O3 -Wall -shared -fPIC -fno-strict-aliasing -ggdb
+DLL = -lcore -llua -lcrypto
 
 INCLUDES = -I../../../ -I/usr/local/include
 LIBS = -L../ -L../../../ -L/usr/local/lib
 
 build:
-	@$(CC) -o lcrypt.so lcrypt.c crc.c md5.c url.c sha1.c sha2.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
+	@$(CC) -o lcrypt.so lcrypt.c aes.c des.c dh.c rsa.c sha.c hmac.c hmac_ex.c b64.c crc.c url.c hex.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	@mv *.so ../../
