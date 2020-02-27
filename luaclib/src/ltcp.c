@@ -812,7 +812,7 @@ luaopen_tcp(lua_State *L){
   SSL_load_error_strings();
   // ERR_load_crypto_strings();
   // OpenSSL_add_ssl_algorithms();
-  CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
+  // CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);
   /* 添加SSL支持 */
   luaL_newmetatable(L, "__TCP__");
   lua_pushstring (L, "__index");
