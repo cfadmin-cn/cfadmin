@@ -40,6 +40,7 @@ LUAMOD_API int
 luaopen_lcrypt(lua_State *L) {
   luaL_checkversion(L);
   luaL_Reg lcrypt[] = {
+    {"uuid", luuid},
     { "hashkey", lhashkey },
     { "randomkey", lrandomkey },
     { "desencode", ldesencode },

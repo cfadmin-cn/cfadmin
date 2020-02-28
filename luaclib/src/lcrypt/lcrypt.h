@@ -6,8 +6,11 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/hmac.h>
+#include <openssl/rand.h>
 
 #define SMALL_CHUNK 256
+
+int luuid(lua_State *L);
 
 int ltohex(lua_State *L);
 int lfromhex(lua_State *L);

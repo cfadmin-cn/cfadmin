@@ -291,6 +291,15 @@ local function test_rsa()
 
 end
 
+local function test_uuid( ... )
+
+  print("----------*** 开始测试 uuid 生成 ***----------")
+
+  Log:DEBUG("生成的UUID为: " .. crypt.uuid())
+
+  print("----------*** uuid 测试完成 ***----------")
+end
+
 local function main()
 
   local examples = {
@@ -315,7 +324,9 @@ local function main()
 
     -- test_other,
 
-    test_rsa,
+    -- test_rsa,
+
+    test_uuid,
 
   }
 

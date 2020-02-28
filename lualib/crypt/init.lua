@@ -1,6 +1,8 @@
 local CRYPT = require "lcrypt"
 local new_tab = require("sys").new_tab
 
+local uuid = CRYPT.uuid
+
 local md5 = CRYPT.md5
 local hmac64 = CRYPT.hmac64
 local hmac_md5 = CRYPT.hmac_md5
@@ -61,6 +63,10 @@ local sha256WithRsa_sign = CRYPT.sha256WithRsa_sign
 local sha256WithRsa_verify = CRYPT.sha256WithRsa_verify
 
 local crypt = {}
+
+function crypt.uuid()
+  return uuid()
+end
 
 function crypt.md5(str, hex)
   local hash = md5(str)
