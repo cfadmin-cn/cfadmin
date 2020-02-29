@@ -46,9 +46,9 @@ end
 
 -- 设置Cookie
 function Cookie.setCookie (name, value, expires, notall, https)
-  assert(type(name) == 'string' and key ~= '', '错误的Cookie Key, 请检查参数有效性')
-  assert(type(value) == 'string' or type(value) == 'number', '错误的Cookie Value, 请检查参数有效性')
-  assert(not expires or expires > os_time(), '错误的Cookie Expires, 请检查参数有效性')
+  assert(type(name) == 'string' and key ~= '', 'invalide Cookie Key')
+  assert(type(value) == 'string' or type(value) == 'number', 'invalide Cookie Value')
+  assert(not expires or expires > os_time(), 'invalide Cookie Expires')
   local co = co_self()
   local cs = Cookie.server[co]
   if not cs then
@@ -60,7 +60,7 @@ function Cookie.setCookie (name, value, expires, notall, https)
     value = value,
     expires = expires,
     path = '/',
-    httponly = notall and 'HttpOnly',
+    httponly = notall and 'HttpOnly' or nil,
     secure = https and 'Secure'
   }
 end
