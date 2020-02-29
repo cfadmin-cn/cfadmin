@@ -809,7 +809,7 @@ luaopen_tcp(lua_State *L){
   luaL_checkversion(L);
   /* 添加SSL支持 */
   SSL_library_init();
-  SSL_load_error_strings();
+  // SSL_load_error_strings();
   // ERR_load_crypto_strings();
   // OpenSSL_add_ssl_algorithms();
   // CRYPTO_set_mem_functions(xmalloc, xrealloc, xfree);

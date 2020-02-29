@@ -25,9 +25,9 @@ local fmt = string.format
 local concat = table.concat
 
 -- 可以在这里手动设置是否使用异步日志
-local SYNC = false
+local ASYNC = true
 
-if not SYNC then
+if ASYNC then
   if io_type(io.output()) == 'file' then
     io.output():setvbuf("full", 2 ^ 20)
     cf.at(0.5, function ()

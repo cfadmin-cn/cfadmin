@@ -15,9 +15,7 @@ local sha384 = CRYPT.sha384
 local sha512 = CRYPT.sha512
 
 local hmac_sha1 = CRYPT.hmac_sha1
--- local hmac_sha224 = CRYPT.hmac_sha224
 local hmac_sha256 = CRYPT.hmac_sha256
--- local hmac_sha384 = CRYPT.hmac_sha384
 local hmac_sha512 = CRYPT.hmac_sha512
 
 local crc32 = CRYPT.crc32
@@ -133,14 +131,6 @@ function crypt.hmac_sha1 (key, text, hex)
   return hash
 end
 
--- function crypt.hmac_sha224 (key, text, hex)
---   local hash = hmac_sha224(key, text)
---   if hash and hex then
---     return hexencode(hash)
---   end
---   return hash
--- end
-
 function crypt.hmac_sha256 (key, text, hex)
   local hash = hmac_sha256(key, text)
   if hash and hex then
@@ -148,14 +138,6 @@ function crypt.hmac_sha256 (key, text, hex)
   end
   return hash
 end
-
--- function crypt.hmac_sha384 (key, text, hex)
---   local hash = hmac_sha384(key, text)
---   if hash and hex then
---     return hexencode(hash)
---   end
---   return hash
--- end
 
 function crypt.hmac_sha512 (key, text, hex)
   local hash = hmac_sha512(key, text)
