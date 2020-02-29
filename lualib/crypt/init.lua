@@ -165,8 +165,8 @@ function crypt.hmac_sha512 (key, text, hex)
   return hash
 end
 
-function crypt.xor_str (key, text, hex)
-  local hash = xor_str(key, text)
+function crypt.xor_str (text, key, hex)
+  local hash = xor_str(text, key)
   if hash and hex then
     return hexencode(hash)
   end
