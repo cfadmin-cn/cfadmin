@@ -128,18 +128,22 @@ local function test_other( ... )
 end
 
 
-local function test_strxor( ... )
+local function test_xor_str( ... )
+
+  print("----------*** 开始测试 xor_str ***----------")
   
   local rawData = "admin00000"
-  local key = "1234567890"
+  local key = "1234567890-----"
 
-  print(crypt.xor_str(key, rawData, true))
+  local xor = crypt.xor_str(rawData, key)
 
-  print(crypt.xor_str(key, crypt.xor_str(key, rawData)))
-  
-  -- Log:DEBUG("xor_str 原始数据: " .. rawData, "异或key: " .. key)
-  
-  -- assert(crypt.xor_str(rawData, crypt.xor_str(rawData, key)) == rawData)
+  local raw = crypt.xor_str(xor, key)
+
+  assert(raw == rawData, "转换失败")
+
+  Log:DEBUG( "xor data = " .. crypt.hexencode(xor), "raw data = " .. raw)
+
+  print("----------*** xor_str 测试完成 ***----------\n")
 
 end
 
@@ -271,9 +275,11 @@ local function test_rsa()
     local text = [[{"code":200,"data":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,]}]]
 
     local sign = crypt.sha128_with_rsa_sign(text, private_key_path, true)
+    -- print(sign)
     assert(crypt.sha128_with_rsa_verify(text, publick_key_path, sign, true), "sha128 with rsa签名/验证失败.")
 
     local sign = crypt.sha256_with_rsa_sign(text, private_key_path, true)
+    -- print(sign)
     assert(crypt.sha256_with_rsa_verify(text, publick_key_path, sign, true), "sha256 with rsa签名/验证失败.")
   end
 
@@ -287,7 +293,7 @@ local function test_rsa()
 
   test_sha_with_rsa()
 
-  print("----------*** rsa public/private encode/decode 测试完成 ***----------")
+  print("----------*** rsa public/private encode/decode 测试完成 ***----------\n")
 
 end
 
@@ -297,12 +303,14 @@ local function test_uuid( ... )
 
   Log:DEBUG("生成的UUID为: " .. crypt.uuid())
 
-  print("----------*** uuid 测试完成 ***----------")
+  print("----------*** uuid 测试完成 ***----------\n")
 end
 
 local function main()
 
   local examples = {
+
+    -- test_xor_str,
 
     -- test_hex,
    
@@ -326,7 +334,7 @@ local function main()
 
     -- test_rsa,
 
-    test_uuid,
+    -- test_uuid,
 
   }
 
