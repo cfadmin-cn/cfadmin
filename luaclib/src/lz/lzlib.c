@@ -3,22 +3,60 @@
 #include "../../../src/core.h"
 #include <zlib.h>
 
-
-static inline
-void stream_init(z_stream *z) {
+static inline void stream_init(z_stream *z) {
   memset(z, 0x0, sizeof(*z));
   z->zalloc = Z_NULL;
   z->zfree = Z_NULL;
   z->opaque = Z_NULL;
 }
 
-// static int lcompress(lua_State *L) {
-//   return 1;
-// }
+static int lcompress(lua_State *L) {
+  size_t in_size = 0;
+  const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
+  if (in_size <= 0)
+    return 0;
 
-// static int luncompress(lua_State *L) {
-//   return 1;
-// }
+  size_t out_size = compressBound(in_size);
+  uint8_t *out = lua_newuserdata(L, out_size);
+  memset(out, 0x0, out_size);
+
+  if (compress(out, &out_size, in, in_size) != Z_OK)
+    return 0;
+
+  lua_pushlstring(L, (const char*)out, out_size);
+  lua_pushinteger(L, out_size);
+  return 2;
+}
+
+static int luncompress(lua_State *L) {
+  size_t in_size = 0;
+  const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
+  if (in_size <= 0)
+    return 0;
+
+  size_t out_size = in_size;
+  size_t offset = 1;
+  size_t top = lua_gettop(L);
+
+  for(;;) {
+    uint8_t *out = lua_newuserdata(L, out_size);
+    memset(out, 0x0, out_size);
+
+    int ret = uncompress(out, &out_size, in, in_size);
+    if (ret == Z_OK || ret == Z_BUF_ERROR) {
+      if (ret == Z_OK){
+        lua_pushlstring(L, (const char *)out, out_size);
+        return 1;        
+      }
+      lua_settop(L, top);
+      offset ++;
+      out_size = in_size << offset;
+      continue;
+    }
+    break;
+  }
+  return 0;
+}
 
 static int lgzip_compress(lua_State *L) {
   size_t in_size = 0;
@@ -100,12 +138,13 @@ static int lgzip_uncompress(lua_State *L) {
   return 1;
 }
 
-LUAMOD_API int
-luaopen_lz(lua_State *L){
+LUAMOD_API int luaopen_lz(lua_State *L){
   luaL_checkversion(L);
   luaL_Reg zlib_libs[] = {
-    // {"compress", lcompress},
-    // {"uncompress", luncompress},    
+    /* LZ77压缩/解压方法 */
+    {"compress", lcompress},
+    {"uncompress", luncompress},
+    /* gzip压缩/解压方法 */
     {"gzcompress", lgzip_compress},
     {"gzuncompress", lgzip_uncompress},
     {NULL, NULL}
