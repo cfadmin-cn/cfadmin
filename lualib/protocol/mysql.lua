@@ -665,6 +665,23 @@ function MySQL.query(self, query, est_nrows)
   -- return self:read_result(est_nrows)
 end
 
+local escape_map = {
+    ['\0'] = "\\0",
+    ['\b'] = "\\b",
+    ['\n'] = "\\n",
+    ['\r'] = "\\r",
+    ['\t'] = "\\t",
+    ['\26'] = "\\Z",
+    ['\\'] = "\\\\",
+    ["'"] = "\\'",
+    ['"'] = '\\"',
+}
+
+-- 转义
+function MySQL.quote_sql_str( str )
+    return strformat("%s", strgsub(str, "[\0\b\n\r\t\26\\\'\"]", escape_map))
+end
+
 function MySQL.set_compact_arrays(self, value)
     self.compact = value
 end

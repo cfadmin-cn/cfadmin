@@ -183,6 +183,11 @@ function DB:query(query)
   return ret, err
 end
 
+-- 字符串安全转义
+function DB.quote_to_str( str )
+  return mysql.quote_to_str(str)
+end
+
 function DB:count()
   return self.current, self.max, #self.co_pool, #self.db_pool
 end
