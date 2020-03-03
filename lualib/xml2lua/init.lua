@@ -30,4 +30,9 @@ function xml.load(xml_path)
   return xfile, error
 end
 
+-- 将table序列化为xml
+function xml.toxml( ... )
+  return xml2lua.toXml(...)
+end
+
 return xml
