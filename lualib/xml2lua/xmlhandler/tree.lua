@@ -148,9 +148,9 @@ end
 
 ---Parses a tag content.
 -- @param t text to process
-function tree:text(t)
+function tree:text(text)
     local current = self._stack[#self._stack]
-    table.insert(current, t)
+    table.insert(current, text)
 end
 
 ---Parses CDATA tag content.
