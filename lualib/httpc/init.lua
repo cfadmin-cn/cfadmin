@@ -15,6 +15,7 @@ local sock_send = protocol.sock_send
 local sock_connect = protocol.sock_connect
 local httpc_response = protocol.httpc_response
 local splite_protocol = protocol.splite_protocol
+local build_raw_req = protocol.build_raw_req
 local build_get_req = protocol.build_get_req
 local build_post_req = protocol.build_post_req
 local build_json_req = protocol.build_json_req
@@ -36,6 +37,7 @@ local split = string.sub
 local splite = string.gmatch
 local spliter = string.gsub
 local lower = string.lower
+local upper = string.upper
 local insert = table.insert
 local concat = table.concat
 local toint = math.tointeger
@@ -49,6 +51,54 @@ local CRLF2 = '\x0d\x0a\x0d\x0a'
 local __TIMEOUT__ = 15
 
 local methods = {'get', 'post', 'json', 'file'}
+
+local function raw( parameter )
+	local opt, err = splite_protocol(parameter.domain)
+	if not opt then
+		return nil, err
+	end
+
+	local method = type(parameter.method) == 'string' and upper(parameter.method) or nil
+	assert( method and (
+			method == 'GET' or
+			method == 'POST' or
+			method == 'OPTIONS' or
+			method == 'DELETE' or
+			method == 'PUT'
+		),"invalide http method.")
+
+	-- GET方法禁止传递body
+	if parameter.method == "GET" then
+		parameter.body = nil
+	end
+
+	-- POST/PUT方法禁止传递args
+	if parameter.method == "POST" or parameter.method == "PUT" or  parameter.method == "DELETE" then
+		parameter.args = nil
+	end
+
+	opt.method = method
+	opt.body = parameter.body
+	opt.args = parameter.args
+	opt.headers = parameter.headers
+
+	local REQ = build_raw_req(opt)
+
+	local sock = sock_new():timeout(timeout or __TIMEOUT__)
+	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+	if not ok then
+		sock:close()
+		return ok, err
+	end
+	local ok, err = sock_send(sock, opt.protocol, REQ)
+	if not ok then
+		sock:close()
+		return ok, err
+	end
+	local code, msg = httpc_response(sock, opt.protocol)
+	sock:close()
+	return code, msg
+end
 
 -- HTTP GET
 local function get(domain, headers, args, timeout)
@@ -277,6 +327,7 @@ end
 
 
 return {
+	raw = raw,
 	get = get,
 	post = post,
 	delete = delete,

@@ -10,6 +10,7 @@ local sock_send = protocol.sock_send
 local sock_connect = protocol.sock_connect
 local httpc_response = protocol.httpc_response
 local splite_protocol = protocol.splite_protocol
+local build_raw_req = protocol.build_raw_req
 local build_get_req = protocol.build_get_req
 local build_post_req = protocol.build_post_req
 local build_json_req = protocol.build_json_req
@@ -56,6 +57,82 @@ end
 
 function httpc:basic_authorization( ... )
   return build_basic_authorization(...)
+end
+
+function httpc:raw( parameter )
+  local opt, err = splite_protocol(parameter.domain)
+  if not opt then
+    return nil, err
+  end
+
+  if self.domain and self.domain ~= opt.domain then
+    return nil, "1. 不同的域名不可使用httpc对象来请求"
+  end
+
+  if self.port and self.port ~= opt.port then
+    return nil, "2. 不同的域名不可使用httpc对象来请求"
+  end
+
+  local method = type(parameter.method) == 'string' and upper(parameter.method) or nil
+  assert( method and (
+      method == 'GET' or
+      method == 'POST' or
+      method == 'DELETE' or
+      method == 'PUT'
+    ),"invalide http method.")
+
+  -- GET方法禁止传递body
+  if method == "GET" then
+    parameter.body = nil
+  end
+
+  -- POST/PUT方法禁止传递args
+  if method == "POST" or method == "PUT" or  method == "DELETE" then
+    parameter.args = nil
+  end
+
+  opt.method = method
+  opt.body = parameter.body
+  opt.args = parameter.args
+  opt.headers = parameter.headers
+
+ local REQ = build_raw_req(opt)
+
+  if not self.sock then
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    self.sock = sock
+  end
+
+  local ok, err = sock_send(self.sock, opt.protocol, REQ)
+  if not ok then
+    self.sock:close()
+    self.sock = nil
+    local sock = sock_new():timeout(self.timeout)
+    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+    if not ok then
+      sock:close()
+      return ok, err
+    end
+    ok, err = sock_send(sock, opt.protocol, REQ)
+    if not ok then
+      sock:close()
+      return nil, err
+    end
+    self.sock = sock
+  end
+
+  local code, msg = httpc_response(self.sock, opt.protocol)
+  if not code then
+    self.sock:close()
+    self.sock = nil
+  end
+  return code, msg
+
 end
 
 -- get 请求

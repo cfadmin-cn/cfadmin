@@ -98,16 +98,16 @@ end
 
 local function splite_protocol(domain)
   if type(domain) ~= 'string' then
-    return nil, '1. 非法的域名'
+    return nil, '1. invalide domain'
   end
 
   local protocol, domain_port, path = match(domain, '^(http[s]?)://([^/]+)(.*)')
   if not protocol or not domain_port or not path then
-    return nil, '2. 错误的url'
+    return nil, '2. invalide url'
   end
 
   if not path or path == '' then
-    return nil, "3. http无path需要以'/'结尾."
+    return nil, "3. http path need '/' in end."
   end
 
   local domain, port
@@ -119,7 +119,7 @@ local function splite_protocol(domain)
       domain, port = match(domain_port, '([^:]+):(%d*)')
     end
     if not domain then
-      return nil, "4. 无效或者非法的主机名: "..domain_port
+      return nil, "4. invalide host or port: "..domain_port
     end
     port = toint(port)
     if not port then
@@ -238,6 +238,55 @@ local function httpc_response(sock, SSL)
   end
 end
 
+-- 对一些特殊请求的支持
+local function build_raw_req( opt )
+  local request = new_tab(16, 0)
+  insert(request, fmt("%s %s HTTP/1.1", opt.method, opt.path))
+  insert(request, fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port))
+  insert(request, fmt("User-Agent: %s", opt.server))
+  insert(request, 'Accept: */*')
+  insert(request, 'Accept-Encoding: gzip, identity')
+  insert(request, 'Connection: keep-alive')
+
+  if opt.method == 'GET' and type(opt.args) == "table" then
+    local args = new_tab(8, 0)
+    for _, arg in ipairs(opt.args) do
+      assert(#arg == 2, "args need key[1]->value[2] (2 values and must be string)")
+      insert(args, url_encode(arg[1])..'='..url_encode(arg[2]))
+    end
+    request[1] = fmt("GET %s HTTP/1.1", opt.path .. '?' .. concat(args, "&"))
+  end
+
+  if type(opt.headers) == "table" then
+    for _, header in ipairs(opt.headers) do
+      assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
+      insert(request, header[1]..': '..header[2])
+    end
+  end
+
+  if opt.method == 'POST' or opt.method == 'PUT' or opt.method == 'DELETE' then
+
+    if type(opt.body) == "table" then
+      local body = new_tab(8, 0)
+      for _, item in ipairs(opt.body) do
+        assert(#item == 2, "if BODY is TABLE, BODY need key[1]->value[2] (2 values)")
+        insert(body, url_encode(item[1])..'='..url_encode(item[2]))
+      end
+      local Body = concat(body, "&")
+      insert(request, #request, fmt('Content-Length: %s', #Body))
+      insert(request, #request, 'Content-Type: application/x-www-form-urlencoded\r\n')
+      insert(request, Body)
+    end
+
+    if type(opt.body) == "string" then
+      insert(request, fmt('Content-Length: %s\r\n', #opt.body))
+      insert(request, opt.body)
+    end
+
+  end
+
+  return concat(request, CRLF)
+end
 
 local function build_get_req (opt)
   local request = new_tab(16, 0)
@@ -437,6 +486,7 @@ return {
   sock_connect = sock_connect,
   httpc_response = httpc_response,
   splite_protocol = splite_protocol,
+  build_raw_req = build_raw_req,
   build_get_req = build_get_req,
   build_post_req = build_post_req,
   build_json_req = build_json_req,
