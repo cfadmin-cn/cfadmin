@@ -13,14 +13,14 @@
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-# Dump of table cfadmin_headers
-# ------------------------------------------------------------
-
+# ----------------------------
+# Table structure for cfadmin_headers
+# ----------------------------
 CREATE TABLE IF NOT EXISTS `cfadmin_headers` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `name` varchar(255) NOT NULL COMMENT '头部名称',
@@ -29,13 +29,11 @@ CREATE TABLE IF NOT EXISTS `cfadmin_headers` (
   `update_at` int(11) unsigned NOT NULL COMMENT '修改时间',
   `active` tinyint(4) unsigned NOT NULL COMMENT '删除标志',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='顶部菜单表';
 
-
-
-# Dump of table cfadmin_menus
-# ------------------------------------------------------------
-
+# ----------------------------
+# Table structure for cfadmin_menus
+# ----------------------------
 CREATE TABLE IF NOT EXISTS `cfadmin_menus` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `parent` int(11) unsigned NOT NULL COMMENT '父菜单ID',
@@ -46,14 +44,12 @@ CREATE TABLE IF NOT EXISTS `cfadmin_menus` (
   `update_at` int(11) unsigned NOT NULL COMMENT '更新时间',
   `active` tinyint(4) unsigned NOT NULL COMMENT '删除标志',
   PRIMARY KEY (`id`),
-  KEY `com_index` (`active`,`url`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  KEY `parant_index` (`parent`) USING BTREE COMMENT '父ID索引'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='侧边菜单表';
 
-
-
-# Dump of table cfadmin_permissions
-# ------------------------------------------------------------
-
+# ----------------------------
+# Table structure for cfadmin_permissions
+# ----------------------------
 CREATE TABLE IF NOT EXISTS `cfadmin_permissions` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `role_id` int(11) unsigned NOT NULL COMMENT '所属角色',
@@ -63,13 +59,11 @@ CREATE TABLE IF NOT EXISTS `cfadmin_permissions` (
   `active` tinyint(4) unsigned NOT NULL COMMENT '是否启用',
   PRIMARY KEY (`id`),
   KEY `com_index` (`active`,`role_id`,`menu_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限表';
 
-
-
-# Dump of table cfadmin_roles
-# ------------------------------------------------------------
-
+# ----------------------------
+# Table structure for cfadmin_roles
+# ----------------------------
 CREATE TABLE IF NOT EXISTS `cfadmin_roles` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `name` varchar(255) NOT NULL COMMENT '角色名称',
@@ -78,26 +72,22 @@ CREATE TABLE IF NOT EXISTS `cfadmin_roles` (
   `update_at` int(1) unsigned NOT NULL COMMENT '修改时间',
   `active` tinyint(4) unsigned NOT NULL COMMENT '删除标志',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色表';
 
-
-
-# Dump of table cfadmin_tokens
-# ------------------------------------------------------------
-
+# ----------------------------
+# Table structure for cfadmin_tokens
+# ----------------------------
 CREATE TABLE IF NOT EXISTS `cfadmin_tokens` (
   `uid` int(11) unsigned NOT NULL COMMENT '用户ID',
   `name` varchar(255) NOT NULL COMMENT '用户名称',
   `token` varchar(255) NOT NULL COMMENT '用户TOKEN',
   `create_at` int(11) unsigned NOT NULL COMMENT '登录时间',
   PRIMARY KEY (`uid`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8;
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COMMENT='用户Token表';
 
-
-
-# Dump of table cfadmin_users
-# ------------------------------------------------------------
-
+# ----------------------------
+# Table structure for cfadmin_users
+# ----------------------------
 CREATE TABLE IF NOT EXISTS `cfadmin_users` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `name` varchar(255) NOT NULL COMMENT '用户名',
@@ -110,7 +100,7 @@ CREATE TABLE IF NOT EXISTS `cfadmin_users` (
   `update_at` int(11) unsigned NOT NULL COMMENT '修改时间',
   `active` tinyint(4) unsigned NOT NULL COMMENT '删除标志',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
