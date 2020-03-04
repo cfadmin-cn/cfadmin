@@ -13,7 +13,7 @@ local db = DB:new({
 	port = 3306,
 	username = 'root',
 	password = '123456789',
-	charset = 'utf8',
+	charset = 'utf8mb4',
 	database = 'cfadmin',
 	max = 100,
 })
