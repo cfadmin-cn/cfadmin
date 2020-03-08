@@ -378,8 +378,6 @@ end
 -- json 请求
 function httpc:json (domain, headers, json, timeout)
 
-  assert(type(json) == "string", "Please passed A vaild json string.")
-
   local opt, err = splite_protocol(domain)
   if not opt then
     return nil, err
@@ -392,6 +390,8 @@ function httpc:json (domain, headers, json, timeout)
   if self.port and self.port ~= opt.port then
     return nil, "2. 不同的域名不可使用httpc对象来请求"
   end
+
+  assert(type(json) == "string" or type(json) == "table", "attempted passed a invalide json string or table.")
 
   opt.json = json
   opt.headers = headers

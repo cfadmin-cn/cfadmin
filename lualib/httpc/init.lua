@@ -225,7 +225,7 @@ local function json(domain, headers, json, timeout)
 		return nil, err
 	end
 
-	assert(type(json) == "string", "Please passed A vaild json string.")
+	assert(type(json) == "string" or type(json) == "table", "attempted passed a invalide json string or table.")
 
 	opt.json = json
 	opt.headers = headers

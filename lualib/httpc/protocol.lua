@@ -329,7 +329,7 @@ local function build_post_req (opt)
       insert(request, header[1] .. ': ' .. header[2] .. CRLF)
     end
   end
-  insert(request, CRLF)
+
   if type(opt.body) == "table" then
     local body = new_tab(8, 0)
     for _, item in ipairs(opt.body) do
@@ -337,10 +337,17 @@ local function build_post_req (opt)
       insert(body, url_encode(item[1])..'='..url_encode(item[2]))
     end
     local Body = concat(body, "&")
-    insert(request, #request, fmt('Content-Length: %s\r\n', #Body))
-    insert(request, #request, 'Content-Type: application/x-www-form-urlencoded\r\n')
+    insert(request, fmt('Content-Length: %s\r\n', #Body))
+    insert(request, 'Content-Type: application/x-www-form-urlencoded\r\n\r\n')
     insert(request, Body)
+  elseif type(opt.body) == 'string' and opt.body ~= '' then
+    insert(request, fmt('Content-Length: %s\r\n', #opt.body))
+    insert(request, 'Content-Type: application/x-www-form-urlencoded\r\n\r\n')
+    insert(request, opt.body)
+  else
+    insert(request, "Content-Length: 0\r\n\r\n")
   end
+
   return concat(request)
 end
 
@@ -382,6 +389,11 @@ local function build_json_req (opt)
   if type(opt.json) == 'string' and opt.json ~= '' then
     insert(request, 'Content-Type: application/json')
     insert(request, fmt("Content-Length: %s", #opt.json))
+  end
+  if type(opt.json) == 'table' then
+    opt.json = json_encode(opt.json)
+    insert(request, 'Content-Type: application/json')
+    insert(request, "Content-Length: " .. #opt.json)
   end
   return concat(request, CRLF) .. CRLF2 .. opt.json
 end
