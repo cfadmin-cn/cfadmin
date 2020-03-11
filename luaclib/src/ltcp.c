@@ -9,14 +9,13 @@
 #define SERVER (0)
 #define CLIENT (1)
 
-static inline
-void SETSOCKETOPT(int sockfd, int mode){
+static inline void SETSOCKETOPT(int sockfd, int mode){
 
   int Enable = 1;
 
   int ret = 0;
 
-	/* 设置非阻塞 */
+  /* 设置非阻塞 */
   non_blocking(sockfd);
 
 /* 地址重用 */
@@ -115,8 +114,7 @@ void SETSOCKETOPT(int sockfd, int mode){
 }
 
 /* server fd */
-static int
-create_server_fd(int port, int backlog){
+static int create_server_fd(int port, int backlog){
   errno = 0;
   /* 建立 TCP Server Socket */
   int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
@@ -152,42 +150,40 @@ create_server_fd(int port, int backlog){
 }
 
 /* client fd */
-static int
-create_client_fd(const char *ipaddr, int port){
+static int create_client_fd(const char *ipaddr, int port){
   errno = 0;
-	/* 建立 TCP Client Socket */
-	int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-	if (0 >= sockfd) {
+  /* 建立 TCP Client Socket */
+  int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+  if (0 >= sockfd) {
     LOG("ERROR", strerror(errno));
     return -1;
   }
 
-	/* socket option set */
-	SETSOCKETOPT(sockfd, CLIENT);
+  /* socket option set */
+  SETSOCKETOPT(sockfd, CLIENT);
 
   struct sockaddr_in6 SA;
   memset(&SA, 0x0, sizeof(SA));
 
-	SA.sin6_family = AF_INET6;
-	SA.sin6_port = htons(port);
-	int error = inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
+  SA.sin6_family = AF_INET6;
+  SA.sin6_port = htons(port);
+  int error = inet_pton(AF_INET6, ipaddr, &SA.sin6_addr);
   if (1 != error) {
     LOG("ERROR", strerror(errno));
     close(sockfd);
     return -1;
-	}
+  }
 
-	int ret = connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
+  int ret = connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
   if (ret < 0 && errno != EINPROGRESS){
     LOG("ERROR", strerror(errno));
     close(sockfd);
     return -1;
   }
-	return sockfd;
+  return sockfd;
 }
 
-static int
-create_unixsock_fd(const char* path, size_t path_len, int backlog) {
+static int create_server_unixsock(const char* path, size_t path_len, int backlog) {
   errno = 0;
   int sockfd = socket(AF_LOCAL, SOCK_STREAM, IPPROTO_IP);
   if (0 >= sockfd){
@@ -222,51 +218,49 @@ create_unixsock_fd(const char* path, size_t path_len, int backlog) {
   return sockfd;
 }
 
-static void
-TCP_IO_CB(CORE_P_ core_io *io, int revents) {
+static void TCP_IO_CB(CORE_P_ core_io *io, int revents) {
 
-	if (revents & EV_ERROR) {
-		LOG("ERROR", "Recevied a core_io object internal error from libev.");
-		return ;
-	}
+  if (revents & EV_ERROR) {
+    LOG("ERROR", "Recevied a core_io object internal error from libev.");
+    return ;
+  }
 
-	lua_State *co = (lua_State *)core_get_watcher_userdata(io);
-	if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-		int status = CO_RESUME(co, NULL, 0);
-		if (status != LUA_YIELD && status != LUA_OK){
-			LOG("ERROR", lua_tostring(co, -1));
-			core_io_stop(CORE_LOOP_ io);
-		}
-	}
+  lua_State *co = (lua_State *)core_get_watcher_userdata(io);
+  if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+    int status = CO_RESUME(co, NULL, 0);
+    if (status != LUA_YIELD && status != LUA_OK){
+      LOG("ERROR", lua_tostring(co, -1));
+      core_io_stop(CORE_LOOP_ io);
+    }
+  }
 }
 
-static void
-IO_CONNECT(CORE_P_ core_io *io, int revents){
+static void IO_CONNECT(CORE_P_ core_io *io, int revents){
 
-	if (revents & EV_ERROR) {
-		LOG("ERROR", "Recevied a core_io object internal error from libev.");
-		return ;
-	}
+  if (revents & EV_ERROR) {
+    LOG("ERROR", "Recevied a core_io object internal error from libev.");
+    return ;
+  }
 
-	if (revents & EV_WRITE){
-		lua_State *co = (lua_State *)core_get_watcher_userdata(io);
-		if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-			int CONNECTED = 0, err = 0;
+  if (revents & EV_WRITE){
+    lua_State *co = (lua_State *)core_get_watcher_userdata(io);
+    if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+      int CONNECTED = 0, err = 0;
       socklen_t len = sizeof(socklen_t);
-			if(getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, (socklen_t*)&len) == 0 && err == 0) CONNECTED = 1;
-			lua_pushboolean(co, CONNECTED);
-			int status = CO_RESUME(co, NULL, 1);
-			if (status != LUA_YIELD && status != LUA_OK){
-				LOG("ERROR", lua_tostring(co, -1));
-				core_io_stop(CORE_LOOP_ io);
-			}
-		}
-	}
+      if(getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, (socklen_t*)&len) == 0 && err == 0) CONNECTED = 1;
+      lua_pushboolean(co, CONNECTED);
+      int status = CO_RESUME(co, NULL, 1);
+      if (status != LUA_YIELD && status != LUA_OK){
+        LOG("ERROR", lua_tostring(co, -1));
+        core_io_stop(CORE_LOOP_ io);
+      }
+    }
+  }
 
 }
 
-static void /* 接受链接 */
-IO_ACCEPT(CORE_P_ core_io *io, int revents){
+/* 接受链接 */
+static void IO_ACCEPT(CORE_P_ core_io *io, int revents){
 
   if (revents & EV_READ){
     lua_State *co = (lua_State *) core_get_watcher_userdata(io);
@@ -297,12 +291,11 @@ IO_ACCEPT(CORE_P_ core_io *io, int revents){
         LOG("ERROR", "Error Lua Accept Method");
         core_io_stop(CORE_LOOP_ io);
       }
-		}
-	}
+    }
+  }
 }
 
-static void
-IO_ACCEPT_EX(CORE_P_ core_io *io, int revents) {
+static void IO_ACCEPT_EX(CORE_P_ core_io *io, int revents) {
   if (revents & EV_READ){
     lua_State *co = (lua_State *) core_get_watcher_userdata(io);
     int status = lua_status(co);
@@ -410,8 +403,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
   }
 }
 
-static int
-tcp_sendfile(lua_State *L){
+static int tcp_sendfile(lua_State *L){
   core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
   lua_State *t = lua_tothread(L, 2);
   const char* path = luaL_checkstring(L, 3);
@@ -433,75 +425,79 @@ tcp_sendfile(lua_State *L){
   return 1;
 }
 
-static int
-tcp_read(lua_State *L){
+static int tcp_read(lua_State *L){
 
-	errno = 0;
+  errno = 0;
 
-	int fd = lua_tointeger(L, 1);
-	if (0 >= fd) return 0;
+  int fd = lua_tointeger(L, 1);
+  if (0 >= fd) return 0;
 
-	int bytes = lua_tointeger(L, 2);
-	if (0 >= bytes) return 0;
+  lua_Integer bytes = lua_tointeger(L, 2);
+  if (0 >= bytes) return 0;
 
-	do {
-		char str[bytes];
-		int rsize = read(fd, str, bytes);
+  char* str = alloca(1 << 16);
+  if (bytes > (1 << 16)){
+    str = (char*)lua_newuserdata(L, bytes);
+  }
 
-		if (rsize > 0) {
-			lua_pushlstring(L, str, rsize);
-			lua_pushinteger(L, rsize);
-			return 2;
-		}
-		if (0 > rsize) {
-			if (errno == EINTR) continue;
+  do {
+    int rsize = read(fd, str, bytes);
+    if (rsize > 0) {
+      lua_pushlstring(L, str, rsize);
+      lua_pushinteger(L, rsize);
+      return 2;
+    }
+    if (0 > rsize) {
+      if (errno == EINTR) continue;
       if (errno == EWOULDBLOCK) {
         lua_pushnil(L);
         lua_pushinteger(L, 0);
         return 2;
       }
-		}
-	} while(0);
+    }
+  } while(0);
 
-	return 0;
+  return 0;
 }
 
-static int
-tcp_sslread(lua_State *L){
+static int tcp_sslread(lua_State *L){
 
-	errno = 0;
+  errno = 0;
 
-	SSL *ssl = lua_touserdata(L, 1);
-	if (!ssl) return 0;
+  SSL *ssl = lua_touserdata(L, 1);
+  if (!ssl) return 0;
 
-	int bytes = lua_tointeger(L, 2);
-	if (0 >= bytes) return 0;
+  lua_Integer bytes = lua_tointeger(L, 2);
+  if (0 >= bytes) return 0;
 
-	do {
-		char str[bytes];
-		int rsize = SSL_read(ssl, str, bytes);
-		if (0 < rsize) {
-			lua_pushlstring(L, str, rsize);
-			lua_pushinteger(L, rsize);
-			return 2;
-		}
-		if (0 > rsize){
-			if (errno == EINTR) continue;
-			if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, rsize)){
-				lua_pushnil(L);
-				lua_pushinteger(L, 0);
-				return 2;
-			}
-		}
-	} while (0);
+  char* str = alloca(1 << 16);
+  if (bytes > (1 << 16)){
+    str = (char*)lua_newuserdata(L, bytes);
+  }
 
-	return 0;
+  do {
+    int rsize = SSL_read(ssl, str, bytes);
+    if (0 < rsize) {
+      lua_pushlstring(L, str, rsize);
+      lua_pushinteger(L, rsize);
+      return 2;
+    }
+    if (0 > rsize){
+      if (errno == EINTR) continue;
+      if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, rsize)){
+        lua_pushnil(L);
+        lua_pushinteger(L, 0);
+        return 2;
+      }
+    }
+  } while (0);
+
+  return 0;
 }
 
-static int
-tcp_write(lua_State *L){
+static int tcp_write(lua_State *L){
 
-	errno = 0;
+  errno = 0;
 
   size_t resp_len = 0;
 
@@ -526,72 +522,68 @@ tcp_write(lua_State *L){
 
   } while (0);
 
-	return 0;
+  return 0;
 }
 
-static int
-tcp_sslwrite(lua_State *L){
+static int tcp_sslwrite(lua_State *L){
 
-	SSL *ssl = lua_touserdata(L, 1);
-	if (!ssl)
+  SSL *ssl = lua_touserdata(L, 1);
+  if (!ssl)
     return 0;
 
-	const char *response = lua_tostring(L, 2);
-	if (!response)
+  const char *response = lua_tostring(L, 2);
+  if (!response)
     return luaL_error(L, "tcp_sslwrite ERROR: attempt to write an empty string.");
 
-	int resp_len = lua_tointeger(L, 3);
+  int resp_len = lua_tointeger(L, 3);
 
-	errno = 0;
+  errno = 0;
 
-	do {
-		int wsize = SSL_write(ssl, response, resp_len);
-		if (wsize > 0) { lua_pushinteger(L, wsize); return 1; }
-		if (wsize < 0){
-			if (errno == EINTR) continue;
-			if (SSL_ERROR_WANT_WRITE == SSL_get_error(ssl, wsize)){ lua_pushinteger(L, 0); return 1; }
-		}
-	} while (0);
+  do {
+    int wsize = SSL_write(ssl, response, resp_len);
+    if (wsize > 0) { lua_pushinteger(L, wsize); return 1; }
+    if (wsize < 0){
+      if (errno == EINTR) continue;
+      if (SSL_ERROR_WANT_WRITE == SSL_get_error(ssl, wsize)){ lua_pushinteger(L, 0); return 1; }
+    }
+  } while (0);
 
-	return 0;
+  return 0;
 }
 
-static int
-new_server_fd(lua_State *L){
-	const char *ip = lua_tostring(L, 1);
-	if(!ip) return 0;
+static int new_server_fd(lua_State *L){
+  const char *ip = lua_tostring(L, 1);
+  if(!ip) return 0;
 
-	int port = lua_tointeger(L, 2);
-	if(!port) return 0;
+  int port = lua_tointeger(L, 2);
+  if(!port) return 0;
 
-	int backlog = lua_tointeger(L, 3);
+  int backlog = lua_tointeger(L, 3);
 
-	int fd = create_server_fd(port, 0 >= backlog ? 128 : backlog);
-	if (0 >= fd) return 0;
+  int fd = create_server_fd(port, 0 >= backlog ? 128 : backlog);
+  if (0 >= fd) return 0;
 
-	lua_pushinteger(L, fd);
+  lua_pushinteger(L, fd);
 
-	return 1;
+  return 1;
 }
 
-static int
-new_client_fd(lua_State *L){
-	const char *ip = lua_tostring(L, 1);
-	if(!ip) return 0;
+static int new_client_fd(lua_State *L){
+  const char *ip = lua_tostring(L, 1);
+  if(!ip) return 0;
 
-	int port = lua_tointeger(L, 2);
-	if(!port) return 0;
+  int port = lua_tointeger(L, 2);
+  if(!port) return 0;
 
-	int fd = create_client_fd(ip, port);
-	if (0 >= fd) return 0;
+  int fd = create_client_fd(ip, port);
+  if (0 >= fd) return 0;
 
-	lua_pushinteger(L, fd);
+  lua_pushinteger(L, fd);
 
-	return 1;
+  return 1;
 }
 
-static int
-new_unixsock_fd(lua_State *L) {
+static int new_unixsock_fd(lua_State *L) {
   size_t size = 0;
   const char* path = luaL_checklstring(L, 1, &size);
   if (!path)
@@ -608,7 +600,7 @@ new_unixsock_fd(lua_State *L) {
 
   int backlog = luaL_checkinteger(L, 3);
 
-  int fd = create_unixsock_fd(path, size, 0 >= backlog ? 128 : backlog);
+  int fd = create_server_unixsock(path, size, 0 >= backlog ? 128 : backlog);
   if (fd <= 0)
     return 0;
 
@@ -616,30 +608,28 @@ new_unixsock_fd(lua_State *L) {
   return 1;
 }
 
-static int
-tcp_listen(lua_State *L){
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) return 0;
+static int tcp_listen(lua_State *L){
+  core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
+  if(!io) return 0;
 
-	/* socket文件描述符 */
-	int fd = lua_tointeger(L, 2);
-	if (0 >= fd) return 0;
+  /* socket文件描述符 */
+  int fd = lua_tointeger(L, 2);
+  if (0 >= fd) return 0;
 
-	/* 回调协程 */
-	lua_State *co = lua_tothread(L, 3);
-	if (!co) return 0;
+  /* 回调协程 */
+  lua_State *co = lua_tothread(L, 3);
+  if (!co) return 0;
 
-	core_set_watcher_userdata(io, co);
+  core_set_watcher_userdata(io, co);
 
-	core_io_init(io, IO_ACCEPT, fd, EV_READ);
+  core_io_init(io, IO_ACCEPT, fd, EV_READ);
 
-	core_io_start(CORE_LOOP_ io);
+  core_io_start(CORE_LOOP_ io);
 
-	return 1;
+  return 1;
 }
 
-static int
-tcp_listen_ex(lua_State *L) {
+static int tcp_listen_ex(lua_State *L) {
   core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
   if (!io) return 0;
 
@@ -659,148 +649,140 @@ tcp_listen_ex(lua_State *L) {
   return 1;
 }
 
-static int
-tcp_connect(lua_State *L){
+static int tcp_connect(lua_State *L){
 
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) return 0;
+  core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
+  if(!io) return 0;
 
-	/* socket文件描述符 */
-	int fd = lua_tointeger(L, 2);
-	if (0 >= fd) return 0;
+  /* socket文件描述符 */
+  int fd = lua_tointeger(L, 2);
+  if (0 >= fd) return 0;
 
-	/* 回调协程 */
-	lua_State *co = lua_tothread(L, 3);
-	if (!co) return 0;
+  /* 回调协程 */
+  lua_State *co = lua_tothread(L, 3);
+  if (!co) return 0;
 
-	core_set_watcher_userdata(io, co);
+  core_set_watcher_userdata(io, co);
 
-	core_io_init(io, IO_CONNECT, fd, EV_READ | EV_WRITE);
+  core_io_init(io, IO_CONNECT, fd, EV_READ | EV_WRITE);
 
-	core_io_start(CORE_LOOP_ io);
+  core_io_start(CORE_LOOP_ io);
 
-	return 0;
+  return 0;
 
 }
 
-static int
-tcp_sslconnect(lua_State *L){
+static int tcp_sslconnect(lua_State *L){
 
-	SSL *ssl = (SSL*) lua_touserdata(L, 1);
-	if (!ssl) return 0;
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl) return 0;
 
-	int status = SSL_do_handshake(ssl);
-	if (status >= 1) {
-		lua_pushboolean(L, 1);
-		return 1;
-	}
+  int status = SSL_do_handshake(ssl);
+  if (status >= 1) {
+    lua_pushboolean(L, 1);
+    return 1;
+  }
   int ERR = SSL_get_error(ssl, status);
   // printf("status = %d, ERR = %d, SSL_ERROR_WANT_READ == %d, SSL_ERROR_WANT_WRITE == %d\n", status, ERR, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE);
-	if (SSL_ERROR_WANT_READ == ERR || SSL_ERROR_WANT_WRITE == ERR) {
-		lua_pushnil(L);
-		lua_pushinteger(L, ERR - 1);
-		return 2;
-	}
-	return 0;
+  if (SSL_ERROR_WANT_READ == ERR || SSL_ERROR_WANT_WRITE == ERR) {
+    lua_pushnil(L);
+    lua_pushinteger(L, ERR - 1);
+    return 2;
+  }
+  return 0;
 
 }
 
-static int
-tcp_start(lua_State *L){
+static int tcp_start(lua_State *L){
 
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) return 0;
+  core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
+  if(!io) return 0;
 
-	/* socket文件描述符 */
-	int fd = lua_tointeger(L, 2);
-	if (0 >= fd) return 0;
+  /* socket文件描述符 */
+  int fd = lua_tointeger(L, 2);
+  if (0 >= fd) return 0;
 
-	/* 监听事件 */
-	int events = lua_tointeger(L, 3);
-	if (0 >= events || events > 3) return 0;
+  /* 监听事件 */
+  int events = lua_tointeger(L, 3);
+  if (0 >= events || events > 3) return 0;
 
-	/* 回调协程 */
-	lua_State *co = lua_tothread(L, 4);
-	if (!co) return 0;
+  /* 回调协程 */
+  lua_State *co = lua_tothread(L, 4);
+  if (!co) return 0;
 
-	core_set_watcher_userdata(io, co);
+  core_set_watcher_userdata(io, co);
 
-	core_io_init(io, TCP_IO_CB, fd, events);
+  core_io_init(io, TCP_IO_CB, fd, events);
 
-	core_io_start(CORE_LOOP_ io);
+  core_io_start(CORE_LOOP_ io);
 
-	return 0;
+  return 0;
 
 }
 
-static int
-ssl_new(lua_State *L){
+static int ssl_new(lua_State *L){
 
-	int fd = lua_tointeger(L, 1);
+  int fd = lua_tointeger(L, 1);
 
-	SSL_CTX *ssl_ctx = SSL_CTX_new(SSLv23_method());
-	if (!ssl_ctx) return 0;
+  SSL_CTX *ssl_ctx = SSL_CTX_new(SSLv23_method());
+  if (!ssl_ctx) return 0;
 
-	SSL *ssl = SSL_new(ssl_ctx);
-	if (!ssl) return 0;
+  SSL *ssl = SSL_new(ssl_ctx);
+  if (!ssl) return 0;
 
-	SSL_set_fd(ssl, fd);
+  SSL_set_fd(ssl, fd);
 
-	SSL_set_connect_state(ssl);
+  SSL_set_connect_state(ssl);
 
-	lua_pushlightuserdata(L, (void*) ssl_ctx);
+  lua_pushlightuserdata(L, (void*) ssl_ctx);
 
-	lua_pushlightuserdata(L, (void*) ssl);
+  lua_pushlightuserdata(L, (void*) ssl);
 
-	return 2;
+  return 2;
 }
 
-static int
-ssl_free(lua_State *L){
+static int ssl_free(lua_State *L){
 
-	SSL_CTX *ssl_ctx = (SSL_CTX*) lua_touserdata(L, 1);
-	if (ssl_ctx) SSL_CTX_free(ssl_ctx); // 销毁ctx上下文;
+  SSL_CTX *ssl_ctx = (SSL_CTX*) lua_touserdata(L, 1);
+  if (ssl_ctx) SSL_CTX_free(ssl_ctx); // 销毁ctx上下文;
 
-	SSL *ssl = (SSL*) lua_touserdata(L, 2);
-	if (ssl) SSL_free(ssl); // 销毁基于ctx的ssl对象;
+  SSL *ssl = (SSL*) lua_touserdata(L, 2);
+  if (ssl) SSL_free(ssl); // 销毁基于ctx的ssl对象;
 
-	return 0;
+  return 0;
 }
 
-static int
-tcp_new(lua_State *L){
+static int tcp_new(lua_State *L){
 
-	core_io *io = (core_io *) lua_newuserdata(L, sizeof(core_io));
+  core_io *io = (core_io *) lua_newuserdata(L, sizeof(core_io));
 
-	if(!io) return 0;
+  if(!io) return 0;
 
-	luaL_setmetatable(L, "__TCP__");
+  luaL_setmetatable(L, "__TCP__");
 
-	return 1;
+  return 1;
 
 }
 
 
-static int
-tcp_stop(lua_State *L){
+static int tcp_stop(lua_State *L){
 
-	core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-	if(!io) return 0;
+  core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
+  if(!io) return 0;
 
-	core_io_stop(CORE_LOOP_ io);
+  core_io_stop(CORE_LOOP_ io);
 
-	return 0;
+  return 0;
 
 }
 
-static int
-tcp_close(lua_State *L){
+static int tcp_close(lua_State *L){
 
-	int fd = lua_tointeger(L, 1);
+  int fd = lua_tointeger(L, 1);
 
-	if (fd && fd > 0) close(fd);
+  if (fd && fd > 0) close(fd);
 
-	return 0;
+  return 0;
 
 }
 
