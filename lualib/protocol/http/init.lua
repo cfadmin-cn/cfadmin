@@ -479,7 +479,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
           return sock:close()
         end
         local accept_encoding = HEADER['Accept-Encoding']
-        if enable_gzip and accept_encoding and find(accept_encoding, "gzip") then
+        if enable_gzip and type(accept_encoding) == 'string' and find(lower(accept_encoding), "gzip") and #body >= 50 then
           local compress_body = gzcompress(body)
           if compress_body then
             header[#header+1] = 'Content-Encoding: gzip'
