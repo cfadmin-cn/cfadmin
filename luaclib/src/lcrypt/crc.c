@@ -201,24 +201,32 @@ static uint64_t CRC64[] = {
 };
 
 int lcrc32(lua_State *L){
-  size_t len;
+  size_t len = 0;
   const char *str = luaL_checklstring(L, 1, &len);
+  if (!str || len < 1)
+    return luaL_error(L, "invalid string.");
 
-  uint32_t i = 0;
   uint32_t crc = 0xFFFFFFFF;
 
-  for (i = 0; i < len; i++) crc = CRC32[ (crc ^ str[i]) & 0xff ] ^ (crc >> 8);
+  for (uint32_t i = 0; i < len; i++) crc = CRC32[ (crc ^ str[i]) & 0xff ] ^ (crc >> 8);
   lua_pushinteger(L, crc ^ 0xFFFFFFFF);
   return 1;
 };
 
 int lcrc64(lua_State *L){
-  size_t len;
+  size_t len = 0;
   const char *str = luaL_checklstring(L, 1, &len);
+  if (!str || len < 1)
+    return luaL_error(L, "invalid string.");
 
-  uint32_t i = 0;
   uint64_t crc = 0x0;
-  for (i = 0; i < len; i++) crc = CRC64[(uint8_t)crc ^ (uint8_t)str[i]] ^ (crc >> 8);
-  lua_pushnumber(L, crc);
+  for (uint32_t i = 0; i < len; i++)
+    crc = CRC64[(uint8_t)crc ^ (uint8_t)str[i]] ^ (crc >> 8);
+
+  char* buf = (char*)lua_newuserdata(L, 20);
+  memset(buf, 0x0, 20);
+  sprintf(buf, "%llu", crc);
+
+  lua_pushlstring(L, (const char*)buf, 20);
   return 1;
 };
