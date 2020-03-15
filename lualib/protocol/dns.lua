@@ -11,6 +11,7 @@ local cf_wait = cf.wait
 local cf_wakeup = cf.wakeup
 local cf_sleep = cf.sleep
 
+local new_tab = sys.new_tab
 local check_ipv4 = sys.ipv4
 local check_ipv6 = sys.ipv6
 
@@ -76,6 +77,7 @@ local function check_ip(ip)
       return true, 6
     end
   end
+  return false, "Not a valid IP address."
 end
 
 local function gen_cache()
@@ -116,10 +118,10 @@ if #dns_list < 1 then
   gen_cache()
 end
 
-local function get_dns_client()
+local function get_dns_client(ip_version)
   if #dns_list >= 1 then
-    local ip = dns_list[random(1, #dns_list)]
     local udp = UDP:new():timeout(dns._timeout or 30)
+    local ip = dns_list[random(1, #dns_list)]
     local ok, v = check_ip(ip)
     if v == 4 then
       ip = prefix .. ip
@@ -127,6 +129,9 @@ local function get_dns_client()
     local ok = udp:connect(ip, 53)
     if not ok then
       return nil, 'Create UDP Socket error.'
+    end
+    if ip_version then
+      v = ip_version
     end
     return udp, v
   end
@@ -216,10 +221,13 @@ local function check_wait(domain, wlist, ...)
   cos[domain] = nil
 end
 
-local function dns_query(domain)
-  local wlist = {}
-  cos[domain] = wlist
-  local dns_client, msg = get_dns_client()
+local function dns_query(domain, ip_version)
+  local wlist = cos[domain]
+  if not wlist then
+    wlist = new_tab(16, 0)
+    cos[domain] = wlist
+  end
+  local dns_client, msg = get_dns_client(ip_version)
   if not dns_client then
     check_wait(domain, wlist, nil, msg)
     return nil, msg
@@ -242,21 +250,28 @@ local function dns_query(domain)
   dns_client:close()
   readable = true
   if not dns_resp or not len or len < LIMIT_HEADER_LEN then
-    check_wait(domain, wlist, nil, "1. Malformed message length.")
+    local err = "1. Malformed message length."
+    check_wait(domain, wlist, nil, err)
     return nil, err
   end
   local answer_header, nbyte = unpack_header(dns_resp)
   if answer_header.qdcount ~= 1 then
-    check_wait(domain, wlist, nil, "2. Malformed message response.")
+    local err = "2. Malformed message response."
+    check_wait(domain, wlist, nil, err)
     return nil, err
   end
   if not answer_header.ancount or answer_header.ancount < 1 then
-    check_wait(domain, wlist, nil, "3. Unresolved domain name.")
+    if not ip_version then -- 如果IPv4无法解析则尝试ipv6, 反之亦然.
+      return dns_query(domain, msg == 4 and 6 or 4)
+    end
+    local err = "3. Unresolved domain name."
+    check_wait(domain, wlist, nil, err)
     return nil, err
   end
   local question, nbyte = unpack_question(dns_resp, nbyte)
   if question.name ~= domain then
-    check_wait(domain, wlist, nil, "4. Inconsistent query domain.")
+    local err = "4. Inconsistent query domain."
+    check_wait(domain, wlist, nil, err)
     return nil, err
   end
   local answer
@@ -277,8 +292,12 @@ local function dns_query(domain)
   end
   local ok, v = check_ip(answer.ip)
   if not ok then
-    check_wait(domain, wlist, nil, "5. Unknown IP address." .. domain)
-    return nil, err..domain
+    if not ip_version then -- 如果IPv4无法解析则尝试ipv6, 反之亦然.
+      return dns_query(domain, msg == 4 and 6 or 4)
+    end
+    local err = "5. " .. v .. " (" .. (domain) .. ")"
+    check_wait(domain, wlist, nil, err)
+    return nil, err
   end
   if ok and v == 4 then
     answer.ip = prefix..answer.ip
@@ -297,7 +316,7 @@ function dns.timeout(timeout)
   dns._timeout = timeout
 end
 
-function dns.resolve(domain)
+function dns.resolve(domain, ip_version)
   -- 检查参数是否有效
   if type(domain) ~= 'string' or domain == '' then
     return nil, "attempt to pass an invalid domain."
@@ -325,7 +344,7 @@ function dns.resolve(domain)
     insert(wlist, co)
     return cf_wait()
   end
-  return dns_query(domain)
+  return dns_query(domain, ip_version)
 end
 -- require "utils"
 -- var_dump(dns_cache)
