@@ -4,6 +4,7 @@ local dns_resolve = dns.resolve
 
 local cf = require "cf"
 local fork = cf.fork
+local wait = cf.wait
 
 local system = require "system"
 local now = system.now
@@ -18,7 +19,7 @@ local function delete_ipv4_prefix (ip)
   if system.is_ipv4(ip) then
     return ip
   end
-  return find(ip, '::ffff') and match(ip, "::[fF]+:([%d%.]+)") or ip
+  return find(ip or "", '::ffff') and match(ip, "::[fF]+:([%d%.]+)") or ip
 end
 
 local domains = {
@@ -30,20 +31,41 @@ local domains = {
   ["京东"] = "www.jd.com",
   ["唯品会"] = "www.vip.com",
   ["盛大"] = "www.sdo.com",
+  ["测试"] = "pwaj.dwauidwa.raw"
 }
 
--- 查询次数
-local min, max = 1, 10000
+--[[
+计算方式
+(min - max + 1) * 1 为单个域名查询总次数
+(min - max + 1) * #domain 为所有域名查询总次数
+]]
+local min, max = 1, 1
 
-for company, domain in pairs(domains) do
-  local t1 = now()
-  for i = min, max do
-    fork(function (...)
-      local ok, ip = dns_resolve(domain)
-      if i == max then
-        local t2 = now()
-        LOG:DEBUG("结束解析 : ".. company .. "[".. domain .."]" , "[".. delete_ipv4_prefix(ip) .."]", "总耗时: " .. fmt("%0.8f/Sec", t2 - t1))
-      end
-    end)
+--[[
+测试方式: 每隔3秒后为每个域名建立1万个协程进行并发查询测试;
+空间消耗: 内存消耗预计在250MB左右;
+时间消耗: 每次网络查询应该在0.1/Sec左右, 每次缓存查询应该在0.001/Sec左右;
+]]
+cf.at(3, function (  )
+  for company, domain in pairs(domains) do
+    local start = now()
+    local total = 0
+    for i = min, max do
+      fork(function (...)
+        local t1 = now()
+        local ok, ip = dns_resolve(domain)
+        if not ok then
+          LOG:WARN(fmt("测试失败: <%s>[%s]的结果:[%s]", company, domain, ip))
+          return
+        end
+        total = total + (now() - t1)
+        if i == max then
+          LOG:DEBUG(fmt("测试完成 : <%s>[%s]的结果:[%s]; 平均消耗: %0.5f, 总计消耗: %0.8f", company, domain, delete_ipv4_prefix(ip), total / max, now() - start))
+        end
+      end)
+    end
   end
-end
+  collectgarbage()
+end)
+
+wait()
