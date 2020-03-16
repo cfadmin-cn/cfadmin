@@ -387,7 +387,7 @@ int phr_parse_request(const char *buf_start, size_t len, const char **method, si
 {
     const char *buf = buf_start, *buf_end = buf_start + len;
     size_t max_headers = *num_headers;
-    int r;
+    int r = 0;
 
     *method = NULL;
     *method_len = 0;
