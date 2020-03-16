@@ -70,4 +70,7 @@ int ipv4(const char *IP);
 /* 检查是否为有效ipv6地址 */
 int ipv6(const char *IP);
 
+/* 返回当前操作系统类型 */
+const char* os(void);
+
 #endif
