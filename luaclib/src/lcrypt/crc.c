@@ -1,4 +1,5 @@
 #include "lcrypt.h"
+#include <inttypes.h>
 
 /* CRC32 TAB */
 static uint32_t CRC32[] = {
@@ -225,7 +226,7 @@ int lcrc64(lua_State *L){
 
   char* buf = (char*)lua_newuserdata(L, 20);
   memset(buf, 0x0, 20);
-  sprintf(buf, "%llu", crc);
+  sprintf(buf, "%"PRIu64"", crc);
 
   lua_pushlstring(L, (const char*)buf, 20);
   return 1;
