@@ -1,15 +1,19 @@
 #include "core_sys.h"
 
 #ifdef __MSYS__
-  const char *__O_S__ = "Windows";
+  const char *__OS__ = "Windows";
 #endif
 
-#if defined(__linux) || defined(__linux__)
-  const char *__O_S__ = "Linux";
+#if !defined(__MSYS__) && (defined(__linux) || defined(__linux__))
+  const char *__OS__ = "Linux";
 #endif
 
-#if defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-  const char *__O_S__ = "Unix";
+#ifdef __APPLE__
+  const char *__OS__ = "Apple";
+#endif
+
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
+  const char *__OS__ = "Unix";
 #endif
 
  /* 此方法提供一个精确到微秒级的时间戳 */
@@ -37,5 +41,5 @@ int ipv6(const char *IP){
 
 /* 返回当前操作系统类型 */
 const char* os(void) {
-  return __O_S__;
+  return __OS__;
 }

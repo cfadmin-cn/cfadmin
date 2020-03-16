@@ -30,7 +30,7 @@
 #define EV_NO_THREADS 1
 
 /* eventfd 与 signalfd */
-#if defined(__linux) || defined(__linux__)
+#if !defined(__MSYS__) && (defined(__linux) || defined(__linux__))
 	// #define EV_USE_LINUXAIO 1 /* 待完整支持AIO后再根据情况开启 */
 	#define EV_USE_EPOLL 1
 	#define EV_USE_INOTIFY 1
@@ -42,7 +42,7 @@
   #define EV_USE_KQUEUE 1
 #endif
 
-#if !defined(EV_USE_KQUEUE) && !defined(EV_USE_EPOLL)
+#ifdef __MSYS__
   #define EV_USE_SELECT 1
 #endif
 
