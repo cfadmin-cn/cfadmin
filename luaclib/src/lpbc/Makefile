@@ -12,7 +12,7 @@ CC = cc
 INCLUDES += -I../../../src -I/usr/local/include
 LIBS = -L../ -L../../../ -L/usr/local/lib
 
-CFLAGS = -O3 -Wall -shared -fPIC
+CFLAGS = -O3 -Wall -shared -fPIC -fno-strict-aliasing
 DLL = -lcore -llua
 
 build:
