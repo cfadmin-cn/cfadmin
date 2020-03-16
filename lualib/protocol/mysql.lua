@@ -166,9 +166,9 @@ local function _recv_packet(self)
         return nil, nil, "empty packet"
     end
 
-    if len > self._max_packet_size then
-        return nil, nil, "packet size too big: " .. len
-    end
+    -- if len > self._max_packet_size then
+    --     return nil, nil, "packet size too big: " .. len
+    -- end
 
     local num = strbyte(data, pos)
 
@@ -415,7 +415,7 @@ function MySQL.connect(self, opts)
 
     local max_packet_size = opts.max_packet_size
     if not max_packet_size then
-        max_packet_size = 4 * 1024 * 1024 -- default 4 MB
+        max_packet_size = 16 * 1024 * 1024 -- default 4 MB
     end
     self._max_packet_size = max_packet_size
 

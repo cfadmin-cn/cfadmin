@@ -207,9 +207,10 @@ int lcrc32(lua_State *L){
   if (!str || len < 1)
     return luaL_error(L, "invalid string.");
 
+  uint32_t i;
   uint32_t crc = 0xFFFFFFFF;
 
-  for (uint32_t i = 0; i < len; i++) crc = CRC32[ (crc ^ str[i]) & 0xff ] ^ (crc >> 8);
+  for (i = 0; i < len; i++) crc = CRC32[ (crc ^ str[i]) & 0xff ] ^ (crc >> 8);
   lua_pushinteger(L, crc ^ 0xFFFFFFFF);
   return 1;
 };
@@ -220,8 +221,9 @@ int lcrc64(lua_State *L){
   if (!str || len < 1)
     return luaL_error(L, "invalid string.");
 
+  uint32_t i;
   uint64_t crc = 0x0;
-  for (uint32_t i = 0; i < len; i++)
+  for (i = 0; i < len; i++)
     crc = CRC64[(uint8_t)crc ^ (uint8_t)str[i]] ^ (crc >> 8);
 
   char* buf = (char*)lua_newuserdata(L, 20);
