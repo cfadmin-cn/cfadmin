@@ -119,7 +119,7 @@ static int create_server_fd(int port, int backlog){
   /* 建立 TCP Server Socket */
   int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
   if (0 >= sockfd){
-    LOG("DEBUG", strerror(errno));
+    LOG("ERROR", strerror(errno));
     return -1;
   }
   /* socket option set */
@@ -374,7 +374,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
     }
 #endif
 
-#ifdef EV_USE_SELECT
+#ifdef __MSYS__
     char buf[sf->offset];
     for (;;) {
       memset(buf, 0x0, sf->offset);
