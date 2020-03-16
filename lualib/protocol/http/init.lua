@@ -14,6 +14,7 @@ local new_tab = require("sys").new_tab
 local insert = table.insert
 
 local lz = require "lz"
+local decompress = lz.compress
 local gzcompress = lz.gzcompress
 
 local form = require "httpd.Form"
@@ -479,11 +480,25 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
           return sock:close()
         end
         local accept_encoding = HEADER['Accept-Encoding']
-        if enable_gzip and type(accept_encoding) == 'string' and find(lower(accept_encoding), "gzip") and #body >= 50 then
-          local compress_body = gzcompress(body)
-          if compress_body then
-            header[#header+1] = 'Content-Encoding: gzip'
-            body = compress_body
+        if enable_gzip and type(accept_encoding) == 'string' and #body >= 50 then
+          local YES = false
+          -- 如果支持deflate则使用compress压缩
+          if find(lower(accept_encoding), "deflate") then
+            local compress_body = decompress(body)
+            if compress_body then
+              header[#header+1] = 'Content-Encoding: deflate'
+              body = compress_body
+              YES = true
+            end
+          end
+          -- 如果支持gzip就使用gzip压缩后返回
+          if not YES and find(lower(accept_encoding), "gzip") then
+            local compress_body = gzcompress(body)
+            if compress_body then
+              header[#header+1] = 'Content-Encoding: gzip'
+              body = compress_body
+              YES = true
+            end
           end
         end
         header[#header+1] = 'Content-Length: ' .. #body
