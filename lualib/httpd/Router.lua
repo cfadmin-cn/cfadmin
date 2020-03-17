@@ -49,7 +49,7 @@ end
 
 -- 主要用作分割hash路由查找
 local function to_route(route)
-	return spliter(route, slash, '')
+	return spliter(route, slash2, '/')
 end
 
 -- 检查是路径回退是否超出静态文件根目录
@@ -90,6 +90,7 @@ local function registery_router (route, class, route_type)
 end
 
 local function find_route (method, path)
+  print(path)
   path = url_decode(split(path, 1, (find(path, '?') or 0) - 1))
 	local t = routes[to_route(path)]
   if t then
