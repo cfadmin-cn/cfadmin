@@ -13,6 +13,8 @@ local sha1= crypt.sha1
 local setmetatable = setmetatable
 local error = error
 local tonumber = tonumber
+local concat = table.concat
+
 local new_tab = require("sys").new_tab
 
 local CHARSET_MAP = {
@@ -146,11 +148,26 @@ local function _send_packet(self, req, size)
     return sock:send(packet)
 end
 
+local function sock_recv(sock, byte)
+    local buffers = new_tab(32, 0)
+    while 1 do
+      local buf = sock:recv(byte)
+      if not buf then
+        return nil, "MySQL Server closed."
+      end
+      buffers[#buffers+1] = buf
+      byte = byte - #buf
+      if byte == 0 then
+        return concat(buffers)
+      end
+    end
+end
+
 
 local function _recv_packet(self)
     local sock = self.sock
 
-    local data, err = sock:recv(4) -- packet header
+    local data, err = sock_recv(sock, 4) -- packet header
     if not data then
         self.state = nil
         return nil, nil, "failed to receive packet header: "..(err or "nil")
@@ -176,7 +193,7 @@ local function _recv_packet(self)
 
     self.packet_no = num
 
-    data, err = sock:recv(len)
+    data, err = sock_recv(sock, len)
 
     --print("receive returned")
 
@@ -185,9 +202,7 @@ local function _recv_packet(self)
         return nil, nil, "failed to read packet content: "..(err or "nil")
     end
 
-    local field_count = strbyte(data, 1)
-
-    local typ
+    local field_count, typ = strbyte(data, 1)
     if field_count == 0x00 then
         typ = "OK"
     elseif field_count == 0xff then
