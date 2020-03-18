@@ -45,6 +45,7 @@
 # PID And Log
 *.log
 *.PID
+*.pid
 
 # Code Edit
 .vscode
