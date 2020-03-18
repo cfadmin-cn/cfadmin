@@ -26,25 +26,21 @@ static char script_entry[MAX_ENTRY_LENGTH] = "script/main.lua";
 static char pid_filename[MAX_ENTRY_LENGTH] = "cfadmin.pid";
 
 /* 打印使用指南 */
-void usage_print(const char * ext) {
+void usage_print() {
   printf("cfadmin System  : %s(%s)\n", __OS__, __VERSION__ );
   printf("\n");
   printf("cfadmin Version : %s\n", __CFADMIN_VERSION__ );
   printf("\n");
-  if (ext) {
-    printf("%s\n", ext);
-    return;
-  }
   printf(
-    "cfadmin Usage:\n" \
+    "cfadmin Usage: ./cfadmin [options]\n" \
     "\n" \
-    "      -h    \"Print cfadmin usage.\"\n" \
+    "      -h <None>         \"Print cfadmin usage.\"\n" \
     "\n" \
-    "      -d    \"Make cfadmin run in daemon mode.\"\n" \
+    "      -d <None>         \"Make cfadmin run in daemon mode.\"\n" \
     "\n" \
-    "      -e    \"Specify lua entry file name.\"\n" \
+    "      -e <FILENAME>     \"Specify lua entry file name.\"\n" \
     "\n" \
-    "      -p    \"Specify the process Pid write file name.\"\n" \
+    "      -p <FILENAME>     \"Specify the process Pid write file name.\"\n" \
     "\n" \
   );
 }
@@ -96,7 +92,7 @@ void check_args(int argc, char const *argv[]) {
       case '?':
       case 'h':
       default :
-        usage_print(optarg);
+        usage_print();
         exit(0);
     }
   }
