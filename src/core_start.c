@@ -1,7 +1,5 @@
 #include "core.h"
 
-#define MAX_ENTRY_LENGTH (1 << 10)
-
 #ifdef __MSYS__
   const char *__OS__ = "Windows";
 #endif
@@ -20,14 +18,23 @@
 
 #define __CFADMIN_VERSION__ "1.0"
 
+
+#define MAX_ENTRY_LENGTH (1 << 10)
+
 static char script_entry[MAX_ENTRY_LENGTH] = "script/main.lua";
 
+static char pid_filename[MAX_ENTRY_LENGTH] = "cfadmin.pid";
+
 /* 打印使用指南 */
-void usage_print() {
+void usage_print(const char * ext) {
   printf("cfadmin System  : %s(%s)\n", __OS__, __VERSION__ );
   printf("\n");
   printf("cfadmin Version : %s\n", __CFADMIN_VERSION__ );
   printf("\n");
+  if (ext) {
+    printf("%s\n", ext);
+    return;
+  }
   printf(
     "cfadmin Usage:\n" \
     "\n" \
@@ -38,6 +45,7 @@ void usage_print() {
     "      -e    \"Specify lua entry file name.\"\n" \
     "\n" \
     "      -p    \"Specify the process Pid write file name.\"\n" \
+    "\n" \
   );
 }
 
@@ -60,6 +68,12 @@ void specify_entry_file(const char *filename) {
   memmove(script_entry, filename, strlen(filename));
 }
 
+/* 指定pid文件路径 */
+void specify_pid_file(const char *filename) {
+  memset(pid_filename, 0x0, MAX_ENTRY_LENGTH);
+  memmove(pid_filename, filename, strlen(filename));
+}
+
 /* 后台运行 */
 void specify_process_daemon() {
   daemon(1, 0);
@@ -68,47 +82,34 @@ void specify_process_daemon() {
 void check_args(int argc, char const *argv[]) {
   int opt = -1;
   opterr = 0;
-  while ((opt = getopt(argc, argv, "hde:p:" )) != -1) {
+  while ((opt = getopt(argc, argv, "hde:p:")) != -1) {
     switch(opt) {
-      case 'h':
-        usage_print();
-        printf("\n");
-        exit(0);
-        break;
       case 'e':
-        if (!optarg){
-          printf("-e need lua entry filename\n");
-          exit(0);
-        }
         specify_entry_file(optarg);
         continue;
-        exit(0);
-        break;
       case 'p':
-        if (!optarg){
-          printf("-e need lua entry filename\n");
-          exit(0);
-        }
-        write_pid_file(optarg);
+        specify_pid_file(optarg);
         continue;
       case 'd':
         specify_process_daemon();
         continue;
       case '?':
+      case 'h':
       default :
+        usage_print(optarg);
         exit(0);
     }
   }
+
+  write_pid_file(pid_filename);
   return;
 }
 
 int main(int argc, char const *argv[])
 {
 
+  /* 参数检查 */
   check_args(argc, argv);
-
-  
-  // write_pid("cfadmin.pid");
 
   /* 系统初始化 */
   core_sys_init(script_entry);
