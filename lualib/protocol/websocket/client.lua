@@ -106,6 +106,9 @@ local function check_response (self, secure)
         sock_close(self)
         return nil, '错误: Sec-WebSocket-Accept验证失败'
       end
+      if type(headers['Sec-WebSocket-Extensions']) == 'string' and find(headers['Sec-WebSocket-Extensions'], "permessage%-deflate") then
+        self.ext = 'deflate'
+      end
       return true
     end
   end
@@ -120,7 +123,6 @@ local function do_handshake (self)
     return nil, err
   end
 
-  local GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
   local key = char(
       byte('c'), byte('f'), byte('a'), byte('d'), byte('m'), byte('i'), byte('n'),
       random(256) - 1, random(256) - 1, random(256) - 1,
@@ -135,10 +137,11 @@ local function do_handshake (self)
     fmt('Host: %s:%s', self.domain, self.port),
     fmt('Sec-WebSocket-Key: %s', sec_key),
     'Origin: http://'..self.domain,
-    'Sec-WebSocket-Version: 13',
     'Upgrade: websocket',
     'Connection: Upgrade',
+    'Sec-WebSocket-Version: 13',
     'User-Agent: cf-websocket/0.1',
+    'Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits',
     CRLF
   }
   local ok, err = sock_send(self, concat(req, CRLF))
@@ -147,7 +150,7 @@ local function do_handshake (self)
     return ok, err
   end
 
-  return check_response(self, base64encode(sha1(sec_key..GUID)))
+  return check_response(self, base64encode(sha1(sec_key .. '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')))
 end
 
 local function url_split (self)
@@ -248,7 +251,7 @@ function websocket:send (data, is_binary)
     return nil, '未连接'
   end
   local func = function (...)
-    return _send_frame(self.sock, true, is_binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked)
+    return _send_frame(self.sock, true, is_binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked, self.ext)
   end
   if not self.queue then
     self.queue = { func }
@@ -271,7 +274,7 @@ function websocket:ping(data)
     return nil, '未连接'
   end
   local func = function (...)
-    return _send_frame(self.sock, true, 0x9, data, self.max_payload_len, self.send_masked)
+    return _send_frame(self.sock, true, 0x9, data, self.max_payload_len, self.send_masked, self.ext)
   end
   if not self.queue then
     self.queue = { func }
@@ -294,7 +297,7 @@ function websocket:pong(data)
     return nil, '未连接'
   end
   local func = function (...)
-    return _send_frame(self.sock, true, 0xA, data, self.max_payload_len, self.send_masked)
+    return _send_frame(self.sock, true, 0xA, data, self.max_payload_len, self.send_masked, self.ext)
   end
   if not self.queue then
     self.queue = { func }

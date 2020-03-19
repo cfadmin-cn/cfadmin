@@ -6,11 +6,12 @@ local wbproto = require "protocol.websocket.protocol"
 local _recv_frame = wbproto.recv_frame
 local _send_frame = wbproto.send_frame
 
-local Log = require "logging":new({ dump = true, path = 'protocol-websocket-server'})
+local Log = require "logging":new { dump = true, path = 'protocol-websocket-server'}
 
 local type = type
 local pcall = pcall
 local ipairs = ipairs
+local assert = assert
 local insert = table.insert
 local char = string.char
 
@@ -22,6 +23,7 @@ function ws:ctor(opt)
   self.sock = opt.sock
   self.send_masked = nil
   self.max_payload_len = 65535
+  self.ext = opt.ext
 end
 
 -- 设置发送掩码
@@ -59,9 +61,9 @@ function ws:send (data, binary)
   if self.closed then
     return
   end
-  assert(type(data) == 'string' and data ~= '', "websoket error: send发送的消息应该是string类型.")
+  assert(type(data) == 'string' and data ~= '', "websoket error: send need string data.")
   self:add_to_queue(function ()
-    return _send_frame(self.sock, true, binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked)
+    return _send_frame(self.sock, true, binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked, self.ext)
   end)
 end
 
@@ -72,7 +74,7 @@ function ws:close(data)
   end
   self.closed = true
   self:add_to_queue(function ()
-    return _send_frame(self.sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..(type(data) == 'string' and data or ""), self.max_payload_len, self.send_masked)
+    return _send_frame(self.sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..(type(data) == 'string' and data or ""), self.max_payload_len, self.send_masked, self.ext)
   end)
   self:add_to_queue(function ()
     return self.sock:close()
@@ -84,13 +86,14 @@ local Websocket = { __Version__ = 1.0 }
 -- Websocket Server 事件循环
 function Websocket.start(opt)
   local sock = opt.sock
-  local w = ws:new { sock = sock }
+  local ext = opt.ext
+  local w = ws:new { sock = sock, ext = ext }
 
   local cls = opt.cls:new { ws = w }
-  local on_open = cls.on_open
-  local on_message = cls.on_message
-  local on_error = cls.on_error
-  local on_close = cls.on_close
+  local on_open = assert(type(cls.on_open) == 'function' and cls.on_open, "'on_open' method is not implemented.")
+  local on_message = assert(type(cls.on_message) == 'function' and cls.on_message, "'on_message' method is not implemented.")
+  local on_error = assert(type(cls.on_error) == 'function' and cls.on_error, "'on_error' method is not implemented.")
+  local on_close = assert(type(cls.on_close) == 'function' and cls.on_close, "'on_close' method is not implemented.")
 
   sock._timeout = cls.timeout or nil
   local send_masked = cls.send_masked or nil
@@ -119,7 +122,7 @@ function Websocket.start(opt)
       break
     end
     if typ == 'ping' then
-      w:add_to_queue(function () return _send_frame(sock, true, 0xA, data or '', max_payload_len, send_masked) end)
+      w:add_to_queue(function () return _send_frame(sock, true, 0xA, data or '', max_payload_len, send_masked, ext) end)
     end
     if typ == 'text' or typ == 'binary' then
       cf_fork(on_message, cls, data, typ == 'binary')

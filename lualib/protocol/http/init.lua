@@ -241,12 +241,19 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
   if protocol then -- 仅支持协议回传
     response[#response+1] = "Sec-Websocket-Protocol: "..tostring(protocol)
   end
+  local ext = nil
+  if type(header['Sec-WebSocket-Extensions']) == 'string' and find(header['Sec-WebSocket-Extensions'], "permessage%-deflate") then
+    response[#response+1] = "Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover"
+    ext = "deflate"
+  end
+  -- require "utils"
+  -- var_dump(header)
   http:tolog(101, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, now() - start_time)
   local ok = sock:send(concat(response, CRLF)..CRLF2)
   if not ok then
     return
   end
-  return wsserver.start {cls = cls, sock = sock}
+  return wsserver.start { cls = cls, sock = sock, ext = ext }
 end
 
 local function send_header (sock, header)
