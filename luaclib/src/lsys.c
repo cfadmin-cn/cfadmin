@@ -1,6 +1,6 @@
 #define LUA_LIB
 
-#include "../../src/core.h"
+#include <core.h>
 
 // 提供一个精确到微秒的时间戳
 static int lnow(lua_State *L){

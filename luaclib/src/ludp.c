@@ -1,6 +1,6 @@
 #define LUA_LIB
 
-#include "../../src/core.h"
+#include <core.h>
 
 static inline
 void SETSOCKETOPT(int sockfd) {

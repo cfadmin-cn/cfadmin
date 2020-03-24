@@ -1,6 +1,6 @@
 #define LUA_LIB
 
-#include "../../src/core.h"
+#include <core.h>
 
 static void
 TASK_CB(CORE_P_ core_task *task, int revents){
