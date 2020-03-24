@@ -24,6 +24,8 @@ internal :
 	@$(CC) -o task.so src/ltask.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -llua
 	@echo "CC	-	ltimer"
 	@$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -llua
+	@echo "CC	-	laio"
+	@$(CC) -o laio.so src/laio.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -llua -leio
 	@echo "CC	-	ltcp"
 	@$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore -llua
 
