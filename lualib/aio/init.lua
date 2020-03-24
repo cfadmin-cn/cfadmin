@@ -140,6 +140,9 @@ function File:clean()
   if type(stat) ~= 'table' then
     return nil, err
   end
+  if toint(self.read_offset) then
+    self.read_offset = 0
+  end
   self.stat = stat
   return true
 end
