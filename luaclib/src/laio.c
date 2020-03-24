@@ -166,6 +166,9 @@ int AIO_RESPONSE_STAT(eio_req* req) {
   if (EIO_RESULT (req) != -1){
     lua_createtable(co, 0, 16);
     luaL_push_stat(co, req);
+  }else{
+    lua_pushboolean(co, 0);
+    lua_pushstring(co, strerror(req->errorno));
   }
   if (LUA_OK != CO_RESUME(co, NULL, lua_gettop(co) - 1)) {
     LOG("ERROR", lua_tostring(co, -1));

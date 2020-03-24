@@ -238,9 +238,9 @@ end
 function aio.stat(path)
   local t = {}
   t.current_co = co_self()
-  t.event_co = co_new(function ( list )
+  t.event_co = co_new(function ( list, err )
     aio[t] = nil  
-    return co_wakeup(t.current_co, list)
+    return co_wakeup(t.current_co, list, err)
   end)
   aio[t] = true
   aio_stat(t.event_co, assert(type(path) == 'string' and path ~= '' and path, "Invalid path."))
