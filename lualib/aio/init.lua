@@ -12,6 +12,7 @@ local aio_stat = laio.stat
 local aio_flush = laio.flush
 local aio_read = laio.read
 local aio_write = laio.write
+local aio_close = laio.close
 local aio_rmdir = laio.rmdir
 local aio_mkdir = laio.mkdir
 local aio_rename = laio.rename
@@ -80,7 +81,7 @@ function File:readall()
   if not bytes or bytes < 1 then
     return ""
   end
-  assert(self.__READ__, "File:readall方法不可以在多个协程中并发调用.")
+  assert(not self.__READ__, "File:readall方法不可以在多个协程中并发调用.")
   self.read_offset = 0
   self.__READ__ = { current_co = co_self() }
   self.__READ__.event_co = co_new(function ( data, size )
@@ -100,7 +101,7 @@ function File:write( data )
   if self.status == "close" then
     return nil, "File already Closed."
   end
-  assert(self.__WRITE__, "File:write方法不可以在多个协程中并发调用.")
+  assert(not self.__WRITE__, "File:write方法不可以在多个协程中并发调用.")
   if type(data) ~= 'string' or data == "" then
     return nil, "Invalid file write data."
   end
@@ -120,6 +121,7 @@ function File:flush()
   if self.status == "close" then
     return nil, "File already Closed."
   end
+  assert(not self.__FLUSH__, "File:flush方法不可以在多个协程中并发调用.")
   self.__FLUSH__ = { current_co = co_self() }
   self.__FLUSH__.event_co = co_new(function ( ok, err )
     local current_co = self.__FLUSH__.current_co
@@ -132,25 +134,32 @@ end
 
 -- 清空文件
 function File:clean()
+  if self.status == "close" then
+    return nil, "File already Closed."
+  end
+  self.__CLEAN__ = assert(not self.__CLEAN__ and true, "File:flush方法不可以在多个协程中并发调用.")
   local ok, err = aio.truncate(self.path, 0)
   if not ok then
+    self.__CLEAN__ = nil
     return nil, err
   end
   local stat, err = aio.stat(self.path)
   if type(stat) ~= 'table' then
+    self.__CLEAN__ = nil
     return nil, err
   end
   if toint(self.read_offset) then
     self.read_offset = 0
   end
   self.stat = stat
+  self.__CLEAN__ = nil
   return true
 end
 
 -- 关闭文件描述符
 function File:close( ... )
-  if self.status ~= "open" then
-    return true
+  if self.status == "close" then
+    return nil, "File already Closed."
   end
   self.__CLOSE__ = { current_co = co_self()}
   self.__CLOSE__.event_co = co_new(function ( ok, err )
