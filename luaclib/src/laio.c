@@ -3,6 +3,10 @@
 #include <core.h>
 #include <eio.h>
 
+/* 初始化 */
+static int INITIALIZATION = 0;
+
+/* 工作线程最大使用堆栈 */
 #define EIO_STACKSIZE (1 << 16)
 
 /* 最小线程数量 */
@@ -10,7 +14,6 @@
 
 #define req_data_to_coroutine(req) (req->data)
 
-#define luaL_push_string_integer(L, k, v) ({ lua_pushliteral(L, k); lua_pushinteger(L, (v)); lua_rawset(L, -3); })
 #define luaL_push_string_string(L, k, v) ({ lua_pushliteral(L, k); lua_pushstring(L, (v)); lua_rawset(L, -3); })
 
  #ifndef S_ISDIR
@@ -35,7 +38,14 @@
    #define S_ISBLK(mode)  (0)
  #endif
 
-static const char *mode2string (mode_t mode) {
+static inline void luaL_push_string_integer(lua_State* L, const char* k, int v) {
+  lua_pushstring(L, k);
+  lua_pushinteger(L, v);
+  lua_rawset(L, -3);
+}
+
+/* 文件类型转字符串 */
+static inline const char *mode2string (mode_t mode) {
   if ( S_ISREG(mode) )
     return "file";
   else if ( S_ISDIR(mode) )
@@ -54,7 +64,8 @@ static const char *mode2string (mode_t mode) {
     return "other";
 }
 
-static const char *perm2string (mode_t mode) {
+/* 权限转字符串 */
+static inline const char *perm2string (mode_t mode) {
   static char perms[10] = "---------";
   int i;
   for (i=0;i<9;i++) perms[i]='-';
@@ -88,21 +99,60 @@ static inline void luaL_push_stat(lua_State *co, eio_req *req) {
   luaL_push_string_string(co,  "permissions", perm2string(st->st_mode));
 }
 
-static int sp[2];
-
-static core_io io_watcher;
-
-// static int myindex = 1;
-
 /* AIO方法只需要简单返回状态时, 可以使用这个回调 */
 int AIO_RESPONSE(eio_req* req) {
   lua_State* co = (lua_State*)req_data_to_coroutine(req);
-  // printf("当前线程ID为: %d, 协程状态: (%p)%d, index = %d, n = %d\n", pthread_self(), co, lua_status(co), myindex++, eio_npending());  
   if (EIO_RESULT (req)){
     lua_pushboolean(co, 0);
-    lua_pushstring(co, strerror(req-> errorno));
+    lua_pushstring(co, strerror(req->errorno));
   }else{
     lua_pushboolean(co, 1);
+  }
+  if (LUA_OK != CO_RESUME(co, NULL, lua_gettop(co) - 1)) {
+    LOG("ERROR", lua_tostring(co, -1));
+  }
+  return 0;
+}
+
+/* AIO方法需要返回数值和fd时, 可以使用这个回调 */
+int AIO_RESPONSE_FD(eio_req* req) {
+  lua_State* co = (lua_State*)req_data_to_coroutine(req);
+  if (EIO_RESULT (req) == -1){
+    lua_pushboolean(co, 0);
+    lua_pushstring(co, strerror(req->errorno));
+  }else{
+    lua_pushinteger(co, EIO_RESULT (req));
+  }
+  if (LUA_OK != CO_RESUME(co, NULL, lua_gettop(co) - 1)) {
+    LOG("ERROR", lua_tostring(co, -1));
+  }
+  return 0;
+}
+
+/* AIO调用读取数据则需要使用此回调 */
+int AIO_RESPONSE_READ(eio_req* req) {
+  lua_State* co = (lua_State*)req_data_to_coroutine(req);
+  if (EIO_RESULT (req) == -1){
+    lua_pushboolean(co, 0);
+    lua_pushstring(co, strerror(req->errorno));
+  }else{
+    lua_pushlstring(co, EIO_BUF (req), EIO_RESULT (req));
+    lua_pushinteger(co, EIO_RESULT (req));
+  }
+  if (LUA_OK != CO_RESUME(co, NULL, lua_gettop(co) - 1)) {
+    LOG("ERROR", lua_tostring(co, -1));
+  }
+  return 0;
+}
+
+/* AIO调用写入数据则需要使用此回调 */
+int AIO_RESPONSE_WRITE(eio_req* req) {
+  lua_State* co = (lua_State*)req_data_to_coroutine(req);
+  if (EIO_RESULT (req) == -1){
+    lua_pushboolean(co, 0);
+    lua_pushstring(co, strerror(req->errorno));
+  }else{
+    lua_pushinteger(co, EIO_RESULT (req));
   }
   if (LUA_OK != CO_RESUME(co, NULL, lua_gettop(co) - 1)) {
     LOG("ERROR", lua_tostring(co, -1));
@@ -154,6 +204,8 @@ int AIO_RESPONSE_PATH(eio_req* req) {
   return 0;
 }
 
+static int sp[2];
+
 static void AIO_WANT_POLL(void) {
   // printf("AIO_WANT_POLL Called. 主线程ID为: %d\n", pthread_self());
   char event = '1';
@@ -176,6 +228,8 @@ static void AIO_EVENT(CORE_P_ core_io *io, int revents) {
     while (eio_npending() && !eio_poll ());
   }
 }
+
+static core_io io_watcher;
 
 int pip_init() {
 
@@ -218,6 +272,77 @@ int aio_init() {
 
 }
 
+
+
+/* 打开文件描述符 */
+static int laio_open(lua_State* L) {
+  lua_State *t = lua_tothread(L, 1);
+  if (!t)
+    return luaL_error(L, "Invalid lua coroutine.");
+
+  size_t path_size = 0;
+  const char *path = luaL_checklstring(L, 2, &path_size);
+  if (!path || path_size < 1){
+    return luaL_error(L, "Invalid aio truncate [path].");
+  }
+
+  eio_open(path, O_CREAT | O_RDWR, 0755, EIO_PRI_DEFAULT, AIO_RESPONSE_FD, (void*)t);
+
+  return 1;
+}
+
+/* aio.write 从文件内读取数据  */
+static int laio_read(lua_State* L) {
+  lua_State *t = lua_tothread(L, 1);
+  if (!t)
+    return luaL_error(L, "Invalid lua coroutine.");
+
+  /* 当offset大于0使用pread, 否则使用read */
+  eio_read(lua_tointeger(L, 2), 0, lua_tointeger(L, 3),lua_tointeger(L, 4), EIO_PRI_DEFAULT, AIO_RESPONSE_READ, (void*)t);
+  return 1;
+}
+
+/* aio.write 写入数据到文件内  */
+static int laio_write(lua_State* L) {
+  lua_State *t = lua_tothread(L, 1);
+  if (!t)
+    return luaL_error(L, "Invalid lua coroutine.");
+
+  int fd = lua_tointeger(L, 2);
+
+  size_t buffer_size = 0;
+  const char *buffer = luaL_checklstring(L, 3, &buffer_size);
+  if (!buffer || buffer_size < 1){
+    return luaL_error(L, "Invalid aio truncate [path].");
+  }
+
+  /* 当offset大于0使用pwrite, 否则使用pwrite */
+  eio_write(fd, (void*)buffer, buffer_size, lua_tointeger(L, 4), EIO_PRI_DEFAULT, AIO_RESPONSE_WRITE, (void*)t);
+  return 1;
+}
+
+/* aio.flush 将文件内存数据刷新到磁盘 */
+static int laio_flush(lua_State* L) {
+  lua_State *t = lua_tothread(L, 1);
+  if (!t)
+    return luaL_error(L, "Invalid lua coroutine.");
+
+  eio_fsync(lua_tointeger(L, 2), EIO_PRI_DEFAULT, AIO_RESPONSE, (void*)t);
+
+  return 1;
+}
+
+/* aio.close 关闭文件描述符  */
+static int laio_close(lua_State* L) {
+  lua_State *t = lua_tothread(L, 1);
+  if (!t)
+    return luaL_error(L, "Invalid lua coroutine.");
+
+  eio_close(lua_tointeger(L, 2), EIO_PRI_DEFAULT, AIO_RESPONSE, (void*)t);
+
+  return 1;
+}
+
 static int laio_truncate(lua_State* L) {
   lua_State *t = lua_tothread(L, 1);
   if (!t)
@@ -229,7 +354,7 @@ static int laio_truncate(lua_State* L) {
     return luaL_error(L, "Invalid aio truncate [path].");
   }
 
-  eio_truncate(path, lua_tointeger(L, 3), 0, AIO_RESPONSE, (void*)t);
+  eio_truncate(path, lua_tointeger(L, 3), EIO_PRI_DEFAULT, AIO_RESPONSE, (void*)t);
   return 1;
 }
 
@@ -245,7 +370,7 @@ static int laio_readpath(lua_State* L) {
   if (!path || path_size < 1){
     return luaL_error(L, "Invalid aio readpath [path].");
   }
-  eio_realpath (path, 0, AIO_RESPONSE_PATH, (void*)t);
+  eio_realpath (path, EIO_PRI_DEFAULT, AIO_RESPONSE_PATH, (void*)t);
   return 1;
 }
 
@@ -262,7 +387,7 @@ static int laio_readdir(lua_State* L) {
     return luaL_error(L, "Invalid aio readdir [path].");
   }
 
-  eio_readdir (path, EIO_READDIR_DIRS_FIRST, 0, AIO_RESPONSE_DIR, (void*)t);
+  eio_readdir (path, EIO_READDIR_DIRS_FIRST, EIO_PRI_DEFAULT, AIO_RESPONSE_DIR, (void*)t);
   return 1;
 }
 
@@ -285,7 +410,7 @@ static int laio_rename(lua_State* L) {
     return luaL_error(L, "Invalid aio rename [new path].");
   }
 
-  eio_rename (old_path, new_path, 0, AIO_RESPONSE, (void*)t);
+  eio_rename (old_path, new_path, EIO_PRI_DEFAULT, AIO_RESPONSE, (void*)t);
   return 1;
 }
 
@@ -303,23 +428,7 @@ static int laio_stat(lua_State* L) {
     return luaL_error(L, "Invalid aio stat [path].");
   }
 
-  eio_stat (path, 0, AIO_RESPONSE_STAT, (void*)t);
-  return 1;
-}
-
-/* aio.create 创建文件 */
-static int laio_create(lua_State* L) {
-
-  lua_State *t = lua_tothread(L, 1);
-  if (!t)
-    return luaL_error(L, "Invalid lua coroutine.");
-
-  size_t path_size = 0;
-  const char *path = luaL_checklstring(L, 2, &path_size);
-  if (!path || path_size < 1){
-    return luaL_error(L, "Invalid aio create [path].");
-  }
-  eio_open(path, O_CREAT, 0755, 0, AIO_RESPONSE, (void*)t);
+  eio_stat (path, EIO_PRI_DEFAULT, AIO_RESPONSE_STAT, (void*)t);
   return 1;
 }
 
@@ -336,7 +445,7 @@ static int laio_mkdir(lua_State* L) {
     return luaL_error(L, "Invalid aio mkdir [path].");
   }
 
-  eio_mkdir (path, 0755, 0, AIO_RESPONSE, (void*)t);
+  eio_mkdir (path, 0755, EIO_PRI_DEFAULT, AIO_RESPONSE, (void*)t);
   return 1;
 }
 
@@ -353,25 +462,32 @@ static int laio_rmdir(lua_State* L) {
     return luaL_error(L, "Invalid aio rmdir [path].");
   }
 
-  eio_rmdir (path, 0, AIO_RESPONSE, (void*)t);
+  eio_rmdir (path, EIO_PRI_DEFAULT, AIO_RESPONSE, (void*)t);
   return 1;
 }
 
 LUAMOD_API int luaopen_laio(lua_State* L){
   // printf("主线程ID为: %d\n", pthread_self());
   luaL_checkversion(L);
-  if (aio_init()){
-    return luaL_error(L, "aio init error.");
+  if (!INITIALIZATION){
+    if (aio_init()){
+      return luaL_error(L, "aio init error.");
+    }
+    INITIALIZATION = 1;
   }
   luaL_Reg aio_libs[] = {
     { "mkdir", laio_mkdir },
     { "rmdir", laio_rmdir },
     { "stat", laio_stat },
-    { "create", laio_create },
     { "rename", laio_rename },
     { "readdir", laio_readdir },
     { "readpath", laio_readpath },
     { "truncate", laio_truncate },
+    { "open", laio_open},
+    { "read", laio_read },
+    { "write", laio_write },
+    { "flush", laio_flush },
+    { "close", laio_close },
     {NULL, NULL},
   };
   luaL_newlib(L, aio_libs);
