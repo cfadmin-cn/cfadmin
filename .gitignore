@@ -51,7 +51,7 @@
 .vscode
 *.la
 *.lai
-src/ev*.h
+src/e*.h
 src/l*.h
 cfadmin
 
