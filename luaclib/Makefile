@@ -9,9 +9,9 @@ default :
 
 INCLUDES += -I../src -I/usr/local/include
 LIBS += -L./ -L../ -L/usr/local/lib
-# CFLAGS = -Wall -O3 -fPIC --shared -DJEMALLOC -ljemalloc
-# CFLAGS = -Wall -O3 -fPIC --shared -DTCMALLOC -ltcmalloc
-CFLAGS = -Wall -O3 -fPIC --shared
+# CFLAGS = -Wall -O3 -fPIC --shared -DJEMALLOC -ljemalloc -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
+# CFLAGS = -Wall -O3 -fPIC --shared -DTCMALLOC -ltcmalloc -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
+CFLAGS = -Wall -O3 -fPIC --shared -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
 
 internal :
 
