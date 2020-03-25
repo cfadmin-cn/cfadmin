@@ -235,7 +235,7 @@ static void AIO_EVENT(CORE_P_ core_io *io, int revents) {
 
 static core_io io_watcher;
 
-int pip_init() {
+static int pip_init() {
 
   /* 创建管道 */
   if (-1 == socketpair(AF_LOCAL, SOCK_STREAM, 0, sp))
@@ -257,7 +257,7 @@ int pip_init() {
 
 }
 
-int aio_init() {
+static int aio_init() {
 
   /* 初始化eio内部数据 */
   if (eio_init(AIO_WANT_POLL, AIO_DONE_POLL))
