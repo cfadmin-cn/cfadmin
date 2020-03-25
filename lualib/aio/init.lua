@@ -55,7 +55,7 @@ function File:read( bytes )
   if not bytes or bytes <= 0 then
     return nil, "Invalid file read bytes."
   end
-  assert(self.__READ__, "File:read方法不可以在多个协程中并发调用.")
+  assert(not self.__READ__, "File:read方法不可以在多个协程中并发调用.")
   if not self.read_offset then
     self.read_offset = 0
   end
@@ -137,7 +137,7 @@ function File:clean()
   if self.status == "close" then
     return nil, "File already Closed."
   end
-  self.__CLEAN__ = assert(not self.__CLEAN__ and true, "File:flush方法不可以在多个协程中并发调用.")
+  self.__CLEAN__ = assert(not self.__CLEAN__, "File:clean方法不可以在多个协程中并发调用.")
   local ok, err = aio.truncate(self.path, 0)
   if not ok then
     self.__CLEAN__ = nil
