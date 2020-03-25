@@ -1,13 +1,13 @@
 #define LUA_LIB
 
+/* 工作线程最大使用堆栈 */
+#define EIO_STACKSIZE (1 << 16)
+
 #include <core.h>
 #include <eio.h>
 
 /* 初始化 */
 static int INITIALIZATION = 0;
-
-/* 工作线程最大使用堆栈 */
-#define EIO_STACKSIZE (1 << 16)
 
 /* 最小线程数量 */
 #define AIO_MAX_NTHREADS 8
@@ -100,7 +100,7 @@ static inline void luaL_push_stat(lua_State *co, eio_req *req) {
 }
 
 /* AIO方法只需要简单返回状态时, 可以使用这个回调 */
-int AIO_RESPONSE(eio_req* req) {
+static int AIO_RESPONSE(eio_req* req) {
   lua_State* co = (lua_State*)req_data_to_coroutine(req);
   if (EIO_RESULT (req)){
     lua_pushboolean(co, 0);
@@ -115,7 +115,7 @@ int AIO_RESPONSE(eio_req* req) {
 }
 
 /* AIO方法需要返回数值和fd时, 可以使用这个回调 */
-int AIO_RESPONSE_FD(eio_req* req) {
+static int AIO_RESPONSE_FD(eio_req* req) {
   lua_State* co = (lua_State*)req_data_to_coroutine(req);
   if (EIO_RESULT (req) == -1){
     lua_pushboolean(co, 0);
@@ -130,7 +130,7 @@ int AIO_RESPONSE_FD(eio_req* req) {
 }
 
 /* AIO调用读取数据则需要使用此回调 */
-int AIO_RESPONSE_READ(eio_req* req) {
+static int AIO_RESPONSE_READ(eio_req* req) {
   lua_State* co = (lua_State*)req_data_to_coroutine(req);
   if (EIO_RESULT (req) == -1){
     lua_pushboolean(co, 0);
@@ -146,7 +146,7 @@ int AIO_RESPONSE_READ(eio_req* req) {
 }
 
 /* AIO调用写入数据则需要使用此回调 */
-int AIO_RESPONSE_WRITE(eio_req* req) {
+static int AIO_RESPONSE_WRITE(eio_req* req) {
   lua_State* co = (lua_State*)req_data_to_coroutine(req);
   if (EIO_RESULT (req) == -1){
     lua_pushboolean(co, 0);
@@ -161,7 +161,7 @@ int AIO_RESPONSE_WRITE(eio_req* req) {
 }
 
 /* AIO调用stat是需要使用此回调 */
-int AIO_RESPONSE_STAT(eio_req* req) {
+static int AIO_RESPONSE_STAT(eio_req* req) {
   lua_State* co = (lua_State*)req_data_to_coroutine(req);
   if (EIO_RESULT (req) != -1){
     lua_createtable(co, 0, 16);
@@ -177,7 +177,7 @@ int AIO_RESPONSE_STAT(eio_req* req) {
 }
 
 /* AIO调用需要循环检查文件名称必须使用此回调 */
-int AIO_RESPONSE_DIR(eio_req* req) {
+static int AIO_RESPONSE_DIR(eio_req* req) {
   lua_State* co = (lua_State*)req_data_to_coroutine(req);
   if (EIO_RESULT (req) >= 0){
     lua_createtable(co, EIO_RESULT (req), 0);
@@ -211,7 +211,7 @@ int AIO_RESPONSE_PATH(eio_req* req) {
 static int sp[2];
 
 static void AIO_WANT_POLL(void) {
-  // printf("AIO_WANT_POLL Called. 主线程ID为: %d\n", pthread_self());
+  // printf("AIO_WANT_POLL Called. 工作线程ID为: %d\n", pthread_self());
   char event = '1';
   write(sp[1], &event, 1);
  }
@@ -278,7 +278,7 @@ static int aio_init() {
 
 
 
-/* 打开文件描述符 */
+/* aio.open 打开文件描述符 */
 static int laio_open(lua_State* L) {
   lua_State *t = lua_tothread(L, 1);
   if (!t)
@@ -295,7 +295,7 @@ static int laio_open(lua_State* L) {
   return 1;
 }
 
-/* aio.write 从文件内读取数据  */
+/* aio.read 从文件内读取数据  */
 static int laio_read(lua_State* L) {
   lua_State *t = lua_tothread(L, 1);
   if (!t)
