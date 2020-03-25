@@ -182,7 +182,7 @@ int AIO_RESPONSE_DIR(eio_req* req) {
   if (EIO_RESULT (req) >= 0){
     lua_createtable(co, EIO_RESULT (req), 0);
     char *buf = (char *)EIO_BUF (req);
-    int i
+    int i;
     for (i = 0; i < EIO_RESULT (req); i++) {
       lua_pushlstring(co, buf, strlen(buf));
       lua_rawseti(co, -2, i + 1);
