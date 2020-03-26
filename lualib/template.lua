@@ -1,3 +1,6 @@
+local aio = require "aio"
+local aio_open = aio.open
+
 local setmetatable = setmetatable
 local loadstring = loadstring
 local loadchunk
@@ -11,7 +14,6 @@ local prefix
 local write = io.write
 local pcall = pcall
 local phase
-local open = io.open
 local load = load
 local type = type
 local dump = string.dump
@@ -92,9 +94,11 @@ local function escaped(view, s)
 end
 
 local function readfile(path)
-    local file = open(path, "rb")
-    if not file then return nil end
-    local content = file:read "*a"
+    local file = aio_open(path)
+    if not file then
+      return nil
+    end
+    local content = file:readall()
     file:close()
     return content
 end
@@ -226,9 +230,9 @@ end
 function template.precompile(view, path, strip)
     local chunk = dump(template.compile(view), strip ~= false)
     if path then
-        local file = open(path, "wb")
-        file:write(chunk)
-        file:close()
+      local file = aio_open(path)
+      file:write(chunk)
+      file:close()
     end
     return chunk
 end
