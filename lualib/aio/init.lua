@@ -48,7 +48,7 @@ end
 
 -- 读取文件指定大小内容
 function File:read( bytes )
-  if self.status == "close" then
+  if self.status == "closed" then
     return nil, "File already Closed."
   end
   bytes = toint(bytes)
@@ -74,7 +74,7 @@ end
 
 -- 读取文件所有内容
 function File:readall()
-  if self.status == "close" then
+  if self.status == "closed" then
     return nil, "File already Closed."
   end
   local bytes = toint(self.stat.size)
@@ -108,7 +108,7 @@ end
 
 -- 写入文件
 function File:write( data )
-  if self.status == "close" then
+  if self.status == "closed" then
     return nil, "File already Closed."
   end
   assert(not self.__WRITE__, "File:write方法不可以在多个协程中并发调用.")
@@ -128,7 +128,7 @@ end
 
 -- 刷新缓存
 function File:flush()
-  if self.status == "close" then
+  if self.status == "closed" then
     return nil, "File already Closed."
   end
   assert(not self.__FLUSH__, "File:flush方法不可以在多个协程中并发调用.")
@@ -144,7 +144,7 @@ end
 
 -- 清空文件
 function File:clean()
-  if self.status == "close" then
+  if self.status == "closed" then
     return nil, "File already Closed."
   end
   self.__CLEAN__ = assert(not self.__CLEAN__, "File:clean方法不可以在多个协程中并发调用.")
@@ -168,32 +168,18 @@ end
 
 -- 关闭文件描述符
 function File:close( ... )
-  if self.status == "close" then
+  if self.status == "closed" then
     return nil, "File already Closed."
   end
-  self.__CLOSE__ = { current_co = co_self()}
-  self.__CLOSE__.event_co = co_new(function ( ok, err )
-    local current_co = self.__CLOSE__.current_co
-    self.__CLOSE__ = nil
-    return co_wakeup(current_co, ok, err)
-  end)
-  aio_close(self.__CLOSE__.event_co, self.fd)
-  self.status = "closed"; self.fd = nil;
-  return co_wait()
+  local fd = self.fd
+  self.fd = nil
+  self.status = "closed"
+  return aio._close(fd)
 end
 
 -- 打开文件(始终以rw模式打开, 没有则会创建)
 function aio.open(filename)
-  filename = assert(type(filename) == 'string' and filename ~= '' and filename ~= '.' and filename ~= '..' and filename, "Invalid filename.")
-  local t = {}
-  t.current_co = co_self()
-  t.event_co = co_new(function ( fd, err)
-    aio[t] = nil  
-    return co_wakeup(t.current_co, fd, err)
-  end)
-  aio[t] = true
-  aio_open(t.event_co, filename)
-  local fd, err = co_wait()
+  local fd, err = aio._open(filename)
   if not fd then
     return nil, err
   end
