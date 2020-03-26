@@ -1,5 +1,8 @@
 local cjson = require "cjson"
 
+local pcall = pcall
+local setmetatable = setmetatable
+
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
 local cjson_array_mt = cjson.array_mt

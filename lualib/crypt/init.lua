@@ -1,5 +1,4 @@
 local CRYPT = require "lcrypt"
-local new_tab = require("sys").new_tab
 
 local uuid = CRYPT.uuid
 
