@@ -399,28 +399,21 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
       LOG("ERROR", lua_tostring(sf->L, -1));
       LOG("ERROR", "Error Lua SENDFILE Method");
     }
-    close(sf->fd); xfree(sf);
+    xfree(sf);
   }
 }
 
 static int tcp_sendfile(lua_State *L){
   core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-  lua_State *t = lua_tothread(L, 2);
-  const char* path = luaL_checkstring(L, 3);
-  lua_Integer iofd = luaL_checkinteger(L, 4);
-  lua_Integer offset = luaL_checkinteger(L, 5);
-
-  int fd = open(path, O_RDONLY);
-  if (0 > fd) return luaL_error(L, strerror(errno));
 
   struct io_sendfile *sf = xmalloc(sizeof(struct io_sendfile));
+  sf->L = lua_tothread(L, 2);
+  sf->fd = luaL_checkinteger(L, 3);
+  sf->offset = luaL_checkinteger(L, 5);
   sf->pos = 0;
-  sf->fd = fd;
-  sf->offset = offset;
-  sf->L = t;
 
   core_set_watcher_userdata(io, sf);
-  core_io_init(io, IO_SENDFILE, iofd, EV_WRITE);
+  core_io_init(io, IO_SENDFILE, luaL_checkinteger(L, 4), EV_WRITE);
   core_io_start(CORE_LOOP_ io);
   return 1;
 }

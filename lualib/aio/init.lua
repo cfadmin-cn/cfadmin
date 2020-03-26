@@ -206,10 +206,38 @@ function aio.open(filename)
       return co_wakeup(t.current_co, ok, err)
     end)
     aio[t] = true
-    aio_close(t.event_co, filename)
+    aio_close(t.event_co, fd)
     return co_wait()
   end
   return File:new { fd = fd, path = filename, stat = stat }
+end
+
+-- 仅返回fd
+function aio._open(filename)
+  filename = assert(type(filename) == 'string' and filename ~= '' and filename ~= '.' and filename ~= '..' and filename, "Invalid filename.")
+  local t = {}
+  t.current_co = co_self()
+  t.event_co = co_new(function ( fd, err)
+    aio[t] = nil
+    return co_wakeup(t.current_co, fd, err)
+  end)
+  aio[t] = true
+  aio_open(t.event_co, filename)
+  return co_wait()
+end
+
+-- 仅关闭fd
+function aio._close(fd)
+  fd = assert(toint(fd) and toint(fd) >= 0 and toint(fd), "Invalid fd.")
+  local t = {}
+  t.current_co = co_self()
+  t.event_co = co_new(function ( ok, err )
+    aio[t] = nil
+    return co_wakeup(t.current_co, ok, err)
+  end)
+  aio[t] = true
+  aio_close(t.event_co, fd)
+  return co_wait()
 end
 
 -- 创建指定目录

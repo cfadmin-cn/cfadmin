@@ -22,6 +22,10 @@ local co_wait = coroutine.yield
 local ti = require "internal.Timer"
 local ti_timeout = ti.timeout
 
+local aio = require "aio"
+local aio_close = aio._close
+local aio_open = aio._open
+
 local tcp = require "tcp"
 local tcp_new = tcp.new
 local tcp_start = tcp.start
@@ -88,8 +92,13 @@ function TCP:set_backlog(backlog)
     return self
 end
 
+-- sendfile的文件fd使用aio库来打开与关闭可以减少阻塞.
 function TCP:sendfile (filename, offset)
   if type(filename) == 'string' and filename ~= '' then
+    local fd, err = aio_open(filename)
+    if not fd then
+      return nil, err
+    end
     local co = co_self()
     self.SEND_IO = tcp_pop()
     self.sendfile_current_co = co_self()
@@ -101,8 +110,10 @@ function TCP:sendfile (filename, offset)
       self.sendfile_current_co = nil
       return co_wakeup(co, ok)
     end)
-    tcp_sendfile(self.SEND_IO, self.sendfile_co, filename, self.fd, offset or 4096)
-    return co_wait()
+    tcp_sendfile(self.SEND_IO, self.sendfile_co, fd, self.fd, offset or 65535)
+    local ok = co_wait()
+    aio_close(fd)
+    return ok
   end
 end
 
