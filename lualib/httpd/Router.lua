@@ -1,6 +1,9 @@
 local log = require "logging"
 local Log = log:new({dump = true, path = 'httpd-Router'})
 
+local aio = require "aio"
+local aio_stat = aio.stat
+
 local url = require "url"
 local url_decode = url.decode
 -- local url_encode = url.encode
@@ -20,7 +23,7 @@ local next = next
 local ipairs = ipairs
 local tonumber = tonumber
 local tostring = tostring
-local io_open = io.open
+-- local io_open = io.open
 
 local slash = '\x2f'        -- '/'
 local slash2 = '\x2f\x2f'   -- '//'
@@ -111,16 +114,13 @@ local function find_route (method, path)
     return
   end
   if not load_file then
-		load_file = function (path)
+    load_file = function ( path )
       local filepath = prefix .. url_decode(path)
-      -- 使用r+测试是否可读可写; 如果filepath是目录则无法被打开, 但单独的r模式可以.
-      local f, _ = io_open(filepath, 'r+')
-      if not f then
+      local stat = aio_stat(filepath)
+      if type(stat) ~= 'table' or stat.mode ~= 'file' then
         return
       end
-      local body_len = f:seek('end')
-      f:close()
-      return body_len, filepath, match(path, '.+%.([%a]+)')
+      return stat.size, filepath, match(path, '.+%.([%a]+)')
     end
   end
   return load_file, typ
