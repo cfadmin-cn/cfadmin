@@ -10,7 +10,7 @@
 static int INITIALIZATION = 0;
 
 /* 最小线程数量 */
-#define AIO_MAX_NTHREADS 8
+#define AIO_MAX_NTHREADS (8)
 
 #define req_data_to_coroutine(req) (req->data)
 
@@ -344,7 +344,7 @@ static int aio_init() {
 
 
 
-/* aio.open 打开文件描述符 */
+/* aio.open 打开一个文件(不存在则创建) */
 static int laio_open(lua_State* L) {
   lua_State *t = lua_tothread(L, 1);
   if (!t)
@@ -353,10 +353,27 @@ static int laio_open(lua_State* L) {
   size_t path_size = 0;
   const char *path = luaL_checklstring(L, 2, &path_size);
   if (!path || path_size < 1){
-    return luaL_error(L, "Invalid aio truncate [path].");
+    return luaL_error(L, "Invalid aio open [path].");
   }
 
   eio_open(path, O_CREAT | O_RDWR, 0755, EIO_PRI_DEFAULT, AIO_RESPONSE_FD, (void*)t);
+
+  return 1;
+}
+
+/* aio.create 创建一个文件(存在则返回错误) */
+static int laio_create(lua_State* L) {
+  lua_State *t = lua_tothread(L, 1);
+  if (!t)
+    return luaL_error(L, "Invalid lua coroutine.");
+
+  size_t path_size = 0;
+  const char *path = luaL_checklstring(L, 2, &path_size);
+  if (!path || path_size < 1){
+    return luaL_error(L, "Invalid aio create [path].");
+  }
+
+  eio_open(path, O_RDWR | O_CREAT | O_EXCL, 0755, EIO_PRI_DEFAULT, AIO_RESPONSE_FD, (void*)t);
 
   return 1;
 }
@@ -383,7 +400,7 @@ static int laio_write(lua_State* L) {
   size_t buffer_size = 0;
   const char *buffer = luaL_checklstring(L, 3, &buffer_size);
   if (!buffer || buffer_size < 1){
-    return luaL_error(L, "Invalid aio truncate [path].");
+    return luaL_error(L, "Invalid aio write [buffer].");
   }
 
   /* 当offset大于等于0使用pwrite, 否则使用write */
@@ -410,6 +427,20 @@ static int laio_close(lua_State* L) {
 
   eio_close(lua_tointeger(L, 2), EIO_PRI_DEFAULT, AIO_RESPONSE, (void*)t);
 
+  return 1;
+}
+
+/* aio.fileno 文件指针转换为fd  */
+static int laio_fileno(lua_State* L) {
+  luaL_Stream* f = (luaL_Stream*)luaL_checkudata(L, 1, LUA_FILEHANDLE);
+  if (!f)
+    return luaL_error(L, "Invalide luaL_Stream.");
+
+  lua_Integer fd = fileno((FILE *)f);
+  if (fd < 0)
+    return 0;
+
+  lua_pushinteger(L, fd);
   return 1;
 }
 
@@ -558,6 +589,8 @@ LUAMOD_API int luaopen_laio(lua_State* L){
     { "write", laio_write },
     { "flush", laio_flush },
     { "close", laio_close },
+    { "create", laio_create },
+    { "fileno", laio_fileno },
     {NULL, NULL},
   };
   luaL_newlib(L, aio_libs);
