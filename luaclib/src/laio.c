@@ -3,14 +3,14 @@
 /* 工作线程最大使用堆栈 */
 #define EIO_STACKSIZE (1 << 16)
 
+/* 最小线程数量(数量多少与性能并无太大相关性, 只是为了配合事件驱动完成异步IO改造) */
+#define AIO_MAX_NTHREADS (8)
+
 #include <core.h>
 #include <eio.h>
 
 /* 初始化 */
 static int INITIALIZATION = 0;
-
-/* 最小线程数量 */
-#define AIO_MAX_NTHREADS (8)
 
 #define req_data_to_coroutine(req) (req->data)
 
@@ -274,9 +274,36 @@ int AIO_RESPONSE_PATH(eio_req* req) {
   return 0;
 }
 
-typedef struct aio_file{
-  FILE *f;
+typedef struct aio_object{
   lua_State *L;
+  char *path;
+}aio_object;
+
+static int AIO_RESPONSE_REMOVE(eio_req* req) {
+  aio_object* obj = (aio_object*)req_data_to_coroutine(req);
+  if (EIO_RESULT (req) == -1){
+    lua_pushboolean(obj->L, 0);
+    lua_pushstring(obj->L, strerror(req->errorno));
+  }else {
+    lua_pushboolean(obj->L, 1);
+  }
+  if (LUA_OK != CO_RESUME(obj->L, NULL, lua_gettop(obj->L) - 1)) {
+    LOG("ERROR", lua_tostring(obj->L, -1));
+  }
+  return 0;
+}
+
+static void AIO_REMOVE(eio_req *req) {
+  aio_object* obj = (aio_object*)req_data_to_coroutine(req);
+  if ((req->result = remove(obj->path)) == -1) {
+    req->errorno = errno;
+  }
+}
+
+
+typedef struct aio_file{
+  lua_State *L;
+  FILE *f;
 }aio_file;
 
 static int AIO_RESPONSE_FFLUSH(eio_req* req) {
@@ -294,7 +321,7 @@ static int AIO_RESPONSE_FFLUSH(eio_req* req) {
 }
 
 static void AIO_FFLUSH(eio_req *req) {
-  aio_file* afile = (aio_file*)req->data;
+  aio_file* afile = (aio_file*)req_data_to_coroutine(req);
   if ((req->result = fflush(afile->f)) == -1) {
     req->errorno = errno;
   }
@@ -368,8 +395,6 @@ static int aio_init() {
 
 }
 
-
-
 /* aio.open 打开一个文件(不存在则创建) */
 static int laio_open(lua_State* L) {
   lua_State *t = lua_tothread(L, 1);
@@ -410,8 +435,8 @@ static int laio_read(lua_State* L) {
   if (!t)
     return luaL_error(L, "Invalid lua coroutine.");
 
-  /* 当offset大于0使用pread, 否则使用read */
-  eio_read(lua_tointeger(L, 2), 0, lua_tointeger(L, 3),lua_tointeger(L, 4), EIO_PRI_DEFAULT, AIO_RESPONSE_READ, (void*)t);
+  /* 适用pread来完成offset控制读取. */
+  eio_read(lua_tointeger(L, 2), 0, lua_tointeger(L, 3), lua_tointeger(L, 4), EIO_PRI_DEFAULT, AIO_RESPONSE_READ, (void*)t);
   return 1;
 }
 
@@ -429,8 +454,8 @@ static int laio_write(lua_State* L) {
     return luaL_error(L, "Invalid aio write [buffer].");
   }
 
-  /* 当offset大于等于0使用pwrite, 否则使用write */
-  eio_write(fd, (void*)buffer, buffer_size, lua_tointeger(L, 4), EIO_PRI_DEFAULT, AIO_RESPONSE_WRITE, (void*)t);
+  /* 适用write来完成追加操作, 同时也不允许单线程覆盖写入. */
+  eio_write(fd, (void*)buffer, buffer_size, -1, EIO_PRI_DEFAULT, AIO_RESPONSE_WRITE, (void*)t);
   return 1;
 }
 
@@ -460,7 +485,27 @@ static int laio_fflush(lua_State* L) {
 
   afile->f = p->f;
 
-  eio_custom(AIO_FFLUSH, 0, AIO_RESPONSE_FFLUSH, afile);
+  eio_custom(AIO_FFLUSH, EIO_PRI_DEFAULT, AIO_RESPONSE_FFLUSH, (void*)afile);
+
+  return 1;
+}
+
+/* aio.remove 删除一个文件或者文件夹 */
+static int laio_remove(lua_State* L) {
+
+  aio_object* obj = lua_newuserdata(L, sizeof(aio_object));
+
+  obj->L = lua_tothread(L, 1);
+  if (!obj->L)
+    return luaL_error(L, "Invalid lua coroutine.");
+
+  size_t path_size = 0;
+  obj->path = (char*)luaL_checklstring(L, 2, &path_size);
+  if (!obj->path || path_size < 1){
+    return luaL_error(L, "Invalid aio truncate [path].");
+  }
+
+  eio_custom(AIO_REMOVE, EIO_PRI_DEFAULT, AIO_RESPONSE_REMOVE, (void*)obj);
 
   return 1;
 }
@@ -602,12 +647,14 @@ static int laio_rmdir(lua_State* L) {
 LUAMOD_API int luaopen_laio(lua_State* L){
   // printf("主线程ID为: %d\n", pthread_self());
   luaL_checkversion(L);
-  if (!INITIALIZATION){
-    if (aio_init()){
-      return luaL_error(L, "aio init error.");
-    }
-    INITIALIZATION = 1;
-  }
+  if (INITIALIZATION)
+    return luaL_error(L, "aio error: Repeated initialization.");
+
+  if (aio_init())
+    return luaL_error(L, "aio init error.");
+
+  INITIALIZATION = 1;
+
   luaL_Reg aio_libs[] = {
     { "mkdir", laio_mkdir },
     { "rmdir", laio_rmdir },
@@ -623,6 +670,7 @@ LUAMOD_API int luaopen_laio(lua_State* L){
     { "close", laio_close },
     { "create", laio_create },
     { "fflush", laio_fflush },
+    { "remove", laio_remove },
     {NULL, NULL},
   };
   luaL_newlib(L, aio_libs);
