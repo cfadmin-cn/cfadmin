@@ -1,10 +1,15 @@
 -- logging 核心配置
 local cf = require "cf"
+local cf_at = cf.at
+
+local aio = require "aio"
+local aio_fflush = aio.fflush
 
 local class = require "class"
 
-local new_tab = require "sys".new_tab
-local now = require "sys".now
+local sys = require "sys"
+local now = sys.now
+local new_tab = sys.new_tab
 
 local os_date = os.date
 
@@ -12,6 +17,7 @@ local type = type
 local select = select
 local assert = assert
 local pairs = pairs
+local ipairs = ipairs
 local tostring = tostring
 local getmetatable = getmetatable
 
@@ -26,14 +32,15 @@ local concat = table.concat
 
 -- 可以在这里手动设置是否使用异步日志
 local ASYNC = true
+-- 这里可以设置异步所使用的buffer.
+local ASYNC_BUFFER_SIZE = 1 << 20
 
-if ASYNC then
-  if io_type(io.output()) == 'file' then
-    io.output():setvbuf("full", 2 ^ 20)
-    cf.at(0.5, function ()
-      return io_flush() -- 定期刷新缓冲, 减少日志缓冲频繁导致的性能问题
-    end)
-  end
+if ASYNC and io_type(io.output()) == 'file' then
+  local output = io.output()
+  output:setvbuf("full", ASYNC_BUFFER_SIZE)
+  local at = cf_at(0.5, function ()
+    aio_fflush(output)
+  end)
 end
 
 -- 格式化时间: [年-月-日 时:分:秒,毫秒]
@@ -118,6 +125,7 @@ local Log = class("Log")
 
 function Log:ctor (opt)
   if type(opt) == 'table' then
+    self.sync = opt.sync
     self.dumped = opt.dump
     self.path = opt.path
     self.today = Y_m_d()
@@ -167,30 +175,55 @@ end
 -- 可以在这里手动设置日志路径
 local LOG_FOLDER = 'logs/'
 
+-- 异步写入(写缓存, 刷新工作交由工作线程)
+function Log:async_write(log)
+  if not self.timer then
+    self.timer = cf_at(0.5, function ( ... )
+      if self.oldfile then
+        self.oldfile:close()
+        self.oldfile = nil
+      end
+      if self.file then
+        aio_fflush(self.file) -- 使用单独的进程刷写数据到磁盘, 以此减少线程阻塞的可能性.
+      end
+    end)
+  end
+  return self.file:write(log)
+end
+
+-- 同步写入(直接刷写到磁盘)
+function Log:sync_write(log)
+  return self.file:write(log)
+end
+
+
 -- dump日志到磁盘
 function Log:dump(log)
   local today = Y_m_d()
   if today ~= self.today then
     if self.file then
-      self.file:close()
+      self.oldfile = self.file
       self.file = nil
     end
-    local file, err = io_open(LOG_FOLDER..self.path..'_'..today..'.log', 'a')
+  end
+  if not self.file then
+    local file, err = io_open(LOG_FOLDER..self.path..'_'..today..'.log', 'a+')
     if not file then
       return io_type(io.output()) == 'file' and io_write('打开文件失败: '..(('['..err..']') or '')..'\n')
     end
     self.file, self.today = file, today
-    file:setvbuf("line")
-  end
-  if not self.file then
-    local file, err = io_open(LOG_FOLDER..self.path..'_'..today..'.log', 'a')
-    if not file then
-      return io_type(io.output()) == 'file' and io_write('打开文件失败: '..(('['..err..']') or '')..'\n')
+    if self.async and ASYNC then
+      file:setvbuf("full", ASYNC_BUFFER_SIZE)
+    else
+      file:setvbuf("line")
     end
-    file:setvbuf("line")
-    self.file = file
   end
-  return self.file:write(log)
+  if not self.sync then
+    if not ASYNC then
+      return self:async_write(log)
+    end
+  end
+  return self:sync_write(log)
 end
 
 return Log
