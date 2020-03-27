@@ -274,6 +274,32 @@ int AIO_RESPONSE_PATH(eio_req* req) {
   return 0;
 }
 
+typedef struct aio_file{
+  FILE *f;
+  lua_State *L;
+}aio_file;
+
+static int AIO_RESPONSE_FFLUSH(eio_req* req) {
+  aio_file* afile = (aio_file*)req_data_to_coroutine(req);
+  if (EIO_RESULT (req) == -1){
+    lua_pushboolean(afile->L, 0);
+    lua_pushstring(afile->L, strerror(req->errorno));
+  }else {
+    lua_pushboolean(afile->L, 1);
+  }
+  if (LUA_OK != CO_RESUME(afile->L, NULL, lua_gettop(afile->L) - 1)) {
+    LOG("ERROR", lua_tostring(afile->L, -1));
+  }
+  return 0;
+}
+
+static void AIO_FFLUSH(eio_req *req) {
+  aio_file* afile = (aio_file*)req->data;
+  if ((req->result = fflush(afile->f)) == -1) {
+    req->errorno = errno;
+  }
+}
+
 static int sp[2];
 
 static void AIO_WANT_POLL(void) {
@@ -419,6 +445,26 @@ static int laio_flush(lua_State* L) {
   return 1;
 }
 
+/* aio.fflush 将文件内存数据刷新到磁盘 */
+static int laio_fflush(lua_State* L) {
+
+  aio_file* afile = lua_newuserdata(L, sizeof(aio_file));
+
+  afile->L = lua_tothread(L, 1);
+  if (!afile->L)
+    return luaL_error(L, "Invalid lua coroutine.");
+
+  luaL_Stream *p = luaL_checkudata(L, 2, LUA_FILEHANDLE);
+  if (!p || !p->closef)
+    luaL_error(L, "attempt to use a closed file");
+
+  afile->f = p->f;
+
+  eio_custom(AIO_FFLUSH, 0, AIO_RESPONSE_FFLUSH, afile);
+
+  return 1;
+}
+
 /* aio.close 关闭文件描述符  */
 static int laio_close(lua_State* L) {
   lua_State *t = lua_tothread(L, 1);
@@ -427,20 +473,6 @@ static int laio_close(lua_State* L) {
 
   eio_close(lua_tointeger(L, 2), EIO_PRI_DEFAULT, AIO_RESPONSE, (void*)t);
 
-  return 1;
-}
-
-/* aio.fileno 文件指针转换为fd  */
-static int laio_fileno(lua_State* L) {
-  luaL_Stream* f = (luaL_Stream*)luaL_checkudata(L, 1, LUA_FILEHANDLE);
-  if (!f)
-    return luaL_error(L, "Invalide luaL_Stream.");
-
-  lua_Integer fd = fileno((FILE *)f);
-  if (fd < 0)
-    return 0;
-
-  lua_pushinteger(L, fd);
   return 1;
 }
 
@@ -584,13 +616,13 @@ LUAMOD_API int luaopen_laio(lua_State* L){
     { "readdir", laio_readdir },
     { "readpath", laio_readpath },
     { "truncate", laio_truncate },
-    { "open", laio_open},
+    { "open", laio_open },
     { "read", laio_read },
     { "write", laio_write },
     { "flush", laio_flush },
     { "close", laio_close },
     { "create", laio_create },
-    { "fileno", laio_fileno },
+    { "fflush", laio_fflush },
     {NULL, NULL},
   };
   luaL_newlib(L, aio_libs);
