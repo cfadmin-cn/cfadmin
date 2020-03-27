@@ -9,7 +9,9 @@ local co_wakeup = cf.wakeup
 local laio = require "laio"
 local aio_open = laio.open
 local aio_stat = laio.stat
+local aio_create = laio.create
 local aio_flush = laio.flush
+local aio_fflush = laio.fflush
 local aio_read = laio.read
 local aio_write = laio.write
 local aio_close = laio.close
@@ -131,15 +133,10 @@ function File:flush()
   if self.status == "closed" then
     return nil, "File already Closed."
   end
-  assert(not self.__FLUSH__, "File:flush方法不可以在多个协程中并发调用.")
-  self.__FLUSH__ = { current_co = co_self() }
-  self.__FLUSH__.event_co = co_new(function ( ok, err )
-    local current_co = self.__FLUSH__.current_co
-    self.__FLUSH__ = nil
-    return co_wakeup(current_co, ok, err)
-  end)
-  aio_flush(self.__FLUSH__.event_co, self.fd)
-  return co_wait()
+  self.__FLUSH__ = assert(not self.__FLUSH__, "File:flush方法不可以在多个协程中并发调用.")
+  local ok, err = aio.flush(self.fd)
+  self.__FLUSH__ = nil
+  return ok, err
 end
 
 -- 清空文件
@@ -209,6 +206,40 @@ function aio._open(filename)
   end)
   aio[t] = true
   aio_open(t.event_co, filename)
+  return co_wait()
+end
+
+-- 打开文件, 如果
+function aio.create(filename)
+  local fd, err = aio._create(filename)
+  if not fd then
+    return nil, err
+  end
+  local stat, err = aio.stat(filename)
+  if not stat then
+    local t = {}
+    t.current_co = co_self()
+    t.event_co = co_new(function ( ok, err )
+      aio[t] = nil
+      return co_wakeup(t.current_co, ok, err)
+    end)
+    aio[t] = true
+    aio_close(t.event_co, fd)
+    return co_wait()
+  end
+  return File:new { fd = fd, path = filename, stat = stat }
+end
+
+function aio._create(filename)
+  filename = assert(type(filename) == 'string' and filename ~= '' and filename ~= '.' and filename ~= '..' and filename, "Invalid filename.")
+  local t = {}
+  t.current_co = co_self()
+  t.event_co = co_new(function ( fd, err)
+    aio[t] = nil
+    return co_wakeup(t.current_co, fd, err)
+  end)
+  aio[t] = true
+  aio_create(t.event_co, filename)
   return co_wait()
 end
 
@@ -333,6 +364,32 @@ function aio.truncate(filename, length)
   end)
   aio[t] = true
   aio_truncate(t.event_co, filename, (toint(length) and toint(length) > 0) and toint(length) or 0)
+  return co_wait()
+end
+
+-- 刷新fd缓存
+function aio.flush(fd)
+  fd = assert(toint(fd) and toint(fd) >= 0 and toint(fd), "Invalid fd.")
+  local t = {}
+  t.current_co = co_self()
+  t.event_co = co_new(function ( ok, err )
+    aio[t] = nil
+    return co_wakeup(t.current_co, ok, err)
+  end)
+  aio[t] = true
+  aio_flush(t.event_co, fd)
+  return co_wait()
+end
+
+-- 刷新文件指针缓存
+function aio.fflush(file)
+  local t = {}
+  t.current_co = co_self()
+  t.event_co = co_new(function ( ok, err )
+    aio[t] = nil
+    return co_wakeup(t.current_co, ok, err)
+  end)
+  aio[t] = aio_fflush(t.event_co, file)
   return co_wait()
 end
 
