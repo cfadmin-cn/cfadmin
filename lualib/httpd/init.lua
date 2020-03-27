@@ -143,17 +143,24 @@ function httpd:log(path)
   end
 end
 
--- CLOSE_LOG指定为true后将不会产生任何请求日志, 这样能提升更高的性能.
-local CLOSE_LOG = false
+-- 关闭所有日志
+function httpd:nolog( disable )
+  -- disable指定为true后本机将不会生成任何请求日志, 这样能有利于框架提升更高的性能.
+  self.CLOSE_LOG = disable
+end
+
 -- LOG_FMT用于构建日志格式
 local LOG_FMT = "[%s] - %s - %s - %s - %s - %d - req_time: %0.6f/Sec\n"
 
 function httpd:tolog(code, path, ip, ip_list, method, speed)
+  if self.CLOSE_LOG then
+    return
+  end
   local now = os_date("%Y/%m/%d %H:%M:%S")
-  if self.logging and not CLOSE_LOG then
+  if self.logging then
     self.logging:dump(fmt(LOG_FMT, now, ip, ip_list, path, method, code, speed))
   end
-  if self.output and not CLOSE_LOG then
+  if io.type(io.output()) == 'file' then
     io_write(fmt(LOG_FMT, now, ip, ip_list, path, method, code, speed))
   end
 end
@@ -161,12 +168,8 @@ end
 -- 监听请求
 function httpd:listen(ip, port, backlog)
   assert(type(ip) == 'string' and toint(port), "httpd error: invalid ip or port")
-  if io.type(io.output()) == 'file' then
-    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
-  end
-  if self.logging then
-    self.logging:dump(fmt('[%s] [INFO] httpd listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", port))
-  end
+  self.ip = ip
+  self.port = port
   self.sock:set_backlog(toint(backlog))
   return assert(self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
       return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
@@ -176,12 +179,7 @@ end
 -- 监听unixsock
 function httpd:listenx(unix_domain_path, backlog)
   assert(type(unix_domain_path) == 'string' and unix_domain_path ~= '', "httpd error: invalid unix domain path")
-  if io.type(io.output()) == 'file' then
-    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s \n', os_date("%Y/%m/%d %H:%M:%S"), unix_domain_path))
-  end
-  if self.logging then
-    self.logging:dump(fmt('[%s] [INFO] httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), unix_domain_path))
-  end
+  self.unix_domain_path = unix_domain_path
   self.sock:set_backlog(toint(backlog))
   return assert(self.sock:listen_ex(unix_domain_path, true, function (fd, ipaddr)
     return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
@@ -190,10 +188,21 @@ end
 
 -- 正确的运行方式
 function httpd:run()
-  if io.type(io.output()) == 'file' then
-    self.output = true
-    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd Web Server Running...\n', os_date("%Y/%m/%d %H:%M:%S")))
+  if self.ip and self.port then
+    if self.logging then
+      self.logging:dump(fmt('[%s] [INFO] httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", self.port))
+    end
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", self.port))
   end
+
+  if self.unix_domain_path then
+    if self.logging then
+      self.logging:dump(fmt('[%s] [INFO] httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), self.unix_domain_path))
+    end
+    io_write(fmt('[%s] [INFO] httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), self.unix_domain_path))
+  end
+
+  io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd Web Server Running...\n', os_date("%Y/%m/%d %H:%M:%S")))
   if self.logging then
     self.logging:dump(fmt('[%s] [INFO] httpd Web Server Running...\n', os_date("%Y/%m/%d %H:%M:%S")))
   end
