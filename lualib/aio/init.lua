@@ -238,6 +238,8 @@ end
 -- 读取指定字节
 function aio._read(fd, bytes, offset)
   fd = assert(toint(fd) and toint(fd) >= 0 and toint(fd), "Invalid fd.")
+  bytes = assert(toint(bytes) and toint(bytes) >= 0 and toint(bytes), "Invalid read bytes.")
+  offset = assert(toint(offset) and toint(offset) >= 0 and toint(offset), "Invalid read offset.")
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( data, size )
@@ -252,6 +254,7 @@ end
 -- 写入(追加)指定大小数据
 function aio._write(fd, data)
   fd = assert(toint(fd) and toint(fd) >= 0 and toint(fd), "Invalid fd.")
+  data = assert(type(data) == 'string' and data ~= '' and data, "Invalid write data.")
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( size, err )
@@ -293,6 +296,7 @@ end
 
 -- 删除指定文件夹
 function aio.rmdir(dir)
+  dir = assert(type(dir) == 'string' and dir ~= '' and dir, "Invalid folder.")
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( ok, err )
@@ -300,7 +304,7 @@ function aio.rmdir(dir)
     return co_wakeup(t.current_co, ok, err)
   end)
   aio[t] = true
-  aio_rmdir(t.event_co, assert(type(dir) == 'string' and dir ~= '' and dir, "Invalid folder."))
+  aio_rmdir(t.event_co, dir)
   return co_wait()
 end
 
@@ -358,6 +362,7 @@ end
 
 -- 获取指定目录完整路径
 function aio.readpath(path)
+  path = assert(type(path) == "string" and path ~= "" and path, "Invalid read path.")
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( path )
@@ -365,9 +370,6 @@ function aio.readpath(path)
     return co_wakeup(t.current_co, path )
   end)
   aio[t] = true
-  if type(path) ~= 'string' or path == "" then
-    return nil, "Invalid path"
-  end
   aio_readpath(t.event_co, path)
   return co_wait()
 end
@@ -413,6 +415,7 @@ function aio.fflush(file)
   return co_wait()
 end
 
+-- 移除文件或文件夹
 function aio.remove(filename)
   local t = new_tab(0, 3)
   t.current_co = co_self()
