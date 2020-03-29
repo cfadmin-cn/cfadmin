@@ -72,8 +72,11 @@ end
 
 -- 压缩数据
 local function compress_data(data)
-  data = compress2(data)
-  return gsub(data, ".", char(byte(data) - 1), 1)
+  local comp = compress2(data)
+  if not comp then
+    return nil
+  end
+  return gsub(comp, ".", char(byte(comp) - 1), 1)
 end
 
 -- 解压数据
@@ -84,7 +87,7 @@ end
 function _M.recv_frame(sock, max_payload_len, force_masking)
     local data, err = sock_recv(sock, 2)
     if not data then
-        return nil, nil, err
+      return nil, nil, err
     end
 
     local fst, snd = byte(data, 1, 2)
@@ -114,63 +117,54 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
     local payload_len = snd & 0x7f
 
     if payload_len == 126 then
-        local data, err = sock_recv(sock, 2)
-        if not data then
-            return nil, nil, "failed to receive the 2 byte payload length: "
-                             .. (err or "unknown")
-        end
-        payload_len = (byte(data, 1) >> 8) | byte(data, 2)
-
+      local data, err = sock_recv(sock, 2)
+      if not data then
+          return nil, nil, "failed to receive the 2 byte payload length: " .. (err or "unknown")
+      end
+      payload_len = (byte(data, 1) >> 8) | byte(data, 2)
     elseif payload_len == 127 then
-        local data, err = sock_recv(sock, 8)
-        if not data then
-            return nil, nil, "failed to receive the 8 byte payload length: "
-                             .. (err or "unknown")
-        end
+      local data, err = sock_recv(sock, 8)
+      if not data then
+        return nil, nil, "failed to receive the 8 byte payload length: " .. (err or "unknown")
+      end
 
-        if byte(data, 1) ~= 0 or byte(data, 2) ~= 0 or byte(data, 3) ~= 0 or byte(data, 4) ~= 0 then
-            return nil, nil, "payload len too large"
-        end
+      if byte(data, 1) ~= 0 or byte(data, 2) ~= 0 or byte(data, 3) ~= 0 or byte(data, 4) ~= 0 then
+        return nil, nil, "payload len too large"
+      end
 
-        local fifth = byte(data, 5)
-        if fifth & 0x80 ~= 0 then
-            return nil, nil, "payload len too large"
-        end
-        payload = fifth << 24 | byte(data, 6) << 16 | byte(data, 7) | byte(data, 8)
+      local fifth = byte(data, 5)
+      if fifth & 0x80 ~= 0 then
+        return nil, nil, "payload len too large"
+      end
+      payload = fifth << 24 | byte(data, 6) << 16 | byte(data, 7) | byte(data, 8)
     end
 
     if opcode & 0x8 ~= 0 then
-        -- being a control frame
-        if payload_len > 125 then
-            return nil, nil, "too long payload for control frame"
-        end
+      -- being a control frame
+      if payload_len > 125 then
+          return nil, nil, "too long payload for control frame"
+      end
 
-        if not fin then
-            return nil, nil, "fragmented control frame"
-        end
+      if not fin then
+          return nil, nil, "fragmented control frame"
+      end
     end
 
     if payload_len > max_payload_len then
         return nil, nil, "exceeding max payload len"
     end
 
-    local rest
+    local rest = payload_len
     if mask then
-        rest = payload_len + 4
-
-    else
-        rest = payload_len
+      rest = payload_len + 4
     end
 
-    local data
+    local data = ""
     if rest > 0 then
-        data, err = sock_recv(sock, rest)
-        if not data then
-            return nil, nil, "failed to read masking-len and payload: "
-                             .. (err or "unknown")
-        end
-    else
-        data = ""
+      data, err = sock_recv(sock, rest)
+      if not data then
+        return nil, nil, "failed to read masking-len and payload: " .. (err or "unknown")
+      end
     end
 
     if opcode == 0x8 then
@@ -224,26 +218,23 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
         return "", "close", nil
     end
 
-    local msg
+    local msg = data
     if mask then
-        -- TODO string.buffer optimizations
-        local bytes = new_tab(payload_len, 0)
-        for i = 1, payload_len do
-            bytes[i] = str_char(byte(data, 4 + i) ~ byte(data, (i - 1) % 4 + 1))
-        end
-        msg = concat(bytes)
-
-    else
-        msg = data
+      -- TODO string.buffer optimizations
+      local bytes = new_tab(payload_len, 0)
+      for i = 1, payload_len do
+          bytes[i] = str_char(byte(data, 4 + i) ~ byte(data, (i - 1) % 4 + 1))
+      end
+      msg = concat(bytes)
     end
     if fst & 0x40 == 0x40 and #msg > 0 then
-      -- print("压缩后的数据长度为:" .. #msg)
+      -- print("解压前的数据长度为:" .. #msg)
       local data = uncompress_data(msg)
       if not data then
         return msg, types[opcode], "invalide deflate data."
       end
       msg = data
-      -- print("压缩前的数据长度为:" .. #msg)
+      -- print("解压后的数据长度为:" .. #msg)
     end
     return msg, types[opcode], not fin and "again" or nil
 end
@@ -251,11 +242,9 @@ end
 
 local function build_frame(fin, opcode, payload_len, payload, masking, ext)
 
-    local fst
+    local fst = opcode
     if fin then
-        fst = 0x80 | (ext and 0x40 or 0) | opcode
-    else
-        fst = opcode
+      fst = 0x80 | (ext == 'deflate' and 0x40 or 0) | opcode
     end
 
     local snd, extra_len_bytes
@@ -277,7 +266,7 @@ local function build_frame(fin, opcode, payload_len, payload, masking, ext)
         extra_len_bytes = char(0, 0, 0, 0, (payload_len >> 24) & 0xff, (payload_len >> 16) & 0xff, (payload_len >> 8) & 0xff, payload_len & 0xff)
     end
 
-    local masking_key
+    local masking_key = ""
     if masking then
         -- set the mask bit
         snd = snd | 0x80
@@ -290,11 +279,7 @@ local function build_frame(fin, opcode, payload_len, payload, masking, ext)
             bytes[i] = str_char(byte(payload, i) ~ byte(masking_key, (i - 1) % 4 + 1))
         end
         payload = concat(bytes)
-
-    else
-        masking_key = ""
     end
-
     return char(fst, snd) .. extra_len_bytes .. masking_key .. payload
 end
 _M.build_frame = build_frame
@@ -306,6 +291,14 @@ function _M.send_frame(sock, fin, opcode, payload, max_payload_len, masking, ext
 
   local payload_len = #payload
 
+  -- 支持permessage-deflate压缩
+  if ext == 'deflate' and payload_len > 0 then
+    -- print("压缩前的数据长度为:" .. #payload)
+    payload = assert(compress_data(payload), "deflate compress data error.")
+    payload_len = #payload
+    -- print("压缩后的数据长度为:" .. #payload)
+  end
+
   if opcode & 0x8 ~= 0 then
     if payload_len > 125 then
       return error("The payload length of the control frame is too long.")
@@ -313,14 +306,6 @@ function _M.send_frame(sock, fin, opcode, payload, max_payload_len, masking, ext
     if not fin then
         return error("Invalid control frame.")
     end
-  end
-
-  -- 支持permessage-deflate压缩
-  if ext == 'deflate' and payload_len > 0 then
-    -- print("压缩前的数据长度为:" .. #payload)
-    payload = assert(compress_data(payload), "deflate compress data error.")
-    payload_len = #payload
-    -- print("压缩后的数据长度为:" .. #payload)
   end
 
   local frame, err = build_frame(fin, opcode, payload_len, payload, masking, ext)
