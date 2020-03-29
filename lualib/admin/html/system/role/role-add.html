@@ -60,10 +60,11 @@
             </div>
         </div>
         <script>
-        layui.extend({dtree: '{*cdn*}layui_ext/dtree/dtree'})
-        .use(['dtree', 'form', 'layer'], function() {
-            $ = layui.jquery;
-            var {dtree, form, layer} = layui;
+        layui.extend({dtree: '{*cdn*}layui_ext/dtree/dtree'}).use(['jquery', 'dtree', 'form', 'layer'], function() {
+            var $ = layui.jquery;
+            var dtree = layui.dtree;
+            var layer = layui.layer;
+            var form  = layui.form;
 
             var tree = dtree.render({
               elem: '#dataTree', dataStyle: "layuiStyle", dataFormat: "list", response: {message:"msg", statusCode:0}, headers:{token:'{*token*}'}, // 固定参数1

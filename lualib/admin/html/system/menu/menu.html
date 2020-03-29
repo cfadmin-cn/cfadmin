@@ -103,33 +103,34 @@
       </div>
     </body>
     <script>
-      layui.use(['form'], function(){
-        form = layui.form;
+      layui.use(['form', 'layer'], function(){
+        var $ = layui.jquery;
+        var form = layui.form;
+        var layer = layui.layer;
 
       });
 
        /*用户-删除*/
       function member_del(obj, field){
-          layer.confirm("", {title:"", content:"{*locale['dashboard.menu.menu_manage.table.options.confirm']*}"}, function(index){
-              $.ajax({
-                url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: field,
-                error: function (res) {
-                  return layer.msg('请求失败', {time:2000});
-                },
-                success: function (res) {
-                  if (res.code != 0) {
-                    return layer.msg(res.msg, {time:2000});
-                  }
-                  return layer.msg(res.msg, {time:1000}, function () {
-                    return window.location.reload();
-                  });
-                },
-              })
-          });
+        layer.confirm("", {title:"", content:"{*locale['dashboard.menu.menu_manage.table.options.confirm']*}"}, function(index){
+            $.ajax({
+              url: "{*api_url*}", type: "POST", headers: {token:"{*token*}"}, data: field,
+              error: function (res) {
+                return layer.msg('请求失败', {time:2000});
+              },
+              success: function (res) {
+                if (res.code != 0) {
+                  return layer.msg(res.msg, {time:2000});
+                }
+                return layer.msg(res.msg, {time:1000}, function () {
+                  return window.location.reload();
+                });
+              },
+            })
+        });
       }
 
       // 分类展开收起的分类的逻辑
-      //
       $(function(){
         $("tbody.x-cate tr[fid!='0']").hide();
         // 栏目多级显示效果

@@ -68,13 +68,12 @@
     <script type="text/html" id="tp_phone"> <a href="tel:{{d.phone}}" class="layui-table-link">{{d.phone}}</a> </script>
     {-raw-}
     <script type="text/javascript">
-      var {form, table} = {};
       var SearchName = "";
       var SearchCondition = "";
-      layui.use('table', function(){
-        $ = layui.jquery;
-        table = layui.table;
-        form = layui.form;
+      layui.use(['jquery', 'table'], function(){
+        var $ = layui.jquery;
+        var layer = layui.layer;
+        var table = layui.table;
         //监听工具条
         table.on('tool(table)', function(obj){
           var data = obj.data;

@@ -1,4 +1,21 @@
 #include "core.h"
+
+#ifdef __MSYS__
+	#ifndef LUALIBS_PATH
+		#define LUALIBS_PATH "lualib/?.lua;lualib/?/init.lua;./?.lua;./?/init.lua;script/?.lua;script/?/init.lua;"
+	#endif
+	#ifndef LUACLIBS_PATH
+		#define LUACLIBS_PATH "luaclib/?.so;luaclib/lib?.so;./?.so;luaclib/msys-?.dll;luaclib/?.dll;./msys-?.dll;./?.dll;"
+	#endif
+#else
+	#ifndef LUALIBS_PATH
+		#define LUALIBS_PATH "lualib/?.lua;lualib/?/init.lua;./?.lua;./?/init.lua;script/?.lua;script/?/init.lua;"
+	#endif
+	#ifndef LUACLIBS_PATH
+		#define LUACLIBS_PATH "luaclib/?.so;./?.so;luaclib/lib?.so;./lib?.so;luaclib/?.dylib;./?.dylib;luaclib/lib?.dylib;./lib?.dylib;"
+	#endif
+#endif
+
 /*
 const char *signame[]= {
 	"INVALID",
@@ -103,11 +120,11 @@ init_lua_libs(lua_State *L){
   lua_getglobal(L, "package");
 
 	/* 注入lualib搜索路径 */
-  lua_pushliteral(L, "lualib/?.lua;lualib/?/init.lua;./?.lua;./?/init.lua;script/?.lua;script/?/init.lua;");
+  lua_pushliteral(L, LUALIBS_PATH);
   lua_setfield(L, 1, "path");
 
 	/* 注入luaclib搜索路径 */
-	lua_pushliteral(L, "luaclib/?.so;./?.so;luaclib/lib?.so;./lib?.so;luaclib/?.dylib;./?.dylib;luaclib/lib?.dylib;./lib?.dylib;");
+	lua_pushliteral(L, LUACLIBS_PATH);
   lua_setfield(L, 1, "cpath");
 
   lua_settop(L, 0);

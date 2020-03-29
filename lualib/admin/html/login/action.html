@@ -18,7 +18,7 @@
             return layer.msg(res.msg, {time: 1000}, function(){ return window.location.href = res.url + '?token=' + res.token; });
           },
           error: function(res) { // 网络请求失败
-            return layer.msg("请求失败", {time: 2000}, () => $('#sub').show());
+            return layer.msg("请求失败", {time: 2000}, function(){ return $('#sub').show(); });
           },
         })
       }

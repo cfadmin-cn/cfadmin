@@ -51,8 +51,9 @@
     </div>
     <script type="text/javascript">
       layui.use('table', function(){
-        $ = layui.jquery;
-        var {table, form} = layui;
+        var $ = layui.jquery;
+        var table  = layui.table;
+        var layer = layui.layer;
         //监听工具条
         table.on('tool(table)', function(obj){
           var data = obj.data;

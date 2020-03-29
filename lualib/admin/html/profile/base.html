@@ -115,60 +115,59 @@
     </div>
   </div>
     <script>
-    layui.use(['form', 'layer'],
-        function() {
-            $ = layui.jquery;
-            var {form, layer} = layui;
-
-            // 更新用户密码
-            form.on('submit(pwsubmit)', function(data) {
-              $('#pwsubmit').hide();
-              $.ajax({
-                url: "{*api_url*}", type:"POST", headers:{token:"{*user.token*}"}, data: data.field,
-                error: function (res) {
-                  return layer.msg("请求失败", {time:2000}, function () {
-                    $('#pwsubmit').show();
-                  });
-                },
-                success: function (res) {
-                  if (res.code != 0 ){
-                    return layer.msg(res.msg, {time:2000}, function () {
-                      $('#pwsubmit').show();
-                    });
-                  };
-                  layer.msg(res.msg, {time:1000}, function () {
-                    xadmin.close();
-                    xadmin.father_reload();
-                  })
-                },
+    layui.use(['form', 'layer'], function() {
+        var $ = layui.jquery;
+        var form =  layer.form;
+        var layer = layui.layer;
+        // 更新用户密码
+        form.on('submit(pwsubmit)', function(data) {
+          $('#pwsubmit').hide();
+          $.ajax({
+            url: "{*api_url*}", type:"POST", headers:{token:"{*user.token*}"}, data: data.field,
+            error: function (res) {
+              return layer.msg("请求失败", {time:2000}, function () {
+                $('#pwsubmit').show();
               });
-              return false;
-            });
-            // 更新用户信息
-            form.on('submit(profilesubmit)', function(data) {
-              $('#profilesubmit').hide();
-                $.ajax({
-                  url: "{*api_url*}", type:"POST", headers:{token:"{*user.token*}"}, data: data.field,
-                  error: function (res) {
-                    return layer.msg("请求失败", {time:2000}, function () {
-                      $('#profilesubmit').show();
-                    });
-                  },
-                  success: function (res) {
-                    if (res.code != 0 ){
-                      return layer.msg(res.msg, {time:2000}, function () {
-                        $('#profilesubmit').show();
-                      });
-                    };
-                    layer.msg(res.msg, {time:1000}, function () {
-                      xadmin.close();
-                      xadmin.father_reload();
-                    })
-                  },
+            },
+            success: function (res) {
+              if (res.code != 0 ){
+                return layer.msg(res.msg, {time:2000}, function () {
+                  $('#pwsubmit').show();
                 });
-              return false;
-            });
+              };
+              layer.msg(res.msg, {time:1000}, function () {
+                xadmin.close();
+                xadmin.father_reload();
+              })
+            },
+          });
+          return false;
         });
-      </script>
+        // 更新用户信息
+        form.on('submit(profilesubmit)', function(data) {
+          $('#profilesubmit').hide();
+            $.ajax({
+              url: "{*api_url*}", type:"POST", headers:{token:"{*user.token*}"}, data: data.field,
+              error: function (res) {
+                return layer.msg("请求失败", {time:2000}, function () {
+                  $('#profilesubmit').show();
+                });
+              },
+              success: function (res) {
+                if (res.code != 0 ){
+                  return layer.msg(res.msg, {time:2000}, function () {
+                    $('#profilesubmit').show();
+                  });
+                };
+                layer.msg(res.msg, {time:1000}, function () {
+                  xadmin.close();
+                  xadmin.father_reload();
+                })
+              },
+            });
+          return false;
+        });
+      });
+   </script>
 </body>
 </html>
