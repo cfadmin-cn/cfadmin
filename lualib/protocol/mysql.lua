@@ -1,5 +1,7 @@
 local tcp = require "internal.TCP"
 local crypt = require "crypt"
+local sha1 = crypt.sha1
+local xor_str = crypt.xor_str
 
 local sub = string.sub
 local strgsub = string.gsub
@@ -9,7 +11,6 @@ local strchar = string.char
 local strrep = string.rep
 local strunpack = string.unpack
 local strpack = string.pack
-local sha1= crypt.sha1
 local setmetatable = setmetatable
 local error = error
 local tonumber = tonumber
@@ -127,15 +128,10 @@ local function _dumphex(bytes)
     return strgsub(bytes, ".", function(x) return strformat("%02x ", strbyte(x)) end)
 end
 
-local function _compute_token(password, scramble)
+local function mysq_native_password(password, scramble)
     local stage1 = sha1(password)
-    local stage2 = sha1(stage1)
-    local stage3 = sha1(scramble .. stage2)
-	local i = 0
-	return strgsub(stage3,".", function(x)
-		i = i + 1
-		return strchar(strbyte(x) ~ strbyte(stage1, i))
-	end)
+    local stage2 = sha1(scramble .. sha1(stage1))
+    return xor_str(stage2, stage1)
 end
 
 local function _send_packet(self, req, size)
@@ -524,7 +520,7 @@ function MySQL.connect(self, opts)
 
     local password = opts.password or ""
 
-    local token = _compute_token(password, scramble)
+    local token = mysq_native_password(password, scramble)
 
     --print("token: ", _dump(token))
 
