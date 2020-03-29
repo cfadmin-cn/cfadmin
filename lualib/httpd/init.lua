@@ -199,13 +199,13 @@ function httpd:run()
     if self.logging then
       self.logging:dump(fmt('[%s] [INFO] httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), self.unix_domain_path))
     end
-    io_write(fmt('[%s] [INFO] httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), self.unix_domain_path))
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), self.unix_domain_path))
   end
 
-  io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd Web Server Running...\n', os_date("%Y/%m/%d %H:%M:%S")))
   if self.logging then
     self.logging:dump(fmt('[%s] [INFO] httpd Web Server Running...\n', os_date("%Y/%m/%d %H:%M:%S")))
   end
+  io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd Web Server Running...\n', os_date("%Y/%m/%d %H:%M:%S")))
   return cf.wait()
 end
 
