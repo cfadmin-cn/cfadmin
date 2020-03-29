@@ -3,6 +3,8 @@
 #include "../../../src/core.h"
 #include <zlib.h>
 
+#define MAX_COMPRESS_BUF_SIZE_TIMES (1 << 10)
+
 static inline void stream_init(z_stream *z) {
   memset(z, 0x0, sizeof(*z));
   z->zalloc = Z_NULL;
@@ -137,7 +139,7 @@ static int lgzip_uncompress(lua_State *L) {
       return 0;
     }
     /* 防止内存溢出 */
-    if (out_size > in_size * 256){
+    if (out_size > in_size * MAX_COMPRESS_BUF_SIZE_TIMES){
       luaL_pushresultsize(&B, 0);
       inflateEnd(&z);
       return 0;
@@ -224,7 +226,7 @@ static int luncompress2(lua_State *L) {
       return 0;
     }
     /* 防止内存溢出 */
-    if (out_size > in_size * 256){
+    if (out_size > in_size * MAX_COMPRESS_BUF_SIZE_TIMES){
       luaL_pushresultsize(&B, 0);
       inflateEnd(&z);
       return 0;
