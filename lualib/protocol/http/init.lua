@@ -501,7 +501,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
               header[#header+1] = 'Content-Encoding: gzip'
               body = compress_body
             end
-          else find(lower(accept_encoding), "deflate") then
+          elseif find(lower(accept_encoding), "deflate") then
             local compress_body = decompress(body)
             if compress_body then
               header[#header+1] = 'Content-Encoding: deflate'
