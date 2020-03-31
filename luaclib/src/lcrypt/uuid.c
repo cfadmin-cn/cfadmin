@@ -2,7 +2,7 @@
 
 #define UUID_V4_LENGTH 36
 
-static inline int uuid_v4_gen(char *buffer)
+static inline const char* uuid_v4_gen(char *buffer)
 {
   union {
     struct {
@@ -16,7 +16,7 @@ static inline int uuid_v4_gen(char *buffer)
     uint8_t __rnd[16];
   } uuid;
 
-  int rc = RAND_bytes(uuid.__rnd, sizeof(uuid));
+  RAND_bytes(uuid.__rnd, sizeof(uuid));
 
   uuid.clk_seq_hi_res = (uint8_t) ((uuid.clk_seq_hi_res & 0x3F) | 0x80);
   uuid.time_hi_and_version = (uint16_t) ((uuid.time_hi_and_version & 0x0FFF) | 0x4000);
@@ -27,13 +27,11 @@ static inline int uuid_v4_gen(char *buffer)
     uuid.node[0], uuid.node[1], uuid.node[2],
     uuid.node[3], uuid.node[4], uuid.node[5]
   );
-
-  return rc;
+  buffer[UUID_V4_LENGTH] = '\0';
+  return (const char*) buffer;
 }
 
 int luuid(lua_State *L) {
-  char* UUID = lua_newuserdata(L, UUID_V4_LENGTH + 1);
-  uuid_v4_gen(UUID);
-  lua_pushlstring(L, UUID, UUID_V4_LENGTH);
+  lua_pushlstring(L, uuid_v4_gen(lua_newuserdata(L, UUID_V4_LENGTH + 1)), UUID_V4_LENGTH);
   return 1;
 }
