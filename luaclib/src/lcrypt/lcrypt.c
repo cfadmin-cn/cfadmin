@@ -11,7 +11,7 @@ static int lxor_str(lua_State *L) {
   luaL_Buffer b;
   char * buffer = luaL_buffinitsize(L, &b, len1);
   int i;
-  for (i=0;i<len1;i++) {
+  for (i = 0; i < len1; i++) {
     buffer[i] = s1[i] ^ s2[i % len2];
   }
   luaL_addsize(&b, len1);
@@ -20,17 +20,17 @@ static int lxor_str(lua_State *L) {
 }
 
 static int lrandomkey(lua_State *L) {
-  char tmp[8];
+  lua_Integer len = lua_tointeger(L, 1);
+  if (len < 8 || len > 64)
+    return luaL_error(L, "randomkey error: 8 <= byte <= 64.");
+
+  uint8_t random_buf[len]; RAND_bytes(random_buf, len);
+  uint8_t random_key[len]; RAND_bytes(random_key, len);
+  uint8_t random_tmp[len]; RAND_bytes(random_tmp, len);
   int i;
-  char x = 0;
-  for (i=0;i<8;i++) {
-    tmp[i] = random() & 0xff;
-    x ^= tmp[i];
-  }
-  if (x==0) {
-    tmp[0] |= 1;  // avoid 0
-  }
-  lua_pushlstring(L, tmp, 8);
+  for (i = 0; i < len; i++)
+    random_buf[i] = ((random_key[i] ^ random_tmp[i]) ^ random_buf[i]) & 0xff;
+  lua_pushlstring(L, (const char *)random_buf, len);
   return 1;
 }
 /* -- xor_str -- */
@@ -40,7 +40,7 @@ LUAMOD_API int
 luaopen_lcrypt(lua_State *L) {
   luaL_checkversion(L);
   luaL_Reg lcrypt[] = {
-    {"uuid", luuid},
+    { "uuid", luuid },
     { "hashkey", lhashkey },
     { "randomkey", lrandomkey },
     { "desencode", ldesencode },
@@ -76,25 +76,25 @@ luaopen_lcrypt(lua_State *L) {
     { "hmac_hash", lhmac_hash },
     { "xor_str", lxor_str },
     // 公钥加密 -> 私钥解密
-    {"rsa_public_key_encode", lrsa_public_key_encode},
-    {"rsa_private_key_decode", lrsa_private_key_decode},
+    { "rsa_public_key_encode", lrsa_public_key_encode },
+    { "rsa_private_key_decode", lrsa_private_key_decode },
     // 私钥加密 -> 公钥解密
-    {"rsa_private_key_encode", lrsa_private_key_encode},
-    {"rsa_public_key_decode", lrsa_public_key_decode},
+    { "rsa_private_key_encode", lrsa_private_key_encode },
+    { "rsa_public_key_decode", lrsa_public_key_decode },
     //shawithrsa
-    {"sha128WithRsa_sign", lSha128WithRsa_sign},
-    {"sha128WithRsa_verify", lSha128WithRsa_verify},
-    {"sha256WithRsa_sign", lSha256WithRsa_sign},
-    {"sha256WithRsa_verify", lSha256WithRsa_verify},
+    { "sha128WithRsa_sign", lSha128WithRsa_sign },
+    { "sha128WithRsa_verify", lSha128WithRsa_verify },
+    { "sha256WithRsa_sign", lSha256WithRsa_sign },
+    { "sha256WithRsa_verify", lSha256WithRsa_verify },
     // aes 加密
-    {"aes_ecb_encrypt", laes_ecb_encrypt},
-    {"aes_cbc_encrypt", laes_cbc_encrypt},
+    { "aes_ecb_encrypt", laes_ecb_encrypt },
+    { "aes_cbc_encrypt", laes_cbc_encrypt },
     // {"aes_cfb_encrypt", laes_cfb_encrypt},
     // {"aes_ofb_encrypt", laes_ofb_encrypt},
     // {"aes_ctr_encrypt", laes_ctr_encrypt},
     // aes 解密
-    {"aes_ecb_decrypt", laes_ecb_decrypt},
-    {"aes_cbc_decrypt", laes_cbc_decrypt},
+    { "aes_ecb_decrypt", laes_ecb_decrypt },
+    { "aes_cbc_decrypt", laes_cbc_decrypt },
     // {"aes_cfb_decrypt", laes_cfb_decrypt},
     // {"aes_ofb_decrypt", laes_ofb_decrypt},
     // {"aes_ctr_decrypt", laes_ctr_decrypt},

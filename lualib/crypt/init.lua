@@ -155,7 +155,15 @@ function crypt.xor_str (text, key, hex)
 end
 
 function crypt.randomkey(hex)
-  local hash = randomkey()
+  local hash = randomkey(8)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.randomkey_ex(byte, hex)
+  local hash = randomkey(byte)
   if hash and hex then
     return hexencode(hash)
   end
