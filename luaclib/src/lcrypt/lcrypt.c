@@ -2,18 +2,23 @@
 
 /* -- xor_str -- */
 static int lxor_str(lua_State *L) {
-  size_t len1,len2;
+  size_t len1 = 0;
   const char *s1 = luaL_checklstring(L, 1, &len1);
+  if (!s1 || len1 == 0)
+    return luaL_error(L, "Can't xor empty string 1.");
+
+  size_t len2 = 0;
   const char *s2 = luaL_checklstring(L, 2, &len2);
-  if (len2 == 0) {
-    return luaL_error(L, "Can't xor empty string");
-  }
+  if (!s2 || len2 == 0)
+    return luaL_error(L, "Can't xor empty string 2.");
+
   luaL_Buffer b;
   char * buffer = luaL_buffinitsize(L, &b, len1);
+
   int i;
-  for (i = 0; i < len1; i++) {
+  for (i = 0; i < len1; i ++)
     buffer[i] = s1[i] ^ s2[i % len2];
-  }
+
   luaL_addsize(&b, len1);
   luaL_pushresult(&b);
   return 1;
@@ -22,14 +27,16 @@ static int lxor_str(lua_State *L) {
 static int lrandomkey(lua_State *L) {
   lua_Integer len = lua_tointeger(L, 1);
   if (len < 8 || len > 64)
-    return luaL_error(L, "randomkey error: 8 <= byte <= 64.");
+    return luaL_error(L, "randomkey error: 8 <= len <= 64.");
 
   uint8_t random_buf[len]; RAND_bytes(random_buf, len);
   uint8_t random_key[len]; RAND_bytes(random_key, len);
   uint8_t random_tmp[len]; RAND_bytes(random_tmp, len);
+
   int i;
   for (i = 0; i < len; i++)
     random_buf[i] = ((random_key[i] ^ random_tmp[i]) ^ random_buf[i]) & 0xff;
+
   lua_pushlstring(L, (const char *)random_buf, len);
   return 1;
 }
