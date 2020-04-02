@@ -9,7 +9,7 @@
         <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8" />
         <link rel="stylesheet" href="{*cdn*}css/font.css">
         <link rel="stylesheet" href="{*cdn*}css/xadmin.css">
-        <script type="text/javascript" src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+        <script type="text/javascript" src="{*cdn*}js/jquery.min.js"></script>
         <script src="{*cdn*}lib/layui/layui.js" charset="utf-8"></script>
         <script type="text/javascript" src="{*cdn*}js/xadmin.js"></script>
         <!-- 让IE8/9支持媒体查询，从而兼容栅格 -->
@@ -103,7 +103,7 @@
       </div>
     </body>
     <script>
-      layui.use(['form', 'layer'], function(){
+      layui.use(['jquery', 'form', 'layer'], function() {
         var $ = layui.jquery;
         var form = layui.form;
         var layer = layui.layer;
