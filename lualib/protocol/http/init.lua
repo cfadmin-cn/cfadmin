@@ -112,6 +112,10 @@ local function HTTP_EXPIRES(timestamp)
   -- return os.date("Date: %a, %d %b %Y %X GMT")
 end
 
+local function req_time(ts)
+  return now() - (ts or now())
+end
+
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
   local content = new_tab(0, 8)
   if METHOD == "GET" then
@@ -150,6 +154,10 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
             break
           end
         end
+      end
+      if METHOD == 'PUT' then
+        content['body'] = BODY
+        return true, content
       end
       local FILE_ENCODE = 'multipart/form-data'
       local XML_ENCODE_1  = 'text/xml'
@@ -214,20 +222,20 @@ end
 -- WebSocket
 local function Switch_Protocol(http, cls, sock, header, method, version, path, ip, start_time)
   if method ~= 'GET' then
-    return sock:send(ERROR_RESPONSE(http, 400, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
+    return sock:send(ERROR_RESPONSE(http, 400, path, ip, header['X-Forwarded-For'] or ip, method, req_time(start_time)))
   end
   if version ~= 1.1 then
-    return sock:send(ERROR_RESPONSE(http, 400, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
+    return sock:send(ERROR_RESPONSE(http, 400, path, ip, header['X-Forwarded-For'] or ip, method, req_time(start_time)))
   end
   if not header['Upgrade'] or lower(header['Upgrade']) ~= 'websocket' then
-    return sock:send(ERROR_RESPONSE(http, 401, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
+    return sock:send(ERROR_RESPONSE(http, 401, path, ip, header['X-Forwarded-For'] or ip, method, req_time(start_time)))
   end
   if header['Sec-WebSocket-Version'] ~= '13' then
-    return sock:send(ERROR_RESPONSE(http, 403, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
+    return sock:send(ERROR_RESPONSE(http, 403, path, ip, header['X-Forwarded-For'] or ip, method, req_time(start_time)))
   end
   local sec_key = header['Sec-WebSocket-Key']
   if not sec_key or sec_key == '' then
-    return sock:send(ERROR_RESPONSE(http, 505, path, ip, header['X-Forwarded-For'] or ip, method, now() - start_time))
+    return sock:send(ERROR_RESPONSE(http, 505, path, ip, header['X-Forwarded-For'] or ip, method, req_time(start_time)))
   end
   local response = {
     REQUEST_STATUCODE_RESPONSE(101),
@@ -254,7 +262,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
   end
   -- require "utils"
   -- var_dump(header)
-  http:tolog(101, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, now() - start_time)
+  http:tolog(101, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, req_time(start_time))
   local ok = sock:send(concat(response, CRLF)..CRLF2)
   if not ok then
     return
@@ -301,42 +309,42 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
       -- 协议有问题返回400
       local METHOD, PATH, VERSION, HEADER = PARSER_HTTP_REQUEST(buffer)
       if not METHOD or not PATH or not VERSION then
-        sock:send(ERROR_RESPONSE(http, 400, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD or "GET", now() - start))
+        sock:send(ERROR_RESPONSE(http, 400, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD or "GET", req_time(start)))
         return sock:close()
       end
       -- 超过自定义最大PATH长度限制
       if PATH and #PATH > (max_path_size or 1024) then
-        sock:send(ERROR_RESPONSE(http, 414, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+        sock:send(ERROR_RESPONSE(http, 414, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
         return sock:close()
       end
       -- 没有HEADER返回400
       if not HEADER or not next(HEADER) then
-        sock:send(ERROR_RESPONSE(http, 400, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+        sock:send(ERROR_RESPONSE(http, 400, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
         return sock:close()
       end
       -- 超过自定义最大HEADER长度限制
       if #buffer - CRLF_START > (max_header_size or 65535) then
-        sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+        sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER and HEADER['X-Real-IP'] or ipaddr, HEADER and HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
         return sock:close()
       end
       -- 这里根据PATH先查找路由, 如果没有直接返回404.
       local cls, typ = ROUTE_FIND(METHOD, PATH)
       if not cls or not typ then
-        sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+        sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
         return sock:close()
       end
       -- 根据请求方法进行解析, 解析失败返回501
       local ok, content = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
       if not ok then
         if content == 413 then
-          sock:send(ERROR_RESPONSE(http, 413, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+          sock:send(ERROR_RESPONSE(http, 413, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           return sock:close()
         end
-        sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+        sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
         return sock:close()
       end
       if not content then -- 没有 Content则返回200;
-        http:tolog(200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
+        http:tolog(200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
         sock:send(concat({REQUEST_STATUCODE_RESPONSE(200), HTTP_DATE(),
           'Origin: *',
           'Allow: GET, POST, PUT, HEAD, OPTIONS',
@@ -357,17 +365,17 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         local ok, code, data = pcall(before_func, content)
         if not ok then -- before 函数执行出错
           Log:ERROR(code)
-          sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+          sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           return sock:close()
         end
         if code then
           if type(code) == "number" then
             if code < 200 or code > 500 then
               Log:ERROR("before function: Illegal return value")
-              sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+              sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
               return sock:close()
             elseif code == 301 or code == 302 then
-              http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
+              http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
               sock:send(concat({
                 REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
                 'Connection: close',
@@ -378,7 +386,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
             elseif code ~= 200 then
               if data then
                 if type(data) == 'string' and data ~= '' then
-                  http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
+                  http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
                   sock:send(concat({concat({
                     REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
                     'Origin: *',
@@ -391,15 +399,15 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
                   return sock:close()
                 end
               end
-              sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+              sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
               return sock:close()
             end
           else
-            sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+            sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
             return sock:close()
           end
         else
-          sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+          sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           return sock:close()
         end
       end
@@ -415,7 +423,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         if type(cls) == "table" then
           local method = cls[lower(METHOD)]
           if not method or type(method) ~= 'function' then -- 注册的路由未实现这个方法
-            sock:send(ERROR_RESPONSE(http, 405, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+            sock:send(ERROR_RESPONSE(http, 405, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
             return sock:close()
           end
           local c = cls:new(content)
@@ -433,7 +441,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         end
         if not ok then
           Log:ERROR(body or "empty response.")
-          sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+          sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           return sock:close()
         end
         statucode = 200
@@ -454,7 +462,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         body_len, filepath, file_type = cls(path)
         if not body_len then
           statucode = 404
-          sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+          sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           return sock:close()
         end
         statucode = 200
@@ -489,7 +497,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         end
         if type(body) ~= 'string' or body == '' then
           Log:ERROR("Response Error ["..(split(PATH , 1, (find(PATH, '?') or 0 ) - 1)).."]: response must be a string and not empty.")
-          sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+          sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           return sock:close()
         end
         local accept_encoding = HEADER['Accept-Encoding']
@@ -522,7 +530,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         header[#header+1] = static
       end
       -- 不计算数据传输时间, 仅计算实际回调处理所用时间.
-      http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, now() - start)
+      http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
       -- 根据实际情况分块发送
       local ok = send_header(sock, header) and send_body(sock, body, filepath) or false
       if not ok then
@@ -534,7 +542,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
       buffers = {}
     end
     if #buffers ~= 0 and #buffer > (max_header_size or 65535) then
-      sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, now() - start))
+      sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
       return sock:close()
     end
   end
