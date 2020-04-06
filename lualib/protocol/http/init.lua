@@ -192,8 +192,8 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
 end
 
 local function X_Forwarded_FORMAT(ip_list)
-  if find(ip_list, ',') then
-    return ip_list:gsub(COMMA, "->")
+  if find(ip_list, COMMA) then
+    return ip_list:gsub(COMMA, " ->")
   end
   return ip_list
 end
@@ -516,7 +516,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
           header[#header+1] = HTTP_EXPIRES(time() + ttl)
         end
         if body_len then
-          header[#header+1] = 'Content-Length: '.. body_len
+          header[#header+1] = 'Content-Length: '.. toint(body_len)
         end
         header[#header+1] = 'Accept-Ranges: none'
         header[#header+1] = static
