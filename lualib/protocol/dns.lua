@@ -206,9 +206,9 @@ end
 
 local function unpack_rdata(chunk, qtype)
   if qtype == QTYPE.AAAA then
-    return fmt('%x:%x:%x:%x:%x:%x:%x:%x', unpack(">HHHHHHHH", chunk))
+    return fmt('%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x', unpack(">HHHHHHHH", chunk))
   end
-  return fmt("%d.%d.%d.%d", unpack(">BBBB", chunk))
+  return fmt("%u.%u.%u.%u", unpack(">BBBB", chunk))
 end
 
 local cos = {}
