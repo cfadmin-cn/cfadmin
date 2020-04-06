@@ -211,6 +211,7 @@ local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
   return concat({concat({
     REQUEST_STATUCODE_RESPONSE(code),
     HTTP_DATE(),
+    'Accept-Ranges: none',
     'Origin: *',
     'Allow: GET, POST, PUT, HEAD, OPTIONS',
     'Connection: close',
@@ -289,6 +290,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
   local timeout = http.__timeout or 0
   local cookie = http.__cookie
   local enable_gzip = http.__enable_gzip
+  local enable_cros_timeout = http.__enable_cros_timeout
   local cookie_secure = http.__cookie_secure
   local before_func = http._before_func
   local max_path_size = http.__max_path_size
@@ -343,19 +345,26 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
         return sock:close()
       end
-      if not content then -- 没有 Content则返回200;
+      -- 如果请求使用了 HEAD 与 OPTIONS 方法, 这里会根据配置检查是否需要返回跨域标识. (除非您手动设置请求头部, 否则一般不会遇到此处逻辑.)
+      -- 值得一提的是: 由于框架不支持范围请求(Accept-Ranges), 所以目前的处理方式将HEAD与OPTIONS都将返回0. 这样可以有助于快速完成检查请求.
+      if not content then
         http:tolog(200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
-        sock:send(concat({REQUEST_STATUCODE_RESPONSE(200), HTTP_DATE(),
-          'Origin: *',
-          'Allow: GET, POST, PUT, HEAD, OPTIONS',
-          'Access-Control-Allow-Origin: *',
-          'Access-Control-Allow-Headers: *',
-          'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS',
-          'Access-Control-Allow-Credentials: true',
-          'Access-Control-Max-Age: 86400',
-          'Connection: keep-alive',
-          'Server: ' .. (server or SERVER),
-        }, CRLF)..CRLF2)
+        local res = new_tab(16, 0)
+        res[#res+1] = REQUEST_STATUCODE_RESPONSE(200)
+        res[#res+1] = HTTP_DATE()
+        res[#res+1] = 'Origin: *'
+        res[#res+1] = 'Allow: GET, POST, PUT, HEAD, OPTIONS'
+        if enable_cros_timeout then
+          res[#res+1] = 'Access-Control-Allow-Origin: *'
+          res[#res+1] = 'Access-Control-Allow-Headers: *'
+          res[#res+1] = 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS'
+          res[#res+1] = 'Access-Control-Allow-Credentials: true'
+          res[#res+1] = 'Access-Control-Max-Age: ' .. enable_cros_timeout
+        end
+        res[#res+1] = 'Server: ' .. (server or SERVER)
+        res[#res+1] = 'Connection: close'
+        res[#res+1] = 'Content-Length : 0'
+        sock:send(concat(res, CRLF)..CRLF2)
         return sock:close()
       end
       content['ROUTE'] = HTTP_PROTOCOL[typ]
@@ -474,10 +483,9 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         else
           static = 'Content-Type: ' .. conten_type .. '; charset=utf-8'
         end
-        -- 如果是静态文件, 增加默认跨域访问支持
-        header[#header+1] = "Access-Control-Allow-Origin: *"
       end
       header[#header+1] = HTTP_DATE()
+      header[#header+1] = 'Accept-Ranges: none'
       header[#header+1] = 'Origin: *'
       header[#header+1] = 'Allow: GET, POST, PUT, HEAD, OPTIONS'
       header[#header+1] = 'Server: ' .. (server or SERVER)
@@ -486,9 +494,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         Connection = 'Connection: close'
       end
       header[#header+1] = Connection
-      if Connection == 'Connection: keep-alive' then
-        header[#header+1] = "Keep-Alive: timeout="..(timeout <= 0 and 86400 or timeout)..', max='..(1 << 12)
-      end
       if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
         if typ == HTTP_PROTOCOL.API then
           header[#header+1] = 'Content-Type: ' .. REQUEST_MIME_RESPONSE('json') .. "; charset=utf-8"
@@ -526,8 +531,15 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         if body_len then
           header[#header+1] = 'Content-Length: '.. toint(body_len)
         end
-        header[#header+1] = 'Accept-Ranges: none'
         header[#header+1] = static
+      end
+      -- 如果启用了跨域, 则开启头部支持.
+      if enable_cros_timeout then
+        header[#header+1] = 'Access-Control-Allow-Origin: *'
+        header[#header+1] = 'Access-Control-Allow-Headers: *'
+        header[#header+1] = 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS'
+        header[#header+1] = 'Access-Control-Allow-Credentials: true'
+        header[#header+1] = 'Access-Control-Max-Age: ' .. enable_cros_timeout
       end
       -- 不计算数据传输时间, 仅计算实际回调处理所用时间.
       http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))

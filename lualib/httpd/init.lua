@@ -108,6 +108,15 @@ function httpd:timeout(timeout)
     end
 end
 
+-- 开启跨域支持
+function httpd:enable_cros(timeout)
+  if toint(timeout) and toint(timeout) > 0 then
+    self.__enable_cros_timeout = toint(timeout)
+  else
+    self.__enable_cros_timeout = '86400'
+  end
+end
+
 -- 开启gzip压缩支持
 function httpd:enable_gzip()
   self.__enable_gzip = true
