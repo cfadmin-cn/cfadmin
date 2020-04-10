@@ -47,6 +47,11 @@ local aes_ecb_decrypt = CRYPT.aes_ecb_decrypt
 local aes_cbc_encrypt = CRYPT.aes_cbc_encrypt
 local aes_cbc_decrypt = CRYPT.aes_cbc_decrypt
 
+-- 填充方式
+local RSA_NO_PADDING = CRYPT.RSA_NO_PADDING
+local RSA_PKCS1_PADDING = CRYPT.RSA_PKCS1_PADDING
+local RSA_PKCS1_OAEP_PADDING = CRYPT.RSA_PKCS1_OAEP_PADDING
+
 local rsa_public_key_encode = CRYPT.rsa_public_key_encode
 local rsa_private_key_decode = CRYPT.rsa_private_key_decode
 
@@ -291,7 +296,15 @@ end
 
 -- text 为原始文本内容, public_key_path 为公钥路径, b64 为是否为结果进行base64编码
 function crypt.rsa_public_key_encode(text, public_key_path, b64)
-  local hash = rsa_public_key_encode(text, public_key_path)
+  local hash = rsa_public_key_encode(text, public_key_path, RSA_PKCS1_PADDING)
+  if hash and b64 then
+    return base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.rsa_public_key_oaep_padding_encode(text, public_key_path, b64)
+  local hash = rsa_public_key_encode(text, public_key_path, RSA_PKCS1_OAEP_PADDING)
   if hash and b64 then
     return base64encode(hash)
   end
@@ -300,12 +313,25 @@ end
 
 -- text 为加密后的内容, private_key_path 为私钥路径, b64 为是否为text先进行base64解码
 function crypt.rsa_private_key_decode(text, private_key_path, b64)
-  return rsa_private_key_decode(b64 and base64decode(text) or text, private_key_path)
+  return rsa_private_key_decode(b64 and base64decode(text) or text, private_key_path, RSA_PKCS1_PADDING)
 end
+
+function crypt.rsa_private_key_oaep_padding_decode(text, private_key_path, b64)
+  return rsa_private_key_decode(b64 and base64decode(text) or text, private_key_path, RSA_PKCS1_OAEP_PADDING)
+end
+
 
 -- text 为原始文本内容, private_key_path 为公钥路径, b64 为是否为结果进行base64编码
 function crypt.rsa_private_key_encode(text, private_key_path, b64)
-  local hash = rsa_private_key_encode(text, private_key_path)
+  local hash = rsa_private_key_encode(text, private_key_path, RSA_PKCS1_PADDING)
+  if hash and b64 then
+    return base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.rsa_private_key_oaep_padding_encode(text, private_key_path, b64)
+  local hash = rsa_private_key_encode(text, private_key_path, RSA_PKCS1_OAEP_PADDING)
   if hash and b64 then
     return base64encode(hash)
   end
@@ -314,11 +340,15 @@ end
 
 -- text 为加密后的内容, public_key_path 为公钥路径, b64 为是否为text先进行base64解码
 function crypt.rsa_public_key_decode(text, public_key_path, b64)
-  return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path)
+  return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_PKCS1_PADDING)
+end
+
+function crypt.rsa_public_key_oaep_padding_decode(text, public_key_path, b64)
+  return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_PKCS1_OAEP_PADDING)
 end
 
 
--- sha with rsa sign/verify
+-- sha1 with rsa sign/verify
 function crypt.sha128_with_rsa_sign(text, private_key_path, hex)
   local hash = sha128WithRsa_sign(text, private_key_path)
   if hash and hex then
@@ -334,6 +364,7 @@ function crypt.sha128_with_rsa_verify(text, public_key_path, sign, hex)
   return sha128WithRsa_verify(text, public_key_path, sign)
 end
 
+-- sha2 with rsa sign/verify
 function crypt.sha256_with_rsa_sign(text, private_key_path, hex)
   local hash = sha256WithRsa_sign(text, private_key_path)
   if hash and hex then
