@@ -43,8 +43,18 @@ static int lrandomkey(lua_State *L) {
 /* -- xor_str -- */
 
 
-LUAMOD_API int
-luaopen_lcrypt(lua_State *L) {
+#define lua_set_key_value(L, key, value) ({ lua_pushstring((L), (key)); lua_pushinteger((L), (value)); lua_rawset((L), -3); })
+
+static int crypt_set_key_value(lua_State *L) {
+  /* 增加rsa填充方式常量 */
+  lua_set_key_value(L, "RSA_NO_PADDING", RSA_NO_PADDING);
+  lua_set_key_value(L, "RSA_PKCS1_PADDING", RSA_PKCS1_PADDING);
+  lua_set_key_value(L, "RSA_PKCS1_OAEP_PADDING", RSA_PKCS1_OAEP_PADDING);
+  return 1;
+}
+
+
+LUAMOD_API int luaopen_lcrypt(lua_State *L) {
   luaL_checkversion(L);
   luaL_Reg lcrypt[] = {
     { "uuid", luuid },
@@ -108,5 +118,5 @@ luaopen_lcrypt(lua_State *L) {
     { NULL, NULL },
   };
   luaL_newlib(L, lcrypt);
-  return 1;
+  return crypt_set_key_value(L);
 }

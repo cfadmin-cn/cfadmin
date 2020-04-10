@@ -58,13 +58,21 @@ static inline RSA* new_private_key(lua_State *L) {
 }
 
 static inline const uint8_t* get_text(lua_State *L, size_t *size) {
-  size_t text_size = -1;
-  const uint8_t* text = (const uint8_t*)luaL_checklstring(L, 1, &text_size);
-  if (!text || text_size < 1)
+  size_t tsize = 0;
+  const uint8_t* text = (const uint8_t*)luaL_checklstring(L, 1, &tsize);
+  if (!text || tsize < 1)
     return NULL;
-
-  *size = text_size;
+  *size = tsize;
   return text;
+}
+
+static inline int get_mode(lua_State *L) {
+  // 手动设置填充方式
+  int isnum = 0;
+  lua_Integer mode = lua_tointegerx(L, 3, &isnum);
+  if (!isnum || (mode != RSA_NO_PADDING && mode != RSA_PKCS1_OAEP_PADDING))
+    mode = RSA_PKCS1_PADDING;
+  return mode;
 }
 
 int lrsa_public_key_encode(lua_State *L){
@@ -81,10 +89,10 @@ int lrsa_public_key_encode(lua_State *L){
   luaL_Buffer b;
   unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(key));
 
-  if (0 > RSA_public_encrypt(text_size, text, result, key, RSA_PKCS1_PADDING)) {
+  if (0 > RSA_public_encrypt(text_size, text, result, key, get_mode(L))) {
     RSA_free(key);
     luaL_pushresultsize(&b, 0);
-    return luaL_error(L, "encrypt text falied.");
+    return luaL_error(L, "public_key_encode text falied.");
   }
 
   luaL_pushresultsize(&b, RSA_size(key));
@@ -108,11 +116,11 @@ int lrsa_private_key_decode(lua_State *L) {
   luaL_Buffer b;
   unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(key));
 
-  size_t len = RSA_private_decrypt(text_size, text, result, key, RSA_PKCS1_PADDING);
+  size_t len = RSA_private_decrypt(text_size, text, result, key, get_mode(L));
   if (0 > len) {
     RSA_free(key);
     luaL_pushresultsize(&b, 0);
-    return luaL_error(L, "encrypt text falied.");
+    return luaL_error(L, "private_key_decode text falied.");
   }
 
   luaL_pushresultsize(&b, len);
@@ -137,10 +145,10 @@ int lrsa_private_key_encode(lua_State *L){
   luaL_Buffer b;
   unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(key));
 
-  if (0 > RSA_private_encrypt(text_size, text, result, key, RSA_PKCS1_PADDING)) {
+  if (0 > RSA_private_encrypt(text_size, text, result, key, get_mode(L))) {
     RSA_free(key);
     luaL_pushresultsize(&b, 0);
-    return luaL_error(L, "encrypt text falied.");
+    return luaL_error(L, "private_key_encode text falied.");
   }
 
   luaL_pushresultsize(&b, RSA_size(key));
@@ -163,11 +171,11 @@ int lrsa_public_key_decode(lua_State *L){
   luaL_Buffer b;
   unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(key));
 
-  size_t len = RSA_public_decrypt(text_size, text, result, key, RSA_PKCS1_PADDING);
+  size_t len = RSA_public_decrypt(text_size, text, result, key, get_mode(L));
   if (0 > len) {
     RSA_free(key);
     luaL_pushresultsize(&b, 0);
-    return luaL_error(L, "encrypt text falied.");
+    return luaL_error(L, "public_key_decode text falied.");
   }
 
   luaL_pushresultsize(&b, len);
