@@ -167,19 +167,58 @@ local function test_aes()
   
   local text = [[{"code":200,"msg":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]}]]
   local key_128 = "abcdefghabcdefgh"
-  local iv_128 = "98765432100admin"
+  local iv = "98765432100admin"
 
-  local cbc_encryptData = crypt.aes_128_cbc_encrypt(key_128, text, iv_128)
-  local cbc_rawData = crypt.aes_128_cbc_decrypt(key_128, cbc_encryptData, iv_128)
+  local function test_aes_128_bit()
+    -- ECB
+    local ecb_encryptData = crypt.aes_128_ecb_encrypt(key_128, text, iv)
+    local ecb_rawData = crypt.aes_128_ecb_decrypt(key_128, ecb_encryptData, iv)
+    Log:DEBUG("测试aes_128_ecb_encrypt: " .. crypt.hexencode(ecb_encryptData))
+    assert(ecb_rawData == text, "aes加密/解密失败")
 
-  Log:DEBUG("测试aes_128_cbc_encrypt: " .. crypt.hexencode(cbc_encryptData))
-  assert(cbc_rawData == text, "aes加密/解密失败")
+    -- CBC
+    local cbc_encryptData = crypt.aes_128_cbc_encrypt(key_128, text, iv)
+    local cbc_rawData = crypt.aes_128_cbc_decrypt(key_128, cbc_encryptData, iv)
+    Log:DEBUG("测试aes_128_cbc_encrypt: " .. crypt.hexencode(cbc_encryptData))
+    assert(cbc_rawData == text, "aes加密/解密失败")
+  end
 
-  local ecb_encryptData = crypt.aes_128_ecb_encrypt(key_128, text, iv_128)
-  local ecb_rawData = crypt.aes_128_ecb_decrypt(key_128, ecb_encryptData, iv_128)
 
-  Log:DEBUG("测试aes_128_ecb_encrypt: " .. crypt.hexencode(ecb_encryptData))
-  assert(ecb_rawData == text, "aes加密/解密失败")
+  local function test_aes_192_bit()
+    key_192 = "abcdefghabcdefghabcdefgh"
+    -- ECB
+    local ecb_encryptData = crypt.aes_192_ecb_encrypt(key_192, text, iv)
+    local ecb_rawData = crypt.aes_192_ecb_decrypt(key_192, ecb_encryptData, iv)
+    Log:DEBUG("测试aes_192_ecb_encrypt: " .. crypt.hexencode(ecb_encryptData))
+    assert(ecb_rawData == text, "aes加密/解密失败")
+
+    -- CBC
+    local cbc_encryptData = crypt.aes_192_cbc_encrypt(key_192, text, iv)
+    local cbc_rawData = crypt.aes_192_cbc_decrypt(key_192, cbc_encryptData, iv)
+    Log:DEBUG("测试aes_192_cbc_encrypt: " .. crypt.hexencode(cbc_encryptData))
+    assert(cbc_rawData == text, "aes加密/解密失败")
+  end
+
+  local function test_aes_256_bit()
+    key_256 = "abcdefghabcdefghabcdefghabcdefgh"
+    -- ECB
+    local ecb_encryptData = crypt.aes_256_ecb_encrypt(key_256, text, iv)
+    local ecb_rawData = crypt.aes_256_ecb_decrypt(key_256, ecb_encryptData, iv)
+    Log:DEBUG("测试aes_256_ecb_encrypt: " .. crypt.hexencode(ecb_encryptData))
+    assert(ecb_rawData == text, "aes加密/解密失败")
+
+    -- CBC
+    local cbc_encryptData = crypt.aes_256_cbc_encrypt(key_256, text, iv)
+    local cbc_rawData = crypt.aes_256_cbc_decrypt(key_256, cbc_encryptData, iv)
+    Log:DEBUG("测试aes_256_cbc_encrypt: " .. crypt.hexencode(cbc_encryptData))
+    assert(cbc_rawData == text, "aes加密/解密失败")
+  end
+
+  test_aes_128_bit()
+
+  test_aes_192_bit()
+
+  test_aes_256_bit()
 
   print("----------*** aes_cbc/aes_ecb 测试完毕 ***----------\n")
 
