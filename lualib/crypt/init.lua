@@ -208,7 +208,7 @@ function crypt.hmac64_md5 (key, text, hex)
 end
 
 function crypt.aes_128_cbc_encrypt(key, text, iv, hex)
-  local hash = aes_cbc_encrypt(16, key, text, (type(iv) == 'string' and #iv == 16) and iv or "")
+  local hash = aes_cbc_encrypt(16, #key == 16 and key or nil, text, iv)
   if hash and hex then
     return hexencode(hash)
   end
@@ -216,7 +216,39 @@ function crypt.aes_128_cbc_encrypt(key, text, iv, hex)
 end
 
 function crypt.aes_128_ecb_encrypt(key, text, iv, hex)
-  local hash = aes_ecb_encrypt(16, key, text, (type(iv) == 'string' and #iv == 16) and iv or "")
+  local hash = aes_ecb_encrypt(16, #key == 16 and key or nil, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_192_cbc_encrypt(key, text, iv, hex)
+  local hash = aes_cbc_encrypt(24, #key == 24 and key or nil, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_192_ecb_encrypt(key, text, iv, hex)
+  local hash = aes_ecb_encrypt(24, #key == 24 and key or nil, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_256_cbc_encrypt(key, text, iv, hex)
+  local hash = aes_cbc_encrypt(32, #key == 32 and key or nil, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_256_ecb_encrypt(key, text, iv, hex)
+  local hash = aes_ecb_encrypt(32, #key == 32 and key or nil, text, iv)
   if hash and hex then
     return hexencode(hash)
   end
@@ -224,11 +256,27 @@ function crypt.aes_128_ecb_encrypt(key, text, iv, hex)
 end
 
 function crypt.aes_128_cbc_decrypt(key, text, iv)
-  return aes_cbc_decrypt(16, key, text, (type(iv) == 'string' and #iv == 16) and iv or "")
+  return aes_cbc_decrypt(16, #key == 16 and key or nil, text, iv)
 end
 
 function crypt.aes_128_ecb_decrypt(key, text, iv)
-  return aes_ecb_decrypt(16, key, text, (type(iv) == 'string' and #iv == 16) and iv or "")
+  return aes_ecb_decrypt(16, #key == 16 and key or nil, text, iv)
+end
+
+function crypt.aes_192_cbc_decrypt(key, text, iv)
+  return aes_cbc_decrypt(24, #key == 24 and key or nil, text, iv)
+end
+
+function crypt.aes_192_ecb_decrypt(key, text, iv)
+  return aes_ecb_decrypt(24, #key == 24 and key or nil, text, iv)
+end
+
+function crypt.aes_256_cbc_decrypt(key, text, iv)
+  return aes_cbc_decrypt(32, #key == 32 and key or nil, text, iv)
+end
+
+function crypt.aes_256_ecb_decrypt(key, text, iv)
+  return aes_ecb_decrypt(32, #key == 32 and key or nil, text, iv)
 end
 
 function crypt.base64urlencode(data)
