@@ -713,7 +713,141 @@ static int tcp_start(lua_State *L){
 
 }
 
+// 加载证书
+static int ssl_set_certificate(lua_State *L) {
+
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  SSL_CTX *ctx = (SSL_CTX*) lua_touserdata(L, 2);
+  if (!ctx)
+    return luaL_error(L, "Invalid SSL_CTX ctx.");
+
+  size_t size = 0;
+  const char* path = luaL_checklstring(L, 3, &size);
+  if (!path || size < 1)
+    return luaL_error(L, "Invalid cert path");
+
+  // 为SSL与SSL_CTX设置证书, 如果两种加载都失败则返回失败.
+  if (1 != SSL_use_certificate_file(ssl, path, SSL_FILETYPE_PEM))
+    return luaL_error(L, "ssl ssl_set_certificate loading cert failed.");
+
+  if (1 != SSL_CTX_use_certificate_file(ctx, path, SSL_FILETYPE_PEM))
+    return luaL_error(L, "ssl_ctx ssl_set_certificate loading cert failed.");
+
+  return 1;
+}
+
+// 加载私钥
+static int ssl_set_privatekey(lua_State *L) {
+
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  SSL_CTX *ctx = (SSL_CTX*) lua_touserdata(L, 2);
+  if (!ctx)
+    return luaL_error(L, "Invalid SSL_CTX ctx.");
+
+  size_t size = 0;
+  const char* path = luaL_checklstring(L, 3, &size);
+  if (!path || size < 1)
+    return luaL_error(L, "Invalid cert path");
+
+  // 为SSL与SSL_CTX设置私钥, 如果两种加载都失败则返回失败.
+  if (1 != SSL_use_PrivateKey_file(ssl, path, SSL_FILETYPE_PEM) && 1 != SSL_use_RSAPrivateKey_file(ssl, path, SSL_FILETYPE_PEM))
+    return luaL_error(L, "ssl ssl_set_privatekey loading private_key or rsa_private_key failed.");
+
+  if (1 != SSL_CTX_use_PrivateKey_file(ctx, path, SSL_FILETYPE_PEM) && 1 != SSL_CTX_use_RSAPrivateKey_file(ctx, path, SSL_FILETYPE_PEM))
+      return luaL_error(L, "ssl_ctx ssl_set_privatekey loading private key or rsa_private_key failed.");
+
+  return 1;
+}
+
+// 如果私钥有安装密钥, 则再这里设置
+static int ssl_set_userdata_key(lua_State *L) {
+
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  SSL_CTX *ctx = (SSL_CTX*) lua_touserdata(L, 2);
+  if (!ctx)
+    return luaL_error(L, "Invalid SSL_CTX ctx.");
+
+  size_t size = 0;
+  const char* password = luaL_checklstring(L, 3, &size);
+  if (!password || size < 1)
+    return 1;
+
+  // SSL_set_default_passwd_cb_userdata(ssl, (void*)password);
+  SSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)password);
+
+  return 1;
+}
+
+// 设置验证模式
+int ssl_verify(lua_State *L) {
+
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  SSL_CTX *ctx = (SSL_CTX*) lua_touserdata(L, 2);
+  if (!ctx)
+    return luaL_error(L, "Invalid SSL_CTX ctx.");
+
+  // 检查证书与私钥是否一致.
+  if (1 != SSL_check_private_key(ssl))
+    return luaL_error(L, "ssl check cert and private key failed.");
+
+  if (1 != SSL_CTX_check_private_key(ctx))
+    return luaL_error(L, "ssl_ctx check cert and private key failed.");
+
+  // 设置验证模式(如果设置的证书和key会强制进行严格验证)
+  SSL_set_verify(ssl, SSL_VERIFY_PEER, NULL);
+  SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+
+  // 设置验证深度(忽略后续证书链)
+  SSL_set_verify_depth(ssl, 1);
+  SSL_CTX_set_verify_depth(ctx, 1);
+
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
 static int ssl_new(lua_State *L){
+
+  SSL_CTX *ssl_ctx = SSL_CTX_new(SSLv23_method());
+  if (!ssl_ctx) return 0;
+
+  SSL *ssl = SSL_new(ssl_ctx);
+  if (!ssl) return 0;
+
+  lua_pushlightuserdata(L, (void*) ssl);
+
+  lua_pushlightuserdata(L, (void*) ssl_ctx);
+
+  return 2;
+}
+
+static int ssl_set_fd(lua_State *L) {
+
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  int fd = lua_tointeger(L, 2);
+
+  SSL_set_fd(ssl, fd);
+
+  SSL_set_connect_state(ssl);
+
+  return 1;
+}
+
+static int ssl_new_fd(lua_State *L){
 
   int fd = lua_tointeger(L, 1);
 
@@ -727,20 +861,22 @@ static int ssl_new(lua_State *L){
 
   SSL_set_connect_state(ssl);
 
-  lua_pushlightuserdata(L, (void*) ssl_ctx);
-
   lua_pushlightuserdata(L, (void*) ssl);
+
+  lua_pushlightuserdata(L, (void*) ssl_ctx);
 
   return 2;
 }
 
 static int ssl_free(lua_State *L){
 
-  SSL_CTX *ssl_ctx = (SSL_CTX*) lua_touserdata(L, 1);
-  if (ssl_ctx) SSL_CTX_free(ssl_ctx); // 销毁ctx上下文;
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (ssl)
+    SSL_free(ssl); // 销毁基于ctx的ssl对象;
 
-  SSL *ssl = (SSL*) lua_touserdata(L, 2);
-  if (ssl) SSL_free(ssl); // 销毁基于ctx的ssl对象;
+  SSL_CTX *ssl_ctx = (SSL_CTX*) lua_touserdata(L, 2);
+  if (ssl_ctx)
+    SSL_CTX_free(ssl_ctx); // 销毁ctx上下文;
 
   return 0;
 }
@@ -810,11 +946,17 @@ luaopen_tcp(lua_State *L){
     {"ssl_connect", tcp_sslconnect},
     {"new", tcp_new},
     {"new_ssl", ssl_new},
+    {"ssl_set_fd", ssl_set_fd},
+    {"new_ssl_fd", ssl_new_fd},
     {"free_ssl", ssl_free},
     {"new_server_fd", new_server_fd},
     {"new_client_fd", new_client_fd},
     {"new_unixsock_fd", new_unixsock_fd},
     {"sendfile", tcp_sendfile},
+    {"ssl_verify", ssl_verify},
+    {"ssl_set_privatekey", ssl_set_privatekey},
+    {"ssl_set_certificate", ssl_set_certificate},
+    {"ssl_set_userdata_key", ssl_set_userdata_key},
     {NULL, NULL}
   };
   luaL_setfuncs(L, tcp_libs, 0);

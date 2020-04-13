@@ -5,6 +5,7 @@ local new_tab = require("sys").new_tab
 local log = require "logging"
 local Log = log:new({ dump = true, path = 'internal-TCP' })
 
+local assert = assert
 local split = string.sub
 local insert = table.insert
 local remove = table.remove
@@ -28,6 +29,8 @@ local aio_open = aio._open
 
 local tcp = require "tcp"
 local tcp_new = tcp.new
+local tcp_ssl_new = tcp.new_ssl
+local tcp_ssl_new_fd = tcp.new_ssl_fd
 local tcp_start = tcp.start
 local tcp_stop = tcp.stop
 local tcp_free_ssl = tcp.free_ssl
@@ -46,6 +49,11 @@ local tcp_new_client_fd = tcp.new_client_fd
 local tcp_new_server_fd = tcp.new_server_fd
 local tcp_new_unixsock_fd = tcp.new_unixsock_fd
 
+local tcp_ssl_verify = tcp.ssl_verify
+local tcp_ssl_set_fd = tcp.ssl_set_fd
+local tcp_ssl_set_privatekey = tcp.ssl_set_privatekey
+local tcp_ssl_set_certificate = tcp.ssl_set_certificate
+local tcp_ssl_set_userdata_key = tcp.ssl_set_userdata_key
 
 local EVENT_READ  = 0x01
 local EVENT_WRITE = 0x02
@@ -90,6 +98,44 @@ function TCP:set_backlog(backlog)
         self._backlog = backlog
     end
     return self
+end
+
+-- 开启验证
+function TCP:ssl_set_verify()
+  if not self.ssl or not self.ssl_ctx then
+    self.ssl, self.ssl_ctx = tcp_ssl_new()
+  end
+  return tcp_ssl_verify(self.ssl, self.ssl_ctx)
+end
+
+-- 设置私钥
+function TCP:ssl_set_privatekey(privatekey_path)
+  if not self.ssl or not self.ssl_ctx then
+    self.ssl, self.ssl_ctx = tcp_ssl_new()
+  end
+  assert(type(privatekey_path) == 'string' and privatekey_path ~= '', "Invalid privatekey_path")
+  self.privatekey_path = privatekey_path
+  return tcp_ssl_set_privatekey(self.ssl, self.ssl_ctx, self.privatekey_path)
+end
+
+-- 设置证书
+function TCP:ssl_set_certificate(certificate_path)
+  if not self.ssl or not self.ssl_ctx then
+    self.ssl, self.ssl_ctx = tcp_ssl_new()
+  end
+  assert(type(certificate_path) == 'string' and certificate_path ~= '', "Invalid certificate_path")
+  self.certificate_path = certificate_path
+  return tcp_ssl_set_certificate(self.ssl, self.ssl_ctx, self.certificate_path)
+end
+
+-- 设置证书与私钥的密码
+function TCP:ssl_set_password(password)
+  if not self.ssl or not self.ssl_ctx then
+    self.ssl, self.ssl_ctx = tcp_ssl_new()
+  end
+  assert(type(password) == 'string', "not have ssl or ssl_ctx.")
+  self.password = password
+  return tcp_ssl_set_userdata_key(self.ssl, self.ssl_ctx, self.password)
 end
 
 -- sendfile的文件fd使用aio库来打开与关闭可以减少阻塞.
@@ -371,9 +417,10 @@ function TCP:ssl_connect(domain, port)
   if not ok then
       return nil, "domain connect error."
   end
-  self.ssl_ctx, self.ssl = tcp.new_ssl(self.fd)
-  if not self.ssl_ctx or not self.ssl then
-      return nil, "create a ssl ctx error."
+  if not self.ssl_ctx and not self.ssl then
+    self.ssl, self.ssl_ctx = tcp_ssl_new_fd(self.fd)
+  else
+    tcp_ssl_set_fd(self.ssl, self.fd)
   end
   local co = co_self()
   self.CONNECT_IO = tcp_pop()
@@ -473,7 +520,7 @@ function TCP:close()
   end
 
   if self.ssl and self.ssl_ctx then
-    tcp_free_ssl(self.ssl_ctx, self.ssl)
+    tcp_free_ssl(self.ssl, self.ssl_ctx)
     self.ssl_ctx = nil
     self.ssl = nil
   end
