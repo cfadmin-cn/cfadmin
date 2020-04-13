@@ -787,7 +787,7 @@ static int ssl_set_userdata_key(lua_State *L) {
   return 1;
 }
 
-// 设置验证模式
+// 验证证书与私钥是否有效
 int ssl_verify(lua_State *L) {
 
   SSL *ssl = (SSL*) lua_touserdata(L, 1);
@@ -799,19 +799,8 @@ int ssl_verify(lua_State *L) {
     return luaL_error(L, "Invalid SSL_CTX ctx.");
 
   // 检查证书与私钥是否一致.
-  if (1 != SSL_check_private_key(ssl))
-    return luaL_error(L, "ssl check cert and private key failed.");
-
-  if (1 != SSL_CTX_check_private_key(ctx))
-    return luaL_error(L, "ssl_ctx check cert and private key failed.");
-
-  // 设置验证模式(强制发送证书但验证证书不通过也认为连接成功)
-  SSL_set_verify(ssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-  SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-
-  // 设置验证深度(忽略后续证书链)
-  SSL_set_verify_depth(ssl, 1);
-  SSL_CTX_set_verify_depth(ctx, 1);
+  if (1 != SSL_check_private_key(ssl) || 1 != SSL_CTX_check_private_key(ctx))
+    return 0;
 
   lua_pushboolean(L, 1);
   return 1;
