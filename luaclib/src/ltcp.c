@@ -805,9 +805,9 @@ int ssl_verify(lua_State *L) {
   if (1 != SSL_CTX_check_private_key(ctx))
     return luaL_error(L, "ssl_ctx check cert and private key failed.");
 
-  // 设置验证模式(如果设置的证书和key会强制进行严格验证)
-  SSL_set_verify(ssl, SSL_VERIFY_PEER, NULL);
-  SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+  // 设置验证模式(强制发送证书但验证证书不通过也认为连接成功)
+  SSL_set_verify(ssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+  SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 
   // 设置验证深度(忽略后续证书链)
   SSL_set_verify_depth(ssl, 1);
