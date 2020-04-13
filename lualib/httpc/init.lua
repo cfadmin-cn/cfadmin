@@ -85,6 +85,14 @@ local function raw( parameter )
 	local REQ = build_raw_req(opt)
 
 	local sock = sock_new():timeout(timeout or __TIMEOUT__)
+	if parameter.cert_path and parameter.key_path then
+		sock:ssl_set_privatekey(parameter.key_path)
+		sock:ssl_set_certificate(parameter.cert_path)
+		if not s:ssl_set_verify() then
+			sock:close()
+			return nil, "SSL privatekey and certfile verify failed."
+		end
+	end
 	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
 	if not ok then
 		sock:close()
