@@ -88,7 +88,7 @@ local function raw( parameter )
 	if parameter.cert_path and parameter.key_path then
 		sock:ssl_set_privatekey(parameter.key_path)
 		sock:ssl_set_certificate(parameter.cert_path)
-		if not s:ssl_set_verify() then
+		if not sock:ssl_set_verify() then
 			sock:close()
 			return nil, "SSL privatekey and certfile verify failed."
 		end
