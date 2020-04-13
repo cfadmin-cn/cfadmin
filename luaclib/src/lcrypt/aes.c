@@ -153,7 +153,7 @@ int laes_ecb_encrypt(lua_State *L) {
 
   lua_Integer bit = 0; size_t text_sz = 0;
 
-  uint8_t* iv; uint8_t* key; uint8_t* text;
+  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* text = NULL;
 
   return lua_getargs(L, &bit, &text, &text_sz, &iv, &key) && do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, AES_ECB_MODE);
 }
@@ -162,7 +162,7 @@ int laes_cbc_encrypt(lua_State *L) {
 
   lua_Integer bit = 0; size_t text_sz = 0;
 
-  uint8_t* iv; uint8_t* key; uint8_t* text;
+  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* text = NULL;
 
   return lua_getargs(L, &bit, &text, &text_sz, &iv, &key) && do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, AES_CBC_MODE);
 }
@@ -201,7 +201,7 @@ int laes_ecb_decrypt(lua_State *L) {
 
   lua_Integer bit = 0; size_t cipher_sz = 0;
 
-  uint8_t* iv; uint8_t* key; uint8_t* cipher;
+  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* cipher = NULL;
 
   return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key) && do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, AES_ECB_MODE);
 }
@@ -210,7 +210,7 @@ int laes_cbc_decrypt(lua_State *L) {
 
   lua_Integer bit = 0; size_t cipher_sz = 0;
 
-  uint8_t* iv; uint8_t* key; uint8_t* cipher;
+  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* cipher = NULL;
 
   return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key) && do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, AES_CBC_MODE);
 }
