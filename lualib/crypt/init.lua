@@ -58,11 +58,18 @@ local rsa_private_key_decode = CRYPT.rsa_private_key_decode
 local rsa_private_key_encode = CRYPT.rsa_private_key_encode
 local rsa_public_key_decode = CRYPT.rsa_public_key_decode
 
-local sha128WithRsa_sign = CRYPT.sha128WithRsa_sign
-local sha128WithRsa_verify = CRYPT.sha128WithRsa_verify
+-- 当前支持的签名与验签
+local rsa_algorithms = {
+  ["md5"]     =  CRYPT.nid_md5,
+  ["sha1"]    =  CRYPT.nid_sha1,
+  ["sha128"]  =  CRYPT.nid_sha1,
+  ["sha256"]  =  CRYPT.nid_sha256,
+  ["sha512"]  =  CRYPT.nid_sha512,
+}
 
-local sha256WithRsa_sign = CRYPT.sha256WithRsa_sign
-local sha256WithRsa_verify = CRYPT.sha256WithRsa_verify
+-- 当前支持的签名与验签方法
+local rsa_sign = CRYPT.rsa_sign
+local rsa_verify = CRYPT.rsa_verify
 
 local crypt = {}
 
@@ -396,36 +403,23 @@ function crypt.rsa_public_key_oaep_padding_decode(text, public_key_path, b64)
 end
 
 
--- sha1 with rsa sign/verify
-function crypt.sha128_with_rsa_sign(text, private_key_path, hex)
-  local hash = sha128WithRsa_sign(text, private_key_path)
+-- 签名函数: (不用纠结为什么这么写, 主要是为了让你看下面的内容)
+-- 第一个参数是等待签名的明文, 第二个参数是私钥所在路径, 第三个参数是算法名称, 第四个参数决定是否以hex输出
+function crypt.rsa_sign(text, private_key_path, algorithm, hex)
+  local hash = rsa_sign(text, private_key_path, rsa_algorithms[(algorithm or ""):lower()] or rsa_algorithms["md5"])
   if hash and hex then
     return hexencode(hash)
   end
   return hash
 end
 
-function crypt.sha128_with_rsa_verify(text, public_key_path, sign, hex)
-  if hex and sign then
+-- 验签函数: (不用纠结为什么这么写, 主要是为了让你看下面的内容)
+-- 第一个参数是等待签名的明文, 第二个参数是私钥所在路径, 第三个参数待比较的签名, 第四个参数是算法名称, 第四个参数决定是否对sign进行unhex
+function crypt.rsa_verify(text, public_key_path, sign, algorithm, hex)
+  if hex then
     sign = hexdecode(sign)
   end
-  return sha128WithRsa_verify(text, public_key_path, sign)
-end
-
--- sha2 with rsa sign/verify
-function crypt.sha256_with_rsa_sign(text, private_key_path, hex)
-  local hash = sha256WithRsa_sign(text, private_key_path)
-  if hash and hex then
-    return hexencode(hash)
-  end
-  return hash
-end
-
-function crypt.sha256_with_rsa_verify(text, public_key_path, sign, hex)
-  if hex and sign then
-    sign = hexdecode(sign)
-  end
-  return sha256WithRsa_verify(text, public_key_path, sign)
+  return rsa_verify(text, public_key_path, sign, rsa_algorithms[(algorithm or ""):lower()] or rsa_algorithms["md5"])
 end
 
 return crypt
