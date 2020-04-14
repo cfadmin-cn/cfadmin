@@ -308,18 +308,49 @@ local function test_rsa()
 
   end
 
-  local function test_sha_with_rsa( ... )
-    local publick_key_path = "public1024.pem"
-    local private_key_path = "private1024.pem"
-    local text = [[{"code":200,"data":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,]}]]
+  local function test_rsa_sign_and_rsa_verify(...)
 
-    local sign = crypt.sha128_with_rsa_sign(text, private_key_path, true)
-    -- print(sign)
-    assert(crypt.sha128_with_rsa_verify(text, publick_key_path, sign, true), "sha128 with rsa签名/验证失败.")
+    local text = [[{"code":200,"data":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]}]]
 
-    local sign = crypt.sha256_with_rsa_sign(text, private_key_path, true)
-    -- print(sign)
-    assert(crypt.sha256_with_rsa_verify(text, publick_key_path, sign, true), "sha256 with rsa签名/验证失败.")
+    local public_1024 = "public1024.pem"
+    local private_1024 = "private1024.pem"
+    
+    local public_2048 = "public2048.pem"
+    local private_2048 = "private2048.pem"
+
+    local public_4096 = "public4096.pem"
+    local private_4096 = "private4096.pem"
+
+    local hex = true -- 是结果hex输出
+
+    local sign_1024 = crypt.rsa_sign(text, private_1024, "md5", hex)
+    print("md5 with rsa: 1024", sign_1024, crypt.rsa_verify(text, public_1024, sign_1024, "md5", hex))
+    local sign_1024 = crypt.rsa_sign(text, private_1024, "sha128", hex)
+    print("sha128 with rsa: 1024", sign_1024, crypt.rsa_verify(text, public_1024, sign_1024, "sha128", hex))
+    local sign_1024 = crypt.rsa_sign(text, private_1024, "sha256", hex)
+    print("sha256 with rsa: 1024", sign_1024, crypt.rsa_verify(text, public_1024, sign_1024, "sha256", hex))
+    local sign_1024 = crypt.rsa_sign(text, private_1024, "sha512", hex)
+    print("sha512 with rsa: 1024, ", sign_1024, crypt.rsa_verify(text, public_1024, sign_1024, "sha512", hex))
+
+    local sign_2048 = crypt.rsa_sign(text, private_2048, "md5", hex)
+    print("md5 with rsa: 2048", sign_2048, crypt.rsa_verify(text, public_2048, sign_2048, "md5", hex))
+    local sign_2048 = crypt.rsa_sign(text, private_2048, "sha128", hex)
+    print("sha128 with rsa: 2048", sign_2048, crypt.rsa_verify(text, public_2048, sign_2048, "sha128", hex))
+    local sign_2048 = crypt.rsa_sign(text, private_2048, "sha256", hex)
+    print("sha256 with rsa: 2048", sign_2048, crypt.rsa_verify(text, public_2048, sign_2048, "sha256", hex))
+    local sign_2048 = crypt.rsa_sign(text, private_2048, "sha512", hex)
+    print("sha512 with rsa: 2048", sign_2048, crypt.rsa_verify(text, public_2048, sign_2048, "sha512", hex))
+
+
+    local sign_4096 = crypt.rsa_sign(text, private_4096, "md5", hex)
+    print("md5 with rsa: 4096", sign_4096, crypt.rsa_verify(text, public_4096, sign_4096, "md5", hex))
+    local sign_4096 = crypt.rsa_sign(text, private_4096, "sha128", hex)
+    print("sha128 with rsa: 4096", sign_4096, crypt.rsa_verify(text, public_4096, sign_4096, "sha128", hex))
+    local sign_4096 = crypt.rsa_sign(text, private_4096, "sha256", hex)
+    print("sha256 with rsa: 4096", sign_4096, crypt.rsa_verify(text, public_4096, sign_4096, "sha256", hex))
+    local sign_4096 = crypt.rsa_sign(text, private_4096, "sha512", hex)
+    print("sha512 with rsa: 4096", sign_4096, crypt.rsa_verify(text, public_4096, sign_4096, "sha512", hex))
+
   end
 
   print("----------*** 开始测试 rsa public/private encode/decode ***----------")
@@ -330,7 +361,7 @@ local function test_rsa()
 
   test_rsa_4096()
 
-  test_sha_with_rsa()
+  test_rsa_sign_and_rsa_verify()
 
   print("----------*** rsa public/private encode/decode 测试完成 ***----------\n")
 
@@ -371,7 +402,7 @@ local function main()
 
     -- test_other,
 
-    -- test_rsa,
+    test_rsa,
 
     -- test_uuid,
 
