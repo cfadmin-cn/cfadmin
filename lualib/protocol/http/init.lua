@@ -368,7 +368,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         return sock:close()
       end
       content['ROUTE'] = HTTP_PROTOCOL[typ]
-      content['method'], content['path'], content['headers'] = METHOD, PATH, HEADER
+      content['method'], content['path'], content['headers'], content['client_ip'] = METHOD, PATH, HEADER, ipaddr
       -- before 函数只影响接口与view
       if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
         local ok, code, data = pcall(before_func, content)
