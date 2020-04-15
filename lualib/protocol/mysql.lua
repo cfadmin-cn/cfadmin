@@ -1,9 +1,13 @@
 local tcp = require "internal.TCP"
 local crypt = require "crypt"
 local sha1 = crypt.sha1
+local sha2 = crypt.sha256
 local xor_str = crypt.xor_str
+local randomkey = crypt.randomkey_ex
+local rsa_oaep_pkey_encode = crypt.rsa_public_key_oaep_padding_encode
 
 local sub = string.sub
+local find = string.find
 local strgsub = string.gsub
 local strformat = string.format
 local strbyte = string.byte
@@ -12,9 +16,12 @@ local strrep = string.rep
 local strunpack = string.unpack
 local strpack = string.pack
 local setmetatable = setmetatable
-local error = error
+local assert = assert
 local tonumber = tonumber
 local concat = table.concat
+
+local io_open = io.open
+local io_remove = os.remove
 
 local new_tab = require("sys").new_tab
 
@@ -74,6 +81,9 @@ local COM_QUIT = 0x01
 local COM_QUERY = 0x03
 local CLIENT_SSL = 0x0800
 
+local AUTH_SWITCH_OK = '\x01\x03'
+local AUTH_SWITCH_CONTINUE = '\x01\x04'
+
 local SERVER_MORE_RESULTS_EXISTS = 8
 
 -- 16MB - 1, the default max allowed packet size used by libmysqlclient
@@ -128,10 +138,33 @@ local function _dumphex(bytes)
     return strgsub(bytes, ".", function(x) return strformat("%02x ", strbyte(x)) end)
 end
 
+-- 原生密码认证
 local function mysq_native_password(password, scramble)
+    if not password or password == "" then
+        return ""
+    end
     local stage1 = sha1(password)
     local stage2 = sha1(scramble .. sha1(stage1))
     return xor_str(stage2, stage1)
+end
+
+-- 缓存sha2密码认证
+local function caching_sha2_password(password, scramble)
+    if not password or password == "" then
+        return ""
+    end
+    local stage1 = sha2(password)
+    local stage2 = sha2(sha2(stage1) .. scramble)
+    return xor_str(stage1, stage2)
+end
+
+-- 扩展公钥认证
+local function rsa_encode(public_key, password, scramble)
+    local filename = randomkey(8, true) .. 'pem'
+    local f = assert(io_open(filename, 'a'), "Can't Create public_key file to complate handshake.")
+    f:write(public_key):flush()
+    f:close()
+    return rsa_oaep_pkey_encode(xor_str(password, scramble), filename), io_remove(filename)
 end
 
 local function _send_packet(self, req, size)
@@ -434,8 +467,9 @@ function MySQL.connect(self, opts)
 
     local database = opts.database or ""
     local username = opts.username or ""
-    local host = opts.host
+    local password = opts.password or ""
 
+    local host = opts.host
     if not host then
         return nil, "not host"
     end
@@ -518,47 +552,56 @@ function MySQL.connect(self, opts)
     scramble = scramble .. scramble_part2
     --print("scramble: ", _dump(scramble))
 
-    local password = opts.password or ""
+    local req, token
+    local client_flags = 260047
+    if find(packet, "caching_sha2_password") then
+        client_flags = client_flags | 0x80000 | 0x200000
+        token = caching_sha2_password(password, scramble)
+        req = strpack("<I4I4Bc23zs1zz", client_flags, self._max_packet_size, CHARSET_MAP[opts.charset] or 33, strrep("\0", 23), username, token, database, "caching_sha2_password")
+    else
+        token = mysq_native_password(password, scramble)
+        req = strpack("<I4I4Bc23zs1z", client_flags, self._max_packet_size, CHARSET_MAP[opts.charset] or 33, strrep("\0", 23), username, token, database)
+    end
 
-    local token = mysq_native_password(password, scramble)
-
-    --print("token: ", _dump(token))
-
-    local client_flags = 260047;
-
-    local req = strpack("<I4I4Bc23zs1z",
-        client_flags,
-        self._max_packet_size,
-        CHARSET_MAP[opts.charset] or 33,
-        strrep("\0", 23),	-- TODO: add support for charset encoding
-        username,
-        token,
-        database)
-
-    local packet_len = #req
-
-    -- print("packet content length: ", packet_len)
-    -- print("packet content: ", _dump(concat(req, "")))
-
-    local ok = _send_packet(self, req, packet_len)
+    local ok = _send_packet(self, req, #req)
     if not ok then
       return nil, "send packet was failed."
     end
-
-    --print("packet sent ", bytes, " bytes")
 
     local packet, typ, err = _recv_packet(self)
     if not packet then
         return nil, "failed to receive the result packet: " .. err
     end
 
+    if typ == 'EOF' then
+        return nil, "MySQL Authentication protocol not supported"
+    end
+
+    if typ == "DATA" then
+        if packet == AUTH_SWITCH_CONTINUE then
+            local ok = _send_packet(self, '\x02', 1)
+            if not ok then
+                return nil, "1. MySQL Server close this Authentication Switch session."
+            end
+            local public_key = _recv_packet(self)
+            if not public_key then
+                return nil, "2. MySQL Server close this Authentication Switch session."
+            end
+            local ok = _send_packet(self, rsa_encode(public_key:sub(2, -2), password .. "\x00", scramble), 256)
+            if not ok then
+                return nil, "3. MySQL Server close this Authentication Switch session."
+            end
+            packet, typ, err = _recv_packet(self)
+        elseif packet == AUTH_SWITCH_OK then
+            packet, typ, err = _recv_packet(self)
+        else
+            return nil, "4. This Connection More Data Authentication Was failed."
+        end
+    end
+
     if typ == 'ERR' then
         local errno, msg, sqlstate = _parse_err_packet(packet)
         return nil, msg, errno, sqlstate
-    end
-
-    if typ == 'EOF' then
-        return nil, "old pre-4.1 authentication protocol not supported"
     end
 
     if typ ~= 'OK' then
