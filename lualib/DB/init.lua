@@ -189,8 +189,8 @@ function DB:prepare(sql)
     return rkey
   end
   local stmt = assert(run_prepare(self, sql))
-  stmts[#stmts + 1] = rkey
   stmts[rkey] = { stmt = stmt, sql = sql }
+  stmts[#stmts + 1] = rkey
   return rkey
 end
 
@@ -205,17 +205,17 @@ function DB:prepares(opt)
     stmts = {}
     self.stmts = stmts
   end
-  local list = {}
+  local rlist = {}
   for _, sql in ipairs(opt) do
     local rkey = hashkey(sql, true)
     if not stmts[rkey] then
       local stmt = assert(run_prepare(self, sql))
-      list[#list + 1] = rkey
+      stmts[rkey] = { stmt = stmt, sql = sql }
       stmts[#stmts + 1] = rkey
-      stmts[rkey] = {stmt = stmt, sql = sql}
     end
+    rlist[#rlist + 1] = rkey
   end
-  return list
+  return rlist
 end
 
 -- 执行预处理语句
