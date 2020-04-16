@@ -17,9 +17,14 @@ local strunpack = string.unpack
 local strpack = string.pack
 local setmetatable = setmetatable
 local assert = assert
+local select = select
 local tonumber = tonumber
+local toint = math.tointeger
 local concat = table.concat
 
+local null = null
+local type = type
+local pairs = pairs
 local io_open = io.open
 local io_remove = os.remove
 
@@ -79,10 +84,14 @@ local STATE_COMMAND_SENT = 2
 
 local COM_QUIT = 0x01
 local COM_QUERY = 0x03
-local CLIENT_SSL = 0x0800
+
+local COM_STMT_PREPARE = 0x16
+local COM_STMT_EXECUTE = 0x17
 
 local AUTH_SWITCH_OK = '\x01\x03'
 local AUTH_SWITCH_CONTINUE = '\x01\x04'
+
+local CURSOR_TYPE_NO_CURSOR = 0x00
 
 local SERVER_MORE_RESULTS_EXISTS = 8
 
@@ -101,6 +110,10 @@ converters[0x00] = tonumber  -- decimal
 converters[0x09] = tonumber  -- int24
 converters[0x0d] = tonumber  -- year
 converters[0xf6] = tonumber  -- newdecimal
+
+local function _get_byte1(data, i)
+    return strbyte(data, i), i + 1
+end
 
 local function _get_byte2(data, i)
     return strunpack("<I2",data,i)
@@ -128,6 +141,14 @@ end
 
 local function _set_byte4(n)
     return strpack("<I4", n)
+end
+
+local function _set_byte8(n)
+    return strpack("<I8", n)
+end
+
+local function _set_double(n)
+    return strpack("<d", n)
 end
 
 local function _from_cstring(data, i)
@@ -222,10 +243,7 @@ local function _recv_packet(self)
 
     self.packet_no = num
 
-    data, err = sock_recv(sock, len)
-
-    --print("receive returned")
-
+    local data, err = sock_recv(sock, len)
     if not data then
         self.state = nil
         return nil, nil, "failed to read packet content: "..(err or "nil")
@@ -279,6 +297,21 @@ local function _from_length_coded_bin(data, pos)
     return nil, pos + 1
 end
 
+local function _set_length_coded_bin(n)
+    if n < 251 then
+        return strchar(n)
+    end
+
+    if n < (1 << 16) then
+        return strpack("<BI2", 0xfc, n)
+    end
+
+    if n < (1 << 24) then
+        return strpack("<BI3", 0xfd, n)
+    end
+
+    return strpack("<BI8", 0xfe, n)
+end
 
 local function _from_length_coded_str(data, pos)
     local len
@@ -438,11 +471,23 @@ local function _recv_field_packet(self)
     return _parse_field_packet(packet)
 end
 
+local function _recv_ignore(self)
+    local packet, typ, err = _recv_packet(self)
+    if not packet then
+        self.state = nil
+        return nil, err
+    end
+    return true, typ
+end
+
+local function _recv_prepare_status(packet)
+    return strunpack("<BI4I2I2BI2", packet)
+end
 
 function MySQL.ctor(self)
     self.state = nil
     self.sock = tcp:new()
-    self._VERSION = '0.21'
+    self._VERSION = '0.22'
 end
 
 
@@ -629,15 +674,236 @@ end
 
 function MySQL.send_query(self, query)
   self.packet_no = -1
-  local cmd_packet = strchar(COM_QUERY) .. query
-  return _send_packet(self, cmd_packet, 1 + #query)
+  return _send_packet(self, strchar(COM_QUERY) .. query, 1 + #query)
 end
 
+function MySQL.send_prepare(self, query)
+  self.packet_no = -1
+  return _send_packet(self, strchar(COM_STMT_PREPARE) .. query, 1 + #query)
+end
+
+--参数字段类型转换
+local store_types = {
+    number = function(v)
+        if not toint(v) then
+            return _set_byte2(0x05), _set_double(v)
+        end
+        return _set_byte2(0x08), _set_byte8(v)
+    end,
+    string = function(v)
+        return _set_byte2(0x0f), _set_length_coded_bin(#v) .. v
+    end,
+    --bool转换为0,1
+    boolean = function(v)
+        return _set_byte2(0x01), v and strchar(1) or strchar(0)
+    end
+}
+
+function MySQL.send_execute(self, stmt, opt)
+  self.packet_no = -1
+  local query = strchar(COM_STMT_EXECUTE) .. strpack("<I4BI4", stmt.statement_id, CURSOR_TYPE_NO_CURSOR, 0x01)
+  local num_params = stmt.num_params
+  if num_params > 0 then
+    local bitmap = (num_params + 7) // 8
+    local types = new_tab(num_params, 0)
+    local values = new_tab(num_params, 0)
+    for _, v in pairs(opt) do
+        local f = store_types[type(v)]
+        if not f then
+            error("execute has UnSupport value and type.")
+        end
+        types[#types+1], values[#values+1] = f(v)
+    end
+    query = query .. strrep("\0", bitmap) .. strchar(0x01) .. concat(types) .. concat(values)
+  end
+  return _send_packet(self, query, #query)
+end
+
+function MySQL.read_prepare(self)
+    local data, typ = _recv_packet(self)
+    if typ == "ERR" then
+        local errno, msg, sqlstate = _parse_err_packet(data)
+        return nil, msg, errno, sqlstate
+    end
+
+    local status, statement_id, num_columns, num_params, reserved, warning_count = _recv_prepare_status(data)
+
+    if num_params > 0x00 then
+        for i = 1, num_params, 1 do
+            local ok, err = _recv_ignore(self)
+            if not ok then
+                if err then
+                    return nil, err
+                end
+                break
+            end
+        end
+    end
+
+    if num_columns > 0x00 then
+        for i = 1, num_columns, 1 do
+            local ok, err = _recv_ignore(self)
+            if not ok then
+                if err then
+                    return nil, err
+                end
+                break
+            end
+        end
+    end
+    while 1 do
+        local ok, typ = _recv_ignore(self)
+        if not ok then
+            return nil, typ
+        end
+        if typ == "EOF" or typ == "ERR" then
+            break
+        end
+    end
+    return { success = typ == 'OK' and true or false, status = status, statement_id = statement_id, num_columns = num_columns, num_params = num_params, reserved = reserved, warning_count = warning_count }
+end
+
+
+local _binary_parser = {
+    [0x01] = _get_byte1,
+    [0x02] = _get_byte2,
+    [0x03] = _get_byte4,
+    [0x04] = _get_float,
+    [0x05] = _get_double,
+    [0x07] = _get_datetime,
+    [0x08] = _get_byte8,
+    [0x0c] = _get_datetime,
+    [0x0f] = _from_length_coded_str,
+    [0x10] = _from_length_coded_str,
+    [0xf9] = _from_length_coded_str,
+    [0xfa] = _from_length_coded_str,
+    [0xfb] = _from_length_coded_str,
+    [0xfc] = _from_length_coded_str,
+    [0xfd] = _from_length_coded_str,
+    [0xfe] = _from_length_coded_str
+}
+
+local function _parse_row_data_binary(data, cols, compact)
+    local ncols = #cols
+    -- 空位图,前两个bit系统保留 (列数量 + 7 + 2) / 8
+    local bitmap = (ncols + 9) // 8
+    local pos = 2 + bitmap
+    local value
+
+    --空字段表
+    local null_fields = new_tab(16, 0)
+    local field_index = 1
+    for i = 2, pos - 1 do
+        local byte = strbyte(data, i)
+        for j = 0, 7 do
+            if field_index > 2 then
+                if byte & (1 << j) == 0 then
+                    null_fields[field_index - 2] = false
+                else
+                    null_fields[field_index - 2] = true
+                end
+            end
+            field_index = field_index + 1
+        end
+    end
+
+    local row = new_tab(ncols, 0)
+    for i = 1, ncols do
+        local col = cols[i]
+        local typ = col.type
+        local name = col.name
+        if not null_fields[i] then
+            local f = _binary_parser[typ]
+            if not f then
+                error("_parse_row_data_binary()error,unsupported field type " .. typ)
+            end
+            value, pos = f(data, pos)
+            if compact then
+                row[i] = value
+            else
+                row[name] = value
+            end
+        end
+    end
+
+    return row
+end
+
+function MySQL.read_execute(self, est_nrows)
+    local packet, typ, err = _recv_packet(self, sock)
+    if not packet then
+        return nil, err
+        --error( err )
+    end
+
+    if typ == "ERR" then
+        local errno, msg, sqlstate = _parse_err_packet(packet)
+        return nil, msg, errno, sqlstate
+        --error( strformat("errno:%d, msg:%s,sqlstate:%s",errno,msg,sqlstate))
+    end
+
+    if typ == "OK" then
+        local res = _parse_ok_packet(packet)
+        if res and res.server_status & SERVER_MORE_RESULTS_EXISTS ~= 0 then
+            return res, "again"
+        end
+        return res
+    end
+
+    if typ ~= "DATA" then
+        return nil, "packet type " .. typ .. " not supported"
+        --error( "packet type " .. typ .. " not supported" )
+    end
+
+    local field_count, extra = _parse_result_set_header_packet(packet)
+
+    local cols = new_tab(field_count, 0)
+    local col
+    while true do
+        packet, typ, err = _recv_packet(self, sock)
+        if typ == "EOF" then
+          local warning_count, status_flags = _parse_eof_packet(packet)
+          break
+        end
+        col = _parse_field_packet(packet)
+        if not col then
+            break
+        end
+        cols[#cols + 1] = col
+    end
+
+    --没有记录集返回
+    if #cols < 1 then
+        return {}
+    end
+
+    local compact = self.compact
+    local rows = {}
+    local row
+    while true do
+        packet, typ, err = _recv_packet(self, sock)
+        if typ == "EOF" then
+            local warning_count, status_flags = _parse_eof_packet(packet)
+            if status_flags & SERVER_MORE_RESULTS_EXISTS ~= 0 then
+                return rows, "again"
+            end
+            break
+        end
+        row = _parse_row_data_binary(packet, cols, compact)
+        if not col then
+            break
+        end
+        rows[#rows + 1] = row
+    end
+
+    return rows
+end
 
 function MySQL.read_result(self, est_nrows)
 
     local packet, typ, err = _recv_packet(self)
     if not packet then
+        self.state = nil
         return nil, err
     end
 
@@ -667,24 +933,25 @@ function MySQL.read_result(self, est_nrows)
         if not col then
             return nil, err, errno, sqlstate
         end
-
         cols[i] = col
     end
 
     local packet, typ, err = _recv_packet(self)
     if not packet then
+        self.state = nil
         return nil, err
     end
 
     if typ ~= 'EOF' then
         return nil, "this type: " .. typ .. " is not supported 2"
     end
+
     local compact = self.compact
-    local rows = new_tab(est_nrows or 4, 0)
-    local i = 0
+    local rows = new_tab(est_nrows or 16, 0)
     while true do
         packet, typ, err = _recv_packet(self)
         if not packet then
+            self.state = nil
             return nil, err
         end
         if typ == 'EOF' then
@@ -694,29 +961,59 @@ function MySQL.read_result(self, est_nrows)
             end
             break
         end
-        local row = _parse_row_data_packet(packet, cols, compact)
-        i = i + 1
-        rows[i] = row
+        rows[#rows + 1] = _parse_row_data_packet(packet, cols, compact)
     end
     return rows
 end
 
 function MySQL.query(self, query, est_nrows)
   if type(query) ~= "string" then
-      return nil, "Attemp to pass a invaild SQL."
+    return nil, "Attemp to pass a invaild SQL."
   end
   local ok = self:send_query(query)
   if not ok then
     self.state = nil
     return nil, 'connection already close. 1'
   end
-  while 1 do
-    local ok, ret = self:read_result(est_nrows)
-    if not ok or ret ~= 'again' then
-      return ok, ret
-    end
+  local ret, err = self:read_result(est_nrows)
+  if err ~= 'again' then
+    return ret, err
   end
-  -- return self:read_result(est_nrows)
+  local multiple_result = new_tab(4, 0)
+  multiple_result[#multiple_result+1] = ret
+  while err == "again" do
+    ret, err, errno, sqlstate = self:read_result(est_nrows)
+    if not ret then
+        multiple_result[#multiple_result+1] = { error = err, errno = errno, sqlstate = sqlstate }
+        break
+    end
+    multiple_result[#multiple_result+1] = ret
+  end
+  return multiple_result
+end
+
+function MySQL.prepare(self, query)
+  if type(query) ~= "string" or query == '' then
+    return nil, "Attemp to pass a invaild prepare."
+  end
+  local ok = self:send_prepare(query)
+  if not ok then
+    self.state = nil
+    return nil, 'connection already close.'
+  end
+  return self:read_prepare()
+end
+
+function MySQL.execute(self, stmt, ...)
+    if select("#", ...) ~= stmt.num_params then
+        return nil, 'The number of stmt parameters is inconsistent.'
+    end
+    local ok = self:send_execute(stmt, {...})
+    if not ok then
+        self.state = nil
+        return nil, 'connection already close.'
+    end
+    return self:read_execute(est_nrows)
 end
 
 local escape_map = {

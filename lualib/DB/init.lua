@@ -14,10 +14,8 @@ local co_wait = co.wait
 local co_wakeup = co.wakeup
 
 local type = type
-local pairs = pairs
 local ipairs = ipairs
 local assert = assert
-local select = select
 local tostring = tostring
 local tonumber = tonumber
 
@@ -29,6 +27,7 @@ local concat = table.concat
 
 -- 空闲连接时间
 local WAIT_TIMEOUT = 31536000
+local INTERACTIVE_TIMEOUT = 31536000
 
 -- 数据库连接创建函数
 local function DB_CREATE (opt)
@@ -39,17 +38,18 @@ local function DB_CREATE (opt)
     db:set_timeout(3)
     local connect, err = db:connect(opt)
     if connect then
-      assert(db:query(fmt('SET wait_timeout=%s', WAIT_TIMEOUT)), "SET wait_timeout faild.")
-      assert(db:query(fmt('SET interactive_timeout=%s', WAIT_TIMEOUT)), "SET interactive_timeout faild.")
+      assert(db:query(fmt('SET wait_timeout=%u', WAIT_TIMEOUT)))
+      assert(db:query(fmt('SET interactive_timeout=%u', INTERACTIVE_TIMEOUT)))
       if opt.stmts then
-        for rkey, stmt in pairs(opt.stmts) do
-          assert(db:query(stmt), "["..stmt.."] 预编译失败.")
+        local stmts = opt.stmts
+        for _, rkey in ipairs(stmts) do
+          assert(db:prepare(stmts[rkey].sql))
         end
       end
       db:set_timeout(0)
       break
     end
-    Log:WARN('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
+    Log:WARN("The connection failed. The reasons are: [" .. err .. "], Try to reconnect after 3 seconds")
     db:close()
     times = times + 1
     timer.sleep(3)
@@ -82,6 +82,75 @@ local function pop_db(self)
   return co_wait()
 end
 
+local function run_query(self, query)
+  local db, ret, err
+  while 1 do
+    db = pop_db(self)
+    if db then
+      ret, err = db:query(query)
+      if db.state then
+        break
+      end
+      db:close()
+      self.current = self.current - 1
+      db, ret, err = nil, nil, nil
+    end
+  end
+  local co = pop_wait(self)
+  if co then
+    co_wakeup(co, db)
+    return ret, err
+  end
+  add_db(self, db)
+  return ret, err
+end
+
+local function run_prepare(self, query)
+  local db, ret, err
+  while 1 do
+    db = pop_db(self)
+    if db then
+      ret, err = db:prepare(query)
+      if db.state then
+        break
+      end
+      db:close()
+      self.current = self.current - 1
+      db, ret, err = nil, nil, nil
+    end
+  end
+  local co = pop_wait(self)
+  if co then
+    co_wakeup(co, db)
+    return ret, err
+  end
+  add_db(self, db)
+  return ret, err
+end
+
+local function run_execute(self, stmt, ...)
+  local db, ret, err
+  while 1 do
+    db = pop_db(self)
+    if db then
+      ret, err = db:execute(stmt, ...)
+      if db.state then
+        break
+      end
+      db:close()
+      self.current = self.current - 1
+      db, ret, err = nil, nil, nil
+    end
+  end
+  local co = pop_wait(self)
+  if co then
+    co_wakeup(co, db)
+    return ret, err
+  end
+  add_db(self, db)
+  return ret, err
+end
+
 local DB = class("DB")
 
 function DB:ctor(opt)
@@ -108,79 +177,65 @@ function DB:connect ()
   return self.INITIALIZATION
 end
 
--- PREPARE
-function DB:prepare (sql)
-  if type(sql) ~= 'string' or sql == '' then
-    return nil, "试图传递一个无效的SQL语句"
-  end
+function DB:prepare(sql)
+  assert(self.INITIALIZATION, "DB needs to be initialized first.")
+  local stmts = self.stmts
   if not self.stmts then
-    self.stmts = {}
+    stmts = {}
+    self.stmts = stmts
   end
   local rkey = hashkey(sql, true)
-  if self.stmts[rkey] then
+  if stmts[rkey] then
     return rkey
   end
-  local stmt = fmt([[PREPARE %s FROM "%s"]], rkey, sql)
-  assert(self:query(stmt), "["..sql.."] 预编译失败.")
-  self.stmts[rkey] = stmt
+  local stmt = assert(run_prepare(self, sql))
+  stmts[#stmts + 1] = rkey
+  stmts[rkey] = { stmt = stmt, sql = sql }
   return rkey
 end
 
--- EXECUTE
-function DB:execute (rkey, ...)
+-- 初始化所有预处理语句
+function DB:prepares(opt)
+  assert(self.INITIALIZATION, "DB needs to be initialized first.")
+  if type(opt) ~= 'table' or #opt < 1 then
+    return
+  end
+  local stmts = self.stmts
   if not self.stmts then
-    return nil, "尚未有任何预编译语句"
+    stmts = {}
+    self.stmts = stmts
   end
-  local stmt = self.stmts[rkey]
-  if not stmt then
-    return nil, "找不到这个预编译语句."
-  end
-  local qua = select("#", ...)
-  if qua <= 0 then
-    return self:query([[ EXECUTE ]]..rkey)
-  end
-  local arg_keys = {}
-  local arg_key = "@cf_args"
-  local arg_values = {...}
-  local req1 = {}
-  for q = 1, qua do
-    local key = arg_key..q
-    local value = arg_values[q]
-    if type(value) == 'string' then
-      value = value:gsub("'", "\\'")
+  local list = {}
+  for _, sql in ipairs(opt) do
+    local rkey = hashkey(sql, true)
+    if not stmts[rkey] then
+      local stmt = assert(run_prepare(self, sql))
+      list[#list + 1] = rkey
+      stmts[#stmts + 1] = rkey
+      stmts[rkey] = {stmt = stmt, sql = sql}
     end
-    arg_keys[#arg_keys+1] = key
-    req1[#req1+1] = concat({key, "=", "'", value, "'"})
   end
-  return self:query(concat({"SET ", concat(req1, ", "), ";", " EXECUTE ", rkey, " USING ", concat(arg_keys, ", "), ";"}))
+  return list
+end
+
+-- 执行预处理语句
+function DB:execute(rkey, ...)
+  assert(self.INITIALIZATION, "DB needs to be initialized first.")
+  local stmts = self.stmts
+  if type(stmts) ~= 'table' or #stmts < 1 then
+    return nil, "DB has not any stmts."
+  end
+  local stmt = stmts[rkey]
+  if not stmt then
+    return nil, "DB Can't find this stmt."
+  end
+  return run_execute(self, stmt.stmt, ...)
 end
 
 -- 原始查询语句
 function DB:query(query)
-  if not self.INITIALIZATION then
-    return nil, "DB尚未初始化"
-  end
-  assert(type(query) == 'string' and query ~= '' , "原始SQL类型错误(query):"..tostring(query))
-  local db, ret, err
-  while 1 do
-    db = pop_db(self)
-    if db then
-      ret, err = db:query(query)
-      if db.state then
-        break
-      end
-      db:close()
-      self.current = self.current - 1
-      db, ret, err = nil, nil, nil
-    end
-  end
-  local co = pop_wait(self)
-  if co then
-    co_wakeup(co, db)
-    return ret, err
-  end
-  add_db(self, db)
-  return ret, err
+  assert(self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_query(self, assert(type(query) == 'string' and query ~= '' and query , "Invalid MySQL syntax."))
 end
 
 -- 字符串安全转义
@@ -189,6 +244,7 @@ function DB.quote_to_str( str )
 end
 
 function DB:count()
+  assert(self.INITIALIZATION, "DB needs to be initialized first.")
   return self.current, self.max, #self.co_pool, #self.db_pool
 end
 
