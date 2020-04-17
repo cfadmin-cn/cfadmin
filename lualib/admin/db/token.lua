@@ -33,7 +33,7 @@ end
 
 -- 根据token查用户信息
 function token.token_to_userinfo (db, token)
-  return db:query(fmt([[
+  local token, err = db:query(fmt([[
   SELECT
   	`cfadmin_users`.id,
   	`cfadmin_users`.name,
@@ -53,7 +53,11 @@ function token.token_to_userinfo (db, token)
   	`cfadmin_tokens`.uid = `cfadmin_users`.id AND
     `cfadmin_roles`.id = `cfadmin_users`.role AND
   	`cfadmin_tokens`.token = '%s'
-  LIMIT 1]], token:gsub("'", "\\'")))[1]
+  LIMIT 1]], token:gsub("'", "\\'")))
+  if type(token) ~= 'table' or #token < 1 then
+    return nil, err
+  end
+  return token[1]
 end
 
 return token
