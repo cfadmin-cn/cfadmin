@@ -402,9 +402,7 @@ function crypt.rsa_public_key_oaep_padding_decode(text, public_key_path, b64)
   return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_PKCS1_OAEP_PADDING)
 end
 
-
--- 签名函数: (不用纠结为什么这么写, 主要是为了让你看下面的内容)
--- 第一个参数是等待签名的明文, 第二个参数是私钥所在路径, 第三个参数是算法名称, 第四个参数决定是否以hex输出
+-- RSA签名函数: 第一个参数是等待签名的明文, 第二个参数是私钥所在路径, 第三个参数是算法名称, 第四个参数决定是否以hex输出
 function crypt.rsa_sign(text, private_key_path, algorithm, hex)
   local hash = rsa_sign(text, private_key_path, rsa_algorithms[(algorithm or ""):lower()] or rsa_algorithms["md5"])
   if hash and hex then
@@ -413,8 +411,7 @@ function crypt.rsa_sign(text, private_key_path, algorithm, hex)
   return hash
 end
 
--- 验签函数: (不用纠结为什么这么写, 主要是为了让你看下面的内容)
--- 第一个参数是等待签名的明文, 第二个参数是私钥所在路径, 第三个参数待比较的签名, 第四个参数是算法名称, 第四个参数决定是否对sign进行unhex
+-- RSA验签函数: 第一个参数是等待签名的明文, 第二个参数是私钥所在路径, 第三个参数为签名sign密文, 第四个参数是算法名称, 第五个参数决定是否对sign进行unhex
 function crypt.rsa_verify(text, public_key_path, sign, algorithm, hex)
   if hex then
     sign = hexdecode(sign)
