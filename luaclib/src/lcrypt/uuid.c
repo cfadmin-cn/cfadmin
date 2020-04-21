@@ -53,6 +53,6 @@ int luuid(lua_State *L) {
 int lguid(lua_State *L) {
   if (1 != lhashkey(L))
     return luaL_error(L, "Invalid hashkey.");
-  lua_pushlstring(L, (const char *)guid_v1_gen((const uint8_t *)lua_tostring(L, lua_gettop(L)), lua_newuserdata(L, GUID_V1_LENGTH + 1), lua_tointeger(L, 2), lua_tointeger(L, 3)), GUID_V1_LENGTH);
+  lua_pushlstring(L, (const char *)guid_v1_gen((const uint8_t *)lua_tostring(L, 4), lua_newuserdata(L, GUID_V1_LENGTH + 1), lua_tointeger(L, 2), lua_tointeger(L, 3)), GUID_V1_LENGTH);
   return 1;
 }
