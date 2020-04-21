@@ -49,6 +49,7 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 
 /* 开启 TCP keepalive */
 #ifdef SO_KEEPALIVE
+  #ifndef __MSYS__ /* 在仿真环境中会操作始终会失败 */
   if (mode != None){
     ret = setsockopt(sockfd, IPPROTO_TCP, SO_KEEPALIVE, &Enable , sizeof(Enable));
     if (ret){
@@ -56,6 +57,7 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
       return _exit(-1);
     }
   }
+  #endif
 #endif
 
 /* 开启延迟Accept, 没数据来之前不回调accept */
