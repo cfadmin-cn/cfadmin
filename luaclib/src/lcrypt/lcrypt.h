@@ -11,6 +11,7 @@
 #define SMALL_CHUNK 256
 
 int luuid(lua_State *L);
+int lguid(lua_State *L);
 
 int ltohex(lua_State *L);
 int lfromhex(lua_State *L);

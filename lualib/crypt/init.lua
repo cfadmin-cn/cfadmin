@@ -1,6 +1,12 @@
 local CRYPT = require "lcrypt"
 
+local sys = require "sys"
+local now = sys.now
+local hostname = sys.hostname
+local modf = math.modf
+
 local uuid = CRYPT.uuid
+local guid = CRYPT.guid
 
 local md5 = CRYPT.md5
 local hmac64 = CRYPT.hmac64
@@ -75,6 +81,12 @@ local crypt = {}
 
 function crypt.uuid()
   return uuid()
+end
+
+-- hash(主机名)-时间戳-微秒-(1~65535的随机数)
+function crypt.guid(host)
+  local hi, lo = modf(now())
+  return guid(host or hostname(), hi, lo * 1e4 // 1)
 end
 
 function crypt.md5(str, hex)
