@@ -31,7 +31,6 @@ local INTERACTIVE_TIMEOUT = 31536000
 
 -- 数据库连接创建函数
 local function DB_CREATE (opt)
-  local times = 1
   local db
   while 1 do
     db = mysql:new()
@@ -51,8 +50,6 @@ local function DB_CREATE (opt)
     end
     Log:WARN("The connection failed. The reasons are: [" .. err .. "], Try to reconnect after 3 seconds")
     db:close()
-    times = times + 1
-    timer.sleep(3)
   end
   return db
 end
