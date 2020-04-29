@@ -8,6 +8,7 @@ local cf_fork = cf.fork
 local cf_wait = cf.wait
 local cf_wakeup = cf.wakeup
 
+local ua = require "httpc.ua"
 local protocol = require "httpc.protocol"
 local sock_new = protocol.sock_new
 local sock_recv = protocol.sock_recv
@@ -117,7 +118,7 @@ local function get(domain, headers, args, timeout)
 
 	opt.args = args
 	opt.headers = headers
-	opt.server = SERVER
+	opt.server = ua.get_user_agent()
 
 	local REQ = build_get_req(opt)
 
@@ -146,7 +147,7 @@ local function post(domain, headers, body, timeout)
 
 	opt.body = body
 	opt.headers = headers
-	opt.server = SERVER
+	opt.server = ua.get_user_agent()
 
 	local REQ = build_post_req(opt)
 
@@ -176,7 +177,7 @@ local function delete(domain, headers, body, timeout)
 
 	opt.body = body
 	opt.headers = headers
-	opt.server = SERVER
+	opt.server = ua.get_user_agent()
 
 	local REQ = build_delete_req(opt)
 
@@ -206,7 +207,7 @@ local function put(domain, headers, body, timeout)
 
 	opt.body = body
 	opt.headers = headers
-	opt.server = SERVER
+	opt.server = ua.get_user_agent()
 
 	local REQ = build_put_req(opt)
 
@@ -237,7 +238,7 @@ local function json(domain, headers, json, timeout)
 
 	opt.json = json
 	opt.headers = headers
-	opt.server = SERVER
+	opt.server = ua.get_user_agent()
 
 	local REQ = build_json_req(opt)
 
@@ -266,7 +267,7 @@ local function file(domain, headers, files, timeout)
 
 	opt.files = files
 	opt.headers = headers
-	opt.server = SERVER
+	opt.server = ua.get_user_agent()
 
 	local REQ = build_file_req(opt)
 

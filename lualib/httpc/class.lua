@@ -3,6 +3,7 @@ local hc_multi_request = hc.multi_request
 
 local class = require "class"
 
+local ua = require "httpc.ua"
 local protocol = require "httpc.protocol"
 local sock_new = protocol.sock_new
 local sock_recv = protocol.sock_recv
@@ -47,7 +48,7 @@ local methods = {'get', 'post', 'json', 'file'}
 local httpc = class("httpc")
 
 function httpc:ctor (opt)
-  self.server = "cf/0.1"
+  self.server = ua.get_user_agent()
   self.timeout = opt.timeout or 15
 end
 
