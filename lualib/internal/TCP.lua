@@ -417,6 +417,10 @@ function TCP:ssl_connect(domain, port)
   if not ok then
       return nil, "domain connect error."
   end
+  return self:ssl_handshake()
+end
+
+function TCP:ssl_handshake()
   if not self.ssl_ctx and not self.ssl then
     self.ssl, self.ssl_ctx = tcp_ssl_new_fd(self.fd)
   else
