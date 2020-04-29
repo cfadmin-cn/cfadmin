@@ -60,6 +60,20 @@ function httpc:basic_authorization( ... )
   return build_basic_authorization(...)
 end
 
+function httpc:set_timeout(timeout)
+  if tonumber(timeout) and tonumber(timeout) > 0 then
+    self.timeout = tonumber(timeout)
+    return self
+  end
+end
+
+function httpc:set_socket(sock)
+  if type(sock) == 'table' then
+    self.sock = sock
+    return self
+  end
+end
+
 function httpc:raw( parameter )
   local opt, err = splite_protocol(parameter.domain)
   if not opt then
