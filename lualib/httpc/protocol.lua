@@ -167,7 +167,7 @@ local function httpc_response(sock, SSL)
       local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
       local Chunked = HEADER['Transfer-Encoding'] or HEADER['transfer-encoding']
       if not Content_Length and not Chunked then
-        return nil, "Unsupported response body parsing."
+        return CODE, STATUS
       end
       if Content_Length then
         if (#DATA - posB) == Content_Length then
