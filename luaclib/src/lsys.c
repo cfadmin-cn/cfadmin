@@ -2,6 +2,8 @@
 
 #include <core.h>
 
+#define MAX_IPV4 (4294967295L)
+
 // 提供一个精确到微秒的时间戳
 static int lnow(lua_State *L){
 	lua_pushnumber(L, now());
@@ -25,6 +27,32 @@ static int lipv6(lua_State *L){
   if (!IP || str_len == 0)
     return luaL_error(L, "ipv6 error: 请至少传递一个string类型参数\n");
   lua_pushboolean(L, ipv6(IP));
+  return 1;
+}
+
+/* string 转换为 IPv4 */ 
+static int lstr2ip(lua_State *L){
+  size_t str_len = 0;
+  const char *IP = luaL_checklstring(L, 1, &str_len);
+  if (!IP || str_len < 3 || str_len > 15)
+    return luaL_error(L, "Invalid IP.");
+  uint32_t addr = 0;
+  if (inet_pton(AF_INET, IP, (void*)&addr) != 1)
+    return 0;
+  lua_pushinteger(L, addr);
+  return 1;
+}
+
+/* IPv4 转换为 string */ 
+static int lip2str(lua_State *L){
+  lua_Unsigned IP = luaL_checkinteger(L, 1);
+  if (IP > MAX_IPV4)
+    return luaL_error(L, "Invalid IP.");
+  char str[INET_ADDRSTRLEN];
+  memset(str, 0x0, INET_ADDRSTRLEN);
+  if (!inet_ntop(AF_INET, (const void*)&IP, str, INET_ADDRSTRLEN))
+    return 0;
+  lua_pushlstring(L, str, strlen(str));
   return 1;
 }
 
@@ -79,11 +107,13 @@ LUAMOD_API int
 luaopen_sys(lua_State *L){
   luaL_checkversion(L);
   luaL_Reg sys_libs[] = {
+    {"os", los},
     {"now", lnow},
+    {"date", ldate},
     {"ipv4", lipv4},
     {"ipv6", lipv6},
-    {"date", ldate},
-    {"os", los},
+    {"str2ip", lstr2ip},
+    {"ip2str", lip2str},
     {"hostname", lhostname},
     {"new_tab", lnew_tab},
     {NULL, NULL}
