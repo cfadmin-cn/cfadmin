@@ -58,7 +58,6 @@ local function to_route(route)
   if byte(r, #r) ~= byte(slash) then
     return r
   end
-  print("删除: 结尾处的[/]")
   return split(r, 1, -2)
 end
 
