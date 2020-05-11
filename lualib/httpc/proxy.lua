@@ -35,27 +35,6 @@ local concat = table.concat
 local CRLF = '\x0d\x0a'
 local CRLF2 = '\x0d\x0a\x0d\x0a'
 
-
-local function sock_recv(sock, bytes)
-  local buffers = ""
-  while 1 do
-    local data = sock:recv(bytes)
-    if not data then
-      return nil
-    end
-    buffers = buffers .. data
-    if #data == bytes then
-      return buffers
-    end
-    bytes = bytes - #data
-  end
-end
-
-local function sock_send(sock, data)
-  return sock:send(data)
-end
-
-
 local Proxy = {}
 
 -- 构建代理认证信息
@@ -104,12 +83,14 @@ function Proxy.http_proxy_handshake(sock, proxy_config, source_config, info)
     return false, err
   end
 
+  print("1", info)
   -- 检查代理服务器验证情况
   local code, response = httpc_response(sock, proxy_config.protocol)
   if code ~= 200 then
     return false, response
   end
 
+  print("2")
   -- 检查代理的通道是否需要SSL握手
   if source_config.protocol == "https" then
     local ok = sock:ssl_handshake()
@@ -118,6 +99,7 @@ function Proxy.http_proxy_handshake(sock, proxy_config, source_config, info)
     end
   end
 
+  print("3")
   -- 连接成功
   return true
 end
@@ -144,12 +126,12 @@ function Proxy.socks5_proxy_handshake(sock, proxy_config, source_config)
     METHODS = METHODS .. char(0x02)
   end
 
-  local ok = sock_send(sock, pack(">BB", VER, NMETHODS) .. METHODS)
+  local ok = sock:send(pack(">BB", VER, NMETHODS) .. METHODS)
   if not ok then
     return false, "httpc socks5 Proxy closed in handshake. 1"
   end
 
-  local data = sock_recv(sock, 2)
+  local data = sock:recv(2)
   -- "\x05\x00" 表示无需认证, "\x05\x02" 表示后续需要用户名密码认证.
   if data ~= '\x05\x00' and data ~= '\x05\x02' then
     if not data then
@@ -161,11 +143,11 @@ function Proxy.socks5_proxy_handshake(sock, proxy_config, source_config)
   -- 如果需要进一步协商用户认证(sub-negotiation)
   if data == '\x05\x02' then
     -- 发送用户名/密码到代理服务器进行鉴权.
-    local ok = sock_send(sock, char(0x02) .. char(#username) .. username .. char(#password) .. password)
+    local ok = sock:send(char(0x02) .. char(#username) .. username .. char(#password) .. password)
     if not ok then
       return false, "httpc socks5 Proxy closed this session when send auth info."
     end
-    local data = sock_recv(sock, 2)
+    local data = sock:recv(2)
     if not data or #data ~= 2 then
       return false, "httpc socks5 Proxy closed this session when server response auth status."
     end
@@ -188,12 +170,12 @@ function Proxy.socks5_proxy_handshake(sock, proxy_config, source_config)
   end
 
   -- 发送连接协议
-  local ok = sock_send(sock, pack(">BBBB", VER, CMD, RSV, ATYPE) .. DST_ADDR .. DST_PORT)
+  local ok = sock:send(pack(">BBBB", VER, CMD, RSV, ATYPE) .. DST_ADDR .. DST_PORT)
   if not ok then
     return false, "httpc socks5 Proxy closed in handshake. 2"
   end
 
-  local data = sock_recv(sock, 4)
+  local data = sock:recv(4)
   if not data then
     return false, "httpc socks5 Proxy closed in handshake. 3"
   end
@@ -206,27 +188,27 @@ function Proxy.socks5_proxy_handshake(sock, proxy_config, source_config)
   end
 
   if atype == 1 then -- 如果atype是IPv4类型
-    local data = sock_recv(sock, 4)
+    local data = sock:recv(4)
     if not data then
       return false, "httpc socks5 Proxy Close this session when read IPv4 info."
     end
     -- print("代理服务器为本次连接分配的IPv4地址为:", table.concat({unpack(">BBBB", data)}, ".", 1, 4))
   elseif atype == 3 then -- 如果atype是domain类型
-    local data = sock_recv(sock, 1)
+    local data = sock:recv(1)
     if not data then
       return false, "httpc socks5 Proxy Close this session when read domain atype."
     end
-    local domain = sock_recv(sock, unpack(">B", data))
+    local domain = sock:recv(unpack(">B", data))
     -- print("代理服务器回应了一个域名:" .. domain)
   elseif atype == 4 then -- 如果atype是IPv6类型
-    local data = sock_recv(sock, 16)
+    local data = sock:recv(16)
     if not data then
       return false, "httpc socks5 Proxy Close this session when read IPv6 atype."
     end
     -- print("代理服务器为本次连接分配的IPv6地址为:", table.concat({unpack(">HHHHHHHH", data)}, ":", 1, 8))
   end
 
-  local data = sock_recv(sock, 2)
+  local data = sock:recv(2)
   if not data then
     return false, "httpc socks5 Proxy Server was shutdown before the connection was completed."
   end
