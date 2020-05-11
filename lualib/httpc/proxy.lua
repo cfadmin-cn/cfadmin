@@ -83,14 +83,12 @@ function Proxy.http_proxy_handshake(sock, proxy_config, source_config, info)
     return false, err
   end
 
-  print("1", info)
   -- 检查代理服务器验证情况
   local code, response = httpc_response(sock, proxy_config.protocol)
   if code ~= 200 then
     return false, response
   end
 
-  print("2")
   -- 检查代理的通道是否需要SSL握手
   if source_config.protocol == "https" then
     local ok = sock:ssl_handshake()
@@ -99,7 +97,6 @@ function Proxy.http_proxy_handshake(sock, proxy_config, source_config, info)
     end
   end
 
-  print("3")
   -- 连接成功
   return true
 end
