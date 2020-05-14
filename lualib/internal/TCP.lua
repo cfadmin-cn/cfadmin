@@ -45,6 +45,9 @@ local tcp_listen = tcp.listen
 local tcp_listen_ex = tcp.listen_ex
 local tcp_sendfile = tcp.sendfile
 
+local tcp_readline = tcp.readline
+local tcp_sslreadline = tcp.ssl_readline
+
 local tcp_new_client_fd = tcp.new_client_fd
 local tcp_new_server_fd = tcp.new_server_fd
 local tcp_new_unixsock_fd = tcp.new_unixsock_fd
@@ -227,6 +230,98 @@ function TCP:ssl_send(buf)
     end
   end)
   tcp_start(self.SEND_IO, self.fd, EVENT_WRITE, self.send_co)
+  return co_wait()
+end
+
+function TCP:readline(sp, no_sp)
+  if self.ssl then
+    Log:ERROR("Please use ssl_readline method :)")
+    return nil, "Please use ssl_readline method :)"
+  end
+  if type(sp) ~= 'string' or #sp < 1 then
+    return nil, "Invalid separator."
+  end
+  local data, len = tcp_readline(self.fd, sp, no_sp)
+  if not len or len > 0 then
+    return data, not len and 'close' or len
+  end
+  local co = co_self()
+  self.READ_IO = tcp_pop()
+  self.read_current_co = co_self()
+  self.read_co = co_new(function ( ... )
+    while 1 do
+      local buf, buf_size = tcp_readline(self.fd, sp, no_sp)
+      if type(buf) == "string" and type(buf_size) == 'number' then
+        if self.timer then
+          self.timer:stop()
+          self.timer = nil
+        end
+        tcp_push(self.READ_IO)
+        tcp_stop(self.READ_IO)
+        return co_wakeup(co, buf, buf_size)
+      end
+      if not buf and not buf_size then
+        return co_wakeup(co, nil, "server close")
+      end
+      co_wait()
+    end
+  end)
+  self.timer = ti_timeout(self._timeout, function ( ... )
+    tcp_push(self.READ_IO)
+    tcp_stop(self.READ_IO)
+    self.timer = nil
+    self.READ_IO = nil
+    self.read_co = nil
+    self.read_current_co = nil
+    return co_wakeup(co, nil, "read timeout")
+  end)
+  tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
+  return co_wait()
+end
+
+function TCP:ssl_readline(sp, no_sp)
+  if not self.ssl then
+    Log:ERROR("Please use readline method :)")
+    return nil, "Please use readline method :)"
+  end
+  if type(sp) ~= 'string' or #sp < 1 then
+    return nil, "Invalid separator."
+  end
+  local data, len = tcp_sslreadline(self.ssl, sp, no_sp)
+  if not len or len > 0 then
+    return data, not len and 'close' or len
+  end
+  local co = co_self()
+  self.read_current_co = co_self()
+  self.READ_IO = tcp_pop()
+  self.read_co = co_new(function ( ... )
+    while 1 do
+      local buf, buf_size = tcp_sslreadline(self.ssl, sp, no_sp)
+      if type(buf) == "string" and type(buf_size) == 'number' then
+        if self.timer then
+          self.timer:stop()
+          self.timer = nil
+        end
+        tcp_push(self.READ_IO)
+        tcp_stop(self.READ_IO)
+        return co_wakeup(co, buf, buf_size)
+      end
+      if not buf and not buf_size then
+        return co_wakeup(co, nil, "server close")
+      end
+      co_wait()
+    end
+  end)
+  self.timer = ti_timeout(self._timeout, function ( ... )
+    tcp_push(self.READ_IO)
+    tcp_stop(self.READ_IO)
+    self.timer = nil
+    self.READ_IO = nil
+    self.read_co = nil
+    self.read_current_co = nil
+    return co_wakeup(co, nil, "read timeout")
+  end)
+  tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
   return co_wait()
 end
 
