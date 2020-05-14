@@ -12,6 +12,7 @@ local co_spwan = Co.spwan
 local type = type
 local pcall = pcall
 local ipairs = ipairs
+local assert = assert
 local tonumber = tonumber
 local tostring = tostring
 
@@ -24,24 +25,34 @@ local match = string.match
 local find = string.find
 local byte = string.byte
 local upper = string.upper
+local toint = math.tointeger
 
 local CRLF = '\x0d\x0a'
 
 local redcmd = {}
 
 local function read_response(sock)
-	local result = ""
-	while 1 do
-		local data = sock:recv(1)
-		if not data then
-			return nil, 'server close!!'
-		end
-		result = result .. data
-		if find(result, CRLF) then
-			break
-		end
-	end
-	return redcmd[byte(result)](sock, sub(result, 2))
+  local result = sock:readline("\r\n")
+  if not result then
+    return nil, 'server close!!'
+  end
+  -- 断言redis 协议是否支持用于快速排错
+  return assert(redcmd[byte(result)], "Invalid protocol command : " .. sub(result, 1, 1))(sock, sub(result, 2))
+end
+
+local function sock_readbytes(sock, bytes)
+  local buffers = new_tab(16, 0)
+  while 1 do
+    local data = sock:recv(bytes)
+    if not data then
+      return nil, 'server close!!'
+    end
+    buffers[#buffers+1] = data
+    if #data == bytes then
+      return concat(buffers)
+    end
+    bytes = bytes - #data
+  end
 end
 
 redcmd[36] = function(sock, data) -- '$'
@@ -49,16 +60,16 @@ redcmd[36] = function(sock, data) -- '$'
 	if bytes < 0 then
 		return true, nil
 	end
-	local firstline = sock:recv(bytes + 2)
+	local firstline = sock_readbytes(sock, bytes + 2)
 	return true, sub(firstline, 1, -3)
 end
 
 redcmd[43] = function(sock, data) -- '+'
-	return true, match(data, '(.+)'..CRLF)
+	return true, sub(data, 1, -3)
 end
 
 redcmd[45] = function(sock, data) -- '-'
-	return false, data
+	return false, sub(data, 1, -3)
 end
 
 redcmd[58] = function(sock, data) -- ':'
@@ -107,14 +118,14 @@ local function read_boolean(sock)
 end
 
 local function redis_login(sock, auth, db)
-	if type(auth) == 'string' then
+	if type(auth) == 'string' and auth ~= '' then
 		sock:send(CMD("AUTH", auth))
 		local ok, err = read_response(sock)
 		if not ok then
 			return nil, err
 		end
 	end
-	if type(db) == 'number' then
+	if toint(db) and toint(db) >= 0 then
 		sock:send(CMD("SELECT", db))
 		local ok, err = read_response(sock)
 		if not ok then
@@ -139,7 +150,7 @@ function redis:connect()
 	if not sock then
 		return nil, "Can't Create redis Socket"
 	end
-	local ok, err = sock:connect(self.host, self.port or 6379)
+	local ok, err = sock:connect(self.host, toint(self.port) or 6379)
 	if not ok then
 		return nil, "redis connect error: please check network"
 	end
