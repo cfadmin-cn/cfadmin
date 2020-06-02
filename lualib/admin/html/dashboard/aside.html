@@ -3,15 +3,15 @@
     <div id="side-nav">
         <ul id="nav">
           <li>
-            <a href="javascript:;">
-              <i class="layui-icon">&#xe665;</i>
+            <a href="javascript:;" onclick="$('#dashboard').attr('src', '{*home*}')">
+              <i class="layui-icon left-nav-li" lay-tips="{* locale['dashboard.menu.home'] *}">&#xe665;</i>
               <cite>{* locale['dashboard.menu.home'] *}</cite>
             </a>
           </li>
           {% if is_admin then %}
             <li>
               <a href="javascript:;">
-                <i class="layui-icon">&#xe716;</i>
+                <i class="layui-icon left-nav-li" lay-tips="{* locale['dashboard.menu.system'] *}">&#xe716;</i>
                 <cite>{* locale['dashboard.menu.system'] *}</cite>
                 <i class="iconfont nav_right">&#xe697;</i>
               </a>
@@ -43,13 +43,13 @@
           {% for _, menu in ipairs(menus) do %}
             <li>
             {% if type(menu[2]) == 'string' then%}
-              <a onclick="xadmin.add_tab('{{locale[menu[1]] or menu[1]}}','{*menu[2]*}',true)">
-                <i class="layui-icon">{*menu[3]*}</i><cite>{{locale[menu[1]] or menu[1]}}</cite>
+              <a onclick="xadmin.add_tab('{*locale[menu[1]] or menu[1]*}','{*menu[2]*}',true)">
+                <i class="layui-icon left-nav-li" lay-tips="{*locale[menu[1]] or menu[1]*}">{*menu[3]*}</i><cite>{*locale[menu[1]] or menu[1]*}</cite>
               </a>
             {% elseif type(menu[2]) == 'table' then %}
               <a href="javascript:;">
-                <i class="layui-icon left-nav-li">{*menu[3]*}</i>
-                <cite>{{locale[menu[1]] or menu[1]}}</cite>
+                <i class="layui-icon left-nav-li" lay-tips="{*locale[menu[1]] or menu[1]*}">{*menu[3]*}</i>
+                <cite>{*locale[menu[1]] or menu[1]*}</cite>
                 <i class="iconfont nav_right">&#xe697;</i>
               </a>
               <ul class="sub-menu">
@@ -58,23 +58,23 @@
                   {% if type(item[2]) == 'table' then%}
                     <a href="javascript:;">
                       <i class="layui-icon">{*item[3]*}</i>
-                      <cite>{{locale[item[1]] or item[1]}}</cite>
+                      <cite>{*locale[item[1]] or item[1]*}</cite>
                       <i class="iconfont nav_right">&#xe697;</i>
                     </a>
                     <ul class="sub-menu">
                     {% for _, it in ipairs(item[2]) do %}
                       <li>
-                        <a onclick="xadmin.add_tab('{{locale[it[1]] or it[1]}}','{*it[2]*}')">
+                        <a onclick="xadmin.add_tab('{*locale[it[1]] or it[1]*}','{*it[2]*}',true)">
                           <i class="layui-icon">{*it[3]*}</i>
-                          <cite>{{locale[it[1]] or it[1]}}</cite>
+                          <cite>{*locale[it[1]] or it[1]*}</cite>
                         </a>
                       </li>
                     {% end %}
                     </ul>
                   {% else %}
-                    <a onclick="xadmin.add_tab('{*item[1]*}','{*item[2]*}')">
+                    <a onclick="xadmin.add_tab('{*item[1]*}','{*item[2]*}',true)">
                       <i class="layui-icon">{*item[3]*}</i>
-                      <cite>{{locale[item[1]] or item[1]}}</cite>
+                      <cite>{*locale[item[1]] or item[1]*}</cite>
                     </a>
                   {% end %}
                   </li>
