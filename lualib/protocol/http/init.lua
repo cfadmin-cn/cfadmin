@@ -124,7 +124,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
       content['args'] = form_argsencode(PATH)
     end
   elseif METHOD == "POST" or METHOD == "PUT" then
-    local body_len = toint(HEADER['Content-Length']) or toint(HEADER['Content-length'])
+    local body_len = toint(HEADER['Content-Length']) or toint(HEADER['Content-length']) or toint(HEADER['content-length'])
     if body_len and body_len > 0 then
       local BODY = ''
       local RECV_BODY = true
