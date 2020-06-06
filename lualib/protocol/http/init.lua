@@ -164,7 +164,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
       local XML_ENCODE_2  = 'application/xml'
       local JSON_ENCODE = 'application/json'
       local URL_ENCODE  = 'application/x-www-form-urlencoded'
-      local format = match(HEADER['Content-type'] or HEADER['Content-Type'] or '', '(.-/[^;]*)')
+      local format = match(HEADER['Content-type'] or HEADER['Content-Type'] or HEADER['content-type'] or '', '(.-/[^;]*)')
       if format == FILE_ENCODE then
         local BOUNDARY = match(HEADER['Content-Type'], '^.+=[%-]*(.+)')
         if BOUNDARY and BOUNDARY ~= '' then
