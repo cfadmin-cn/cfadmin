@@ -24,6 +24,7 @@ local insert = table.insert
 local now = os.time
 local random = math.random
 local fmt = string.format
+local find = string.find
 local match = string.match
 local splite = string.gmatch
 local pack = string.pack
@@ -84,18 +85,17 @@ local function gen_cache()
     local file = io.open("/etc/hosts", "r")
     if file then
       for line in file:lines() do
-          local ip, domain = match(line, '([^#%G]*)[%G]+([^%G]+)')
+        if not find(line, "^([%G]*)#") then
+          local ip, domain = match(line, '([^#%G]*)[%G]+(.+)')
           local ok, v = check_ip(ip)
           if ok then
-            if not dns_cache[domain] then
-              if v == 4 then
-                ip = prefix..ip
-              end
-              dns_cache[domain] = {ip = ip}
+            for d in splite(domain or '', "([^ ]+)") do
+              dns_cache[d] = { ip = v == 4 and prefix .. ip or ip }
             end
           end
         end
-        file:close()
+      end
+      file:close()
     end
     dns_cache['localhost'] = {ip = prefix..'127.0.0.1'}
 end
