@@ -12,9 +12,20 @@ local json_decode = json.decode
 local json_encode = json.encode
 
 local type = type
+local byte = string.byte
 local get_locale = utils.get_locale
 
 local template_path = 'lualib/admin/html/login/base.html'
+
+local function random_sign(randomkey, value)
+  local sign = {}
+  randomkey = randomkey:reverse()
+  for i = 1, #value do
+    sign[i] = (byte(value, i) ~ byte(randomkey, i <= #randomkey and i or (i % randomkey) + 1)) & 0xff
+    sign[i] = string.format("%02x", sign[i])
+  end
+  return table.concat(sign)
+end
 
 local login = {}
 
@@ -27,6 +38,7 @@ function login.render(content)
   return template.compile(template_path){
     cdn = config.cdn,
     login_api = config.login_api,
+    randomkey = crypt.randomkey_ex(16, true):reverse(),
     locale = get_locale(Cookie.getCookie("CFLANG"))
   }
 end
@@ -34,19 +46,23 @@ end
 -- 登录接口逻辑
 function login.response (content)
   local db = config.db
-  local args = content.args
-  if type(args) ~= 'table' then
-    return json_encode({code = 401, msg = "1. 非法的参数"})
+  local args = content.args or (content.json and json_decode(content.body))
+  -- 验证参数是否存在
+  if type(args) ~= 'table' or type(args.username) ~= 'string' or type(args.password) ~= 'string' or type(args.randomkey) ~= 'string' then
+    return json_encode({code = 401, msg = "1. 无效的请求参数"})
   end
-  -- 验证参数
-  local username, password = args.username, args.password
-  if not username or not password then
-    return json_encode({code = 401, msg = "2. 错误的参数"})
+  local username, password, randomkey, verify_code = args.username, args.password, args.randomkey, args.verify_code
+  if username == '' or password == '' or randomkey == '' or type(verify_code) ~= 'string' then
+    return json_encode({code = 401, msg = "2. 无效的请求参数"})
+  end
+  -- 验证随机数行为
+  if random_sign(randomkey, username .. password) ~= verify_code then
+    return json_encode({code = 401, msg = "3. 用户密码验证失败"})
   end
   -- 获取登录信息
   local user_info = user.user_exists(db, username)
   if not user_info or username ~= user_info.username or crypt.sha1(password, true) ~= user_info.password then
-    return json_encode({code = 403, msg = "3. 用户不存在或者密码错误"})
+    return json_encode({code = 403, msg = "4. 用户不存在或者密码错误"})
   end
   local uid, name = user_info.id, user_info.name
   -- 生成token
