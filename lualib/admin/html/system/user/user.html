@@ -42,6 +42,8 @@
       <script type="text/html" id="headertoolbar">
         <!-- 刷新按钮  -->
         <button class="layui-btn layui-btn-xs" onclick='window.location.reload()'><i class="iconfont">&#59050;</i> {* locale['dashboard.menu.user_manage.table.reflush'] *}</button>
+        <!-- 刷新按钮  -->
+        <button class="layui-btn layui-btn-xs" onclick='clear_login()'><i class="iconfont">&#59050;</i> {* locale['dashboard.menu.user_manage.table.clear_login'] *}</button>
         <!-- 新增用户按钮  -->
         <button class="layui-btn layui-btn-xs" onclick="xadmin.open('{* locale['dashboard.menu.user_manage.table.adduser'] *}', '{*user_add_url*}', 550, 430)"><i class="iconfont">&#59065;</i> {* locale['dashboard.menu.user_manage.table.adduser'] *}</button>
         <!-- 根据用户名或账户搜索 -->
@@ -117,6 +119,24 @@
             condition: SearchCondition,
           }
         });
+      }
+      function clear_login() {
+        return $.ajax({
+          type: "GET",
+          url: "{*api_url*}",
+          headers: {token:"{*token*}"},
+          data:{action:"clear_login", token: "{*token*}"},
+          success: function (res) {
+            return layer.msg(res.msg, {time:1000}, function (index) {
+              if (res.code == 0) {
+                location.reload();
+              }
+            });
+          },
+          error: function (res) {
+            return layer.msg('请求失败', {time:2000});
+          }
+        })
       }
       </script>
   </body>

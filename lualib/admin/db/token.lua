@@ -60,4 +60,9 @@ function token.token_to_userinfo (db, token)
   return token[1]
 end
 
+-- 删除其他用户token信息
+function token.flush_all(db, uid)
+  return db:query(fmt([[DELETE FROM cfadmin_tokens WHERE uid != %u]], uid))
+end
+
 return token

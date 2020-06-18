@@ -58,6 +58,7 @@ return {
   ['dashboard.menu.user_manage.table.options'] = '操作',
 
   ['dashboard.menu.user_manage.table.reflush'] = '刷新',
+  ['dashboard.menu.user_manage.table.clear_login'] = "清除登录状态",
   ['dashboard.menu.user_manage.table.adduser'] = '添加用户',
   ['dashboard.menu.user_manage.table.edituser'] = '编辑用户',
   ['dashboard.menu.user_manage.table.true'] = '是',

@@ -58,6 +58,7 @@ return {
   ['dashboard.menu.user_manage.table.options'] = 'Options',
 
   ['dashboard.menu.user_manage.table.reflush'] = 'Reflush',
+  ['dashboard.menu.user_manage.table.clear_login'] = "Clear login status",
   ['dashboard.menu.user_manage.table.adduser'] = 'Add User',
   ['dashboard.menu.user_manage.table.edituser'] = 'Edit User',
 
