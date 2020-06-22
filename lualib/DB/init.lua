@@ -1,6 +1,7 @@
 local class = require "class"
-local mysql = require "protocol.mysql"
+
 local timer = require "internal.Timer"
+local mysql = require "protocol.mysql"
 
 local log = require "logging"
 local Log = log:new({ dump = true, path = 'DB'})
