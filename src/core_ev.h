@@ -10,9 +10,7 @@
 
 #define EV_VERIFY 0
 
-#ifndef NO_USE_FLOOR
-	#define EV_USE_FLOOR 1 // 如果没有math.h库, 可以定义NO_USE_FLOOR
-#endif
+#define EV_USE_FLOOR 1
 
 #define EV_FORK_ENABLE 0
 #define EV_CHILD_ENABLE 0
