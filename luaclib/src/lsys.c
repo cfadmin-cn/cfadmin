@@ -15,7 +15,7 @@ static int lipv4(lua_State *L){
   size_t str_len = 0;
   const char *IP = luaL_checklstring(L, 1, &str_len);
   if (!IP || str_len == 0)
-    return luaL_error(L, "ipv4 error: 请至少传递一个string类型参数\n");
+    return luaL_error(L, "ipv4 error: A parameter of type string is required\n");
   lua_pushboolean(L, ipv4(IP));
   return 1;
 }
@@ -25,7 +25,7 @@ static int lipv6(lua_State *L){
   size_t str_len = 0;
   const char *IP = luaL_checklstring(L, 1, &str_len);
   if (!IP || str_len == 0)
-    return luaL_error(L, "ipv6 error: 请至少传递一个string类型参数\n");
+    return luaL_error(L, "ipv6 error: A parameter of type string is required\n");
   lua_pushboolean(L, ipv6(IP));
   return 1;
 }
@@ -61,7 +61,7 @@ static int ldate(lua_State *L){
   size_t str_len = 0;
   const char *fmt = luaL_checklstring(L, 1, &str_len);
   if (!fmt || str_len == 0)
-    return luaL_error(L, "Date: 错误的格式化方法");
+    return luaL_error(L, "Date: Invalid format.");
 
   time_t timestamp = lua_tointeger(L, 2);
   if (0 >= timestamp)
