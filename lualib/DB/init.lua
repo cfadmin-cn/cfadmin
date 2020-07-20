@@ -50,6 +50,7 @@ local function DB_CREATE (opt)
       break
     end
     Log:WARN("The connection failed. The reasons are: [" .. err .. "], Try to reconnect after 3 seconds")
+    timer.sleep(3)
     db:close()
   end
   return db

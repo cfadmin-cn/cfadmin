@@ -427,7 +427,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
       if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
         -- 如果httpd开启了记录Cookie字段, 则每次尝试是否deCookie
         if cookie and typ == HTTP_PROTOCOL.USE then
-          deCookie(content['headers']["Cookie"])
+          deCookie(content['headers']["Cookie"] or content['headers']["cookie"])
         end
         if type(cls) == "table" then
           local method = cls[lower(METHOD)]
