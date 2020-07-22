@@ -2,11 +2,16 @@ local url = require "url"
 local urlencode = url.encode
 local urldecode = url.decode
 
+local sys = require "sys"
+local new_tab = sys.new_tab
+
 local type = type
+local tonumber = tonumber
 
 local string = string
 local sub = string.sub
 local find = string.find
+local match = string.match
 local splite = string.gmatch
 
 local table = table
@@ -36,7 +41,17 @@ function form.urlencode(body)
 	end
 	local ARGS = {}
 	for key, value in splite(body, "([^&]-)=([^&]+)") do
-		ARGS[urldecode(key)] = urldecode(value)
+		local tname, keyname = match(urldecode(key), "(.+)%[(.+)%]$")
+		if tname and keyname then
+		  local t = ARGS[tname]
+		  if not t then
+		    t = new_tab(8, 8)
+		    ARGS[tname] = t
+		  end
+		  t[tonumber(keyname) or keyname] = urldecode(value)
+		else
+		  ARGS[urldecode(key)] = urldecode(value)
+		end
 	end
 	return ARGS
 end
