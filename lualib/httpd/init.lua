@@ -1,5 +1,5 @@
-local HTTP = require "protocol.http"
-local HTTPD = require "httpd.Router"
+local http = require "protocol.http"
+local router = require "httpd.Router"
 local tcp = require "internal.TCP"
 local class = require "class"
 local log = require "logging"
@@ -17,39 +17,46 @@ local io_write = io.write
 local toint = math.tointeger
 
 -- 请求解析
-local EVENT_DISPATCH = HTTP.EVENT_DISPATCH
-
--- 注册HTTP路由与静态文件
-local HTTP_STATIC_REGISTERY = HTTPD.static
-local HTTP_ROUTE_REGISTERY = HTTPD.registery
-
+local EVENT_DISPATCH = http.EVENT_DISPATCH
 
 local httpd = class("httpd")
 
 function httpd:ctor(opt)
-    self.API = HTTPD.API
-    self.USE = HTTPD.USE
-    self.sock = tcp:new()
+  self.sock = tcp:new()
+  self.router = router:new()
+  self.WS = self.router.WS
+  self.API = self.router.API
+  self.USE = self.router.USE
+  self.STATIC = self.router.STATIC
+  self.__timeout = nil
+  self.__server = nil
+  self.__before_func = nil
+  self.__max_path_size = 1024
+  self.__max_header_size = 65535
+  self.__max_body_size = 1 * 1024 * 1024
+  self.__enable_gzip = false
+  self.__enable_cookie = false
+  self.__enable_cros_timeout = nil
 end
 
 -- 用来注册WebSocket对象
 function httpd:ws(route, class)
     if route and type(class) == "table" then
-        HTTP_ROUTE_REGISTERY(route, class, HTTPD.WS)
+        self.router:registery(route, class, self.WS)
     end
 end
 
--- 用来注册接口
+-- 用来注册api路由
 function httpd:api(route, class)
     if route and (type(class) == "table" or type(class) == "function")then
-        HTTP_ROUTE_REGISTERY(route, class, HTTPD.API)
+        self.router:registery(route, class, self.API)
     end
 end
 
--- 用来注册普通路由
+-- 用来注册use路由
 function httpd:use(route, class)
     if route and (type(class) == "table" or type(class) == "function") then
-        HTTP_ROUTE_REGISTERY(route, class, HTTPD.USE)
+        self.router:registery(route, class, self.USE)
     end
 end
 
@@ -59,9 +66,9 @@ function httpd:group(target, prefix, array)
     for _, route in ipairs(array) do
         local r, c = route['route'], route['class']
         if target == self.USE then
-            self:use(prefix..r, c)
+            self:use(prefix .. r, c)
         else
-            self:api(prefix..r, c)
+            self:api(prefix .. r, c)
         end
     end
 end
@@ -122,9 +129,19 @@ function httpd:enable_gzip()
   self.__enable_gzip = true
 end
 
+-- 开启rest路由注册支持
+function httpd:enable_rest ()
+  self.router:enable_rest_route()
+end
+
 -- 是否记录解析cookie
 function httpd:enable_cookie ()
-  self.__cookie = true
+  self.__enable_cookie = true
+end
+
+-- 开启错误页面显示
+function httpd:enable_error_pages ()
+  self.__enable_error_pages = true
 end
 
 -- 设置Cookie加密Key
@@ -141,7 +158,7 @@ function httpd:static(foldor, ttl)
     if ttl and ttl > 0 then
         self.ttl = ttl
     end
-    return HTTP_STATIC_REGISTERY(self.foldor, HTTPD.STATIC)
+    return self.router:static(self.foldor, self.STATIC)
   end
 end
 

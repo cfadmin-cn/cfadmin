@@ -1,5 +1,4 @@
-local log = require "logging"
-local Log = log:new({dump = true, path = 'httpd-Router'})
+local LOG = require "logging":new({dump = true, path = 'httpd-Router'})
 
 local aio = require "aio"
 local aio_stat = aio.stat
@@ -20,30 +19,108 @@ local spliter = string.gsub
 
 local type = type
 local next = next
+local pairs = pairs
+local error = error
 local ipairs = ipairs
 local tonumber = tonumber
 local tostring = tostring
--- local io_open = io.open
 
 local slash = '\x2f'        -- '/'
 local slash2 = '\x2f\x2f'   -- '//'
 local point = '\x2e'        -- '.'
 local point2 = '\x2e\x2e'   -- '..'
 
-local Router = {
-	API = 1,
-	USE = 2,
-	STATIC = 3,
-	WS = 4,
-}
+local class = require "class"
 
-local routes = {} -- 存储路由
+local Router = class("httpd-route")
 
-local static = {} -- 静态文件路由
+Router.API, Router.USE, Router.STATIC, Router.WS = 1, 2, 3, 4
 
--- 主要用作分割路径判断.
-local function hex_route(route)
-	local tab = new_tab(32, 0)
+function Router:ctor (opt)
+  self.rests = {}  -- rest路由
+  self.routes = {} -- 普通路由
+  self.statics = {} -- 静态文件路由
+  self.enable_rest = false -- 默认关闭rest路由支持
+end
+
+function Router:enable_rest_route ()
+  self.enable_rest = true
+end
+
+function Router:tonumber (v)
+  return tonumber(v)
+end
+
+function Router:toarray (v, t)
+  if type(v) ~= 'string' or #v < 3 then
+    return v
+  end
+  local array = new_tab(32, 0)
+  for str in v:gmatch("[^,%[%]%{%}]+") do
+    if not t or t == 'string[]' then
+      array[#array+1] = str
+    else
+      array[#array+1] = tonumber(str) or tonumber(str:gsub("^0x", ""), 16)
+    end
+  end
+  return array
+end
+
+-- 将rest路由转换匹配模式语法
+function Router:to_regex (r)
+  if type(r) ~= 'string' or not find(r, "[{}]") then
+    return
+  end
+  local regex = r
+    :gsub("%+", "%%+")
+    :gsub("%-", "%%-")
+    :gsub("%.", "%%.")
+    :gsub("%*", "%%*")
+    :gsub("[/]+", "/")
+    :gsub("/", "[/]-")
+  local args = {}
+  for p in splite(r, "%{([^/]-)%}") do
+    local t, v = match(p, "([^:{}]+):([^:{}]+)")
+    if t ~= 'string' and t ~= 'number' and t ~= 'string[]' and t ~= 'number[]' then
+      local name = match(p, "([^}{]+)")
+      if not name then
+        error("Invalid rest router syntex in [" .. r .. "], type is not support.")
+      end
+      t, v = name, "string"
+    end
+    local reg = "([^/]+)"
+    if t == 'number' then
+      reg = "([%%d]+[%%.]?[%%d]-)"
+    end
+    regex = spliter(regex,  "{" .. spliter(t, "%[%]", "%%[%%]") .. ":" .. v .. "}", reg)
+    regex = spliter(regex, "{" .. v .. "}", reg)
+    args[#args+1] = { k = v, t = t }
+  end
+  if byte(r, #r) == byte("/") then
+    regex = regex .. "$"
+  else
+    regex = regex .. "[/]-$"
+  end
+  args["route"] = r
+  args["regex"] = "^" .. regex
+  -- LOG:DEBUG(args)
+  return regex, args
+end
+
+function Router:match_regex (route, regex)
+  return match(route, regex)
+end
+
+function Router:to_route (route)
+  local r = spliter(route, "([/]+)", '/')
+  if byte(r, #r) ~= byte(slash) then
+    return r
+  end
+  return split(r, 1, -2)
+end
+
+function Router:hex_route (route)
+  local tab = new_tab(32, 0)
 	for r in splite(route, '/([^ /%?]+)') do
     if r ~= '' then
 		  tab[#tab + 1] = r
@@ -52,18 +129,8 @@ local function hex_route(route)
 	return tab
 end
 
--- 主要用作分割hash路由查找
-local function to_route(route)
-  local r = spliter(route, "([/]+)", '/')
-  if byte(r, #r) ~= byte(slash) then
-    return r
-  end
-  return split(r, 1, -2)
-end
-
--- 检查是路径回退是否超出静态文件根目录
-local function check_path_deep (paths)
-  -- 检查是否合法路径.
+-- 检查是路径回退是否超出静态文件根目录(是否合法路径.)
+function Router:check_path_deep (paths)
   local head, tail = paths[1], paths[#paths]
   if head == point2 or tail == point or tail == point2 then
     return true
@@ -84,27 +151,39 @@ local function check_path_deep (paths)
 	return false
 end
 
-local function registery_static (prefix, route_type)
-  if next(static) then
-    return
-  end
-  static.prefix = prefix
-  static.type = route_type
-end
-
-local load_file
-
-local function registery_router (route, class, route_type)
-	routes[to_route(route)] = {class = class, type = route_type}
-end
-
-local function find_route (method, path)
+-- 路由查找
+function Router:find (method, path)
+  -- 检查是否能O(1)定位普通路由
   path = url_decode(split(path, 1, (find(path, '?') or 0) - 1))
-	local t = routes[to_route(path)]
+	local t = self.routes[self:to_route(path)]
   if t then
     return t.class, t.type
   end
-	local prefix, typ = static.prefix, static.type
+  -- 检查是否需要查找rest路由
+  if self.enable_rest then
+		for regex, cls in pairs(self.rests) do
+			local args_list = table.pack(self:match_regex(path, regex))
+			if args_list and #args_list == #cls then
+				local args = new_tab(8, 0)
+				for index, arg in ipairs(args_list) do
+					local item = cls[index]
+          local t = item.t
+					local k = item.k
+					if t == 'number' then
+						args[k] = self:tonumber(arg)
+					elseif t == 'number[]' or t == 'string[]' then
+            args[k] = self:toarray(arg, t)
+          else
+            args[k] = arg
+          end
+				end
+				return cls.class, cls.type, args
+			end
+		end
+	end
+  -- 查找静态文件路由(文件)
+  local prefix, typ = self.statics.prefix, self.statics.type
+  -- LOG:DEBUG(prefix, typ)
 	if not prefix and not typ then
     return
   end
@@ -112,13 +191,14 @@ local function find_route (method, path)
   if method ~= 'GET' and method ~= 'HEAD' then
     return
   end
-  local tab = hex_route(path)
+  local tab = self:hex_route(path)
   -- 凡是找到'../'并且检查路径回退已经超出静态文件根目录返回404
-  if check_path_deep(tab) then
+  if self:check_path_deep(tab) then
     return
   end
-  if not load_file then
-    load_file = function ( path )
+
+  if not self.load_file then
+    self.load_file = function ( path )
       local filepath = prefix .. url_decode(path)
       local stat = aio_stat(filepath)
       if type(stat) ~= 'table' or stat.mode ~= 'file' then
@@ -127,35 +207,31 @@ local function find_route (method, path)
       return stat.size, filepath, match(path, '.+%.([%a]+)')
     end
   end
-  return load_file, typ
+  return self.load_file, typ
 end
 
--- 查找路由
-function Router.find(method, path)
-	-- 凡是不以'/'开头的path都返回404
-	if byte(path) ~= byte(slash) then
-		return
-	end
-	return find_route(method, path)
-end
-
--- 注册静态文件查找路径
-function Router.static (...)
-	return registery_static(...)
-end
-
--- 注册路由
-function Router.registery(route, class, route_type)
-	if type(route) ~= 'string' or route == '' then -- 过滤错误的路由输入
-		return Log:WARN('Please Do not add empty string in route registery method :)')
+-- 注册rest语法路由与普通路由
+function Router:registery (route, class, route_type)
+  -- 过滤错误的路由输入
+  if type(route) ~= 'string' or route == '' then
+		return LOG:WARN('Please Do not add empty string in route registery method :)')
 	end
 	if find(route, slash2) then -- 不允许出现路由出现[//]
-		return Log:WARN('Please Do not add [//] in route registery method :)')
+		return LOG:WARN('Please Do not add [//] in route registery method :)')
 	end
-	if find(route, '^/%[%w+:.+%]$') then -- 不允许路由注册rest模式.
-		return Log:WARN('Please Do not add [/[type:key] in root route :)]')
+  local regex, args = self:to_regex(route)
+	if regex and args then
+		self.rests[regex], args["class"], args["type"] = args, class, route_type
 	end
-	return registery_router(route, class, route_type)
+  self.routes[self:to_route(route)] = {class = class, type = route_type}
+end
+
+-- 注册静态文件路由
+function Router:static (route_prefix, route_type)
+  if next(self.statics) then
+    return
+  end
+  self.statics.prefix, self.statics.type = route_prefix, route_type
 end
 
 return Router
