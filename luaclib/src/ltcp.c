@@ -38,8 +38,9 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 /* 地址重用 */
 #ifdef SO_REUSEADDR
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
-  if (ret) {
+  if (ret < 0) {
     LOG("ERROR", "Setting SO_REUSEADDR failed.");
+    LOG("ERROR", strerror(errno));
     return _exit(-1);
   }
 #endif
@@ -48,8 +49,9 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 #ifdef SO_REUSEPORT
   if (mode == SERVER) {
     ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
-    if (ret) {
+    if (ret < 0) {
       LOG("ERROR", "Setting SO_REUSEPORT failed.");
+      LOG("ERROR", strerror(errno));
       return _exit(-1);
     }
   }
@@ -58,8 +60,9 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 /* 关闭小包延迟合并算法 */
 #ifdef TCP_NODELAY
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &Enable, sizeof(Enable));
-  if (ret){
+  if (ret < 0){
     LOG("ERROR", "Setting TCP_NODELAY failed.");
+    LOG("ERROR", strerror(errno));
     return _exit(-1);
   }
 #endif
@@ -69,8 +72,9 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
   #ifndef __MSYS__ /* 在仿真环境中会操作始终会失败 */
   if (mode != None){
     ret = setsockopt(sockfd, IPPROTO_TCP, SO_KEEPALIVE, &Enable , sizeof(Enable));
-    if (ret){
+    if (ret < 0){
       LOG("ERROR", "Setting SO_KEEPALIVE failed.");
+      LOG("ERROR", strerror(errno));
       return _exit(-1);
     }
   }
@@ -81,8 +85,22 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 #ifdef TCP_DEFER_ACCEPT
   if (mode == SERVER) {
     ret = setsockopt(sockfd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &Enable, sizeof(Enable));
-    if (ret){
+    if (ret < 0){
       LOG("ERROR", "Setting TCP_DEFER_ACCEPT failed.");
+      LOG("ERROR", strerror(errno));
+      return _exit(-1);
+    }
+  }
+#endif
+
+/* 开启快速连接复用 */
+#if defined(TCP_FASTOPEN) && defined(MSG_FASTOPEN)
+  if (mode == SERVER) {
+    int len = 5;
+    ret = setsockopt(sockfd, IPPROTO_TCP, TCP_FASTOPEN, &len, sizeof(len));
+    if (ret < 0){
+      LOG("ERROR", "Setting TCP_FASTOPEN failed.");
+      LOG("ERROR", strerror(errno));
       return _exit(-1);
     }
   }
@@ -92,8 +110,9 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 #ifdef TCP_KEEPIDLE
   int keepidle = 30;
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle , sizeof(keepidle));
-  if (ret){
+  if (ret < 0){
     LOG("ERROR", "Setting TCP_KEEPIDLE failed.");
+    LOG("ERROR", strerror(errno));
     return _exit(-1);
   }
 #endif
@@ -102,8 +121,9 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 #ifdef TCP_KEEPCNT
   int keepcount = 3;
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPCNT, &keepcount , sizeof(keepcount));
-  if (ret){
+  if (ret < 0){
     LOG("ERROR", "Setting TCP_KEEPCNT failed.");
+    LOG("ERROR", strerror(errno));
     return _exit(-1);
   }
 #endif
@@ -112,8 +132,9 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 #ifdef TCP_KEEPINTVL
   int keepinterval = 5;
   ret = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL, &keepinterval , sizeof(keepinterval));
-  if (ret){
+  if (ret < 0){
     LOG("ERROR", "Setting TCP_KEEPINTVL failed.");
+    LOG("ERROR", strerror(errno));
     return _exit(-1);
   }
 #endif
@@ -123,8 +144,9 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
   if (mode != None) {
     int No = 0;
     ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&No, sizeof(No));
-    if (ret){
+    if (ret < 0){
       LOG("ERROR", "Setting IPV6_V6ONLY failed.");
+      LOG("ERROR", strerror(errno));
       return _exit(-1);
     }
   }
@@ -791,18 +813,19 @@ static int tcp_sslconnect(lua_State *L){
   SSL *ssl = (SSL*) lua_touserdata(L, 1);
   if (!ssl) return 0;
 
-  int status = SSL_do_handshake(ssl);
-  if (status >= 1) {
+  int reason = SSL_get_error(ssl, SSL_do_handshake(ssl));
+  /* 握手结束 -> 握手成功 */
+  if (reason == SSL_ERROR_NONE){
     lua_pushboolean(L, 1);
     return 1;
   }
-  int ERR = SSL_get_error(ssl, status);
-  // printf("status = %d, ERR = %d, SSL_ERROR_WANT_READ == %d, SSL_ERROR_WANT_WRITE == %d\n", status, ERR, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE);
-  if (SSL_ERROR_WANT_READ == ERR || SSL_ERROR_WANT_WRITE == ERR) {
+  /* 需要再进一步交互 */
+  if (SSL_ERROR_WANT_READ == reason || SSL_ERROR_WANT_WRITE == reason){
     lua_pushnil(L);
-    lua_pushinteger(L, ERR - 1);
+    lua_pushinteger(L, reason - 1);
     return 2;
   }
+  /* 握手失败 */
   return 0;
 
 }
@@ -832,6 +855,34 @@ static int tcp_start(lua_State *L){
 
   return 0;
 
+}
+
+static int ssl_set_connect_mode(lua_State *L) {
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  SSL_CTX *ctx = (SSL_CTX*) lua_touserdata(L, 2);
+  if (!ctx)
+    return luaL_error(L, "Invalid SSL_CTX ctx.");
+
+  SSL_set_connect_state(ssl);
+
+  return 1;
+}
+
+static int ssl_set_accept_mode(lua_State *L) {
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  SSL_CTX *ctx = (SSL_CTX*) lua_touserdata(L, 2);
+  if (!ctx)
+    return luaL_error(L, "Invalid SSL_CTX ctx.");
+
+  SSL_set_accept_state(ssl);
+
+  return 1;
 }
 
 // 加载证书
@@ -1066,6 +1117,8 @@ luaopen_tcp(lua_State *L){
     {"new_unixsock_fd", new_unixsock_fd},
     {"sendfile", tcp_sendfile},
     {"ssl_verify", ssl_verify},
+    {"ssl_set_accept_mode", ssl_set_accept_mode},
+    {"ssl_set_connect_mode", ssl_set_connect_mode},
     {"ssl_set_privatekey", ssl_set_privatekey},
     {"ssl_set_certificate", ssl_set_certificate},
     {"ssl_set_userdata_key", ssl_set_userdata_key},

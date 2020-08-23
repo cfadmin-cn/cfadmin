@@ -30,14 +30,11 @@ local secCookie = Cookie.setSecure -- 设置Cookie加密字段
 local seCookie = Cookie.serialization -- 序列化
 local deCookie = Cookie.deserialization -- 反序列化
 
-local Router = require "httpd.Router"
-local ROUTE_FIND = Router.find
-local ROUTE_REGISTERY = Router.registery
-
 local type = type
 local tostring = tostring
 local next = next
-local pcall = pcall
+local xpcall = xpcall
+local pairs = pairs
 local ipairs = ipairs
 local time = os.time
 local lower = string.lower
@@ -61,7 +58,7 @@ local COMMA = '\x2c'
 local SERVER = 'cf web/0.1'
 
 local HTTP_CODE = require "protocol.http.code"
-
+local PAGES = require "protocol.http.pages"
 local MIME = require "protocol.http.mime"
 
 local HTTP_PARSER = require "protocol.http.parser"
@@ -96,12 +93,6 @@ function HTTP_PROTOCOL.FILEMIME(mime)
   return MIME[mime]
 end
 
--- -- 路由注册
-HTTP_PROTOCOL.ROUTE_REGISTERY = ROUTE_REGISTERY
-
--- -- 路由查找
-HTTP_PROTOCOL.ROUTE_FIND = ROUTE_FIND
-
 local function HTTP_DATE()
   return DATE("Date: %a, %d %b %Y %X GMT")
   -- return os.date("Date: %a, %d %b %Y %X GMT")
@@ -114,6 +105,26 @@ end
 
 local function req_time(ts)
   return now() - (ts or now())
+end
+
+local tab_copy
+tab_copy = function (src)
+  local dst = new_tab(0, 32)
+  for k, v in pairs(src) do
+    dst[k] = type(v) == 'table' and tab_copy(v) or v
+  end
+  return dst
+end
+
+-- 追踪调用栈信息
+local function trace (msg)
+  return debug.traceback(coroutine.running(), msg, 2)
+end
+
+-- 安全运行回调函数
+local function safe_call (f, ...)
+  local ok, r1, r2, r3, r4, t5 = xpcall(f, trace, ...)
+  return ok, r1, r2, r3, r4, t5
 end
 
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
@@ -208,16 +219,24 @@ end
 -- 一些错误返回
 local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
   http:tolog(code, path, ip, X_Forwarded_FORMAT(forword) or ip, method, speed)
-  return concat({concat({
-    REQUEST_STATUCODE_RESPONSE(code),
-    HTTP_DATE(),
-    'Accept-Ranges: none',
-    'Origin: *',
-    'Allow: GET, POST, PUT, HEAD, OPTIONS',
-    'Connection: close',
-    'Content-length: 0',
-    'Server: ' .. (http.__server or SERVER),
-  }, CRLF), CRLF2})
+  local response = {
+      REQUEST_STATUCODE_RESPONSE(code),
+      HTTP_DATE(),
+      'Accept-Ranges: none',
+      'Origin: *',
+      'Allow: GET, POST, PUT, HEAD, OPTIONS',
+      'Connection: keep-alive',
+      'Server: ' .. (http.__server or SERVER),
+    }
+  local error_page = PAGES[code]
+  if error_page and http.__enable_error_pages then
+    response[#response+1] = 'Content-length: ' .. #error_page
+    response[#response+1] = 'Content-length: ' .. #error_page
+    return concat({concat(response, CRLF), error_page}, CRLF2)
+  else
+    response[#response+1] = 'Content-length: 0'
+    return concat({concat(response, CRLF), CRLF2})
+  end
 end
 
 -- WebSocket
@@ -283,21 +302,22 @@ local function send_body (sock, body, filepath)
   return sock:send(body)
 end
 
-function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
+function HTTP_PROTOCOL.DISPATCH(sock, ipaddr, http)
   local buffers = {}
   local ttl = http.ttl
   local server = http.__server
-  local timeout = http.__timeout or 0
-  local cookie = http.__cookie
+  local enable_cookie = http.__enable_cookie
   local enable_gzip = http.__enable_gzip
   local enable_cros_timeout = http.__enable_cros_timeout
   local cookie_secure = http.__cookie_secure
-  local before_func = http._before_func
+  local before_func = http.__before_func
   local max_path_size = http.__max_path_size
   local max_header_size = http.__max_header_size
   local max_body_size = http.__max_body_size
+  local http_router = http.router
+  local route_find = http_router.find
+  local tolog = http.tolog
   secCookie(cookie_secure) -- 如果需要
-  local sock = tcp:new():set_fd(fd):timeout(timeout)
   while 1 do
     local buf = sock:recv(8192)
     if not buf then
@@ -330,25 +350,26 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         return sock:close()
       end
       -- 这里根据PATH先查找路由, 如果没有直接返回404.
-      local cls, typ = ROUTE_FIND(METHOD, PATH)
+      -- local cls, typ, rest_args = http_router:find(METHOD, PATH)
+      local cls, typ, rest_args = route_find(http_router, METHOD, PATH)
       if not cls or not typ then
         sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-        return sock:close()
+        goto CONTINUE
       end
       -- 根据请求方法进行解析, 解析失败返回501
       local ok, content = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
       if not ok then
         if content == 413 then
           sock:send(ERROR_RESPONSE(http, 413, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-          return sock:close()
+          goto CONTINUE
         end
         sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-        return sock:close()
+        goto CONTINUE
       end
       -- 如果请求使用了 HEAD 与 OPTIONS 方法, 这里会根据配置检查是否需要返回跨域标识. (除非您手动设置请求头部, 否则一般不会遇到此处逻辑.)
       -- 值得一提的是: 由于框架不支持范围请求(Accept-Ranges), 所以目前的处理方式将HEAD与OPTIONS都将返回0. 这样可以有助于快速完成检查请求.
       if not content then
-        http:tolog(200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+        tolog(http, 200, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
         local res = new_tab(16, 0)
         res[#res+1] = REQUEST_STATUCODE_RESPONSE(200)
         res[#res+1] = HTTP_DATE()
@@ -362,62 +383,62 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
           res[#res+1] = 'Access-Control-Max-Age: ' .. enable_cros_timeout
         end
         res[#res+1] = 'Server: ' .. (server or SERVER)
-        res[#res+1] = 'Connection: close'
-        res[#res+1] = 'Content-Length : 0'
+        res[#res+1] = 'Connection: keep-alive'
+        res[#res+1] = 'Content-Length: 0'
         sock:send(concat(res, CRLF)..CRLF2)
-        return sock:close()
+        goto CONTINUE
       end
       content['ROUTE'] = HTTP_PROTOCOL[typ]
       content['method'], content['path'], content['headers'], content['client_ip'] = METHOD, PATH, HEADER, ipaddr
       -- before 函数只影响接口与view
       if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
-        local ok, code, data = pcall(before_func, content)
+        local ok, code, data = safe_call(before_func, tab_copy(content))
         if not ok then -- before 函数执行出错
           Log:ERROR(code)
           sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-          return sock:close()
+          goto CONTINUE
         end
         if code then
           if type(code) == "number" then
             if code < 200 or code > 500 then
               Log:ERROR("before function: Illegal return value")
               sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-              return sock:close()
+              goto CONTINUE
             elseif code == 301 or code == 302 then
-              http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+              tolog(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
               sock:send(concat({
                 REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
-                'Connection: close',
+                'Connection: keep-alive',
                 'Server: ' .. (server or SERVER),
                 'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
               }, CRLF)..CRLF2)
-              return sock:close()
+              goto CONTINUE
             elseif code ~= 200 then
               if data then
                 if type(data) == 'string' and data ~= '' then
-                  http:tolog(code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+                  tolog(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
                   sock:send(concat({concat({
                     REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
                     'Origin: *',
                     'Allow: GET, POST, PUT, HEAD, OPTIONS',
                     'Server: ' .. (server or SERVER),
-                    'Connection: close',
+                    'Connection: keep-alive',
                     'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
                     'Content-Length: ' .. tostring(#data),
                   }, CRLF), CRLF2, data}))
-                  return sock:close()
+                  goto CONTINUE
                 end
               end
               sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-              return sock:close()
+              goto CONTINUE
             end
           else
             sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-            return sock:close()
+            goto CONTINUE
           end
         else
           sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-          return sock:close()
+          goto CONTINUE
         end
       end
 
@@ -426,22 +447,25 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
 
       if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
         -- 如果httpd开启了记录Cookie字段, 则每次尝试是否deCookie
-        if cookie and typ == HTTP_PROTOCOL.USE then
-          deCookie(content['headers']["Cookie"] or content['headers']["cookie"])
+        if enable_cookie and typ == HTTP_PROTOCOL.USE then
+          deCookie(HEADER["Cookie"] or HEADER["cookie"])
+        end
+        if http_router.enable_rest then
+          content['query'] = rest_args
         end
         if type(cls) == "table" then
           local method = cls[lower(METHOD)]
           if not method or type(method) ~= 'function' then -- 注册的路由未实现这个方法
             sock:send(ERROR_RESPONSE(http, 405, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-            return sock:close()
+            goto CONTINUE
           end
-          local c = cls:new(content)
-          ok, body = pcall(method, c)
+          local c = cls:new(tab_copy(content))
+          ok, body = safe_call(method, c)
         else
-          ok, body = pcall(cls, content)
+          ok, body = safe_call(cls, tab_copy(content))
         end
         -- 如果httpd开启了记录Cookie字段, 则每次尝试是否需要seCookie
-        if cookie and typ == HTTP_PROTOCOL.USE then
+        if enable_cookie and typ == HTTP_PROTOCOL.USE then
           local Cookies = seCookie()
           for _, Cookie in ipairs(Cookies) do
             header[#header+1] = Cookie
@@ -451,12 +475,12 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         if not ok then
           Log:ERROR(body or "empty response.")
           sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-          return sock:close()
+          goto CONTINUE
         end
         statucode = 200
         insert(header, 1, REQUEST_STATUCODE_RESPONSE(statucode))
       elseif typ == HTTP_PROTOCOL.WS then
-        local ok, msg = pcall(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
+        local ok, msg = safe_call(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
         if not ok then
           Log:ERROR(msg)
         end
@@ -472,7 +496,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         if not body_len then
           statucode = 404
           sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-          return sock:close()
+          goto CONTINUE
         end
         statucode = 200
         header[#header+1] = REQUEST_STATUCODE_RESPONSE(statucode)
@@ -503,7 +527,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         if type(body) ~= 'string' or body == '' then
           Log:ERROR("Response Error ["..(split(PATH , 1, (find(PATH, '?') or 0 ) - 1)).."]: response must be a string and not empty.")
           sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-          return sock:close()
+          goto CONTINUE
         end
         local accept_encoding = HEADER['Accept-Encoding']
         if type(accept_encoding) == 'string' and enable_gzip and #body >= 50 then
@@ -542,7 +566,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         header[#header+1] = 'Access-Control-Max-Age: ' .. enable_cros_timeout
       end
       -- 不计算数据传输时间, 仅计算实际回调处理所用时间.
-      http:tolog(statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+      tolog(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
       -- 根据实际情况分块发送
       local ok = send_header(sock, header) and send_body(sock, body, filepath) or false
       if not ok then
@@ -557,7 +581,17 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
       sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
       return sock:close()
     end
+    -- 大部分情况下不需要主动关闭TCP连接, 这样有利于减少负载均衡器对连接池频繁销毁与建立.
+    :: CONTINUE ::
   end
+end
+
+
+function HTTP_PROTOCOL.RAW_DISPATCH(s, ipaddr, http)
+  if type(s) == 'table' then
+    return HTTP_PROTOCOL.DISPATCH(s, ipaddr, http)
+  end
+  return HTTP_PROTOCOL.DISPATCH(tcp:new():set_fd(s):timeout(http.__timeout), ipaddr, http)
 end
 
 return HTTP_PROTOCOL

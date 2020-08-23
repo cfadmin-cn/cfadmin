@@ -237,7 +237,8 @@ local function dns_query(domain, ip_version)
     local req = pack_header()..pack_question(domain, msg)
     local times = 1
     while 1 do
-      dns_client:send(req)
+      -- 每轮发送三次请求, 减少丢包几率
+      local ok1, ok2, ok3 = dns_client:send(req), dns_client:send(req), dns_client:send(req)
       cf_sleep(1)
       if readable then
         return
