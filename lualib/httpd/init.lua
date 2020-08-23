@@ -17,7 +17,7 @@ local io_write = io.write
 local toint = math.tointeger
 
 -- 请求解析
-local EVENT_DISPATCH = http.EVENT_DISPATCH
+local RAW_DISPATCH = http.RAW_DISPATCH
 
 local httpd = class("httpd")
 
@@ -198,8 +198,20 @@ function httpd:listen(ip, port, backlog)
   self.port = port
   self.sock:set_backlog(toint(backlog))
   return assert(self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
-      return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
+      return RAW_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
   end))
+end
+
+function httpd:listen_ssl(ip, port, backlog, key, cert, pw)
+  assert(type(ip) == 'string' and toint(port), "httpd error: invalid ip or port")
+  self.ip, self.ssl_port = ip, toint(port) or 443
+  self.ssl_key, self.ssl_cert, self.ssl_pw = key, cert, pw
+  self.sock:set_backlog(toint(backlog))
+  return assert(self.sock:listen_ssl(ip or "0.0.0.0", self.ssl_port, { cert = self.ssl_cert, key = self.ssl_key, pw = self.ssl_pw },
+    function (sock, ipaddr)
+      return RAW_DISPATCH(sock, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
+    end)
+  )
 end
 
 -- 监听unixsock
@@ -208,7 +220,7 @@ function httpd:listenx(unix_domain_path, backlog)
   self.unix_domain_path = unix_domain_path
   self.sock:set_backlog(toint(backlog))
   return assert(self.sock:listen_ex(unix_domain_path, true, function (fd, ipaddr)
-    return EVENT_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
+    return RAW_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
   end))
 end
 
@@ -226,6 +238,13 @@ function httpd:run()
       self.logging:dump(fmt('[%s] [INFO] httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), self.unix_domain_path))
     end
     io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), self.unix_domain_path))
+  end
+
+  if self.ssl_key and self.ssl_cert then
+    if self.logging then
+      self.logging:dump(fmt('[%s] [INFO] httpd ssl listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", self.ssl_port))
+    end
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd ssl listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), "0.0.0.0", self.ssl_port))
   end
 
   if self.logging then

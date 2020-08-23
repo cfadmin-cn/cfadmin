@@ -302,11 +302,10 @@ local function send_body (sock, body, filepath)
   return sock:send(body)
 end
 
-function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
+function HTTP_PROTOCOL.DISPATCH(sock, ipaddr, http)
   local buffers = {}
   local ttl = http.ttl
   local server = http.__server
-  local timeout = http.__timeout or 0
   local enable_cookie = http.__enable_cookie
   local enable_gzip = http.__enable_gzip
   local enable_cros_timeout = http.__enable_cros_timeout
@@ -319,7 +318,6 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
   local route_find = http_router.find
   local tolog = http.tolog
   secCookie(cookie_secure) -- 如果需要
-  local sock = tcp:new():set_fd(fd):timeout(timeout)
   while 1 do
     local buf = sock:recv(8192)
     if not buf then
@@ -386,7 +384,7 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
         end
         res[#res+1] = 'Server: ' .. (server or SERVER)
         res[#res+1] = 'Connection: keep-alive'
-        res[#res+1] = 'Content-Length : 0'
+        res[#res+1] = 'Content-Length: 0'
         sock:send(concat(res, CRLF)..CRLF2)
         goto CONTINUE
       end
@@ -586,6 +584,14 @@ function HTTP_PROTOCOL.EVENT_DISPATCH(fd, ipaddr, http)
     -- 大部分情况下不需要主动关闭TCP连接, 这样有利于减少负载均衡器对连接池频繁销毁与建立.
     :: CONTINUE ::
   end
+end
+
+
+function HTTP_PROTOCOL.RAW_DISPATCH(s, ipaddr, http)
+  if type(s) == 'table' then
+    return HTTP_PROTOCOL.DISPATCH(s, ipaddr, http)
+  end
+  return HTTP_PROTOCOL.DISPATCH(tcp:new():set_fd(s):timeout(http.__timeout), ipaddr, http)
 end
 
 return HTTP_PROTOCOL
