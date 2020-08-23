@@ -26,12 +26,9 @@ local aio_readdir = laio.readdir
 local aio_readpath = laio.readpath
 local aio_truncate = laio.truncate
 
-local new_tab = require "sys".new_tab
-
 local type = type
 local assert = assert
 local toint = math.tointeger
-
 
 local aio = new_tab(0, 1 << 16)
 
@@ -166,7 +163,7 @@ function File:close( ... )
   return aio._close(fd)
 end
 
--- 打开文件(始终以rw模式打开, 没有则会创建)
+-- 打开文件，并返回File(始终以rw模式打开, 没有则会创建)
 function aio.open(filename)
   local fd, err = aio._open(filename)
   if not fd then
@@ -177,7 +174,7 @@ function aio.open(filename)
     local t = new_tab(0, 3)
     t.current_co = co_self()
     t.event_co = co_new(function ( ok, err )
-      aio[t] = nil  
+      aio[t] = nil
       return co_wakeup(t.current_co, ok, err)
     end)
     aio[t] = true
@@ -187,7 +184,7 @@ function aio.open(filename)
   return File:new { fd = fd, path = filename }
 end
 
--- 仅返回fd
+-- 打开文件，并返回fd(始终以rw模式打开, 没有则会创建)
 function aio._open(filename)
   filename = assert(type(filename) == 'string' and filename ~= '' and filename ~= '.' and filename ~= '..' and filename, "Invalid filename.")
   local t = new_tab(0, 3)
@@ -201,7 +198,7 @@ function aio._open(filename)
   return co_wait()
 end
 
--- 打开文件, 如果
+-- 打开文件, 如果不存在则创建(返回File)
 function aio.create(filename)
   local fd, err = aio._create(filename)
   if not fd then
@@ -222,6 +219,7 @@ function aio.create(filename)
   return File:new { fd = fd, path = filename, stat = stat }
 end
 
+-- 打开文件, 如果存在则失败(返回fd)
 function aio._create(filename)
   filename = assert(type(filename) == 'string' and filename ~= '' and filename ~= '.' and filename ~= '..' and filename, "Invalid filename.")
   local t = new_tab(0, 3)
@@ -286,7 +284,7 @@ function aio.mkdir(dir)
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( ok, err )
-    aio[t] = nil  
+    aio[t] = nil
     return co_wakeup(t.current_co, ok, err)
   end)
   aio[t] = true
@@ -300,7 +298,7 @@ function aio.rmdir(dir)
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( ok, err )
-    aio[t] = nil  
+    aio[t] = nil
     return co_wakeup(t.current_co, ok, err)
   end)
   aio[t] = true
@@ -318,7 +316,7 @@ function aio.stat(path)
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( list, err )
-    aio[t] = nil  
+    aio[t] = nil
     return co_wakeup(t.current_co, list, err)
   end)
   aio[t] = true
@@ -332,7 +330,7 @@ function aio.dir(path)
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( dirs )
-    aio[t] = nil  
+    aio[t] = nil
     return co_wakeup(t.current_co, dirs )
   end)
   aio[t] = true
@@ -347,7 +345,7 @@ function aio.rename(old_name, new_name)
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( ok )
-    aio[t] = nil  
+    aio[t] = nil
     return co_wakeup(t.current_co, ok)
   end)
   aio[t] = true
@@ -366,7 +364,7 @@ function aio.readpath(path)
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( path )
-    aio[t] = nil  
+    aio[t] = nil
     return co_wakeup(t.current_co, path )
   end)
   aio[t] = true
@@ -381,7 +379,7 @@ function aio.truncate(filename, length)
   local t = new_tab(0, 3)
   t.current_co = co_self()
   t.event_co = co_new(function ( ok, err )
-    aio[t] = nil  
+    aio[t] = nil
     return co_wakeup(t.current_co, ok, err)
   end)
   aio[t] = true
