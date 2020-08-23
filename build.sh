@@ -16,22 +16,42 @@ current=`pwd`
 
 rm -rf build && mkdir build && cd build
 
+# git clone https://gitee.com/CandyMi/lua -b v5.3.5
 git clone https://github.com/CandyMi/lua -b v5.3.5
 
-git clone https://github.com/CandyMi/libeio
-
+# git clone https://gitee.com/CandyMi/libev -b v4.25
 git clone https://github.com/CandyMi/libev -b v4.25
 
-echo "========== build lua ==========" &&
-  cd ${current}/build/lua && make posix MYCFLAGS="-fPIC -DLUA_USE_DLOPEN -DLUA_USE_READLINE" MYLIBS="-ldl -lreadline" &&
-  cp lua.h luaconf.h lualib.h lauxlib.h ${current}/src && cp liblua.* ${current}/
+# git clone https://gitee.com/CandyMi/libeio
+git clone https://github.com/CandyMi/libeio
 
 echo "========== build libev ==========" &&
   cd ${current}/build/libev && sh autogen.sh && ./configure --prefix=/usr/local &&
+
+  ## 1. 将头文件与库文件放到cf框架目录下（Put the header files and library files in the cf framework directory）
   make && cp e*.h ${current}/src && cd .libs && cp $(printf "%s" "`ls | grep libev | grep -v la`") ${current}/
+
+  ## 2. 将 libev 安装到 /usr/local 区域, 对其进行全局共享库链接. (Install `libev` into the `/usr/local` zone and link it with global shared libraries.)
+  # make && make install
 
 echo "========== build libeio ==========" &&
   cd ${current}/build/libeio && sh autogen.sh && ./configure --prefix=/usr/local &&
+
+  ## 1. 将头文件与库文件放到cf框架目录下（Put the header files and library files in the cf framework directory）
   make && cp e*.h ${current}/src && cd .libs && cp $(printf "%s" "`ls | grep libeio | grep -v la`") ${current}/
+
+  ## 2. 将 libeio 安装到 /usr/local 区域, 对其进行全局共享库链接. (Install `libeio` into the `/usr/local` zone and link it with global shared libraries.)
+  # make && make install
+
+echo "========== build lua ==========" &&
+    cd ${current}/build/lua && make posix MYCFLAGS="-fPIC -DLUA_USE_DLOPEN" MYLIBS="-ldl" &&
+
+    ## 1. 将头文件与库文件放到cf框架目录下（Put the header files and library files in the cf framework directory）
+    cp lua.h luaconf.h lualib.h lauxlib.h ${current}/src && cp liblua.* ${current}/
+
+    ## 2. 将 lua 安装到 /usr/local 区域, 对其进行全局共享库链接. (Install `lua` into the `/usr/local` zone and link it with global shared libraries.)
+    # cp -rf lua.h luaconf.h lualib.h lauxlib.h /usr/local/include && cp liblua.* /usr/local/lib
+
+echo "Done."
 
 echo "========== clean build ==========" && cd ${current} && rm -rf build
