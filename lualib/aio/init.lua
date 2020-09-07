@@ -49,10 +49,27 @@ function File:__gc()
   return true
 end
 
+-- 重置标志位
+function File:lseek(read_offset, write_offset)
+  if read_offset then
+    self:read_lseek(read_offset)
+  end
+  if write_offset then
+    self:write_lseek(write_offset)
+  end
+end
+
 -- 重置read_offset; 这个方法一般情况下不会用到, 除非你非常明白自己在做什么.
 function File:read_lseek(read_offset)
   if toint(read_offset) and toint(read_offset) >= 0 then
     self.read_offset = read_offset
+  end
+end
+
+-- 重置write_offset; 这个方法一般情况下不会用到, 除非你非常明白自己在做什么.
+function File:write_lseek(write_offset)
+  if toint(write_offset) and toint(write_offset) >= 0 then
+    self.write_offset = write_offset
   end
 end
 
@@ -112,10 +129,23 @@ function File:write( data )
     return nil, "Invalid file write data."
   end
   self.__WRITE__ = assert(not self.__WRITE__, "File:write方法不可以在多个协程中并发调用.")
-  local size, err = aio._write(self.fd, data)
+  -- 如果没有构建write_offset, 则需要通过stat构建; 否则永远只从尾部开始写入.
+  if not self.write_offset then
+    if not self.stat then
+      self.stat = aio.stat(self.path)
+    end
+    self.write_offset = self.stat.size
+  end
+  local size, err = aio._write(self.fd, data, self.write_offset)
+  if type(size) == 'number' then
+    self.stat.size = self.stat.size + size
+    self.write_offset = self.write_offset + size
+  end
   self.__WRITE__ = nil
   return size, err
 end
+
+-- function
 
 -- 刷新缓存
 function File:flush()
@@ -146,6 +176,9 @@ function File:clean()
   end
   if toint(self.read_offset) then
     self.read_offset = 0
+  end
+  if toint(self.write_offset) then
+    self.write_offset = 0
   end
   self.stat = stat
   self.__CLEAN__ = nil
@@ -250,7 +283,7 @@ function aio._read(fd, bytes, offset)
 end
 
 -- 写入(追加)指定大小数据
-function aio._write(fd, data)
+function aio._write(fd, data, offset)
   fd = assert(toint(fd) and toint(fd) >= 0 and toint(fd), "Invalid fd.")
   data = assert(type(data) == 'string' and data ~= '' and data, "Invalid write data.")
   local t = new_tab(0, 3)
@@ -260,7 +293,7 @@ function aio._write(fd, data)
     return co_wakeup(t.current_co, size, err)
   end)
   aio[t] = true
-  aio_write(t.event_co, fd, data)
+  aio_write(t.event_co, fd, data, offset)
   return co_wait()
 end
 

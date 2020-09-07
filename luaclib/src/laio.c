@@ -457,7 +457,7 @@ static int laio_write(lua_State* L) {
   }
 
   /* 适用write来完成追加操作, 同时也不允许单线程覆盖写入. */
-  eio_write(fd, (void*)buffer, buffer_size, -1, EIO_PRI_DEFAULT, AIO_RESPONSE_WRITE, (void*)t);
+  eio_write(fd, (void*)buffer, buffer_size, lua_tointeger(L, 4), EIO_PRI_DEFAULT, AIO_RESPONSE_WRITE, (void*)t);
   return 1;
 }
 
