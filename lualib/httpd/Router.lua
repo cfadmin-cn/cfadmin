@@ -86,7 +86,7 @@ function Router:to_regex (r)
       if not name then
         error("Invalid rest router syntex in [" .. r .. "], type is not support.")
       end
-      t, v = name, "string"
+      t, v = "string", name
     end
     local reg = "([^/]+)"
     if t == 'number' then
