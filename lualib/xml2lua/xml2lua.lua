@@ -50,7 +50,7 @@
 --@author Paul Chakravarti (paulc@passtheaardvark.com)
 --@author Manoel Campos da Silva Filho
 local xml2lua = {}
-local XmlParser = require "xml2lua.XmlParser"
+local XmlParser = require("xml2lua.XmlParser")
 
 ---Recursivelly prints a table in an easy-to-ready format
 --@param tb The table to be printed
@@ -132,7 +132,9 @@ function xml2lua.loadFile(xmlFilePath)
     local f, e = io.open(xmlFilePath, "r")
     if f then
         --Gets the entire file content and stores into a string
-        return f:read("*a")
+        local content = f:read("*a")
+        f:close()
+        return content
     end
     
     error(e)
@@ -174,10 +176,10 @@ end
 --
 --@return a String representing the table content in XML
 function xml2lua.toXml(tb, tableName, level)
-  local level = level or 0
+  local level = level or 1
   local firstLevel = level
   local spaces = string.rep(' ', level*2)
-  local xmltb = level == 0 and {'<'..tableName..'>'} or {}
+  local xmltb = level == 1 and {'<'..tableName..'>'} or {}
 
   for k, v in pairs(tb) do
       if type(v) == "table" then
@@ -193,10 +195,11 @@ function xml2lua.toXml(tb, tableName, level)
             if type(getFirstKey(v)) == "number" then 
                table.insert(xmltb, spaces..xml2lua.toXml(v, k, level))
             else
-              table.insert(
-                 xmltb, 
-                 spaces..'<'..k..'>\n'.. xml2lua.toXml(v, level+1)..
-                 '\n'..spaces..'</'..k..'>')
+               local attrs = attrToXml(v._attr)
+               v._attr = nil
+               table.insert(xmltb, 
+                   spaces..'<'..k..attrs..'>\n'.. xml2lua.toXml(v, k, level+1)..
+                   '\n'..spaces..'</'..k..'>')
             end
          end
       else
@@ -204,7 +207,7 @@ function xml2lua.toXml(tb, tableName, level)
       end
   end
 
-  if firstLevel == 0 then
+  if firstLevel == 1 then
      table.insert(xmltb, '</'..tableName..'>\n')
   end
   return table.concat(xmltb, "\n")
