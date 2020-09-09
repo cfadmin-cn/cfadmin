@@ -113,6 +113,8 @@ function crypt.sha1(str, hex)
   return hash
 end
 
+crypt.sha1 = crypt.sha128
+
 function crypt.sha224 (str, hex)
   local hash = sha224(str)
   if hash and hex then
@@ -153,6 +155,8 @@ function crypt.hmac_sha1 (key, text, hex)
   end
   return hash
 end
+
+crypt.hmac_sha1 = crypt.hmac_sha128
 
 function crypt.hmac_sha256 (key, text, hex)
   local hash = hmac_sha256(key, text)
@@ -274,27 +278,45 @@ function crypt.aes_256_ecb_encrypt(key, text, iv, hex)
   return hash
 end
 
-function crypt.aes_128_cbc_decrypt(key, text, iv)
+function crypt.aes_128_cbc_decrypt(key, text, iv, hex)
+  if hex then
+    text = hexdecode(text)
+  end
   return aes_cbc_decrypt(16, #key == 16 and key or nil, text, iv)
 end
 
-function crypt.aes_128_ecb_decrypt(key, text, iv)
+function crypt.aes_128_ecb_decrypt(key, text, iv, hex)
+  if hex then
+    text = hexdecode(text)
+  end
   return aes_ecb_decrypt(16, #key == 16 and key or nil, text, iv)
 end
 
-function crypt.aes_192_cbc_decrypt(key, text, iv)
+function crypt.aes_192_cbc_decrypt(key, text, iv, hex)
+  if hex then
+    text = hexdecode(text)
+  end
   return aes_cbc_decrypt(24, #key == 24 and key or nil, text, iv)
 end
 
-function crypt.aes_192_ecb_decrypt(key, text, iv)
+function crypt.aes_192_ecb_decrypt(key, text, iv, hex)
+  if hex then
+    text = hexdecode(text)
+  end
   return aes_ecb_decrypt(24, #key == 24 and key or nil, text, iv)
 end
 
-function crypt.aes_256_cbc_decrypt(key, text, iv)
+function crypt.aes_256_cbc_decrypt(key, text, iv, hex)
+  if hex then
+    text = hexdecode(text)
+  end
   return aes_cbc_decrypt(32, #key == 32 and key or nil, text, iv)
 end
 
-function crypt.aes_256_ecb_decrypt(key, text, iv)
+function crypt.aes_256_ecb_decrypt(key, text, iv, hex)
+  if hex then
+    text = hexdecode(text)
+  end
   return aes_ecb_decrypt(32, #key == 32 and key or nil, text, iv)
 end
 
