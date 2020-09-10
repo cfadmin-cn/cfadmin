@@ -10,20 +10,19 @@ lparser_response_chunked(lua_State *L){
   size_t buf_len;
   const char* data = luaL_checklstring(L, 1, &buf_len);
 
-  luaL_Buffer B;
-  char *buf = luaL_buffinitsize(L, &B, buf_len);
-  luaL_addlstring(&B, data, buf_len);
+  char *buf = (buf_len < 65535) ? alloca(1 << 16) : lua_newuserdata(L, buf_len);
+  memcpy(buf, data, buf_len);
 
   struct phr_chunked_decoder decoder = { .consume_trailer = 1 };
+
   int last = phr_decode_chunked(&decoder, buf, &buf_len);
-  if (0 > last) {
-    luaL_pushresult(&B);
-    lua_pushnil(L);
-    lua_pushinteger(L, last);
-    return 2;
+  if (last >= 0) {
+    lua_pushlstring(L, (const char *)buf, buf_len);
+    return 1;
   }
-  luaL_pushresult(&B);
-  return 1;
+  lua_pushnil(L);
+  lua_pushinteger(L, last);
+  return 2;
 }
 
 static int
