@@ -113,7 +113,7 @@ function crypt.sha1(str, hex)
   return hash
 end
 
-crypt.sha1 = crypt.sha128
+crypt.sha128 = crypt.sha1
 
 function crypt.sha224 (str, hex)
   local hash = sha224(str)
@@ -156,7 +156,7 @@ function crypt.hmac_sha1 (key, text, hex)
   return hash
 end
 
-crypt.hmac_sha1 = crypt.hmac_sha128
+crypt.hmac_sha128 = crypt.hmac_sha1
 
 function crypt.hmac_sha256 (key, text, hex)
   local hash = hmac_sha256(key, text)
