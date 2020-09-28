@@ -14,7 +14,8 @@ int lurlencode(lua_State *L){
 	luaL_Buffer convert_url;
 	luaL_buffinit(L, &convert_url);
 
-	for (int index = 0; index < url_len;) {
+	int index;
+	for (index = 0; index < url_len;) {
 		uint8_t ch = (uint8_t)url[index++];
 		if (ch == (uint8_t)' ') {
 			luaL_addlstring(&convert_url, "%20", 3);
@@ -24,8 +25,8 @@ int lurlencode(lua_State *L){
 			luaL_addchar(&convert_url, ch);
 			continue;
 		}
-		char vert[3] = {'%', hex_char(((uint8_t)ch) >> 4), hex_char(((uint8_t)ch) & 15)};
-		luaL_addlstring(&convert_url, vert, 3);
+		char vert[] = {'%', hex_char(((uint8_t)ch) >> 4), hex_char(((uint8_t)ch) & 0xF)};
+		luaL_addlstring(&convert_url, (const char *)vert, 3);
 	}
 
 	luaL_pushresult(&convert_url);
@@ -42,13 +43,14 @@ int lurldecode(lua_State *L){
 	luaL_Buffer convert_url;
 	luaL_buffinit(L, &convert_url);
 
-	for (int index = 0; index < url_len;) {
+	int index;
+	for (index = 0; index < url_len;) {
 		uint8_t ch = (uint8_t)url[index++];
 		if (ch != (uint8_t)'%') {
 			luaL_addchar(&convert_url, ch == (uint8_t)'+' ? (uint8_t)' ' : ch);
 			continue;
 		}
-		uint8_t vert[] = { (uint8_t)url[index++], (uint8_t)url[index++] };
+		char vert[] = { (uint8_t)url[index++], (uint8_t)url[index++] };
 		luaL_addchar(&convert_url, (uint8_t)((vert[0] - 48 - ((vert[0] >= 'A') ? 7 : 0) - ((vert[0] >= 'a') ? 32 : 0)) * 16 + (vert[1] - 48 - ((vert[1] >= 'A') ? 7 : 0) - ((vert[1] >= 'a') ? 32 : 0))));
 	}
 
