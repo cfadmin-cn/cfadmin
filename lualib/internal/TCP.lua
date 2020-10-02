@@ -23,10 +23,6 @@ local co_wait = coroutine.yield
 local ti = require "internal.Timer"
 local ti_timeout = ti.timeout
 
-local aio = require "aio"
-local aio_close = aio._close
-local aio_open = aio._open
-
 local tcp = require "tcp"
 local tcp_new = tcp.new
 local tcp_ssl_new = tcp.new_ssl
@@ -162,16 +158,12 @@ function TCP:ssl_set_password(password)
   return tcp_ssl_set_userdata_key(self.ssl, self.ssl_ctx, self.ssl_password)
 end
 
--- sendfile的文件fd使用aio库来打开与关闭可以减少阻塞.
+-- sendfile实现.
 function TCP:sendfile (filename, offset)
   if self.ssl or self.ssl_ctx then
     return self:ssl_sendfile(filename, offset)
   end
   if type(filename) == 'string' and filename ~= '' then
-    local fd, err = aio_open(filename)
-    if not fd then
-      return nil, err
-    end
     local co = co_self()
     self.SEND_IO = tcp_pop()
     self.sendfile_current_co = co_self()
@@ -183,26 +175,27 @@ function TCP:sendfile (filename, offset)
       self.sendfile_current_co = nil
       return co_wakeup(co, ok)
     end)
-    tcp_sendfile(self.SEND_IO, self.sendfile_co, fd, self.fd, offset or 65535)
-    local ok = co_wait()
-    aio_close(fd)
-    return ok
+    tcp_sendfile(self.SEND_IO, self.sendfile_co, filename, self.fd, offset or 65535)
+    return co_wait()
   end
 end
 
--- 假装自己是sendfile
+-- ssl_sendfile实现
 function TCP:ssl_sendfile(filename, offset)
   if type(filename) == 'string' and filename ~= '' then
-    local f, err = aio.open(filename)
+    local f, err = io.open(filename, "r")
     if not f then
       return nil, err
     end
-    local data, err = f:readall()
-    f:close()
-    if not data then
-      return nil, err
+    local ok = false
+    for buf in f:lines(offset or 65535) do
+      local ok = self:ssl_send(buf)
+      if not ok then
+        break
+      end
     end
-    return self:ssl_send(data)
+    f:close()
+    return ok
   end
 end
 
