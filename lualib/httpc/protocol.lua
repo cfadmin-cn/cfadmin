@@ -160,14 +160,14 @@ local function httpc_response(sock, SSL)
       if not CODE or not HEADER then
         return nil, SSL.." can't resolvable protocol."
       end
-      if CODE == 302 or CODE == 301 then
-        return CODE, HEADER['Location'] or HEADER['location']
+      if CODE == 302 or CODE == 301 or CODE == 303 or CODE == 307 then
+        return CODE, HEADER['Location'] or HEADER['location'], HEADER
       end
       local Content_Encoding = HEADER['Content-Encoding'] or HEADER['content-encoding']
       local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
       local Chunked = HEADER['Transfer-Encoding'] or HEADER['transfer-encoding']
       if not Content_Length and not Chunked then
-        return CODE, STATUS
+        return CODE, STATUS, HEADER
       end
       if Content_Length then
         if (#DATA - posB) == Content_Length then
@@ -175,7 +175,7 @@ local function httpc_response(sock, SSL)
           if Content_Encoding == "gzip" then
             res = gzuncompress(res)
           end
-          return CODE, res
+          return CODE, res, HEADER
         end
         local content = new_tab(8, 0)
         content[#content+1] = split(DATA, posB + 1, #DATA)
@@ -192,7 +192,7 @@ local function httpc_response(sock, SSL)
             if Content_Encoding == "gzip" then
               res = gzuncompress(res)
             end
-            return CODE, res
+            return CODE, res, HEADER
           end
         end
       end
@@ -210,7 +210,7 @@ local function httpc_response(sock, SSL)
             if Content_Encoding == "gzip" then
               res = gzuncompress(res)
             end
-            return CODE, res
+            return CODE, res, HEADER
           end
           insert(content, buf)
         end
@@ -230,7 +230,7 @@ local function httpc_response(sock, SSL)
             if Content_Encoding == "gzip" then
               res = gzuncompress(res)
             end
-            return CODE, res
+            return CODE, res, HEADER
           end
         end
       end

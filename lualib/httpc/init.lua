@@ -104,9 +104,9 @@ local function raw( parameter )
 		sock:close()
 		return ok, err
 	end
-	local code, msg = httpc_response(sock, opt.protocol)
+	local code, msg, headers = httpc_response(sock, opt.protocol)
 	sock:close()
-	return code, msg
+	return code, msg, headers
 end
 
 -- HTTP GET
@@ -133,9 +133,9 @@ local function get(domain, headers, args, timeout)
 		sock:close()
 		return ok, err
 	end
-	local code, msg = httpc_response(sock, opt.protocol)
+	local code, msg, headers = httpc_response(sock, opt.protocol)
 	sock:close()
-	return code, msg
+	return code, msg, headers
 end
 
 -- HTTP POST
@@ -162,9 +162,9 @@ local function post(domain, headers, body, timeout)
 		sock:close()
 		return ok, err
 	end
-	local code, msg = httpc_response(sock, opt.protocol)
+	local code, msg, headers = httpc_response(sock, opt.protocol)
 	sock:close()
-	return code, msg
+	return code, msg, headers
 end
 
 -- HTTP DELETE
@@ -192,9 +192,9 @@ local function delete(domain, headers, body, timeout)
 		sock:close()
 		return ok, err
 	end
-	local code, msg = httpc_response(sock, opt.protocol)
+	local code, msg, headers = httpc_response(sock, opt.protocol)
 	sock:close()
-	return code, msg
+	return code, msg, headers
 end
 
 -- HTTP PUT
@@ -222,9 +222,9 @@ local function put(domain, headers, body, timeout)
 		sock:close()
 		return ok, err
 	end
-	local code, msg = httpc_response(sock, opt.protocol)
+	local code, msg, headers = httpc_response(sock, opt.protocol)
 	sock:close()
-	return code, msg
+	return code, msg, headers
 end
 
 local function json(domain, headers, json, timeout)
@@ -253,9 +253,9 @@ local function json(domain, headers, json, timeout)
 		sock:close()
 		return ok, err
 	end
-	local code, msg = httpc_response(sock, opt.protocol)
+	local code, msg, headers = httpc_response(sock, opt.protocol)
 	sock:close()
-	return code, msg
+	return code, msg, headers
 end
 
 local function file(domain, headers, files, timeout)
@@ -282,9 +282,9 @@ local function file(domain, headers, files, timeout)
 		sock:close()
 		return ok, err
 	end
-	local code, msg = httpc_response(sock, opt.protocol)
+	local code, msg, headers = httpc_response(sock, opt.protocol)
 	sock:close()
-	return code, msg
+	return code, msg, headers
 end
 
 local function multi_request (opt)

@@ -167,12 +167,12 @@ function httpc:raw( parameter )
     return false, err
   end
 
-  local code, msg = httpc_response(self.sock, opt.protocol)
+  local code, msg, headers = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
     self.sock = nil
   end
-  return code, msg
+  return code, msg, headers
 
 end
 
@@ -205,12 +205,12 @@ function httpc:get (domain, headers, args, timeout)
     return false, err
   end
 
-  local code, msg = httpc_response(self.sock, opt.protocol)
+  local code, msg, headers = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
     self.sock = nil
   end
-  return code, msg
+  return code, msg, headers
 end
 
 -- post 请求
@@ -242,12 +242,12 @@ function httpc:post (domain, headers, body, timeout)
     return false, err
   end
 
-  local code, msg = httpc_response(self.sock, opt.protocol)
+  local code, msg, headers = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
     self.sock = nil
   end
-  return code, msg
+  return code, msg, headers
 end
 
 -- delete 请求
@@ -279,12 +279,12 @@ function httpc:delete (domain, headers, body, timeout)
     return false, err
   end
 
-  local code, msg = httpc_response(self.sock, opt.protocol)
+  local code, msg, headers = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
     self.sock = nil
   end
-  return code, msg
+  return code, msg, headers
 end
 
 -- put 请求
@@ -316,12 +316,12 @@ function httpc:put (domain, headers, body, timeout)
     return false, err
   end
 
-  local code, msg = httpc_response(self.sock, opt.protocol)
+  local code, msg, headers = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
     self.sock = nil
   end
-  return code, msg
+  return code, msg, headers
 end
 
 -- json 请求
@@ -356,12 +356,12 @@ function httpc:json (domain, headers, json, timeout)
     return false, err
   end
 
-  local code, msg = httpc_response(self.sock, opt.protocol)
+  local code, msg, headers = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
     self.sock = nil
   end
-  return code, msg
+  return code, msg, headers
 end
 
 -- file 请求
@@ -393,12 +393,12 @@ function httpc:file (domain, headers, files, timeout)
     return false, err
   end
 
-  local code, msg = httpc_response(self.sock, opt.protocol)
+  local code, msg, headers = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
     self.sock = nil
   end
-  return code, msg
+  return code, msg, headers
 end
 
 -- 异步请求
