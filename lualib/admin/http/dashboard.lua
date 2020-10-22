@@ -27,7 +27,7 @@ local function verify_permission (content, db)
     if logout then -- 注销登录
       local tk = Cookie.getCookie('CFTOKEN')
       if tk then   -- 注销的时候有token必须清除
-        user_token.token_delete(db, nil, tk)
+        user_token.token_delete(db, 0, tk)
       end
       return false, config.login_render
     end
