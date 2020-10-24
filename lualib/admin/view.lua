@@ -15,21 +15,27 @@ local pcall = pcall
 local assert = assert
 
 local get_path = utils.get_path
+local redirect = utils.redirect
+local get_locale = utils.get_locale
+local access_deny = utils.access_deny
 
 -- 用户自定义view页面需要验权
 local function verify_permission (content, db)
   local token = Cookie.getCookie("CFTOKEN")
   if not token then
-    return false, config.login_render
+    return false, redirect(config.login_render)
   end
   -- 无效token则需要登录
   local info = user_token.token_to_userinfo(db, token)
   if not info then
-    return false, config.login_render
+    return false, redirect(config.login_render)
   end
   -- 有效token需要验证访问权限
-  if info.is_admin ~= 1 and permission.user_have_menu_permission(db, info.id, get_path(content)) then
-    return false, config.login_render
+  if info.is_admin ~= 1 then
+    local path = get_path(content)
+    if path ~= config.home and not permission.user_have_menu_permission(db, info.id, path) then
+      return false, access_deny(path)
+    end
   end
   return true
 end
@@ -43,9 +49,9 @@ function view.use (path, f)
   local db, app = config.db, config.app
   assert(db and app, "view.use need db session and http context.")
   return app:use(path, function (content)
-    local ok, url = verify_permission(content, db)
+    local ok, info = verify_permission(content, db)
     if not ok then
-      return utils.redirect(url)
+      return info
     end
     if not config.cache then
       template.cache = {}
@@ -87,7 +93,7 @@ function view.home(path, f)
     end
     local info = user_token.token_to_userinfo(db, token)
     if not info then
-      return utils.redirect(config.login_render)
+      return redirect(config.login_render)
     end
     local ok, res = pcall(f, httpctx:new{content = content}, db)
     if not ok then
@@ -99,7 +105,7 @@ end
 
 -- 获取当前用户语言表
 function view.get_locale ()
-  return utils.get_locale(Cookie.getCookie("CFLANG"))
+  return get_locale(Cookie.getCookie("CFLANG"))
 end
 
 -- 获取静态文件前缀

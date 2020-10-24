@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Access Deny</title>
+    <script src="{*cdn*}lib/layui/layui.js" charset="utf-8"></script>
+    <script src="{*cdn*}js/xadmin.js" charset="utf-8"></script>
+  </head>
+  <body>
+    <script type="text/javascript">
+      layui.use(['layer'], function() {
+        var layer = layui.layer
+        layer.alert('{*path*}', { type: 0, icon: 2, title: 'Access Deny', closeBtn : 0}, function(index) {
+          xadmin.close();
+          return layer.close(index);
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -12,6 +12,14 @@ local concat = table.concat
 
 local utils = {}
 
+-- 页面验证失败
+function utils.access_deny (path)
+  return template.compile("lualib/admin/html/deny.html") {
+    path = path or "unknown",
+    cdn = config.cdn,
+  }
+end
+
 -- 页面重定向
 function utils.redirect(path, args)
   assert(path ~= '' or type(path) ~= 'string' , '试图传递一个非法的path')

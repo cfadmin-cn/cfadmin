@@ -21,7 +21,9 @@ local ipairs = ipairs
 local os_date = os.date
 local toint = math.tointeger
 
+local get_path = utils.get_path
 local get_locale = utils.get_locale
+local access_deny = utils.access_deny
 
 local template_path = 'lualib/admin/html/system/menu/'
 
@@ -36,7 +38,7 @@ local function verify_permission (content, db)
   end
   local info = user.user_info(db, exists.uid)
   if not info or info.is_admin ~= 1 then
-    return false, config.login_render
+    return false, access_deny(get_path(content))
   end
   info.token = exists.token
   info.roles = role.role_permissions(db, info.role)
