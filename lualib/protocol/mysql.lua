@@ -142,22 +142,27 @@ end
 
 -- mysql_native认证
 local function mysql_native_password(password, scramble)
-    if not password or password == "" then
-        return ""
-    end
-    local stage1 = sha1(password)
-    local stage2 = sha1(scramble .. sha1(stage1))
-    return xor_str(stage2, stage1)
+  if type(password) ~= 'string' or password == "" then
+    return ""
+  end
+  local stage1 = sha1(password)
+  local stage2 = sha1(scramble .. sha1(stage1))
+  return xor_str(stage2, stage1)
+end
+
+-- mysql_sha256认证
+local function mysql_sha256_password(password, scramble)
+  if type(password) ~= 'string' or password == "" then
+    return ""
+  end
+  local stage1 = sha2(password)
+  local stage2 = sha2(sha2(stage1) .. scramble)
+  return xor_str(stage1, stage2)
 end
 
 -- caching_sha2认证
 local function caching_sha2_password(password, scramble)
-    if not password or password == "" then
-        return ""
-    end
-    local stage1 = sha2(password)
-    local stage2 = sha2(sha2(stage1) .. scramble)
-    return xor_str(stage1, stage2)
+  return mysql_sha256_password(password, scramble)
 end
 
 -- RSA扩展公钥认证
@@ -511,8 +516,8 @@ local function mysql_login (self)
       return nil, err
     end
     status, method = strbyte(packet, 1), strbyte(packet, 2)
-  else -- specify auth method switch algorithm : caching_sha2_password / mysql_native_password
-
+  elseif status ~= RESP_ERROR then
+    -- specify auth method switch algorithm : caching_sha2_password / mysql_native_password
     -- 1. Auth Plugin Need caching_sha2_password
     if status == 0x01 and method == 0x04 then
       self.packet_no = self.packet_no + 1
@@ -531,13 +536,22 @@ local function mysql_login (self)
 
     -- 2. Auth Plugin Need mysql_native_password
     if status == 0xFE then
-      local auth_plugin
-      auth_plugin, pos = strunpack("z", packet, 2)
-      if auth_plugin ~= "mysql_native_password" then
+      local auth_plugin, pos = strunpack("z", packet, 2)
+      if auth_plugin == "mysql_native_password" then
+        self.packet_no = self.packet_no + 1
+        send_packet(self, mysql_native_password(self.password, strunpack("<z", packet, pos)))
+      elseif auth_plugin == "sha256_password" then
+        self.packet_no = self.packet_no + 1
+        send_packet(self, '\x01')
+        local public_key, err = read_packet(self)
+        if not public_key then
+          return nil, err
+        end
+        self.packet_no = self.packet_no + 1
+        send_packet(self, rsa_encode(public_key:sub(2, -2), self.password .. "\x00", strunpack("<z", packet, pos)))
+      else
         return nil, "1. MySQL Authentication protocol not supported: " .. (auth_plugin or "unknown")
       end
-      self.packet_no = self.packet_no + 1
-      send_packet(self, mysql_native_password(self.password, strunpack("<z", packet, pos)))
       packet, err = read_packet(self)
       if not packet then
         return nil, err
