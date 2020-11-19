@@ -5,8 +5,10 @@ local new_tab = require("sys").new_tab
 local log = require "logging"
 local Log = log:new({ dump = true, path = 'internal-TCP' })
 
+local ipairs = ipairs
 local assert = assert
 local split = string.sub
+local spack = string.pack
 local insert = table.insert
 local remove = table.remove
 
@@ -50,6 +52,8 @@ local tcp_new_unixsock_fd = tcp.new_unixsock_fd
 
 local tcp_ssl_verify = tcp.ssl_verify
 local tcp_ssl_set_fd = tcp.ssl_set_fd
+local tcp_ssl_set_alpn = tcp.ssl_set_alpn
+local tcp_ssl_get_alpn = tcp.ssl_get_alpn
 local tcp_ssl_set_accept_mode = tcp.ssl_set_accept_mode
 local tcp_ssl_set_connect_mode = tcp.ssl_set_connect_mode
 local tcp_ssl_set_privatekey = tcp.ssl_set_privatekey
@@ -126,6 +130,24 @@ function TCP:ssl_set_verify()
     self.ssl, self.ssl_ctx = tcp_ssl_new()
   end
   return tcp_ssl_verify(self.ssl, self.ssl_ctx)
+end
+
+-- 设置NPN/ALPN
+function TCP:ssl_set_alpn(protocol)
+  if type(protocol) == 'string' and protocol ~= '' then
+   if not self.ssl or not self.ssl_ctx then
+      self.ssl, self.ssl_ctx = tcp_ssl_new()
+    end
+    self.alpn = protocol
+  end
+end
+
+-- 获取NPN/ALPN
+function TCP:ssl_get_alpn()
+ if not self.ssl or not self.ssl_ctx then
+    return
+  end
+  return tcp_ssl_get_alpn(self.ssl, self.ssl_ctx)
 end
 
 -- 设置私钥
@@ -666,6 +688,10 @@ local function event_wait(self, event)
 end
 
 function TCP:ssl_handshake()
+  -- 如果设置了NPN/ALPN, 则需要在握手协商中指定.
+  if self.alpn then
+    tcp_ssl_set_alpn(self.ssl, self.ssl_ctx, spack(">B", #self.alpn) .. self.alpn)
+  end
   -- 如果是服务端模式, 需要等待客户端先返送hello信息.
   -- 如果是客户端, 则需要先发送hello信息.
   if self.mode == "server" then

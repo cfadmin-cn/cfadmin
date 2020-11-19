@@ -964,7 +964,7 @@ static int ssl_set_userdata_key(lua_State *L) {
 }
 
 // 验证证书与私钥是否有效
-int ssl_verify(lua_State *L) {
+static int ssl_verify(lua_State *L) {
 
   SSL *ssl = (SSL*) lua_touserdata(L, 1);
   if (!ssl)
@@ -979,6 +979,49 @@ int ssl_verify(lua_State *L) {
     return 0;
 
   lua_pushboolean(L, 1);
+  return 1;
+}
+
+static int ssl_set_alpn(lua_State *L) {
+
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  SSL_CTX *ctx = (SSL_CTX*) lua_touserdata(L, 2);
+  if (!ctx)
+    return luaL_error(L, "Invalid SSL_CTX ctx.");
+
+  size_t lsize = 0;
+  const char *str = luaL_checklstring(L, 3, &lsize);
+  if (!str || lsize < 1)
+    return 0;
+
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+  SSL_set_alpn_protos(ssl, (const unsigned char *)str, lsize);
+  SSL_CTX_set_alpn_protos(ctx, (const unsigned char *)str, lsize);
+#endif // OPENSSL_VERSION_NUMBER >= 0x10002000L
+
+  return 1;
+}
+
+static int ssl_get_alpn(lua_State *L) {
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  SSL_CTX *ctx = (SSL_CTX*) lua_touserdata(L, 2);
+  if (!ctx)
+    return luaL_error(L, "Invalid SSL_CTX ctx.");
+
+  uint32_t len = 0;
+  const uint8_t *data = NULL;
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+  SSL_get0_alpn_selected(ssl, (const uint8_t **)&data, (unsigned int *)&len);
+#endif // OPENSSL_VERSION_NUMBER >= 0x10002000L
+  if (!data || len < 1)
+    return 0;
+  lua_pushlstring(L, (const char *)data, len);
   return 1;
 }
 
@@ -1121,6 +1164,8 @@ luaopen_tcp(lua_State *L){
     {"new_unixsock_fd", new_unixsock_fd},
     {"sendfile", tcp_sendfile},
     {"ssl_verify", ssl_verify},
+    {"ssl_set_alpn", ssl_set_alpn},
+    {"ssl_get_alpn", ssl_get_alpn},
     {"ssl_set_accept_mode", ssl_set_accept_mode},
     {"ssl_set_connect_mode", ssl_set_connect_mode},
     {"ssl_set_privatekey", ssl_set_privatekey},
