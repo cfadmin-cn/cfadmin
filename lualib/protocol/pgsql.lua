@@ -199,7 +199,7 @@ local function get_error_message_tab(msg)
 end
 
 local function read_opcode_and_len (self)
-  local opstr = self.sock:recv(1)
+  local opstr = self:read(1)
   if not opstr then
     return nil, "client read: server close this session."
   end
@@ -227,7 +227,7 @@ local function get_query_error_msg (self, data)
   if opcode ~= RESP_READY then
     return nil, len
   end
-  local _ = self.sock:recv(len - 4)
+  local _ = self:read(len - 4)
   return nil, msg
 end
 
@@ -301,7 +301,7 @@ local function read_response (self)
   while 1 do
     local opcode, len = read_opcode_and_len(self)
     if not opcode then
-      self.status = "closed"
+      self.state = "closed"
       return nil, "1. server close this session."
     end
     if opcode == RESP_ERROR then
@@ -311,7 +311,7 @@ local function read_response (self)
     if opcode == RESP_STATUS then
       local kv = self:read(len - 4)
       if not kv then
-        self.status = "closed"
+        self.state = "closed"
         return nil, "2. server close this session."
       end
       local k, v = strunpack("zz", kv)
@@ -326,7 +326,7 @@ local function read_response (self)
       results[#results + 1] = result
       local opcode, len = read_opcode_and_len(self)
       if not opcode then
-        self.status = "closed"
+        self.state = "closed"
         return nil, "3. server close this session."
       end
       if opcode == RESP_CMD_COMPLETION then
@@ -336,7 +336,7 @@ local function read_response (self)
       local tab = new_tab(3, 0)
       local content = self:read(len - 4)
       if not content then
-        self.status = "closed"
+        self.state = "closed"
         return nil, "4. server close this session."
       end
       for v in strgmatch(content, "[^ \x00]+") do
@@ -362,14 +362,19 @@ local function read_response (self)
     elseif opcode == RESP_READY then
       local v = self:read(len - 4)
       if not v then
-        self.status = "closed"
+        self.state = "closed"
         return nil, "5. server close this session."
+      end
+      if v == "T" then
+        results[#results].transaction = true
+      else
+        results[#results].transaction = false
       end
       break
     elseif opcode == RESP_COLUMN then
       local columns, err = read_column_data(self, len - 4)
       if not columns then
-        self.status = "closed"
+        self.state = "closed"
         return nil, err
       end
       -- var_dump(columns)
@@ -382,7 +387,7 @@ local function read_response (self)
         elseif type(row) == 'number' then
           break
         else
-          self.status = "closed"
+          self.state = "closed"
           return nil, "6. server close this session."
         end
       end
@@ -399,7 +404,7 @@ local function read_response (self)
       if row == RESP_CMD_COMPLETION then
         local v = self:read(len - 4)
         if not v then
-          self.status = "closed"
+          self.state = "closed"
           return nil, "7. server close this session."
         end
       end
@@ -521,7 +526,7 @@ function pgsql:connect()
     end
   end
 
-  self.status = "connected"
+  self.state = "connected"
   self.server = server
   return server
 end
@@ -557,8 +562,8 @@ function pgsql:set_timeout(timeout)
 end
 
 function pgsql:close()
-  if self.status == "connected" then
-    self.status = "closed"
+  if self.state == "connected" then
+    self.state = "closed"
     self:write(strpack(">BI4", OP_TERMINATE, 4))
   end
   if self.sock then

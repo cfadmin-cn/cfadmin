@@ -12,9 +12,12 @@ local hashkey = crypt.hashkey
 local co = require "internal.Co"
 local co_self = co.self
 local co_wait = co.wait
+local co_spwan = co.spwan
 local co_wakeup = co.wakeup
 
 local type = type
+local error = error
+local xpcall = xpcall
 local ipairs = ipairs
 local assert = assert
 local tostring = tostring
@@ -92,9 +95,9 @@ local function run_query(self, query)
   local co = pop_wait(self)
   if co then
     co_wakeup(co, db)
-    return ret, err
+  else
+    add_db(self, db)
   end
-  add_db(self, db)
   return ret, err
 end
 
@@ -122,6 +125,94 @@ function DB:connect ()
     return self.INITIALIZATION
   end
   return self.INITIALIZATION
+end
+
+local function traceback(msg)
+  return fmt("[%s] %s", os.date("%Y/%m/%d %H:%M:%S"), debug.traceback(co_self(), msg, 3))
+end
+
+function DB:transaction(f)
+  assert(self.INITIALIZATION, "DB needs to be initialized first.")
+  assert(type(f) == 'function', "A function must be passed to describe the execution of the transaction.")
+  local db, ret, err
+  while 1 do
+    db = pop_db(self)
+    if db then
+      ret, err = db:query("BEGIN;")
+      if db.state then
+        break
+      end
+      db:close()
+      self.current = self.current - 1
+    end
+    db, ret, err = nil, nil, nil
+  end
+  -- 每个事务都有独立的session
+  local session = { nil, nil, nil }
+  session.query = function ( sql )
+    if session.over then
+      return nil, "Please use `return session.rollback()` or `return session.commit()` after the transaction process is over or Process error."
+    end
+    assert(db.state, "PGSQL transaction session closed. 1")
+    local ret, err = db:query(sql)
+    assert(db.state, "PGSQL transaction session closed. 2")
+    return ret, err
+  end
+  session.rollback = function ( ... )
+    assert(db.state, "PGSQL transaction session closed. 3")
+    db:query("ROLLBACK;")
+    assert(db.state, "PGSQL transaction session closed. 4")
+    session.over = true
+    return { state = "rollback" }
+  end
+  session.commit = function ( ... )
+    assert(db.state, "PGSQL transaction session closed. 5")
+    db:query("COMMIT;")
+    assert(db.state, "PGSQL transaction session closed. 6")
+    session.over = true
+    return { state = "successed" }
+  end
+  local ok, info = xpcall(f, traceback, session)
+  if not ok then
+    -- 如果在自定义事务流程的内部发生了错误
+    if not db.state then
+      self.current = self.current - 1
+      db:close()
+      local co = pop_wait(self)
+      if co then
+        co_spwan(function ( ... )
+          co_wakeup(co, pop_db(self))
+        end)
+      end
+      return nil, info
+    end
+    db:query("ROLLBACK;")
+    local co = pop_wait(self)
+    if co then
+      co_wakeup(co, db)
+    else
+      add_db(self, db)
+    end
+    return nil, info
+  end
+  -- 如果定义的事务没有以`commit`或者`rollback`结尾.
+  if type(info) ~= 'table' or (info.state ~= "successed" and info.state ~= 'rollback') then
+    db:query("ROLLBACK;")
+    local co = pop_wait(self)
+    if co then
+      co_wakeup(co, db)
+    else
+      add_db(self, db)
+    end
+    error("Must return after transaction ends`session.commit()`or`session.rollback()`.")
+  end
+  local co = pop_wait(self)
+  if co then
+    co_wakeup(co, db)
+  else
+    add_db(self, db)
+  end
+  return info.state == "successed" and true or false
 end
 
 -- 原始查询语句

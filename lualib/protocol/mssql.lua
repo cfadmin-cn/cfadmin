@@ -743,18 +743,18 @@ end
 local function tds_read_response(self, before_packets)
   local packet = tds_read_head(self)
   if not packet then
-    self.connected = nil
+    self.state = nil
     return nil, "The server disconnected before receiving the response header."
   end
 
   local OPCODE, STATUS, LENGTH, CHANNEL, PACKNO, WINDOW  = tds_unpack_header(packet)
   if OPCODE ~= PTYPE_RESPONSE then
-    self.connected = nil
+    self.state = nil
     return nil, "A protocol type not supported by TDS-7.0 was received."
   end
   local packet = tds_read_body(self, LENGTH)
   if not packet then
-    self.connected = nil
+    self.state = nil
     return nil, "The server disconnected before receiving the response data."
   end
 
