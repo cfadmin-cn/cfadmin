@@ -365,11 +365,11 @@ local function read_response (self)
         self.state = "closed"
         return nil, "5. server close this session."
       end
-      if v == "T" then
-        results[#results].transaction = true
-      else
-        results[#results].transaction = false
-      end
+      -- if v == "T" then
+      --   results[#results].transaction = true
+      -- else
+      --   results[#results].transaction = false
+      -- end
       break
     elseif opcode == RESP_COLUMN then
       local columns, err = read_column_data(self, len - 4)
