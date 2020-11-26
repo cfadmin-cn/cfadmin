@@ -149,27 +149,30 @@ function DB:transaction(f)
   end
   -- 每个事务都有独立的session
   local session = { nil, nil, nil }
-  session.query = function ( sql )
-    if session.over then
-      return nil, "Please use `return session.rollback()` or `return session.commit()` after the transaction process is over."
+  session.query = function (self, sql)
+    assert(self and self == session, "Must use the syntax of `session:query()`")
+    if self.over then
+      return nil, "Please use `return session:rollback()` or `return session:commit()` after the transaction process is over or Process error."
     end
     assert(db.state, "MSSQL transaction session closed. 1")
     local ret, err = db:query(sql)
     assert(db.state, "MSSQL transaction session closed. 2")
     return ret, err
   end
-  session.rollback = function ( ... )
+  session.rollback = function ( self )
+    assert(self and self == session, "Must use the syntax of `session:rollback()`")
     assert(db.state, "MSSQL transaction session closed. 3")
     db:query("ROLLBACK TRAN;")
     assert(db.state, "MSSQL transaction session closed. 4")
-    session.over = true
+    self.over = true
     return { state = "rollback" }
   end
-  session.commit = function ( ... )
+  session.commit = function ( self )
+    assert(self and self == session, "Must use the syntax of `session:commit()`")
     assert(db.state, "MSSQL transaction session closed. 5")
     db:query("COMMIT TRAN;")
     assert(db.state, "MSSQL transaction session closed. 6")
-    session.over = true
+    self.over = true
     return { state = "successed" }
   end
 
@@ -205,7 +208,7 @@ function DB:transaction(f)
     else
       add_db(self, db)
     end
-    error("Must return after transaction ends`session.commit()`or`session.rollback()`.")
+    error("Must return after transaction ends`session:commit()`or`session:rollback()`.")
   end
   local co = pop_wait(self)
   if co then
