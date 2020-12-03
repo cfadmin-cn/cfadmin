@@ -72,3 +72,23 @@ int lrsa_public_key_decode(lua_State *L);
 
 int lrsa_sign(lua_State *L);
 int lrsa_verify(lua_State *L);
+
+int lsm3(lua_State *L);
+int lhmac_sm3(lua_State *L);
+
+int lsm2keygen(lua_State *L);
+
+int lsm2sign(lua_State *L);
+int lsm2verify(lua_State *L);
+
+int lsm4_cbc_encrypt(lua_State *L);
+int lsm4_cbc_decrypt(lua_State *L);
+
+int lsm4_ecb_encrypt(lua_State *L);
+int lsm4_ecb_decrypt(lua_State *L);
+
+int lsm4_ofb_encrypt(lua_State *L);
+int lsm4_ofb_decrypt(lua_State *L);
+
+int lsm4_ctr_encrypt(lua_State *L);
+int lsm4_ctr_decrypt(lua_State *L);
