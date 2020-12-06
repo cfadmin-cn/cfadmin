@@ -1,6 +1,7 @@
 #define LUA_LIB
 
 #include <core.h>
+#include <ifaddrs.h>
 
 #define MAX_IPV4 (4294967295L)
 
@@ -103,6 +104,49 @@ static int lnew_tab(lua_State *L){
   return 1;
 }
 
+static int linterface(lua_State *L){
+  struct ifaddrs *ifc, *ifc1;
+  if(getifaddrs(&ifc))
+    return 0;
+  lua_createtable(L, 32, 0);
+  ifc1 = ifc;
+  int index = 1;
+  for(; NULL != ifc; ifc = (*ifc).ifa_next) {
+    if ((*ifc).ifa_addr && (*ifc).ifa_netmask && (*ifc).ifa_name) {
+      char ip[64] = {0};
+      char mask[64] = {0};
+      // IPv4
+      if ((*ifc).ifa_addr->sa_family == AF_INET && (*ifc).ifa_netmask->sa_family == AF_INET) {
+        inet_ntop(AF_INET, &(((struct sockaddr_in*)((*ifc).ifa_addr))->sin_addr), ip, 64);
+        inet_ntop(AF_INET, &(((struct sockaddr_in*)((*ifc).ifa_netmask))->sin_addr), mask, 64);
+        if (0 != strncmp("0.0.0.0", ip, strlen(ip)) && 0 != strncmp("0.0.0.0", mask, strlen(mask))){
+          lua_createtable(L, 0, 4);
+          lua_pushliteral(L, "Interface"); lua_pushstring(L, (*ifc).ifa_name); lua_rawset(L, -3);
+          lua_pushliteral(L, "IP"); lua_pushstring(L, ip); lua_rawset(L, -3);
+          lua_pushliteral(L, "Mask"); lua_pushstring(L, mask); lua_rawset(L, -3);
+          lua_pushliteral(L, "Version"); lua_pushliteral(L, "IPv4"); lua_rawset(L, -3);
+          lua_rawseti(L, -2, index++);
+        }
+      }
+      // IPv6
+      if ((*ifc).ifa_addr->sa_family == AF_INET6 && (*ifc).ifa_netmask->sa_family == AF_INET6) {
+        inet_ntop(AF_INET6, &(((struct sockaddr_in6*)((*ifc).ifa_addr))->sin6_addr), ip, 64);
+        inet_ntop(AF_INET6, &(((struct sockaddr_in6*)((*ifc).ifa_netmask))->sin6_addr), mask, 64);
+        if (0 != strncmp("::", ip, strlen(ip)) && 0 != strncmp(ip, "fe80", 4)) {
+          lua_createtable(L, 0, 4);
+          lua_pushliteral(L, "Interface"); lua_pushstring(L, (*ifc).ifa_name); lua_rawset(L, -3);
+          lua_pushliteral(L, "IP"); lua_pushstring(L, ip); lua_rawset(L, -3);
+          lua_pushliteral(L, "Mask"); lua_pushstring(L, mask); lua_rawset(L, -3);
+          lua_pushliteral(L, "Version"); lua_pushliteral(L, "IPv6"); lua_rawset(L, -3);
+          lua_rawseti(L, -2, index++);
+        }
+      }
+    }
+  }
+  freeifaddrs(ifc1);
+  return 1;
+}
+
 LUAMOD_API int
 luaopen_sys(lua_State *L){
   luaL_checkversion(L);
@@ -115,6 +159,7 @@ luaopen_sys(lua_State *L){
     {"str2ip", lstr2ip},
     {"ip2str", lip2str},
     {"hostname", lhostname},
+    {"interface", linterface},
     {"new_tab", lnew_tab},
     {NULL, NULL}
   };
