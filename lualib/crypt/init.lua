@@ -20,7 +20,9 @@ local sha384 = CRYPT.sha384
 local sha512 = CRYPT.sha512
 
 local hmac_sha1 = CRYPT.hmac_sha1
+local hmac_sha224 = CRYPT.hmac_sha224
 local hmac_sha256 = CRYPT.hmac_sha256
+local hmac_sha384 = CRYPT.hmac_sha384
 local hmac_sha512 = CRYPT.hmac_sha512
 
 local crc32 = CRYPT.crc32
@@ -40,6 +42,9 @@ local hexdecode = CRYPT.hexdecode
 
 local desencode = CRYPT.desencode
 local desdecode = CRYPT.desdecode
+
+local des_encrypt = CRYPT.des_encrypt
+local des_decrypt = CRYPT.des_decrypt
 
 local dhsecret = CRYPT.dhsecret
 local dhexchange = CRYPT.dhexchange
@@ -71,6 +76,18 @@ local aes_ecb_decrypt = CRYPT.aes_ecb_decrypt
 
 local aes_cbc_encrypt = CRYPT.aes_cbc_encrypt
 local aes_cbc_decrypt = CRYPT.aes_cbc_decrypt
+
+local aes_cfb_encrypt = CRYPT.aes_cfb_encrypt
+local aes_cfb_decrypt = CRYPT.aes_cfb_decrypt
+
+local aes_ofb_encrypt = CRYPT.aes_ofb_encrypt
+local aes_ofb_decrypt = CRYPT.aes_ofb_decrypt
+
+local aes_ctr_encrypt = CRYPT.aes_ctr_encrypt
+local aes_ctr_decrypt = CRYPT.aes_ctr_decrypt
+
+local aes_gcm_encrypt = CRYPT.aes_gcm_encrypt
+local aes_gcm_decrypt = CRYPT.aes_gcm_decrypt
 
 -- 填充方式
 local RSA_NO_PADDING = CRYPT.RSA_NO_PADDING
@@ -124,14 +141,6 @@ function crypt.md5(str, hex)
   return hash
 end
 
-function crypt.hmac_md5 (key, text, hex)
-  local hash = hmac_md5(key, text)
-  if hash and hex then
-    return hexencode(hash)
-  end
-  return hash
-end
-
 function crypt.sha1(str, hex)
   local hash = sha1(str)
   if hash and hex then
@@ -174,6 +183,16 @@ function crypt.sha512 (str, hex)
   return hash
 end
 
+-- 哈希信息摘要码方法(常见)
+
+function crypt.hmac_md5 (key, text, hex)
+  local hash = hmac_md5(key, text)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
 function crypt.hmac_sm3 (key, text, hex)
   local hash = hmac_sm3(key, text)
   if hash and hex then
@@ -192,10 +211,26 @@ end
 
 crypt.hmac_sha128 = crypt.hmac_sha1
 
+function crypt.hmac_sha224(key, text, hex)
+  local hash = hmac_sha224(key, text)
+  if hex then
+    hash = hexencode(hash)
+  end
+  return hash
+end
+
 function crypt.hmac_sha256 (key, text, hex)
   local hash = hmac_sha256(key, text)
   if hash and hex then
     return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.hmac_sha384(key, text, hex)
+  local hash = hmac_sha384(key, text)
+  if hex then
+    hash = hexencode(hash)
   end
   return hash
 end
@@ -240,6 +275,8 @@ function crypt.hashkey (key, hex)
   return hash
 end
 
+-- 哈希信息摘要码方法(特殊)
+
 function crypt.hmac_hash (key, text, hex)
   local hash = hmac_hash(key, text)
   if hash and hex then
@@ -264,8 +301,10 @@ function crypt.hmac64_md5 (key, text, hex)
   return hash
 end
 
+-- 高级对称分组解密方法
+
 function crypt.aes_128_cbc_encrypt(key, text, iv, hex)
-  local hash = aes_cbc_encrypt(16, #key == 16 and key or nil, text, iv)
+  local hash = aes_cbc_encrypt(16, key, text, iv)
   if hash and hex then
     return hexencode(hash)
   end
@@ -273,7 +312,39 @@ function crypt.aes_128_cbc_encrypt(key, text, iv, hex)
 end
 
 function crypt.aes_128_ecb_encrypt(key, text, iv, hex)
-  local hash = aes_ecb_encrypt(16, #key == 16 and key or nil, text, iv)
+  local hash = aes_ecb_encrypt(16, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_128_cfb_encrypt(key, text, iv, hex)
+  local hash = aes_cfb_encrypt(16, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_128_ofb_encrypt(key, text, iv, hex)
+  local hash = aes_ofb_encrypt(16, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_128_ctr_encrypt(key, text, iv, hex)
+  local hash = aes_ctr_encrypt(16, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_128_gcm_encrypt(key, text, iv, hex)
+  local hash = aes_gcm_encrypt(16, key, text, iv)
   if hash and hex then
     return hexencode(hash)
   end
@@ -281,7 +352,7 @@ function crypt.aes_128_ecb_encrypt(key, text, iv, hex)
 end
 
 function crypt.aes_192_cbc_encrypt(key, text, iv, hex)
-  local hash = aes_cbc_encrypt(24, #key == 24 and key or nil, text, iv)
+  local hash = aes_cbc_encrypt(24, key, text, iv)
   if hash and hex then
     return hexencode(hash)
   end
@@ -289,7 +360,39 @@ function crypt.aes_192_cbc_encrypt(key, text, iv, hex)
 end
 
 function crypt.aes_192_ecb_encrypt(key, text, iv, hex)
-  local hash = aes_ecb_encrypt(24, #key == 24 and key or nil, text, iv)
+  local hash = aes_ecb_encrypt(24, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_192_cfb_encrypt(key, text, iv, hex)
+  local hash = aes_cfb_encrypt(24, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_192_ofb_encrypt(key, text, iv, hex)
+  local hash = aes_ofb_encrypt(24, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_192_ctr_encrypt(key, text, iv, hex)
+  local hash = aes_ctr_encrypt(24, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function crypt.aes_192_gcm_encrypt(key, text, iv, hex)
+  local hash = aes_gcm_encrypt(24, key, text, iv)
   if hash and hex then
     return hexencode(hash)
   end
@@ -297,7 +400,7 @@ function crypt.aes_192_ecb_encrypt(key, text, iv, hex)
 end
 
 function crypt.aes_256_cbc_encrypt(key, text, iv, hex)
-  local hash = aes_cbc_encrypt(32, #key == 32 and key or nil, text, iv)
+  local hash = aes_cbc_encrypt(32, key, text, iv)
   if hash and hex then
     return hexencode(hash)
   end
@@ -305,53 +408,171 @@ function crypt.aes_256_cbc_encrypt(key, text, iv, hex)
 end
 
 function crypt.aes_256_ecb_encrypt(key, text, iv, hex)
-  local hash = aes_ecb_encrypt(32, #key == 32 and key or nil, text, iv)
+  local hash = aes_ecb_encrypt(32, key, text, iv)
   if hash and hex then
     return hexencode(hash)
   end
   return hash
 end
 
-function crypt.aes_128_cbc_decrypt(key, text, iv, hex)
-  if hex then
-    text = hexdecode(text)
+function crypt.aes_256_cfb_encrypt(key, text, iv, hex)
+  local hash = aes_cfb_encrypt(32, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
   end
-  return aes_cbc_decrypt(16, #key == 16 and key or nil, text, iv)
+  return hash
 end
 
-function crypt.aes_128_ecb_decrypt(key, text, iv, hex)
-  if hex then
-    text = hexdecode(text)
+function crypt.aes_256_ofb_encrypt(key, text, iv, hex)
+  local hash = aes_ofb_encrypt(32, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
   end
-  return aes_ecb_decrypt(16, #key == 16 and key or nil, text, iv)
+  return hash
 end
 
-function crypt.aes_192_cbc_decrypt(key, text, iv, hex)
-  if hex then
-    text = hexdecode(text)
+function crypt.aes_256_ctr_encrypt(key, text, iv, hex)
+  local hash = aes_ctr_encrypt(32, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
   end
-  return aes_cbc_decrypt(24, #key == 24 and key or nil, text, iv)
+  return hash
 end
 
-function crypt.aes_192_ecb_decrypt(key, text, iv, hex)
-  if hex then
-    text = hexdecode(text)
+function crypt.aes_256_gcm_encrypt(key, text, iv, hex)
+  local hash = aes_gcm_encrypt(32, key, text, iv)
+  if hash and hex then
+    return hexencode(hash)
   end
-  return aes_ecb_decrypt(24, #key == 24 and key or nil, text, iv)
+  return hash
 end
 
-function crypt.aes_256_cbc_decrypt(key, text, iv, hex)
+-- 高级对称分组解密方法
+
+function crypt.aes_128_cbc_decrypt(key, cipher, iv, hex)
   if hex then
-    text = hexdecode(text)
+    cipher = hexdecode(cipher)
   end
-  return aes_cbc_decrypt(32, #key == 32 and key or nil, text, iv)
+  return aes_cbc_decrypt(16, key, cipher, iv)
 end
 
-function crypt.aes_256_ecb_decrypt(key, text, iv, hex)
+function crypt.aes_128_ecb_decrypt(key, cipher, iv, hex)
   if hex then
-    text = hexdecode(text)
+    cipher = hexdecode(cipher)
   end
-  return aes_ecb_decrypt(32, #key == 32 and key or nil, text, iv)
+  return aes_ecb_decrypt(16, key, cipher, iv)
+end
+
+function crypt.aes_128_cfb_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_cfb_decrypt(16, key, cipher, iv)
+end
+
+function crypt.aes_128_ofb_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_ofb_decrypt(16, key, cipher, iv)
+end
+
+function crypt.aes_128_ctr_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_ctr_decrypt(16, key, cipher, iv)
+end
+
+function crypt.aes_128_gcm_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_gcm_decrypt(16, key, cipher, iv)
+end
+
+function crypt.aes_192_cbc_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_cbc_decrypt(24, key, cipher, iv)
+end
+
+function crypt.aes_192_ecb_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_ecb_decrypt(24, key, cipher, iv)
+end
+
+function crypt.aes_192_cfb_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_cfb_decrypt(24, key, cipher, iv)
+end
+
+function crypt.aes_192_ofb_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_ofb_decrypt(24, key, cipher, iv)
+end
+
+function crypt.aes_192_ctr_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_ctr_decrypt(24, key, cipher, iv)
+end
+
+function crypt.aes_192_gcm_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_gcm_decrypt(24, key, cipher, iv)
+end
+
+function crypt.aes_256_cbc_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_cbc_decrypt(32, key, cipher, iv)
+end
+
+function crypt.aes_256_ecb_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_ecb_decrypt(32, key, cipher, iv)
+end
+
+function crypt.aes_256_cfb_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_cfb_decrypt(32, key, cipher, iv)
+end
+
+function crypt.aes_256_ofb_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_ofb_decrypt(32, key, cipher, iv)
+end
+
+function crypt.aes_256_ctr_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_ctr_decrypt(32, key, cipher, iv)
+end
+
+function crypt.aes_256_gcm_decrypt(key, cipher, iv, hex)
+  if hex then
+    cipher = hexdecode(cipher)
+  end
+  return aes_gcm_decrypt(32, key, cipher, iv)
 end
 
 function crypt.base64urlencode(data)
@@ -391,6 +612,149 @@ function crypt.desdecode (key, text, hex)
     text = hexdecode(text)
   end
   return desdecode(key, text)
+end
+
+function crypt.desx_encrypt(key, text, iv, b64)
+  local hash = des_encrypt(0, key, text, iv)
+  if b64 then
+    hash = base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.desx_decrypt(key, cipher, iv, b64)
+  if b64 then
+    cipher = base64decode(cipher)
+  end
+  return des_decrypt(0, key, cipher, iv)
+end
+
+function crypt.desx_cbc_encrypt(key, text, iv, b64)
+  return crypt.desx_encrypt(key, text, iv, b64)
+end
+
+function crypt.desx_cbc_decrypt(key, cipher, iv, b64)
+  return crypt.desx_decrypt(key, text, iv, b64)
+end
+
+function crypt.des_cbc_encrypt(key, text, iv, b64)
+  local hash = des_encrypt(1, key, text, iv)
+  if b64 then
+    hash = base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.des_cbc_decrypt(key, cipher, iv, b64)
+  if b64 then
+    cipher = base64encode(cipher)
+  end
+  return des_decrypt(1, key, cipher, iv)
+end
+
+function crypt.des_ecb_encrypt(key, text, iv, b64)
+  local hash = des_encrypt(2, key, text, iv)
+  if b64 then
+    hash = base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.des_ecb_decrypt(key, cipher, iv, b64)
+  if b64 then
+    cipher = base64encode(cipher)
+  end
+  return des_decrypt(2, key, cipher, iv)
+end
+
+function crypt.des_cfb_encrypt(key, text, iv, b64)
+  local hash = des_encrypt(3, key, text, iv)
+  if b64 then
+    hash = base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.des_cfb_decrypt(key, cipher, iv, b64)
+  if b64 then
+    cipher = base64encode(cipher)
+  end
+  return des_decrypt(3, key, cipher, iv)
+end
+
+function crypt.des_ofb_encrypt(key, text, iv, b64)
+  local hash = des_encrypt(4, key, text, iv)
+  if b64 then
+    hash = base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.des_ofb_decrypt(key, cipher, iv, b64)
+  if b64 then
+    cipher = base64encode(cipher)
+  end
+  return des_decrypt(4, key, cipher, iv)
+end
+
+function crypt.des_ede_encrypt(key, text, iv, b64)
+  local hash = des_encrypt(5, key, text, iv)
+  if b64 then
+    hash = base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.des_ede_decrypt(key, cipher, iv, b64)
+  if b64 then
+    cipher = base64encode(cipher)
+  end
+  return des_decrypt(5, key, cipher, iv)
+end
+
+function crypt.des_ede3_encrypt(key, text, iv, b64)
+  local hash = des_encrypt(6, key, text, iv)
+  if b64 then
+    hash = base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.des_ede3_decrypt(key, cipher, iv, b64)
+  if b64 then
+    cipher = base64encode(cipher)
+  end
+  return des_decrypt(6, key, cipher, iv)
+end
+
+function crypt.des_ede_ecb_encrypt(key, text, iv, b64)
+  local hash = des_encrypt(7, key, text, iv)
+  if b64 then
+    hash = base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.des_ede_ecb_decrypt(key, cipher, iv, b64)
+  if b64 then
+    cipher = base64encode(cipher)
+  end
+  return des_decrypt(7, key, cipher, iv)
+end
+
+function crypt.des_ede3_ecb_encrypt(key, text, iv, b64)
+  local hash = des_encrypt(8, key, text, iv)
+  if b64 then
+    hash = base64encode(hash)
+  end
+  return hash
+end
+
+function crypt.des_ede3_ecb_decrypt(key, cipher, iv, b64)
+  if b64 then
+    cipher = base64encode(cipher)
+  end
+  return des_decrypt(8, key, cipher, iv)
 end
 
 function crypt.dhsecret (...)

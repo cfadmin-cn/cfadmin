@@ -5,6 +5,7 @@
 #define AES_CFB_MODE (2)
 #define AES_OFB_MODE (4)
 #define AES_CTR_MODE (8)
+#define AES_GCM_MODE (16)
 
 #define aes_bit_to_ecb_evp(bit) (bit == 16 ? EVP_aes_128_ecb() : bit == 24 ? EVP_aes_192_ecb() : EVP_aes_256_ecb())
 
@@ -16,7 +17,9 @@
 
 #define aes_bit_to_ctr_evp(bit) (bit == 16 ? EVP_aes_128_ctr() : bit == 24 ? EVP_aes_192_ctr() : EVP_aes_256_ctr())
 
-static inline const EVP_CIPHER * get_cipher(size_t mode, size_t bit) {
+#define aes_bit_to_gcm_evp(bit) (bit == 16 ? EVP_aes_128_gcm() : bit == 24 ? EVP_aes_192_gcm() : EVP_aes_256_gcm())
+
+static inline const EVP_CIPHER * aes_get_cipher(size_t mode, size_t bit) {
   switch(mode){
     case AES_ECB_MODE:
       return aes_bit_to_ecb_evp(bit);
@@ -28,6 +31,8 @@ static inline const EVP_CIPHER * get_cipher(size_t mode, size_t bit) {
       return aes_bit_to_ofb_evp(bit);
     case AES_CTR_MODE:
       return aes_bit_to_ctr_evp(bit);
+    case AES_GCM_MODE:
+      return aes_bit_to_gcm_evp(bit);
   }
   return NULL;
 }
@@ -39,7 +44,11 @@ static inline int do_aes_encrypt(lua_State *L, int bit, const uint8_t *key, cons
   if (!ctx)
     return luaL_error(L, "allocate EVP failed.");
 
-  if (1 != EVP_EncryptInit_ex(ctx, get_cipher(aes_mode, bit), NULL, key, iv)){
+  EVP_CIPHER_CTX_set_padding(ctx, 0);
+
+  // EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, bit, NULL);
+
+  if (1 != EVP_EncryptInit_ex(ctx, aes_get_cipher(aes_mode, bit), NULL, key, iv)){
     EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
     lua_pushnil(L);
@@ -85,7 +94,11 @@ static inline int do_aes_decrypt(lua_State *L, int bit, const uint8_t *key, cons
   if (!ctx)
     return luaL_error(L, "allocate EVP failed.");
 
-  if (1 != EVP_DecryptInit_ex(ctx, get_cipher(aes_mode, bit), NULL, key, iv)){
+  EVP_CIPHER_CTX_set_padding(ctx, 0);
+
+  // EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, bit, NULL);
+
+  if (1 != EVP_DecryptInit_ex(ctx, aes_get_cipher(aes_mode, bit), NULL, key, iv)){
     EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
     lua_pushnil(L);
@@ -147,97 +160,84 @@ static inline int lua_getargs(lua_State *L, lua_Integer *bit, uint8_t **text, si
   return 1;
 }
 
+static inline int AES_ENCRYPT(lua_State *L, int mode) {
+
+  lua_Integer bit = 0; size_t text_sz = 0;
+
+  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* text = NULL;
+
+  return lua_getargs(L, &bit, &text, &text_sz, &iv, &key) && do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, mode);
+}
+
+static inline int AES_DECRYPT(lua_State *L, int mode) {
+
+  lua_Integer bit = 0; size_t cipher_sz = 0;
+
+  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* cipher = NULL;
+
+  return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key) && do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, mode);
+}
+
 /* 加密封装 */
 
 int laes_ecb_encrypt(lua_State *L) {
 
-  lua_Integer bit = 0; size_t text_sz = 0;
-
-  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* text = NULL;
-
-  return lua_getargs(L, &bit, &text, &text_sz, &iv, &key) && do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, AES_ECB_MODE);
+  return AES_ENCRYPT(L, AES_ECB_MODE);
 }
 
 int laes_cbc_encrypt(lua_State *L) {
 
-  lua_Integer bit = 0; size_t text_sz = 0;
-
-  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* text = NULL;
-
-  return lua_getargs(L, &bit, &text, &text_sz, &iv, &key) && do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, AES_CBC_MODE);
+  return AES_ENCRYPT(L, AES_CBC_MODE);
 }
 
-// int laes_cfb_encrypt(lua_State *L) {
+int laes_cfb_encrypt(lua_State *L) {
 
-//   lua_Integer bit = 0; size_t text_sz = 0;
+  return AES_ENCRYPT(L, AES_CFB_MODE);
+}
 
-//   uint8_t* iv; uint8_t* key; uint8_t* text;
+int laes_ofb_encrypt(lua_State *L) {
 
-//   return lua_getargs(L, &bit, &text, &text_sz, &iv, &key) && do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, AES_CFB_MODE);
-// }
+  return AES_ENCRYPT(L, AES_OFB_MODE);
+}
 
-// int laes_ofb_encrypt(lua_State *L) {
+int laes_ctr_encrypt(lua_State *L) {
 
-//   lua_Integer bit = 0; size_t text_sz = 0;
+  return AES_ENCRYPT(L, AES_CTR_MODE);
+}
 
-//   uint8_t* iv; uint8_t* key; uint8_t* text;
+int laes_gcm_encrypt(lua_State *L) {
 
-//   return lua_getargs(L, &bit, &text, &text_sz, &iv, &key) && do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, AES_OFB_MODE);
-// }
-
-// int laes_ctr_encrypt(lua_State *L) {
-
-//   lua_Integer bit = 0; size_t text_sz = 0;
-
-//   uint8_t* iv; uint8_t* key; uint8_t* text;
-
-//   return lua_getargs(L, &bit, &text, &text_sz, &iv, &key) && do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, AES_CTR_MODE);
-// }
-
+  return AES_ENCRYPT(L, AES_GCM_MODE);
+}
 
 /* 解密封装 */
 
 int laes_ecb_decrypt(lua_State *L) {
 
-  lua_Integer bit = 0; size_t cipher_sz = 0;
-
-  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* cipher = NULL;
-
-  return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key) && do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, AES_ECB_MODE);
+  return AES_DECRYPT(L, AES_ECB_MODE);
 }
 
 int laes_cbc_decrypt(lua_State *L) {
 
-  lua_Integer bit = 0; size_t cipher_sz = 0;
-
-  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* cipher = NULL;
-
-  return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key) && do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, AES_CBC_MODE);
+  return AES_DECRYPT(L, AES_CBC_MODE);
 }
 
-// int laes_cfb_decrypt(lua_State *L) {
+int laes_cfb_decrypt(lua_State *L) {
 
-//   lua_Integer bit = 0; size_t cipher_sz = 0;
+  return AES_DECRYPT(L, AES_CFB_MODE);
+}
 
-//   uint8_t* iv; uint8_t* key; uint8_t* cipher;
+int laes_ofb_decrypt(lua_State *L) {
 
-//   return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key) && do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, AES_CFB_MODE);
-// }
+  return AES_DECRYPT(L, AES_OFB_MODE);
+}
 
-// int laes_ofb_decrypt(lua_State *L) {
+int laes_ctr_decrypt(lua_State *L) {
 
-//   lua_Integer bit = 0; size_t cipher_sz = 0;
+  return AES_DECRYPT(L, AES_CTR_MODE);
+}
 
-//   uint8_t* iv; uint8_t* key; uint8_t* cipher;
+int laes_gcm_decrypt(lua_State *L) {
 
-//   return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key) && do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, AES_OFB_MODE);
-// }
-
-// int laes_ctr_decrypt(lua_State *L) {
-
-//   lua_Integer bit = 0; size_t cipher_sz = 0;
-
-//   uint8_t* iv; uint8_t* key; uint8_t* cipher;
-
-//   return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key) && do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, AES_CTR_MODE);
-// }
+  return AES_DECRYPT(L, AES_GCM_MODE);
+}

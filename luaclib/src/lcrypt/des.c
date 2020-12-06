@@ -405,3 +405,157 @@ int ldesdecode(lua_State *L) {
   lua_pushlstring(L, (const char *)buffer, textsz - padding);
   return 1;
 }
+
+static inline const EVP_CIPHER * des_get_cipher(size_t mode) {
+  switch(mode){
+    case 0:
+      return EVP_desx_cbc();
+    case 1:
+      return EVP_des_cbc();
+    case 2:
+      return EVP_des_ecb();
+    case 3:
+      return EVP_des_cfb();
+    case 4:
+      return EVP_des_ofb();
+    case 5:
+      return EVP_des_ede();
+    case 6:
+      return EVP_des_ede3();
+    case 7:
+      return EVP_des_ede_ecb();
+    case 8:
+      return EVP_des_ede3_ecb();
+  }
+  return NULL;
+}
+
+// 加密函数
+static inline int do_des_encrypt(lua_State *L, size_t des_mode, const uint8_t *key, const uint8_t *iv, const uint8_t *text, size_t tsize) {
+
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  if (!ctx)
+    return luaL_error(L, "allocate EVP failed.");
+
+  EVP_CIPHER_CTX_set_padding(ctx, 0);
+
+  if (1 != EVP_EncryptInit_ex(ctx, des_get_cipher(des_mode), NULL, key, iv)){
+    EVP_CIPHER_CTX_cleanup(ctx);
+    EVP_CIPHER_CTX_free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "des_encrypt_init failed.");
+    return 2;
+  }
+
+  EVP_CIPHER_CTX_set_key_length(ctx, EVP_MAX_KEY_LENGTH);
+
+  int out_size = tsize + EVP_MAX_BLOCK_LENGTH;
+  uint8_t *out = lua_newuserdata(L, out_size);
+
+  int update_len = out_size;
+  if (0 == EVP_EncryptUpdate(ctx, out, &update_len, text, tsize)){
+    EVP_CIPHER_CTX_cleanup(ctx);
+    EVP_CIPHER_CTX_free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "des_encrypt_update failed.");
+    return 2;
+  }
+
+  int final_len = out_size;
+  if (0 == EVP_EncryptFinal(ctx, out + update_len, &final_len)){
+    EVP_CIPHER_CTX_cleanup(ctx);
+    EVP_CIPHER_CTX_free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "des_encrypt_final failed.");
+    return 2;
+  }
+
+  lua_pushlstring(L, (const char*)out, update_len + final_len);
+  EVP_CIPHER_CTX_cleanup(ctx);
+  EVP_CIPHER_CTX_free(ctx);
+  return 1;
+}
+
+// 解密函数
+static inline int do_des_decrypt(lua_State *L, size_t des_mode, const uint8_t *key, const uint8_t *iv, const uint8_t *cipher, size_t csize) {
+
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  if (!ctx)
+    return luaL_error(L, "allocate EVP failed.");
+
+  EVP_CIPHER_CTX_set_padding(ctx, 0);
+
+  if (1 != EVP_DecryptInit_ex(ctx, des_get_cipher(des_mode), NULL, key, iv)){
+    EVP_CIPHER_CTX_cleanup(ctx);
+    EVP_CIPHER_CTX_free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "des_decrypt_init failed.");
+    return 2;
+  }
+
+  EVP_CIPHER_CTX_set_key_length(ctx, EVP_MAX_KEY_LENGTH);
+
+  int out_size = csize + EVP_MAX_BLOCK_LENGTH;
+  uint8_t *out = lua_newuserdata(L, out_size);
+
+  int update_len = out_size;
+  if (1 != EVP_DecryptUpdate(ctx, out, &update_len, cipher, csize)){
+    EVP_CIPHER_CTX_cleanup(ctx);
+    EVP_CIPHER_CTX_free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "des_decrypt_update failed.");
+    return 2;
+  }
+
+  int final_len = out_size;
+  if (1 != EVP_DecryptFinal_ex(ctx, out + update_len, &final_len)){
+    EVP_CIPHER_CTX_cleanup(ctx);
+    EVP_CIPHER_CTX_free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "des_decrypt_final failed.");
+    return 2;
+  }
+
+  lua_pushlstring(L, (const char*)out, update_len + final_len);
+  EVP_CIPHER_CTX_cleanup(ctx);
+  EVP_CIPHER_CTX_free(ctx);
+  return 1;
+}
+
+static inline int lua_getargs(lua_State *L, size_t *des_mode, uint8_t **text, size_t *tsize, uint8_t **iv, uint8_t **key) {
+  *des_mode = luaL_checkinteger(L, 1);
+  if (*des_mode > 8)
+    return luaL_error(L, "Invalid des_mode");
+
+  *key = (uint8_t *)luaL_checkstring(L, 2);
+  if (!key)
+    return luaL_error(L, "Invalid key");
+
+  size_t size = 0;
+  *text = (uint8_t *)luaL_checklstring(L, 3, &size);
+  if (!text)
+    return luaL_error(L, "Invalid text");
+  *tsize = size;
+
+  *iv = (uint8_t *)luaL_checkstring(L, 4);
+  if (!iv)
+    return luaL_error(L, "Invalid iv");
+
+  return 1;
+}
+
+int ldes_encrypt(lua_State *L) {
+  size_t text_sz = 0; size_t mode = 0;
+
+  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* text = NULL;
+
+  return lua_getargs(L, &mode, &text, &text_sz, &iv, &key) && do_des_encrypt(L, mode, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz);
+}
+
+int ldes_decrypt(lua_State *L) {
+  size_t cipher_sz = 0; size_t mode = 0;
+
+  uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* cipher = NULL;
+
+  return lua_getargs(L, &mode, &cipher, &cipher_sz, &iv, &key) && do_des_decrypt(L, mode, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz);
+}
