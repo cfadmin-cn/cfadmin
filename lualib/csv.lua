@@ -60,4 +60,20 @@ function csv.writefile (path, t)
   return true
 end
 
+function csv.loadstring (str)
+  if type(str) ~= 'string' or str == '' then
+    return nil, "invalid args."
+  end
+  local tab = {}
+  local index = 1
+  for line in str:gmatch("([^\r\n]-)\r\n") do
+    local items = {}
+    for s in line:gmatch("([^, \r\n]+)") do
+      items[#items+1] = s
+    end
+    tab[#tab+1] = items
+  end
+  return tab
+end
+
 return csv
