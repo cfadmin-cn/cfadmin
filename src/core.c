@@ -1,20 +1,22 @@
 #include "core.h"
 
-#ifdef __MSYS__
-	#ifndef LUALIBS_PATH
-		#define LUALIBS_PATH "lualib/?.lua;lualib/?/init.lua;./?.lua;./?/init.lua;script/?.lua;script/?/init.lua;"
-	#endif
-	#ifndef LUACLIBS_PATH
-		#define LUACLIBS_PATH "luaclib/?.so;luaclib/lib?.so;./?.so;luaclib/msys-?.dll;luaclib/?.dll;./msys-?.dll;./?.dll;"
-	#endif
-#else
-	#ifndef LUALIBS_PATH
-		#define LUALIBS_PATH "lualib/?.lua;lualib/?/init.lua;./?.lua;./?/init.lua;script/?.lua;script/?/init.lua;"
-	#endif
-	#ifndef LUACLIBS_PATH
-		#define LUACLIBS_PATH "luaclib/?.so;./?.so;luaclib/lib?.so;./lib?.so;luaclib/?.dylib;./?.dylib;luaclib/lib?.dylib;./lib?.dylib;"
-	#endif
-#endif
+#define LUALIBS_PATH \
+	"lualib/?.lua;;lualib/?/init.lua;;" \
+	"3rd/?.lua;;3rd/?/init.lua;;" \
+	"script/?.lua;;script/?/init.lua;;"
+
+#define LUACLIBS_PATH \
+	"luaclib/?.so;;luaclib/lib?.so;;"         \
+	"luaclib/?.dylib;;luaclib/lib?.dylib;;"   \
+	"luaclib/?.dll;;luaclib/msys-?.dll;;"     \
+																						\
+	"./?.so;;./lib?.so;;"                     \
+	"./?.dylib;;./lib?.dylib;;"               \
+	"./?.dll;;./msys-?.dll;;"									\
+																						\
+  "3rd/?.so;;3rd/lib?.so;;"									\
+  "3rd/?.dylib;3rd/lib?.dylib;;"						\
+  "3rd/?.dll;;3rd/msys-?.dll;;"
 
 /*
 const char *signame[]= {
