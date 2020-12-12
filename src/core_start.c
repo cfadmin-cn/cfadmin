@@ -77,8 +77,8 @@ void specify_process_daemon() {
 
 void check_args(int argc, char const *argv[]) {
   int opt = -1;
-  opterr = 0;
-  while ((opt = getopt(argc, argv, "hde:p:")) != -1) {
+  int opterr = 0;
+  while ((opt = getopt(argc, (char *const *)argv, "hde:p:")) != -1) {
     switch(opt) {
       case 'e':
         specify_entry_file(optarg);
