@@ -1,6 +1,6 @@
 local Co = require "internal.Co"
 local self = Co.self
-local fork = Co.spwan
+local fork = Co.spawn
 local wait = Co.wait
 local wakeup = Co.wakeup
 

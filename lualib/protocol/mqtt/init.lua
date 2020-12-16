@@ -36,7 +36,7 @@ local str_match = string.match
 local str_format = string.format
 local str_gsub = string.gsub
 local tbl_remove = table.remove
-local co_spwan = Co.spwan
+local co_spawn = Co.spawn
 -- Empty function to do nothing on MQTT client events
 local empty_func = function() end
 
@@ -66,7 +66,7 @@ function client:subscribe(opt, func)
 	if not ok then
 		return false, 'SUBSCRIBE wait for SUBACK failed'
 	end
-	co_spwan(function ( ... )
+	co_spawn(function ( ... )
 		local time = os_time()
 		local timer = Timer.at(self.keep_alive, function ( ... )
 			if os_time() >= time + self.keep_alive then

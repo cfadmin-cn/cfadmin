@@ -89,13 +89,13 @@ function Co.wait()
 end
 
 -- 启动
-function Co.spwan(func, ...)
+function Co.spawn(func, ...)
 	if type(func) == "function" then
 		local co = co_pop(f)
 		cos[co] = task_pop()
 		return task_start(cos[co], co, func, ...)
 	end
-	error("Co Just Can Spwan a Coroutine to run in sometimes.")
+	error("Co Just Can spawn a Coroutine to run in sometimes.")
 end
 
 -- 唤醒

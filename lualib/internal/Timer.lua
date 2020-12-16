@@ -10,7 +10,7 @@ local ti_stop = ti.stop
 
 local co_new = co.new
 local co_wait = co.wait
-local co_spwan = co.spwan
+local co_spawn = co.spawn
 local co_wakeup = co.wakeup
 local co_self = co.self
 
@@ -74,7 +74,7 @@ function Timer.timeout(timeout, cb)
     if once.stoped then
       return
     end
-    co_spwan(cb)
+    co_spawn(cb)
     Timer_stop(once)
   end)
   Timer_start(once)
@@ -99,7 +99,7 @@ function Timer.at(repeats, cb)
       if at.stoped then
         return
       end
-      co_spwan(cb)
+      co_spawn(cb)
       co_wait_ex()
     end
   end)

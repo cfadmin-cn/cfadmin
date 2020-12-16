@@ -68,15 +68,21 @@ local function table_format(t)
     for key, value in pairs(t) do
       local k, v
       if type(key) == 'number' then
-          k = concat({'[', key, ']'})
+        k = concat({'[', key, ']'})
+      elseif type(key) == 'string' then
+        k = concat({'["', key, '"]'})
       else
-          k = concat({'["', key, '"]'})
+        k = concat({'[', tostring(key), ']'})
       end
       if type(value) == 'table' then
         if t ~= value then
           v = table_format(value)
         else
-          v = tostring(value)
+          if type(value) == 'table' then
+            v = table_format(value)
+          else
+            v = tostring(value)
+          end
         end
       elseif type(value) == 'string' then
         v = concat({'"', value, '"'})

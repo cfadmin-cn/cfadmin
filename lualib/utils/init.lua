@@ -47,7 +47,7 @@ end
 -- local co = require "internal.Co"
 -- local tcp = require "internal.TCP"
 -- local Timer = require "internal.Timer"
--- co.spwan(function ( ... )
+-- co.spawn(function ( ... )
 --     while 1 do
 --         local self = co.self()
 --         local ti = Timer.timeout(1, function()

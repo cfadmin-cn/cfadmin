@@ -12,7 +12,7 @@ local hashkey = crypt.hashkey
 local co = require "internal.Co"
 local co_self = co.self
 local co_wait = co.wait
-local co_spwan = co.spwan
+local co_spawn = co.spawn
 local co_wakeup = co.wakeup
 
 local type = type
@@ -184,7 +184,7 @@ function DB:transaction(f)
       db:close()
       local co = pop_wait(self)
       if co then
-        co_spwan(function ( ... )
+        co_spawn(function ( ... )
           co_wakeup(co, pop_db(self))
         end)
       end

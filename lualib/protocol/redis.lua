@@ -7,7 +7,7 @@ local new_tab = require "sys".new_tab
 
 local Log = log:new({ dump = true, path = 'protocol-redis' })
 
-local co_spwan = Co.spwan
+local co_spawn = Co.spawn
 
 local type = type
 local pcall = pcall
@@ -173,7 +173,7 @@ function redis:psubscribe(pattern, func)
 	if not ok or not msg[2] then
 		return nil, "PSUBSCRIBE error: 订阅"..tostring(pattern).."失败."
 	end
-	co_spwan(function ( ... )
+	co_spawn(function ( ... )
 		while 1 do
 			local ok, msg = read_response(sock)
 			if not ok or not msg or not self.sock then
