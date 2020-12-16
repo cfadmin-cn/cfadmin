@@ -97,7 +97,7 @@ end
 -- 在路由函数被执行之后执行此方法
 function httpd:before(func)
     if type(func) == 'function' then
-        self._before_func = func
+        self.__before_func = func
     end
 end
 
@@ -197,8 +197,8 @@ function httpd:listen(ip, port, backlog)
   self.ip = ip
   self.port = port
   self.sock:set_backlog(toint(backlog))
-  return assert(self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr)
-      return RAW_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
+  return assert(self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr, port)
+      return RAW_DISPATCH(fd, { ipaddr = match(ipaddr, '^::[f]+:(.+)') or ipaddr, port = port }, self)
   end))
 end
 
@@ -208,8 +208,8 @@ function httpd:listen_ssl(ip, port, backlog, key, cert, pw)
   self.ssl_key, self.ssl_cert, self.ssl_pw = key, cert, pw
   self.sock:set_backlog(toint(backlog))
   return assert(self.sock:listen_ssl(ip or "0.0.0.0", self.ssl_port, { cert = self.ssl_cert, key = self.ssl_key, pw = self.ssl_pw },
-    function (sock, ipaddr)
-      return RAW_DISPATCH(sock, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
+    function (sock, ipaddr, port)
+      return RAW_DISPATCH(sock, { ipaddr = match(ipaddr, '^::[f]+:(.+)') or ipaddr, port = port }, self)
     end)
   )
 end
@@ -220,7 +220,7 @@ function httpd:listenx(unix_domain_path, backlog)
   self.unix_domain_path = unix_domain_path
   self.sock:set_backlog(toint(backlog))
   return assert(self.sock:listen_ex(unix_domain_path, true, function (fd, ipaddr)
-    return RAW_DISPATCH(fd, match(ipaddr, '^::[f]+:(.+)') or ipaddr, self)
+    return RAW_DISPATCH(fd, { ipaddr = match(ipaddr, '^::[f]+:(.+)') or ipaddr }, self)
   end))
 end
 

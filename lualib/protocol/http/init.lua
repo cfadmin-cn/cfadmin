@@ -302,7 +302,7 @@ local function send_body (sock, body, filepath)
   return sock:send(body)
 end
 
-function HTTP_PROTOCOL.DISPATCH(sock, ipaddr, http)
+function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
   local buffers = {}
   local ttl = http.ttl
   local server = http.__server
@@ -317,6 +317,8 @@ function HTTP_PROTOCOL.DISPATCH(sock, ipaddr, http)
   local http_router = http.router
   local route_find = http_router.find
   local tolog = http.tolog
+  local ipaddr = opt.ipaddr
+  local port = opt.port
   secCookie(cookie_secure) -- 如果需要
   while 1 do
     local buf = sock:recv(8192)
@@ -389,7 +391,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, ipaddr, http)
         goto CONTINUE
       end
       content['ROUTE'] = HTTP_PROTOCOL[typ]
-      content['method'], content['path'], content['headers'], content['client_ip'] = METHOD, PATH, HEADER, ipaddr
+      content['method'], content['path'], content['headers'], content['client_ip'], content['client_port'] = METHOD, PATH, HEADER, ipaddr, port
       -- before 函数只影响接口与view
       if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
         local ok, code, data = safe_call(before_func, tab_copy(content))
@@ -587,11 +589,11 @@ function HTTP_PROTOCOL.DISPATCH(sock, ipaddr, http)
 end
 
 
-function HTTP_PROTOCOL.RAW_DISPATCH(s, ipaddr, http)
+function HTTP_PROTOCOL.RAW_DISPATCH(s, opt, http)
   if type(s) == 'table' then
-    return HTTP_PROTOCOL.DISPATCH(s, ipaddr, http)
+    return HTTP_PROTOCOL.DISPATCH(s, opt, http)
   end
-  return HTTP_PROTOCOL.DISPATCH(tcp:new():set_fd(s):timeout(http.__timeout), ipaddr, http)
+  return HTTP_PROTOCOL.DISPATCH(tcp:new():set_fd(s):timeout(http.__timeout), opt, http)
 end
 
 return HTTP_PROTOCOL

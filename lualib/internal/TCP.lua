@@ -18,7 +18,7 @@ local dns_resolve = dns.resolve
 local co = require "internal.Co"
 local co_new = co.new
 local co_wakeup = co.wakeup
-local co_spwan = co.spwan
+local co_spawn = co.spawn
 local co_self = co.self
 local co_wait = coroutine.yield
 
@@ -514,11 +514,11 @@ function TCP:listen(ip, port, cb)
   if type(cb) ~= 'function' then
     return nil, "Listen function was invalid."
   end
-  self.listen_co = co_new(function (fd, ipaddr)
+  self.listen_co = co_new(function (fd, ipaddr, port)
     while 1 do
       if fd and ipaddr then
-        co_spwan(cb, fd, ipaddr)
-        fd, ipaddr = co_wait()
+        co_spawn(cb, fd, ipaddr, port)
+        fd, ipaddr, port = co_wait()
       end
     end
   end)
@@ -565,11 +565,11 @@ function TCP:listen_ssl(ip, port, opt, cb)
   if type(cb) ~= 'function' then
     return nil, "Listen function was invalid."
   end
-  self.listen_ssl_co = co_new(function (fd, ipaddr)
+  self.listen_ssl_co = co_new(function (fd, ipaddr, port)
     while 1 do
       if fd and ipaddr then
-        co_spwan(ssl_accept, cb, opt, fd, ipaddr)
-        fd, ipaddr = co_wait()
+        co_spawn(cb, fd, ipaddr, port)
+        fd, ipaddr, port = co_wait()
       end
     end
   end)
@@ -589,7 +589,7 @@ function TCP:listen_ex(unix_domain_path, removed, cb)
   self.listen_ex_co = co_new(function (fd)
     while 1 do
       if fd then
-        co_spwan(cb, fd, "127.0.0.1")
+        co_spawn(cb, fd, "127.0.0.1")
         fd = co_wait()
       end
     end

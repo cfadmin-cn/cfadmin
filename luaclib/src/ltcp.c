@@ -326,6 +326,7 @@ static void IO_ACCEPT(CORE_P_ core_io *io, int revents){
       inet_ntop(AF_INET6, &SA.sin6_addr, buf, INET6_ADDRSTRLEN);
       lua_pushinteger(co, client);
       lua_pushlstring(co, buf, strlen(buf));
+      lua_pushinteger(co, SA.sin6_port);
       status = CO_RESUME(co, NULL, status == LUA_YIELD ? lua_gettop(co) : lua_gettop(co) - 1);
       if (status != LUA_YIELD && status != LUA_OK) {
         LOG("ERROR", lua_tostring(co, -1));
