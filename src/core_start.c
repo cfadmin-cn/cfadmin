@@ -34,13 +34,15 @@ void usage_print() {
   printf(
     "cfadmin Usage: ./cfadmin [options]\n" \
     "\n" \
-    "      -h <None>         \"Print cfadmin usage.\"\n" \
+    "      -h <None>          \"Print `cfadmin` usage.\"\n" \
     "\n" \
-    "      -d <None>         \"Make cfadmin run in daemon mode.\"\n" \
+    "      -d <None>          \"Make `cfadmin` run in daemon mode.\"\n" \
     "\n" \
-    "      -e <FILENAME>     \"Specify lua entry file name.\"\n" \
+    "      -e <FILENAME>      \"Specify `lua` entry file name.\"\n" \
     "\n" \
-    "      -p <FILENAME>     \"Specify the process Pid write file name.\"\n" \
+    "      -p <FILENAME>      \"Specify the process `Pid` write file name.\"\n" \
+    "\n" \
+    "      -k <Pid | File>    \"Send `SIGKILL` signal to `Pid` or `Pid File`.\"\n" \
     "\n" \
   );
 }
@@ -70,6 +72,28 @@ void specify_pid_file(const char *filename) {
   memmove(pid_filename, filename, strlen(filename));
 }
 
+/* 给指定`PID`或包含`PID`的文件发送`SIGKILL`信号 */
+void specify_kill_process(const char *spid) {
+  int pid = atoi(spid);
+  if (pid <= 1) {
+    FILE *fp = fopen(spid, "rb");
+    if (!fp) {
+      LOG("ERROR", "Invalid Pid or pid file name.");
+      return;
+    }
+    char pbuf[20];
+    memset(pbuf, 0x0, 20);
+    fread(pbuf, 1, 20, fp);
+    fclose(fp);
+    pid = atoi(pbuf);
+    if (pid <= 1){
+      LOG("ERROR", "Invalid Pid or File name.");
+      return;
+    }
+  }
+  kill(pid, SIGKILL);
+}
+
 /* 后台运行 */
 void specify_process_daemon() {
   daemon(1, 0);
@@ -78,7 +102,7 @@ void specify_process_daemon() {
 void check_args(int argc, char const *argv[]) {
   int opt = -1;
   int opterr = 0;
-  while ((opt = getopt(argc, (char *const *)argv, "hde:p:")) != -1) {
+  while ((opt = getopt(argc, (char *const *)argv, "hde:p:k:")) != -1) {
     switch(opt) {
       case 'e':
         specify_entry_file(optarg);
@@ -86,6 +110,9 @@ void check_args(int argc, char const *argv[]) {
       case 'p':
         specify_pid_file(optarg);
         continue;
+      case 'k':
+        specify_kill_process(optarg);
+        return _exit(0);
       case 'd':
         specify_process_daemon();
         continue;
