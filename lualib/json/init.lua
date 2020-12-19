@@ -36,13 +36,13 @@ function CJSON.sparse_array_to_null(array)
 end
 
 -- json序列化
-function CJSON.encode (...)
-  return cjson_encode(...)
+function CJSON.encode (tab)
+  return cjson_encode(tab)
 end
 
 -- json反序列化
-function CJSON.decode (...)
-  return cjson_decode(...)
+function CJSON.decode (rawJsonString)
+  return cjson_decode(rawJsonString)
 end
 
 return CJSON
