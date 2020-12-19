@@ -67,6 +67,16 @@ local function CREATE_CACHE(opt)
   return rds
 end
 
+-- 加入到协程池内
+local function add_wait(self, co)
+  insert(self.co_pool, co)
+end
+
+-- 弹出一个等待协程
+local function pop_wait(self)
+  return remove(self.co_pool)
+end
+
 -- 加入到连接池内
 local function add_cache(self, cache)
   insert(self.cache_pool, cache)
@@ -83,16 +93,6 @@ local function pop_cache(self)
   end
   add_wait(self, co_self())
   return co_wait()
-end
-
--- 加入到协程池内
-local function add_wait(self, co)
-  insert(self.co_pool, co)
-end
-
--- 弹出一个等待协程
-local function pop_wait(self)
-  return remove(self.co_pool)
 end
 
 -- 构建Cache对象

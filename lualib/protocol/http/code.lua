@@ -23,7 +23,7 @@ return {
   [305] = "HTTP/1.1 305 Use Proxy",
   [306] = "HTTP/1.1 306 unused",
   [307] = "HTTP/1.1 307 Temporary Redirect",
-  [305] = "HTTP/1.1 308 Permanent Redirect",
+  [308] = "HTTP/1.1 308 Permanent Redirect",
 
   [400] = "HTTP/1.1 400 Bad Request",
   [401] = "HTTP/1.1 401 Unauthorized",
@@ -66,6 +66,6 @@ return {
   [507] = "HTTP/1.1 507 Insufficient Storage",
   [508] = "HTTP/1.1 508 Loop Detected (WebDAV)",
   [510] = "HTTP/1.1 510 Not Extended",
-  [503] = "HTTP/1.1 511 Network Authentication Required",
+  [511] = "HTTP/1.1 511 Network Authentication Required",
 
 }

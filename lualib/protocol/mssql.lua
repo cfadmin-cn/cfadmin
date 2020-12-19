@@ -13,7 +13,7 @@ local now = sys.now
 local new_tab = sys.new_tab
 local hostname = sys.hostname
 
-local null = null or NULL
+local null = null
 local type = type
 local pcall = pcall
 local error = error
@@ -773,7 +773,8 @@ local function tds_read_response(self, before_packets)
   end
 
   local result = new_tab(32, 8)
-  local pos, fields, token_type, order, more_result, meta_field = 1
+  local pos = 1
+  local fields, token_type, order, more_result, meta_field
   while 1 do
     token_type, pos = strunpack("<B", packet, pos)
     if token_type == COLMETADATA_TOKEN then
@@ -785,7 +786,7 @@ local function tds_read_response(self, before_packets)
       local error_msg
       error_msg, pos = tds_get_errorinfo(packet, pos)
       if strunpack("<B", packet, pos) == INFO_TOKEN then
-        local _
+        local _, len
         _, len, pos = strunpack("<BI2", packet, pos)
         pos = pos + len
       end

@@ -59,7 +59,6 @@ end
 
 function UDP:send(data)
   if type(data) ~= 'string' or not self.fd or self.fd <= 0 then
-    Log:ERROR("Send udp Error: 不完整的参数:"..(data or '')..','..(self.fd or '-1'))
     return
   end
   return udp.send(self.fd, data, #data)

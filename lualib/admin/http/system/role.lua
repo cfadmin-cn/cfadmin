@@ -52,7 +52,7 @@ function system.role_render (content)
   local db = config.db
   local ok, user = verify_permission(content, db)
   if not ok then
-    return utils.redirect(opt)
+    return utils.redirect(user)
   end
   if not config.cache then
     template.cache = {}
@@ -72,7 +72,7 @@ function system.role_add_render (content)
   local db = config.db
   local ok, user = verify_permission(content, db)
   if not ok then
-    return utils.redirect(opt)
+    return utils.redirect(user)
   end
   if not config.cache then
     template.cache = {}
@@ -90,7 +90,7 @@ function system.role_edit_render (content)
   local db = config.db
   local ok, user = verify_permission(content, db)
   if not ok then
-    return utils.redirect(opt)
+    return utils.redirect(user)
   end
   if not config.cache then
     template.cache = {}

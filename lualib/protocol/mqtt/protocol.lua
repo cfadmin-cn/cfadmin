@@ -40,7 +40,7 @@ local band = bit.band
 local lshift = bit.lshift
 local rshift = bit.rshift
 local div = tools.div
-local unpack = unpack or table.unpack
+local unpack = table.unpack
 
 
 -- Create uint8 value data

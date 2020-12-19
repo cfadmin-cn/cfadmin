@@ -29,9 +29,9 @@ end
 -- 添加菜单菜单
 function menu.menu_add (db, opt)
   local now = os_time()
-  if opt.id > 0 then -- 是否是增加二级菜单
-    db:query(fmt([[UPDATE cfadmin_menus SET URL = 'NULL' WHERE id = '%s' AND active = '1']], id))
-  end
+  -- if opt.id > 0 then -- 二级菜单增加后需要保留一级菜单
+  --   db:query(fmt([[UPDATE cfadmin_menus SET URL = 'NULL' WHERE id = '%s' AND active = '1']], opt.id))
+  -- end
   return db:query(fmt([[INSERT INTO cfadmin_menus(`parent`, `name`, `url`, `icon`, `create_at`, `update_at`, `active`) VALUES('%s', '%s', '%s', '%s', '%s', '%s', '1')]], opt.id, opt.name, opt.url, opt.icon, now, now))
 end
 

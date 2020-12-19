@@ -62,7 +62,8 @@ function Stream.queryStreams (AccessKey, SecretKey, hub, opt)
   if type(hub) ~= 'string' or hub == '' then
     return nil, "invaild hub."
   end
-  local args, querys = {}
+  local args = {}
+  local querys
   if opt.liveonly then
     args[#args+1] = {"liveonly", "true"}
   end

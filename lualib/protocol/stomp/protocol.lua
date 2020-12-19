@@ -248,7 +248,7 @@ function protocol.ack (self, opt)
   }))
   if not ok then
     self.state = nil
-    return nil, pack
+    return nil, "Send error"
   end
   return true
 end
@@ -260,7 +260,7 @@ function protocol.disconnect (self)
     ['receipt'] = 1,
   }))
   if not ok then
-    return nil, pack
+    return nil, "Send error"
   end
   return true
 end

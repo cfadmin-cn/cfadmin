@@ -31,7 +31,6 @@ return {
   ['mpa'] = 'video/mpeg',
   ['mpe'] = 'video/mpeg',
   ['mp2'] = 'video/mpeg',
-  ['mpe'] = 'video/mpeg',
   ['mpeg'] = 'video/mpeg',
   ['mp4'] = 'audio/mp4',
   ['qt'] = 'video/mpeg',

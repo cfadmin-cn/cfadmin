@@ -634,7 +634,7 @@ function crypt.desx_cbc_encrypt(key, text, iv, b64)
 end
 
 function crypt.desx_cbc_decrypt(key, cipher, iv, b64)
-  return crypt.desx_decrypt(key, text, iv, b64)
+  return crypt.desx_decrypt(key, cipher, iv, b64)
 end
 
 function crypt.des_cbc_encrypt(key, text, iv, b64)

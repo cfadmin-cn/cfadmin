@@ -24,6 +24,7 @@ local toint = math.tointeger
 local get_path = utils.get_path
 local get_locale = utils.get_locale
 local access_deny = utils.access_deny
+local user_have_permission = utils.user_have_permission
 
 local template_path = 'lualib/admin/html/system/menu/'
 

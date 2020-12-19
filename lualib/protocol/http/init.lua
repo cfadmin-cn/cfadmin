@@ -156,7 +156,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
             return
           end
           buf_len = buf_len + len
-          if buf_len >= (max_body_size or 1024 * 1024) then
+          if buf_len >= (max_body_size or (1024 * 1024)) then
             return nil, 413
           end
           buffers[#buffers + 1] = buf
@@ -580,7 +580,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       buffers = {}
     end
     if #buffers ~= 0 and #buffer > (max_header_size or 65535) then
-      sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
+      -- sock:send(ERROR_RESPONSE(http, 431, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
       return sock:close()
     end
     -- 大部分情况下不需要主动关闭TCP连接, 这样有利于减少负载均衡器对连接池频繁销毁与建立.

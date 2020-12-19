@@ -67,7 +67,7 @@ function smtp:hello_packet ()
   end
   code, err = read_packet(data)
   if code ~= 250 and code ~= 220 then
-    return nil, time()..'[HELO ERROR]: ' .. tostring(err) or '服务器关闭了连接.'
+    return nil, time()..'[HELO ERROR]: ' .. (err or '服务器关闭了连接.')
   end
   return true
 end
@@ -82,7 +82,7 @@ function smtp:auth_packet ()
   end
   data, err = self:recv(MAX_PACKET_SIZE)
   if not data then
-    return nil, time()..'[AUTH LOGIN ERROR]: 1.' .. tostring(err) or '服务器关闭了连接. '
+    return nil, time()..'[AUTH LOGIN ERROR]: 1.' .. (err or '服务器关闭了连接. ')
   end
   code, err = read_packet(data)
   if not code or code ~= 334 then
@@ -95,7 +95,7 @@ function smtp:auth_packet ()
   end
   data, err = self:recv(MAX_PACKET_SIZE)
   if not data then
-    return nil, time()..'[AUTH LOGIN ERROR]: 2.' .. tostring(err) or '服务器关闭了连接.'
+    return nil, time()..'[AUTH LOGIN ERROR]: 2.' .. (err or '服务器关闭了连接.')
   end
   code, err = read_packet(data)
   if not code or code ~= 334 then
@@ -108,7 +108,7 @@ function smtp:auth_packet ()
   end
   data, err = self:recv(MAX_PACKET_SIZE)
   if not data then
-    return nil, time()..'[AUTH LOGIN ERROR]: 3.' .. tostring(err) or '服务器关闭了连接.'
+    return nil, time()..'[AUTH LOGIN ERROR]: 3.' .. (err or '服务器关闭了连接.')
   end
   code, err = read_packet(data)
   if not code or code ~= 235 then
@@ -127,7 +127,7 @@ function smtp:send_header ()
   end
   data, err = self:recv(MAX_PACKET_SIZE)
   if not data then
-    return nil, time()..'[MAIL FROM ERROR]: ' .. tostring(err) or '服务器关闭了连接. '
+    return nil, time()..'[MAIL FROM ERROR]: ' .. (err or '服务器关闭了连接. ')
   end
   code, err = read_packet(data)
   if not code or code ~= 250 then
@@ -140,7 +140,7 @@ function smtp:send_header ()
   end
   data, err = self:recv(MAX_PACKET_SIZE)
   if not data then
-    return nil, time()..'[RCPT TO ERROR]: ' .. tostring(err) or '服务器关闭了连接. '
+    return nil, time()..'[RCPT TO ERROR]: ' .. (err or '服务器关闭了连接. ')
   end
   code, err = read_packet(data)
   if not code or code ~= 250 then
@@ -159,7 +159,7 @@ function smtp:send_content ()
   end
   data, err = self:recv(MAX_PACKET_SIZE)
   if not data then
-    return nil, time()..'[MAIL CONTENT ERROR]: ' .. tostring(err) or '服务器关闭了连接. '
+    return nil, time()..'[MAIL CONTENT ERROR]: ' .. (err or '服务器关闭了连接. ')
   end
   code, err = read_packet(data)
   if not code or code ~= 354 then
@@ -188,7 +188,7 @@ function smtp:send_content ()
   end
   data, err = self:recv(MAX_PACKET_SIZE)
   if not data then
-    return nil, time()..'[MAIL CONTENT ERROR]: ' .. tostring(err) or '服务器关闭了连接. '
+    return nil, time()..'[MAIL CONTENT ERROR]: ' .. (err or '服务器关闭了连接. ')
   end
   code, err = read_packet(data)
   if not code or code ~= 250 then
@@ -211,7 +211,7 @@ end
 
 -- 超时时间
 function smtp:set_timeout (timeout)
-  if type(timeout) == number and number > 0 then
+  if type(timeout) == 'number' and timeout > 0 then
     self.timeout = timeout
   end
   return self

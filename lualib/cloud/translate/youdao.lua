@@ -36,7 +36,7 @@ youdao.SP2ZH_CN = "SP2ZH_CN"
 -- 转换
 function youdao.translate(translate_type, translate_text)
   translate_type = youdao[translate_type]
-  if type(translate) ~= 'string' then
+  if type(translate_type) ~= 'string' then
     translate_type = "AUTO"
   end
   if type(translate_text) ~= 'string' or translate_text == '' then

@@ -61,7 +61,7 @@ end
 
 function Lexer:expected(patt, name)
    if not self:test(patt) then
-      return self:error((name or "'"..patt.."'").." expected")
+      return self:error((name or ("'"..patt.."'")).." expected")
    end
    return self
 end

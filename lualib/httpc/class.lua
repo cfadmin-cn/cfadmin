@@ -27,6 +27,7 @@ local ipairs = ipairs
 local tostring = tostring
 local tonumber = tonumber
 
+local upper = string.upper
 local random = math.random
 local find = string.find
 local match = string.match

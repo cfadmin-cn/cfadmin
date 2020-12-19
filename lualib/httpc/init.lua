@@ -85,7 +85,7 @@ local function raw( parameter )
 
 	local REQ = build_raw_req(opt)
 
-	local sock = sock_new():timeout(timeout or __TIMEOUT__)
+	local sock = sock_new():timeout(parameter.timeout or __TIMEOUT__)
 	if parameter.cert_path and parameter.key_path then
 		sock:ssl_set_privatekey(parameter.key_path)
 		sock:ssl_set_certificate(parameter.cert_path)

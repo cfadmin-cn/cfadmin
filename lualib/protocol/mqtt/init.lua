@@ -7,7 +7,7 @@ local library_version = "1.4.2"
 
 local require = require
 local string = require "string"
-local calss = require "class"
+local class = require "class"
 local tcp = require "internal.TCP"
 local Co = require "internal.Co"
 local log = require "logging"

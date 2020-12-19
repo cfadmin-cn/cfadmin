@@ -6,7 +6,6 @@ local newtab = sys.new_tab
 
 local setmetatable = setmetatable
 local tostring = tostring
-local setfenv = setfenv
 local concat = table.concat
 local assert = assert
 local pcall = pcall

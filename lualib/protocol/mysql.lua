@@ -27,7 +27,7 @@ local tonumber = tonumber
 local toint = math.tointeger
 local concat = table.concat
 
-local null = null or NULL
+local null = null
 local type = type
 local ipairs = ipairs
 local io_open = io.open
@@ -307,7 +307,8 @@ local function get_rows (packet, quantity)
 end
 
 local function get_eof_packet (packet)
-  local pos, warning_count, status_flags = 1
+  local pos = 1
+  local warning_count, status_flags
   warning_count, pos = strunpack("<I2", packet, pos)
   status_flags, pos = strunpack("<I2", packet, pos)
   -- print(warning_count, status_flags)
@@ -323,7 +324,8 @@ local function get_eof (self, len)
 end
 
 local function get_ok(packet, length)
-  local pos, affected_row, last_insertid = 1
+  local pos = 1
+  local affected_rows, last_insertid
   affected_rows, pos = get_lenenc_int(packet, pos)
   -- print("affected_rows", affected_rows, pos)
   last_insertid, pos = get_lenenc_int(packet, pos)

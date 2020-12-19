@@ -5,12 +5,12 @@ local permission = {}
 -- 用户是否有此菜单的权限
 function permission.user_have_menu_permission (db, uid, url)
   -- 查询用户Role ID
-  local uinfo, err = db:query(fmt([[SELECT id, role AS role_id FROM cfadmin_users WHERE `cfadmin_users`.id = %u AND `cfadmin_users`.active = 1 LIMIT 1]], uid))[1]
+  local uinfo = db:query(fmt([[SELECT id, role AS role_id FROM cfadmin_users WHERE `cfadmin_users`.id = %u AND `cfadmin_users`.active = 1 LIMIT 1]], uid))[1]
   if type(uinfo) ~= 'table' then
     return false
   end
   -- 查询菜单Menu ID
-  local minfo, err = db:query(fmt([[SELECT * FROM cfadmin_menus WHERE `cfadmin_menus`.url = '%s' AND `cfadmin_menus`.active = '1' LIMIT 1]], url))[1]
+  local minfo = db:query(fmt([[SELECT * FROM cfadmin_menus WHERE `cfadmin_menus`.url = '%s' AND `cfadmin_menus`.active = '1' LIMIT 1]], url))[1]
   if type(minfo) ~= 'table' then
     return true
   end

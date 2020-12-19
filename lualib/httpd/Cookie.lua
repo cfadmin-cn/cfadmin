@@ -46,7 +46,7 @@ end
 
 -- 设置Cookie
 function Cookie.setCookie (name, value, expires, notall, https)
-  assert(type(name) == 'string' and key ~= '', 'invalide Cookie Key')
+  assert(type(name) == 'string' and name ~= '', 'invalide Cookie Key')
   assert(type(value) == 'string' or type(value) == 'number', 'invalide Cookie Value')
   assert(not expires or expires > os_time(), 'invalide Cookie Expires')
   local co = co_self()
