@@ -488,13 +488,13 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
         end
         return sock:close()
       else
-        local file_type
+        local filetype
         local path = PATH
         local pos, _ = find(PATH, '%?')
         if pos then
           path = split(PATH, 1, pos - 1)
         end
-        body_len, filepath, file_type = cls(path)
+        body_len, filepath, filetype = cls(path)
         if not body_len then
           statucode = 404
           sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
@@ -502,7 +502,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
         end
         statucode = 200
         header[#header+1] = REQUEST_STATUCODE_RESPONSE(statucode)
-        local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
+        local conten_type = REQUEST_MIME_RESPONSE(lower(filetype or ''))
         if type(conten_type) ~= 'string' then
           -- 确保浏览器提示需要下载
           local s, e = find(filepath, "/[^/]+$")

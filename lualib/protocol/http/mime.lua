@@ -31,6 +31,11 @@ return {
   ['acc'] = 'audio/aac',
   ['mp3'] = 'audio/mpeg',
   ['oga'] = 'audio/ogg',
+  ['kar'] = 'audio/midi',
+  ['mid'] = 'audio/midi',
+  ['midi'] = 'audio/midi',
+  ['m4a'] = 'audio/x-m4a',
+  ['ra'] = 'audio/x-realaudio',
   -- 视频
   ['avi'] = { type = 'video/x-msvideo' },
   ['mpa'] = { type = 'video/mpeg' },

@@ -204,7 +204,7 @@ function Router:find (method, path)
       if type(stat) ~= 'table' or stat.mode ~= 'file' then
         return
       end
-      return stat.size, filepath, match(path, '.+%.([%a]+)')
+      return stat.size, filepath, match(filepath, '%.([^.]+)$')
     end
   end
   return self.load_file, typ
