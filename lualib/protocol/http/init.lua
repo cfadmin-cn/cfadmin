@@ -500,18 +500,18 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
           sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           goto CONTINUE
         end
-        print(filepath)
         statucode = 200
         header[#header+1] = REQUEST_STATUCODE_RESPONSE(statucode)
         local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
-        if not conten_type then
+        if type(conten_type) ~= 'string' then
           -- 确保浏览器提示需要下载
-          header[#header+1] = fmt('Content-Disposition: attachment; filename="%s"', filepath)
-          static = 'Content-Type: application/octet-stream'
+          local s, e = find(filepath, "/[^/]+$")
+          header[#header+1] = fmt('Content-Disposition: attachment; filename="%s"', filepath:sub(s + 1, e))
+          static = fmt('Content-Type: %s', type(conten_type) ~= "table" and "application/octet-stream" or conten_type.type)
         else
           -- 确保内容展示在浏览器内
           header[#header+1] = 'Content-Disposition: inline'
-          static = 'Content-Type: ' .. conten_type .. '; charset=utf-8'
+          static = fmt('Content-Type: %s; charset=utf-8', conten_type)
         end
       end
       header[#header+1] = HTTP_DATE()
