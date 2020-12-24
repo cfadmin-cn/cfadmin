@@ -123,29 +123,29 @@ function system.role_response (content)
   local args = content.args
   if type(args) ~= 'table' then
     if not content.json then -- 可以用这个字段判断是否json请求
-      return json_encode({code = 400, data = null, msg = '1. 错误的参数'})
+      return json_encode({code = 400, msg = '1. 错误的参数'})
     end
     args = json_decode(content.body)
   end
   local token = args.token
   if not token then
-    return json_encode({code = 400, data = null, msg = '2. 错误的参数'})
+    return json_encode({code = 400, msg = '2. 错误的参数'})
   end
   -- 验证Token
   local exists = user_token.token_exists(db, token)
   if not exists then
-    return json_encode({code = 400, data = null, msg = '3. token不存在或权限不足'})
+    return json_encode({code = 400, msg = '3. token不存在或权限不足'})
   end
   local user_info = user.user_info(db, exists.uid)
   if not user_info or user_info.is_admin == 0 then
-    return json_encode({code = 400, data = null, msg = '4. 用户权限不足'})
+    return json_encode({code = 400, msg = '4. 用户权限不足'})
   end
   if args.action == 'list' then
     return json_encode({code = 0, count = role.role_count(db), data = role.role_list(db, args)})
   end
   if args.action == 'add' then
     if not args.name or not args.permissions then
-      return json_encode({code = 400, data = null, msg = '错误的role创建参数'})
+      return json_encode({code = 400, msg = '错误的role创建参数'})
     end
     args.name = url_decode(args.name)
     if role.role_name_exists(db, args.name) then
@@ -177,7 +177,7 @@ function system.role_response (content)
   if args.action == 'edit' then
     args.id = toint(args.id)
     if not args.id or not args.name or type(args.permissions) ~= 'table' then
-      return json_encode({code = 400, data = null, msg = '错误的role修改参数'})
+      return json_encode({code = 400, msg = '错误的role修改参数'})
     end
     args.name = url_decode(args.name)
     role.role_update(db, args)

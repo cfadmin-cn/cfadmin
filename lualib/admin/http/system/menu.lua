@@ -176,20 +176,20 @@ function system.menu_response (content)
   local db = config.db
   local args = content.args
   if type(args) ~= 'table' then
-    return json_encode({code = 400, data = null, msg = '1. 错误的参数'})
+    return json_encode({code = 400, msg = '1. 错误的参数'})
   end
   local token = args.token
   if not token then
-    return json_encode({code = 400, data = null, msg = '2. 错误的参数'})
+    return json_encode({code = 400, msg = '2. 错误的参数'})
   end
   -- 验证Token
   local exists = user_token.token_exists(db, token)
   if not exists then
-    return json_encode({code = 400, data = null, msg = '3. token不存在或权限不足'})
+    return json_encode({code = 400, msg = '3. token不存在或权限不足'})
   end
   local user_info = user.user_info(db, exists.uid)
   if not user_info or user_info.is_admin == 0 then
-    return json_encode({code = 400, data = null, msg = '4. 用户权限不足'})
+    return json_encode({code = 400, msg = '4. 用户权限不足'})
   end
   -- 添加菜单
   local action = args.action
@@ -237,7 +237,7 @@ function system.menu_response (content)
     return json_encode({ code = 0, data = menus, count = menu.menu_count(db) })
   end
   -- 如果没有action字段则返回500
-  return json_encode({code = 500, data = null, msg = '恭喜您完美的给予了错误的参数'})
+  return json_encode({code = 500, msg = '恭喜您完美的给予了错误的参数'})
 end
 
 

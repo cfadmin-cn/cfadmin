@@ -119,32 +119,32 @@ function system.header_response (content)
   local db = config.db
   local args = content.args
   if type(args) ~= 'table' then
-    return json_encode({code = 400, data = null, msg = '1. 错误的参数'})
+    return json_encode({code = 400, msg = '1. 错误的参数'})
   end
   local token = args.token
   if not token then
-    return json_encode({code = 400, data = null, msg = '2. 错误的参数'})
+    return json_encode({code = 400, msg = '2. 错误的参数'})
   end
   -- 验证Token
   local exists = user_token.token_exists(db, token)
   if not exists then
-    return json_encode({code = 400, data = null, msg = '3. token不存在或权限不足'})
+    return json_encode({code = 400, msg = '3. token不存在或权限不足'})
   end
   local user_info = user.user_info(db, exists.uid)
   if not user_info or user_info.is_admin == 0 then
-    return json_encode({code = 400, data = null, msg = '4. 用户权限不足'})
+    return json_encode({code = 400, msg = '4. 用户权限不足'})
   end
   if args.action == 'delete' then
     local headerid = toint(args.headerid)
     if not headerid then
-      return json_encode({ code = 400, data = null, msg = '1. 未知的header' })
+      return json_encode({ code = 400, msg = '1. 未知的header' })
     end
     local exists = header.header_exists(db, headerid)
     if not exists then
-      return json_encode({ code = 400, data = null, msg = '2. 试图删除一个不存在的的header' })
+      return json_encode({ code = 400, msg = '2. 试图删除一个不存在的的header' })
     end
     header.header_delete(db, headerid)
-    return json_encode({ code = 0, data = null, msg = '删除成功'})
+    return json_encode({ code = 0, msg = '删除成功'})
   end
   if args.action == 'list' then
     local headers = header.header_list(db, args)
@@ -156,7 +156,7 @@ function system.header_response (content)
   end
   if args.action == 'add' then
     if not args.url or not args.name then
-      return json_encode({ code = 400, data = null, msg = "1. 添加导航栏参数错误"})
+      return json_encode({ code = 400, msg = "1. 添加导航栏参数错误"})
     end
     args.url = url_decode(args.url)
     args.name = url_decode(args.name)
@@ -168,12 +168,12 @@ function system.header_response (content)
   end
   if args.action == 'edit' then
     if not args.id then
-      json_encode({ code = 400, data = null, msg = "1. 找不到此header"})
+      json_encode({ code = 400, msg = "1. 找不到此header"})
     end
     local url = tostring(args.url)
     local name = tostring(args.name)
     if not url or not name then
-      json_encode({ code = 400, data = null, msg = "2. 非法的参数"})
+      json_encode({ code = 400, msg = "2. 非法的参数"})
     end
     args.url = url_decode(args.url)
     args.name = url_decode(args.name)
@@ -183,7 +183,7 @@ function system.header_response (content)
     end
     return json_encode({ code = 0, msg = "修改成功"})
   end
-  return json_encode({code = 500, data = null, msg = '恭喜您完美的错过了所有正确参数'})
+  return json_encode({code = 500, msg = '恭喜您完美的错过了所有正确参数'})
 end
 
 

@@ -118,30 +118,30 @@ function system.user_response (content)
   local db = config.db
   local args = content.args
   if type(args) ~= 'table' then
-    return json_encode({code = 400, data = null, msg = '1. 错误的参数'})
+    return json_encode({code = 400, msg = '1. 错误的参数'})
   end
   local token = args.token
   if not token then
-    return json_encode({code = 400, data = null, msg = '2. 错误的参数'})
+    return json_encode({code = 400, msg = '2. 错误的参数'})
   end
   -- 验证Token
   local exists = user_token.token_exists(db, token)
   if not exists then
-    return json_encode({code = 400, data = null, msg = '3. token不存在或权限不足'})
+    return json_encode({code = 400, msg = '3. token不存在或权限不足'})
   end
   local user_info = user.user_info(db, exists.uid)
   if not user_info or user_info.is_admin ~= 1 then
-    return json_encode({code = 400, data = null, msg = '4. 用户权限不足'})
+    return json_encode({code = 400, msg = '4. 用户权限不足'})
   end
   local action = args.action
   -- 查找用户(模糊)
   if action == 'findUser' then
     if not args.value or not args.condition then
-      return json_encode({code = 400, data = null, msg = '1. 无效的参数'})
+      return json_encode({code = 400, msg = '1. 无效的参数'})
     end
     local users, count = user.find_user(db, args)
     if not users or not count then
-      return json_encode({code = 400, data = null, msg = '2. 无效的参数'})
+      return json_encode({code = 400, msg = '2. 无效的参数'})
     end
     return json_encode({code = 0, data = users, count = count})
   end
@@ -156,22 +156,22 @@ function system.user_response (content)
   -- 添加用户
   if action == 'add' then
     if not args.name or not args.username or not args.password then
-      return json_encode({code = 400, data = null, msg = '1. 用户信息不完善'})
+      return json_encode({code = 400, msg = '1. 用户信息不完善'})
     end
     args.phone = toint(args.phone)
     args.role = toint(args.role)
     if not args.role or not args.email or not args.phone then
-      return json_encode({code = 400, data = null, msg = '2. 用户信息不完善'})
+      return json_encode({code = 400, msg = '2. 用户信息不完善'})
     end
     if #args.username < 6 or #args.username > 20 or #args.password < 6 or #args.password > 20 then
-      return json_encode({code = 400, data = null, msg = '3. 用户名与密码需要在6~20字符之间'})
+      return json_encode({code = 400, msg = '3. 用户名与密码需要在6~20字符之间'})
     end
     args.name = utils.escape_script(url.decode(args.name))
     args.email = utils.escape_script(url.decode(args.email))
     args.username = utils.escape_script(url.decode(args.username))
     local exists = user.user_name_or_username_exists(db, args.name, args.username)
     if exists then
-      return json_encode({code = 400, data = null, msg = '4. 用户已存在'})
+      return json_encode({code = 400, msg = '4. 用户已存在'})
     end
     args.password = crypt.sha1(args.password, true)
     local ok = user.user_add(db, args)
@@ -184,14 +184,14 @@ function system.user_response (content)
   if action == 'delete' then
     local uid = toint(args.id)
     if not uid then
-      return json_encode({code = 400, data = null, msg = '1. 未知的用户ID'})
+      return json_encode({code = 400, msg = '1. 未知的用户ID'})
     end
     if exists.uid == uid then
-      return json_encode({code = 401, data = null, msg = "2. 不能删除当前用户"})
+      return json_encode({code = 401, msg = "2. 不能删除当前用户"})
     end
     local exists = user.user_exists(db, nil, uid)
     if not exists then
-      return json_encode({code = 403, data = null, msg = '3. 试图删除不存在的用户'})
+      return json_encode({code = 403, msg = '3. 试图删除不存在的用户'})
     end
     user.user_delete(db, uid)
     user_token.token_delete(db, uid) -- 清除Token
@@ -208,14 +208,14 @@ function system.user_response (content)
   end
   if action == 'edit' then
     if not args.id or not args.role then
-      return json_encode({code = 400, data = null, msg = "1. 未知的用户与权限"})
+      return json_encode({code = 400, msg = "1. 未知的用户与权限"})
     end
     if not args.name then
-      return json_encode({code = 400, data = null, msg = "2. 未知的用户名"})
+      return json_encode({code = 400, msg = "2. 未知的用户名"})
     end
     args.name = utils.escape_script(url.decode(args.name))
     if not args.username or not args.password then
-      return json_encode({code = 400, data = null, msg = "3. 未知的账户与密码"})
+      return json_encode({code = 400, msg = "3. 未知的账户与密码"})
     end
     if #args.username < 6 or #args.username > 20 or #args.password < 6 or #args.password > 20 then
       return json_encode({code = 401, msg = "4. 账户/密码应该为6-20个字符."})
@@ -224,7 +224,7 @@ function system.user_response (content)
     args.password = crypt.sha1(args.password, true)
     args.username = utils.escape_script(url.decode(args.username))
     if not args.phone or not args.email then
-      return json_encode({code = 400, data = null, msg = "5. 无效的邮箱与手机号"})
+      return json_encode({code = 400, msg = "5. 无效的邮箱与手机号"})
     end
     args.email = utils.escape_script(url.decode(args.email))
     local ok = user.user_update(db, args)
@@ -235,7 +235,7 @@ function system.user_response (content)
     return json_encode({code = 0, msg = "SUCCESS"})
   end
   -- 如果没有action字段则返回500
-  return json_encode({code = 500, data = null, msg = '恭喜您完美的给予了错误的参数'})
+  return json_encode({code = 500, msg = '恭喜您完美的给予了错误的参数'})
 end
 
 

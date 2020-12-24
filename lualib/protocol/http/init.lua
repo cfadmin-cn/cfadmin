@@ -449,7 +449,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
 
       if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
         -- 如果httpd开启了记录Cookie字段, 则每次尝试是否deCookie
-        if enable_cookie and typ == HTTP_PROTOCOL.USE then
+        if enable_cookie then
           deCookie(HEADER["Cookie"] or HEADER["cookie"])
         end
         if http_router.enable_rest then
@@ -467,7 +467,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
           ok, body = safe_call(cls, tab_copy(content))
         end
         -- 如果httpd开启了记录Cookie字段, 则每次尝试是否需要seCookie
-        if enable_cookie and typ == HTTP_PROTOCOL.USE then
+        if enable_cookie then
           local Cookies = seCookie()
           for _, Cookie in ipairs(Cookies) do
             header[#header+1] = Cookie
@@ -500,13 +500,17 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
           sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           goto CONTINUE
         end
+        print(filepath)
         statucode = 200
         header[#header+1] = REQUEST_STATUCODE_RESPONSE(statucode)
         local conten_type = REQUEST_MIME_RESPONSE(lower(file_type or ''))
         if not conten_type then
-          header[#header+1] = 'Content-Disposition: attachment' -- 确保浏览器提示需要下载
+          -- 确保浏览器提示需要下载
+          header[#header+1] = fmt('Content-Disposition: attachment; filename="%s"', filepath)
           static = 'Content-Type: application/octet-stream'
         else
+          -- 确保内容展示在浏览器内
+          header[#header+1] = 'Content-Disposition: inline'
           static = 'Content-Type: ' .. conten_type .. '; charset=utf-8'
         end
       end
@@ -522,9 +526,9 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       header[#header+1] = Connection
       if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
         if typ == HTTP_PROTOCOL.API then
-          header[#header+1] = 'Content-Type: ' .. REQUEST_MIME_RESPONSE('json') .. "; charset=utf-8"
+          header[#header+1] = "Content-Type: application/json; charset=utf-8"
         else
-          header[#header+1] = 'Content-Type: ' .. REQUEST_MIME_RESPONSE('html') .. "; charset=utf-8"
+          header[#header+1] = "Content-Type: text/html; charset=utf-8"
         end
         if type(body) ~= 'string' or body == '' then
           Log:ERROR("Response Error ["..(split(PATH , 1, (find(PATH, '?') or 0 ) - 1)).."]: response must be a string and not empty.")

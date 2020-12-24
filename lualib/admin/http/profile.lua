@@ -101,17 +101,17 @@ function profile.response (content)
   local args = content.args
   local token = args.token
   if not token then
-    return json_encode({code = 400, data = null, msg = '2. 错误的参数'})
+    return json_encode({code = 400, msg = '2. 错误的参数'})
   end
   -- 验证Token
   local exists = user_token.token_exists(db, token)
   if not exists then
-    return json_encode({code = 400, data = null, msg = '3. token不存在'})
+    return json_encode({code = 400, msg = '3. token不存在'})
   end
   args.id = toint(exists.uid)
   local user_info = user.user_info(db, args.id)
   if not user_info then
-    return json_encode({code = 400, data = null, msg = '4. 用户不存在'})
+    return json_encode({code = 400, msg = '4. 用户不存在'})
   end
   if args.action == 'update_password' then
     if not args.password or not args.cupassword then
