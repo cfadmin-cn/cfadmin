@@ -1,6 +1,6 @@
 #define LUA_LIB
 
-#include "../../../src/core.h"
+#include <core.h>
 
 // #include <math.h>
 // #include <stdlib.h>

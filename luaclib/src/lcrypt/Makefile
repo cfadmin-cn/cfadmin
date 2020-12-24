@@ -12,8 +12,8 @@ CC = cc
 CFLAGS = -O3 -Wall -shared -fPIC -fno-strict-aliasing
 DLL = -lcore -llua -lcrypto
 
-INCLUDES = -I../../../ -I/usr/local/include
-LIBS = -L../ -L../../../ -L/usr/local/lib
+INCLUDES = -I../../../src -I/usr/local/include
+LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
 
 build:
 	@$(CC) -o lcrypt.so lcrypt.c aes.c des.c dh.c rsa.c sha.c hmac.c hmac_ex.c b64.c crc.c url.c hex.c uuid.c sm.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)

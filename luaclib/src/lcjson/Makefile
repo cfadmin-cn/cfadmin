@@ -12,8 +12,8 @@ default :
 CFLAGS = -O3 -Wall -shared -fPIC
 CC = cc
 
-INCLUDES = -I../../../ -I/usr/local/include
-LIBS = -L../ -L../../../ -L/usr/local/lib
+INCLUDES = -I../../../src -I/usr/local/include
+LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
 DLL = -lcore -llua
 
 build:

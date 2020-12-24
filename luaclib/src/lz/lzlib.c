@@ -1,6 +1,6 @@
 #define LUA_LIB
 
-#include "../../../src/core.h"
+#include <core.h>
 #include <zlib.h>
 
 #define MAX_COMPRESS_BUF_SIZE_TIMES (1 << 10)

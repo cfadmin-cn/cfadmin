@@ -4,8 +4,8 @@
 */
 
 #include <ctype.h>
-#include <limits.h>
-#include <stdio.h>
+
+#include <core.h>
 
 
 #include "lptypes.h"

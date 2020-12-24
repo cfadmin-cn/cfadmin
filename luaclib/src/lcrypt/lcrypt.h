@@ -1,6 +1,6 @@
 #define LUA_LIB
 
-#include "../../../src/core.h"
+#include <core.h>
 #include <openssl/md5.h>
 #include <openssl/sha.h>
 #include <openssl/pem.h>

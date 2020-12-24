@@ -10,7 +10,7 @@ default :
 CC = cc
 
 INCLUDES += -I../../../src -I/usr/local/include
-LIBS = -L../ -L../../../ -L/usr/local/lib
+LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
 
 CFLAGS = -O3 -Wall -shared -fPIC
 DLL = -lcore -llua -lz

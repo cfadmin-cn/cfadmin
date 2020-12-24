@@ -48,7 +48,12 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 /* 端口重用 */
 #ifdef SO_REUSEPORT
   if (mode == SERVER) {
+  #ifdef SO_REUSEPORT_LB
+    // BSD系统的多进程负载需要使用此宏
+    ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT_LB, &Enable, sizeof(Enable));
+  #else
     ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
+  #endif
     if (ret < 0) {
       LOG("ERROR", "Setting SO_REUSEPORT failed.");
       LOG("ERROR", strerror(errno));
@@ -381,8 +386,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
   if (revents & EV_WRITE){
     errno = 0;
     struct io_sendfile *sf = core_get_watcher_userdata(io);
-
-#ifdef EV_USE_KQUEUE
+#if defined(EV_USE_KQUEUE)
     int tag = 0; off_t nBytes = 0;
     for (;;) {
     #if defined(__APPLE__)
@@ -400,9 +404,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
       // 当nBytes与tag同时为0时说明发送成功, 其它情况下都当做发送失败.
       if (0 == nBytes){ lua_pushboolean(sf->L, 1); break; }
     }
-#endif
-
-#ifdef EV_USE_EPOLL
+#elif defined(EV_USE_EPOLL)
     #include <sys/sendfile.h>
     for (;;) {
       int tag = sendfile(io->fd, sf->fd, NULL, sf->offset);
@@ -414,9 +416,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
         break;
       }
     }
-#endif
-
-#ifdef __MSYS__
+#else
     char buf[sf->offset];
     for(;;) {
       int rBytes = pread(sf->fd, buf, sf->offset, sf->pos);

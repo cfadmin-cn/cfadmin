@@ -22,7 +22,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "../../../src/core.h"
+#include <core.h>
 
 #include "strbuf.h"
 

@@ -1,6 +1,6 @@
 #define LUA_LIB
 
-#include "../../../src/core.h"
+#include <core.h>
 #include "httpparser.h"
 
 #define MAX_HEADER (128)

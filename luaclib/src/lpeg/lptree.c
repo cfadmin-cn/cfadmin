@@ -4,12 +4,8 @@
 */
 
 #include <ctype.h>
-#include <limits.h>
-#include <string.h>
 
-
-#include "lua.h"
-#include "lauxlib.h"
+#include <core.h>
 
 #include "lptypes.h"
 #include "lpcap.h"

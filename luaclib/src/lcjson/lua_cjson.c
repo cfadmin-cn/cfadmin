@@ -36,7 +36,7 @@
  *       difficult to know object/array sizes ahead of time.
  */
 
-#include "../../../src/core.h"
+#include <core.h>
 
 #include "strbuf.h"
 #include "fpconv.h"

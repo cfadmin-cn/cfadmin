@@ -3,11 +3,7 @@
 ** Copyright 2007, Lua.org & PUC-Rio  (see 'lpeg.html' for license)
 */
 
-#include <limits.h>
-
-
-#include "lua.h"
-#include "lauxlib.h"
+#include <core.h>
 
 #include "lptypes.h"
 #include "lpcode.h"
