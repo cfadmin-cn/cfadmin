@@ -5,8 +5,6 @@
 #include "core_memory.h"
 #include "core_ev.h"
 
-void core_sys_init();
-
-int core_sys_run();
+int core_run(const char entry[], int workers);
 
 #endif

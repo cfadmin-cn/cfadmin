@@ -24,9 +24,21 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+
+#if defined(__MSYS__)
+  #define __OS__ ("Windows")
+#elif defined(__APPLE__)
+  #define __OS__ ("Apple")
+#elif defined(linux) || defined(__linux) || defined(__linux__)
+  #define __OS__ ("Linux")
+#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
+  #define __OS__ ("BSD")
+#else
+  #define __OS__ ("Unix")
+#endif
 
 #if LUA_VERSION_NUM >= 504
   #ifndef CO_GCRESET

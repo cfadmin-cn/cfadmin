@@ -1,29 +1,14 @@
 #include "core.h"
 
-#ifdef __MSYS__
-  const char *__OS__ = "Windows";
-#endif
-
-#if !defined(__MSYS__) && (defined(__linux) || defined(__linux__))
-  const char *__OS__ = "Linux";
-#endif
-
-#ifdef __APPLE__
-  const char *__OS__ = "Apple";
-#endif
-
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-  const char *__OS__ = "Unix";
-#endif
-
 #define __CFADMIN_VERSION__ "1.0"
-
 
 #define MAX_ENTRY_LENGTH (1 << 10)
 
 static char script_entry[MAX_ENTRY_LENGTH] = "script/main.lua";
 
 static char pid_filename[MAX_ENTRY_LENGTH] = "cfadmin.pid";
+
+static int workers = 1;
 
 /* 打印使用指南 */
 void usage_print() {
@@ -72,7 +57,7 @@ void specify_pid_file(const char *filename) {
   memmove(pid_filename, filename, strlen(filename));
 }
 
-/* 给指定`PID`或包含`PID`的文件发送`SIGKILL`信号 */
+/* 给指定`PID`或包含`PID`的文件发送`SIGQUIT`信号 */
 void specify_kill_process(const char *spid) {
   int pid = atoi(spid);
   if (pid <= 1) {
@@ -91,7 +76,13 @@ void specify_kill_process(const char *spid) {
       return;
     }
   }
-  kill(pid, SIGKILL);
+  kill(pid, SIGQUIT);
+}
+
+void specify_workers(const char* w) {
+  workers = atoi(w);
+  if (workers <= 0 )
+    workers = 1;
 }
 
 /* 后台运行 */
@@ -102,8 +93,11 @@ void specify_process_daemon() {
 void check_args(int argc, char const *argv[]) {
   int opt = -1;
   int opterr = 0;
-  while ((opt = getopt(argc, (char *const *)argv, "hde:p:k:")) != -1) {
+  while ((opt = getopt(argc, (char *const *)argv, "hde:p:k:w:")) != -1) {
     switch(opt) {
+      case 'w':
+        specify_workers(optarg);
+        continue;
       case 'e':
         specify_entry_file(optarg);
         continue;
@@ -134,11 +128,6 @@ int main(int argc, char const *argv[])
   /* 参数检查 */
   check_args(argc, argv);
 
-  /* 系统初始化 */
-  core_sys_init(script_entry);
-
-  /* 运行事件循环 */
-  core_sys_run();
-
-  return 0;
+  /* 初始化 */ 
+  return core_run(script_entry, workers);
 }

@@ -19,29 +19,30 @@
 #define EV_PREPARE_ENABLE 0
 #define EV_PREPARE_ENABLE 0
 
+/* 使用四叉堆结构 */
 #define EV_USE_4HEAP 1
-
 #define EV_HEAP_CACHE_AT 1
 
-/* 单进程/单线程模型 */
+/* 单线程模型 */
 #define EV_NO_SMP 1
 #define EV_NO_THREADS 1
 
 /* eventfd 与 signalfd */
-#if !defined(__MSYS__) && (defined(__linux) || defined(__linux__))
-	// #define EV_USE_LINUXAIO 1 /* 待完整支持AIO后再根据情况开启 */
-	#define EV_USE_EPOLL 1
-	#define EV_USE_INOTIFY 1
+#if defined(__linux) || defined(__linux__)
+	#ifdef __MSYS__
+		#define EV_USE_SELECT 1
+	#else
+		#define EV_USE_EPOLL 1
+		#define EV_USE_INOTIFY 1
+		#define EV_USE_EVENTFD 1
+	#endif
+	// MSYS与Linux都支持
 	#define EV_USE_SIGNALFD 1
-	#define EV_USE_EVENTFD 1
+	#define EV_USE_TIMERFD 1
 #endif
 
 #if defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
   #define EV_USE_KQUEUE 1
-#endif
-
-#ifdef __MSYS__
-  #define EV_USE_SELECT 1
 #endif
 
 #include "ev.h"
@@ -108,6 +109,8 @@ void core_signal_start(core_loop *loop, core_signal *signal);
 void core_break(core_loop *loop, int mode);
 
 int core_start(core_loop *loop, int mode);
+
+core_loop* core_loop_fork(core_loop* loop);
 
 core_loop* core_default_loop();
 

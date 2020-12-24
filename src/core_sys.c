@@ -1,21 +1,5 @@
 #include "core_sys.h"
 
-#ifdef __MSYS__
-  const char *__OS__ = "Windows";
-#endif
-
-#if !defined(__MSYS__) && (defined(__linux) || defined(__linux__))
-  const char *__OS__ = "Linux";
-#endif
-
-#ifdef __APPLE__
-  const char *__OS__ = "Apple";
-#endif
-
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-  const char *__OS__ = "Unix";
-#endif
-
  /* 此方法提供一个精确到微秒级的时间戳 */
 double now(void){
 	struct timespec now = {};
