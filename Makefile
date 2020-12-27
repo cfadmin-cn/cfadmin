@@ -1,5 +1,7 @@
 .PHONY : build rebuild clean
 
+RM = rm -rf
+
 default :
 	@echo "======================================="
 	@echo "Please use 'make build' command to build it.."
@@ -9,24 +11,20 @@ default :
 
 # 如果需要修改内存分配器,请修改:
 # 1. src/Makefile
-# 2. lualib/Makefile
-# 3. lualib/src/cjson/Makefile
+# 2. luaclib/Makefile
 
 build :
-
 	@$(MAKE) -s -C src build
 	@$(MAKE) -s -C luaclib internal
 	@$(MAKE) -s -C luaclib 3part
 	@$(MAKE) -s -C 3rd build
 
 rebuild :
-
-	@$(MAKE) -s -C src build
-	@$(MAKE) -s -C luaclib internal
-	@$(MAKE) -s -C luaclib 3part
-	@$(MAKE) -s -C 3rd build
+	@$(MAKE) -s clean
+	@$(MAKE) -s build
 
 clean :
 	@echo "********** Clean All Files **********"
-	rm -rf cfadmin libcore.so luaclib/*.so
+	@echo "rm -rf cfadmin libcore.so luaclib/*.so 3rd/*.so"
+	@$(RM) cfadmin libcore.so luaclib/*.so
 	@$(MAKE) -s -C 3rd clean
