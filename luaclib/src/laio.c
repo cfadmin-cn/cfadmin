@@ -119,7 +119,7 @@ static inline const char *mode2string (mode_t mode) {
   else if ( S_ISLNK(mode) )
     return "link";
   else if ( S_ISSOCK(mode) )
-  return "socket";
+    return "socket";
   else if ( S_ISFIFO(mode) )
     return "named pipe";
   else if ( S_ISCHR(mode) )
@@ -392,9 +392,7 @@ static int aio_init() {
   eio_set_min_parallel(AIO_MAX_NTHREADS);
   eio_set_max_parallel(AIO_MAX_NTHREADS);
   eio_set_max_idle(AIO_MAX_NTHREADS);
-
   return 0;
-
 }
 
 /* aio.open 打开一个文件(不存在则创建) */
