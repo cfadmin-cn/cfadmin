@@ -108,7 +108,7 @@ core_signal sigint;
 core_signal sigterm;
 core_signal sigquit;
 
-void signal_init(int* workers){
+void signal_init(int* nprocess){
 
 	/* 忽略父进程退出的信号 */
 	core_signal_init(&sighup, SIG_IGNORE, SIGHUP);
@@ -125,30 +125,35 @@ void signal_init(int* workers){
 	/* TERM信号 显示退出 */
 	core_signal_init(&sigterm, SIG_EXIT, SIGTERM);
 	core_signal_start(CORE_LOOP_ &sigterm);
-	if (workers)
-		core_set_watcher_userdata(&sigterm, workers);
+	if (nprocess)
+		core_set_watcher_userdata(&sigterm, nprocess);
 	/* INT信号 显示退出 */
 	core_signal_init(&sigint, SIG_EXIT, SIGINT);
 	core_signal_start(CORE_LOOP_ &sigint);
-	if (workers)
-		core_set_watcher_userdata(&sigint, workers);
+	if (nprocess)
+		core_set_watcher_userdata(&sigint, nprocess);
 
 	/* QUIT信号 显示退出 */
 	core_signal_init(&sigquit, SIG_EXIT, SIGQUIT);
 	core_signal_start(CORE_LOOP_ &sigquit);
-	if (workers)
-		core_set_watcher_userdata(&sigquit, workers);
+	if (nprocess)
+		core_set_watcher_userdata(&sigquit, nprocess);
 
 }
 
-int core_slave_run(const char entry[]) {
+int core_worker_run(const char entry[]) {
+	/* hook libev 内存分配 */
+	core_ev_set_allocator(EV_ALLOC);
+	/* hook 事件循环错误信息 */
+	core_ev_set_syserr_cb(ERROR_CB);
+	/* 初始化事件循环对象 */
 	core_loop *loop = core_loop_fork(core_default_loop());
 
 	int status = 0;
 
 	lua_State *L = lua_newstate(L_ALLOC, NULL);
 	if (!L)
-		exit(-1);
+		_exit(-1);
 
 	init_lua_libs(L);
 
@@ -158,7 +163,7 @@ int core_slave_run(const char entry[]) {
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
 		lua_close(L);
-		exit(-1);
+		_exit(-1);
 	}
 
 	status = CO_RESUME(L, NULL, 0);
@@ -174,36 +179,15 @@ int core_slave_run(const char entry[]) {
 	return core_start(loop, 0);
 }
 
-int core_master_run(int *pids[], int* pidcount) {
+int core_master_run(pid_t *pids[], int* pidcount) {
+	/* hook libev 内存分配 */
+	core_ev_set_allocator(EV_ALLOC);
+	/* hook 事件循环错误信息 */
+	core_ev_set_syserr_cb(ERROR_CB);
 	/* 初始化信号 */ 
 	signal_init(pidcount);
 	/* 设置pid */ 
 	ev_set_userdata(core_default_loop(), pids);
 	/* 初始化主进程 */ 
 	return core_start(core_loop_fork(core_default_loop()), 0);
-}
-
-int core_run(const char entry[], int workers) {
-	/* hook libev 内存分配 */
-	core_ev_set_allocator(EV_ALLOC);
-	/* hook 事件循环错误信息 */
-	core_ev_set_syserr_cb(ERROR_CB);
-	/* 初始化进程 */
-#if defined(__MSYS__)
-	/* Windows下不可使用多进程 */
-	workers = 1;
-#endif
-	pid_t pids[workers];
-	int i;
-  for (i = 0; i < workers; i++) {
-		int pid = fork();
-		if (pid == 0){
-			return core_slave_run(entry);
-		} else if (pid < 0) {
-			LOG("ERROR", "Create Process Error.");
-			_exit(-1);
-		}	
-		pids[i] = pid;
-  }
-	return core_master_run((pid_t **)&pids, &workers);
 }

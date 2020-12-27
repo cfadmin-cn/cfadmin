@@ -27,22 +27,18 @@
 #define EV_NO_SMP 1
 #define EV_NO_THREADS 1
 
-/* eventfd 与 signalfd */
-#if defined(__linux) || defined(__linux__)
-	#ifdef __MSYS__
+#if defined(linux) || defined(__linux__) || defined(__MSYS__)
+	#if defined(__MSYS__)
 		#define EV_USE_SELECT 1
 	#else
 		#define EV_USE_EPOLL 1
 		#define EV_USE_INOTIFY 1
 		#define EV_USE_EVENTFD 1
 	#endif
-	// MSYS与Linux都支持
 	#define EV_USE_SIGNALFD 1
 	#define EV_USE_TIMERFD 1
-#endif
-
-#if defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-  #define EV_USE_KQUEUE 1
+#elif defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
+	#define EV_USE_KQUEUE 1
 #endif
 
 #include "ev.h"
