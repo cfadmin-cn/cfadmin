@@ -20,11 +20,7 @@ local concat = table.concat
 local unpack = table.unpack
 
 local sub = string.sub
-local string = string
-local match = string.match
-local find = string.find
 local byte = string.byte
-local upper = string.upper
 local toint = math.tointeger
 
 local CRLF = '\x0d\x0a'
@@ -150,11 +146,12 @@ function redis:connect()
 	if not sock then
 		return nil, "Can't Create redis Socket"
 	end
-	local ok, err = sock:connect(self.host, toint(self.port) or 6379)
+	local ok, err
+	ok, err = sock:connect(self.host, toint(self.port) or 6379)
 	if not ok then
 		return nil, "redis connect error: please check network"
 	end
-	local ok, err = redis_login(sock, self.auth, self.db)
+	ok, err = redis_login(sock, self.auth, self.db)
 	if not ok then
 		return nil, "redis login error:"..(err or 'close')
 	end
@@ -173,7 +170,7 @@ function redis:psubscribe(pattern, func)
 	if not ok or not msg[2] then
 		return nil, "PSUBSCRIBE error: 订阅"..tostring(pattern).."失败."
 	end
-	co_spawn(function ( ... )
+	co_spawn(function ()
 		while 1 do
 			local ok, msg = read_response(sock)
 			if not ok or not msg or not self.sock then
@@ -242,8 +239,8 @@ function redis:pipeline(opt)
 		local sock = self.sock
 		sock:send(concat(cmds))
 		local rets = new_tab(max_read_times, 0)
-		for i = 1, max_read_times do
-			rets[#rets+1] = {read_response(sock)}
+		for index = 1, max_read_times do
+			rets[index] = {read_response(sock)}
 		end
 		return true, rets
 	end

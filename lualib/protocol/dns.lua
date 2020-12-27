@@ -113,7 +113,7 @@ if #dns_list < 1 then
     file:close()
   end
   if #dns_list < 1 then
-    dns_list = {"114.114.114.114", "8.8.8.8"}
+    dns_list = {"1.2.4.8", "210.2.4.8"}
   end
   gen_cache()
 end
@@ -122,7 +122,7 @@ local function get_dns_client(ip_version)
   if #dns_list >= 1 then
     local udp = UDP:new():timeout(dns._timeout or 30)
     local ip = dns_list[random(1, #dns_list)]
-    local ok, v = check_ip(ip)
+    local _, v = check_ip(ip)
     if v == 4 then
       ip = prefix .. ip
     end
@@ -165,7 +165,7 @@ local function pack_question(name, version)
 end
 
 local function unpack_header(chunk)
-  local tid, flags, qdcount, ancount, nscount, arcount, nbyte = unpack(">HHHHHH", chunk)
+  local tid, flags, qdcount, ancount, _, _, nbyte = unpack(">HHHHHH", chunk)
   return { tid = tid, flags = flags, qdcount = qdcount, ancount = ancount}, nbyte
 end
 
@@ -232,24 +232,23 @@ local function dns_query(domain, ip_version)
     check_wait(domain, wlist, nil, msg)
     return nil, msg
   end
-  local dns_resp, len, readable
+  local no_response = true
   cf_fork(function ()
-    local req = pack_header()..pack_question(domain, msg)
     local times = 1
-    while 1 do
-      -- 每轮发送三次请求, 减少丢包几率
-      local ok1, ok2, ok3 = dns_client:send(req), dns_client:send(req), dns_client:send(req)
-      cf_sleep(1)
-      if readable then
-        return
+    local req = pack_header()..pack_question(domain, msg)
+    while no_response do
+      for _ = 1, 5 do
+        local _ = dns_client:send(req) and dns_client:send(req)
+        if not no_response then
+          return
+        end
+        cf_sleep(0.2)
       end
       Log:WARN("第"..times.."次尝试解析["..domain.."]:")
       times = times + 1
     end
   end)
-  dns_resp, len = dns_client:recv()
-  dns_client:close()
-  readable = true
+  local dns_resp, len = dns_client:recv(); dns_client:close(); no_response = false;
   if not dns_resp or not len or len < LIMIT_HEADER_LEN then
     local err = "1. Malformed message length."
     check_wait(domain, wlist, nil, err)
