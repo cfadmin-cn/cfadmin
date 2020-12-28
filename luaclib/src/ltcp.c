@@ -365,9 +365,9 @@ static void IO_ACCEPT_EX(CORE_P_ core_io *io, int revents) {
 }
 
 struct io_sendfile {
-  uint32_t offset;
-  uint32_t fd;
-  uint64_t pos;
+  int32_t fd;
+  off_t pos;
+  off_t offset;
   lua_State *L;
 };
 
@@ -376,7 +376,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
   if (revents & EV_WRITE){
     errno = 0;
     struct io_sendfile *sf = core_get_watcher_userdata(io);
-#if defined(EV_USE_KQUEUE)
+#if defined(__APPLE__) || defined(__FreeBSD__)
     int tag = 0; off_t nBytes = 0;
     for (;;) {
     #if defined(__APPLE__)
@@ -394,7 +394,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
       // 当nBytes与tag同时为0时说明发送成功, 其它情况下都当做发送失败.
       if (0 == nBytes){ lua_pushboolean(sf->L, 1); break; }
     }
-#elif defined(EV_USE_EPOLL)
+#elif defined(linux) || defined(__linux__)
     #include <sys/sendfile.h>
     for (;;) {
       int tag = sendfile(io->fd, sf->fd, NULL, sf->offset);
@@ -433,11 +433,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
 }
 
 static int tcp_sendfile(lua_State *L){
-
-  errno = 0;
-
   core_io *io = (core_io *) luaL_testudata(L, 1, "__TCP__");
-
   int fd = open(luaL_checkstring(L, 3), O_RDONLY);
   if (fd < 0)
     return luaL_error(L, "[%s]: %s.", luaL_checkstring(L, 3), strerror(errno));
