@@ -73,13 +73,13 @@ core_loop* core_default_loop(){
 	int BEST_BACKEND = 0;
 
 #if defined(__MSYS__)
-  BEST_BACKEND |= EVBACKEND_SELECT;
+  BEST_BACKEND |= EVBACKEND_SELECT | EVFLAG_SIGNALFD;
 #elif defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
   BEST_BACKEND |= EVBACKEND_KQUEUE;
 #elif defined(linux) || defined(__linux) || defined(__linux__)
-  BEST_BACKEND |= EVBACKEND_EPOLL;
+  BEST_BACKEND |= EVBACKEND_EPOLL | EVFLAG_SIGNALFD;
 #else
-	BEST_BACKEND |= EVBACKEND_PORT | EVBACKEND_DEVPOLL | EVBACKEND_SELECT;
+	BEST_BACKEND |= EVBACKEND_SELECT;
 #endif
 
 	return ev_default_loop( BEST_BACKEND | EVFLAG_FORKCHECK );

@@ -4,12 +4,10 @@
 /* 关闭3.x版本兼容选择特性 */
 #define EV_COMPAT3 0
 
-// #define EV_FEATURES (1 | 2 | 4 | 8 | 16 | 32 | 64)
-
-// #define EV_VERIFY 3
-
+/* 关闭事件循环验证 */
 #define EV_VERIFY 0
 
+/* 使用Math库的Floor方法计算 */
 #define EV_USE_FLOOR 1
 
 #define EV_FORK_ENABLE 0
@@ -37,8 +35,10 @@
 	#endif
 	#define EV_USE_SIGNALFD 1
 	#define EV_USE_TIMERFD 1
-#elif defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
+#elif defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
 	#define EV_USE_KQUEUE 1
+#else
+	#define EV_USE_SELECT 1
 #endif
 
 #include "ev.h"
