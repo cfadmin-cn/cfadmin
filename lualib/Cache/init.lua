@@ -114,8 +114,8 @@ local function setmeta(self)
               while 1 do
                   session = pop_cache(t)
                   ok, ret = session[key](session, ...)
-                  if ret ~= 'server close!!' then
-                      break
+                  if session:isconnected() then
+                    break
                   end
                   session:close()
                   session = nil
@@ -143,8 +143,8 @@ local function setmeta(self)
             else
                 ok, ret = session:cmd(upper(keys[1]), ...)
             end
-            if ret ~= 'server close!!' then
-                break
+            if session:isconnected() then
+              break
             end
             session:close()
             session = nil

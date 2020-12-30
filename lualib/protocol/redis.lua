@@ -30,6 +30,7 @@ local redcmd = {}
 local function read_response(sock)
   local result = sock:readline("\r\n")
   if not result then
+    sock.state = false
     return nil, 'server close!!'
   end
   -- 断言redis 协议是否支持用于快速排错
@@ -41,6 +42,7 @@ local function sock_readbytes(sock, bytes)
   while 1 do
     local data = sock:recv(bytes)
     if not data then
+      sock.state = false
       return nil, 'server close!!'
     end
     buffers[#buffers+1] = data
@@ -128,6 +130,7 @@ local function redis_login(sock, auth, db)
 			return nil, err
 		end
 	end
+	sock.state = true
 	return true
 end
 
@@ -139,6 +142,10 @@ function redis:ctor(opt)
 	self.port = opt.port
 	self.auth = opt.auth
 	self.db = opt.db
+end
+
+function redis:isconnected()
+  return self.sock and self.sock.state or false
 end
 
 function redis:connect()
@@ -249,6 +256,7 @@ end
 
 function redis:close()
 	if self.sock then
+		self.sock.state = false
 		self.sock:close()
 		self.sock = nil
 	end
