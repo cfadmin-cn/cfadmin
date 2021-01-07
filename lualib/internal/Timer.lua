@@ -26,10 +26,11 @@ local TIMER_LIST = new_tab(1 << 10, 0)
 
 -- 内部函数防止被误用
 local function Timer_new()
-  if #TIMER_LIST > 0 then
-    return remove(TIMER_LIST)
-  end
-  return ti_new()
+  -- if #TIMER_LIST > 0 then
+  --   return remove(TIMER_LIST)
+  -- end
+  -- return ti_new()
+  return remove(TIMER_LIST) or ti_new()
 end
 
 local function Timer_release(t)

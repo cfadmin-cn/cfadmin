@@ -67,8 +67,9 @@ end
 
 -- 负责创建连接/加入等待队列
 local function pop_db(self)
-  if #self.db_pool > 0 then
-    return remove(self.db_pool)
+  local session = remove(self.db_pool)
+  if session then
+    return session
   end
   if self.current < self.max then
     self.current = self.current + 1

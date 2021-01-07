@@ -27,10 +27,7 @@ local main_task = task_new()
 local TASK_POOL = new_tab(1 << 10, 0)
 
 local function task_pop()
-	if #TASK_POOL > 0 then
-		return remove(TASK_POOL)
-	end
-	return task_new()
+	return remove(TASK_POOL) or task_new()
 end
 
 local function task_push(task)
@@ -40,10 +37,11 @@ end
 local CO_POOL = new_tab(1 << 10, 0)
 
 local function co_pop(func)
-	if #CO_POOL > 0 then
-		return remove(CO_POOL)
+	local co = remove(CO_POOL)
+	if co then
+		return co
 	end
-	local co = co_new(func)
+	co = co_new(func)
 	co_start(co)
 	return co
 end
@@ -58,8 +56,8 @@ end
 
 local function f()
 	while 1 do
-		local f, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9 = co_wait()
-		xpcall(f, dbg, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+		local func, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9 = co_wait()
+		xpcall(func, dbg, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
 		local co, main = co_self()
 		if not main then
 			task_push(cos[co])

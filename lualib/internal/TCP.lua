@@ -65,14 +65,11 @@ local EVENT_WRITE = 0x02
 
 local POOL = new_tab(1 << 10, 0)
 local function tcp_pop()
-  if #POOL > 0 then
-      return remove(POOL)
-  end
-  return tcp_new()
+  return remove(POOL) or tcp_new()
 end
 
 local function tcp_push(tcp)
-    POOL[#POOL+1] = tcp
+  return insert(POOL, tcp)
 end
 
 local TCP = class("TCP")

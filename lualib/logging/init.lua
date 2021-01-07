@@ -17,7 +17,6 @@ local type = type
 local select = select
 local assert = assert
 local pairs = pairs
-local ipairs = ipairs
 local tostring = tostring
 local getmetatable = getmetatable
 
@@ -25,7 +24,6 @@ local modf = math.modf
 local debug_getinfo = debug.getinfo
 local io_open = io.open
 local io_write = io.write
-local io_flush = io.flush
 local io_type = io.type
 local fmt = string.format
 local concat = table.concat
@@ -131,6 +129,7 @@ local Log = class("Log")
 
 function Log:ctor (opt)
   if type(opt) == 'table' then
+    self.counter = 0
     self.sync = opt.sync
     self.dumped = opt.dump
     self.path = opt.path
@@ -181,55 +180,60 @@ end
 -- 可以在这里手动设置日志路径
 local LOG_FOLDER = 'logs/'
 
--- 异步写入(写缓存, 刷新工作交由工作线程)
-function Log:async_write(log)
+-- 异步写入(主线程负责写缓存, 刷写磁盘工作交由工作线程)
+local function async_write(self, log)
   if not self.timer then
-    self.timer = cf_at(0.5, function ( ... )
+    self.timer = cf_at(0.5, function ( )
       if self.oldfile then
         self.oldfile:close()
         self.oldfile = nil
       end
+      --[[
+        开始根据counter来决定是否刷写磁盘, 如果counter数量大于0的时候说明需要;
+        这可以减少空闲时间的无效操作, 也可以减少一些特殊情况下的性能损耗问题;
+      ]]
+      if self.counter % ASYNC_BUFFER_SIZE == 0 then
+        self.counter = 0
+        return
+      end
       if self.file then
-        aio_fflush(self.file) -- 使用单独的进程刷写数据到磁盘, 以此减少线程阻塞的可能性.
+        self.counter = 0
+        aio_fflush(self.file)
       end
     end)
   end
+  self.counter = self.counter + #log
   return self.file:write(log)
 end
 
 -- 同步写入(直接刷写到磁盘)
-function Log:sync_write(log)
+local function sync_write(self, log)
   return self.file:write(log)
 end
-
 
 -- dump日志到磁盘
 function Log:dump(log)
   local today = Y_m_d()
   if today ~= self.today then
+    self.today = today
     if self.file then
       self.oldfile = self.file
       self.file = nil
     end
   end
   if not self.file then
-    local file, err = io_open(LOG_FOLDER..self.path..'_'..today..'.log', 'a+')
-    if not file then
-      return io_type(io.output()) == 'file' and io_write('打开文件失败: '..(('['..err..']') or '')..'\n')
-    end
-    self.file, self.today = file, today
-    if self.async and ASYNC then
-      file:setvbuf("full", ASYNC_BUFFER_SIZE)
-    else
-      file:setvbuf("line")
+    self.file = assert(io_open(LOG_FOLDER..self.path..'_'..self.today..'.log', 'a+'))
+    if not self.sync and ASYNC then
+      self.file:setvbuf("full", ASYNC_BUFFER_SIZE)
     end
   end
-  if not self.sync then
-    if not ASYNC then
-      return self:async_write(log)
-    end
+  --[[
+    `全局配置`和`指定配置`都将使用`同步`的方式刷写日志
+  ]]
+  if self.sync or not ASYNC then
+    return sync_write(self, log)
   end
-  return self:sync_write(log)
+  return async_write(self, log)
 end
 
 return Log
