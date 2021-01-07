@@ -147,8 +147,7 @@ static int linterface(lua_State *L){
   return 1;
 }
 
-LUAMOD_API int
-luaopen_sys(lua_State *L){
+LUAMOD_API int luaopen_sys(lua_State *L){
   luaL_checkversion(L);
   luaL_Reg sys_libs[] = {
     {"os", los},

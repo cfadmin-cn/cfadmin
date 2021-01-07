@@ -11,18 +11,20 @@ static inline void SETSOCKETOPT(int sockfd) {
 /* 地址重用 */
 #ifdef SO_REUSEADDR
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &Enable, sizeof(Enable));
-  if (ret) {
-    LOG("ERROR", "设置 SO_REUSEADDR 失败.");
-    return _exit(-1);
+  if (ret < 0) {
+    LOG("ERROR", "Setting SO_REUSEADDR failed.");
+    LOG("ERROR", strerror(errno));
+    return core_exit();
   }
 #endif
 
 /* 端口重用 */
 #ifdef SO_REUSEPORT
   ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &Enable, sizeof(Enable));
-  if (ret) {
-    LOG("ERROR", "设置 SO_REUSEPORT 失败.");
-    return _exit(-1);
+  if (ret < 0) {
+    LOG("ERROR", "Setting SO_REUSEPORT failed.");
+    LOG("ERROR", strerror(errno));
+    return core_exit();
   }
 #endif
 
@@ -30,9 +32,10 @@ static inline void SETSOCKETOPT(int sockfd) {
 #ifdef IPV6_V6ONLY
   int No = 0;
   ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&No, sizeof(No));
-  if (ret){
-    LOG("ERROR", "IPV6_V6ONLY 关闭失败.");
-    return _exit(-1);
+  if (ret < 0){
+    LOG("ERROR", "Setting IPV6_V6ONLY failed.");
+    LOG("ERROR", strerror(errno));
+    return core_exit();
   }
 #endif
 
@@ -152,8 +155,6 @@ static int udp_close(lua_State *L){
 	return 0;
 }
 
-
-
 static int udp_new(lua_State *L){
 	core_io *io = (core_io *) lua_newuserdata(L, sizeof(core_io));
 	if(!io)
@@ -162,8 +163,7 @@ static int udp_new(lua_State *L){
 	return 1;
 }
 
-LUAMOD_API int
-luaopen_udp(lua_State *L){
+LUAMOD_API int luaopen_udp(lua_State *L){
 	luaL_checkversion(L);
 	luaL_newmetatable(L, "__UDP__");
 	lua_pushstring (L, "__index");
@@ -175,11 +175,11 @@ luaopen_udp(lua_State *L){
 	luaL_Reg udp_libs[] = {
 		{"new", udp_new},
 		{"close", udp_close},
-	    {"start", udp_start},
-	    {"stop", udp_stop},
+		{"start", udp_start},
+		{"stop", udp_stop},
 		{"connect", udp_connect},
-	    {"send", udp_send},
-	    {"recv", udp_recv},
+		{"send", udp_send},
+		{"recv", udp_recv},
 		{NULL, NULL}
 	};
 	luaL_setfuncs(L, udp_libs, 0);

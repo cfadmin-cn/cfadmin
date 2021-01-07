@@ -3,8 +3,7 @@
 #include <core.h>
 
 /* === 定时器 === */
-static void
-TIMEOUT_CB(CORE_P_ core_timer *timer, int revents){
+static void TIMEOUT_CB(CORE_P_ core_timer *timer, int revents){
 	if (revents & EV_TIMER){
 		lua_State *co = (lua_State *) core_get_watcher_userdata(timer);
 		int status = CO_RESUME(co, NULL, lua_gettop(co) > 0 ? lua_gettop(co) - 1 : 0);
@@ -15,8 +14,7 @@ TIMEOUT_CB(CORE_P_ core_timer *timer, int revents){
 	}
 }
 
-static int
-timer_stop(lua_State *L){
+static int timer_stop(lua_State *L){
 	core_timer *timer = (core_timer *) luaL_testudata(L, 1, "__TIMER__");
 	if(!timer)
 		return 0;
@@ -24,8 +22,7 @@ timer_stop(lua_State *L){
 	return 0;
 }
 
-static int
-timer_start(lua_State *L){
+static int timer_start(lua_State *L){
 	core_timer *timer = (core_timer *) luaL_testudata(L, 1, "__TIMER__");
 	if(!timer)
 		return 0;
@@ -40,8 +37,7 @@ timer_start(lua_State *L){
 	return 0;
 }
 
-static int
-timer_new(lua_State *L){
+static int timer_new(lua_State *L){
 	core_timer *timer = (core_timer *) lua_newuserdata(L, sizeof(core_timer));
 	if(!timer)
 		return 0;
@@ -50,8 +46,7 @@ timer_new(lua_State *L){
 	return 1;
 }
 
-LUAMOD_API int
-luaopen_timer(lua_State *L){
+LUAMOD_API int luaopen_timer(lua_State *L){
 	luaL_checkversion(L);
   luaL_newmetatable(L, "__TIMER__");
   lua_pushstring (L, "__index");

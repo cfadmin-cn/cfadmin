@@ -45,8 +45,7 @@ static int task_stop(lua_State *L){
 }
 
 
-LUAMOD_API int
-luaopen_task(lua_State *L){
+LUAMOD_API int luaopen_task(lua_State *L){
 	luaL_checkversion(L);
 	luaL_newmetatable(L, "__Task__");
 	lua_pushstring (L, "__index");

@@ -37,7 +37,7 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
   if (ret < 0) {
     LOG("ERROR", "Setting SO_REUSEADDR failed.");
     LOG("ERROR", strerror(errno));
-    return _exit(-1);
+    return core_exit();
   }
 #endif
 
@@ -53,7 +53,30 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
     if (ret < 0) {
       LOG("ERROR", "Setting SO_REUSEPORT failed.");
       LOG("ERROR", strerror(errno));
-      return _exit(-1);
+      return core_exit();
+    }
+  }
+#endif
+
+/* 关闭连接不会阻塞 */
+#ifdef SO_LINGER
+  struct linger lin = { .l_onoff = 0, .l_linger = 0 };
+  ret = setsockopt(sockfd, SOL_SOCKET, SO_LINGER, &lin , sizeof(lin));
+  if (ret < 0){
+    LOG("ERROR", "Setting SO_LINGER failed.");
+    LOG("ERROR", strerror(errno));
+    return core_exit();
+  }
+#endif
+
+/* 开启 TCP keepalive */
+#ifdef SO_KEEPALIVE
+  if (mode != None){
+    ret = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &Enable , sizeof(Enable));
+    if (ret < 0){
+      LOG("ERROR", "Setting SO_KEEPALIVE failed.");
+      LOG("ERROR", strerror(errno));
+      return core_exit();
     }
   }
 #endif
@@ -64,34 +87,22 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
   if (ret < 0){
     LOG("ERROR", "Setting TCP_NODELAY failed.");
     LOG("ERROR", strerror(errno));
-    return _exit(-1);
+    return core_exit();
   }
-#endif
-
-/* 开启 TCP keepalive */
-#ifdef SO_KEEPALIVE
-  #ifndef __MSYS__ /* 在仿真环境中会操作始终会失败 */
-  if (mode != None){
-    ret = setsockopt(sockfd, IPPROTO_TCP, SO_KEEPALIVE, &Enable , sizeof(Enable));
-    if (ret < 0){
-      LOG("ERROR", "Setting SO_KEEPALIVE failed.");
-      LOG("ERROR", strerror(errno));
-      return _exit(-1);
-    }
-  }
-  #endif
 #endif
 
 /* 开启延迟Accept, 没数据来之前不回调accept */
-#ifdef TCP_DEFER_ACCEPT
+#if defined(TCP_DEFER_ACCEPT)
   if (mode == SERVER) {
     ret = setsockopt(sockfd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &Enable, sizeof(Enable));
     if (ret < 0){
       LOG("ERROR", "Setting TCP_DEFER_ACCEPT failed.");
       LOG("ERROR", strerror(errno));
-      return _exit(-1);
+      return core_exit();
     }
   }
+#elif defined(SO_ACCEPTFILTER)
+  /* TODO: 暂不实现 */
 #endif
 
 /* 开启快速连接复用 */
@@ -102,7 +113,7 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
     if (ret < 0){
       LOG("ERROR", "Setting TCP_FASTOPEN failed.");
       LOG("ERROR", strerror(errno));
-      return _exit(-1);
+      return core_exit();
     }
   }
 #endif
@@ -114,7 +125,7 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
   if (ret < 0){
     LOG("ERROR", "Setting TCP_KEEPIDLE failed.");
     LOG("ERROR", strerror(errno));
-    return _exit(-1);
+    return core_exit();
   }
 #endif
 
@@ -125,7 +136,7 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
   if (ret < 0){
     LOG("ERROR", "Setting TCP_KEEPCNT failed.");
     LOG("ERROR", strerror(errno));
-    return _exit(-1);
+    return core_exit();
   }
 #endif
 
@@ -136,7 +147,7 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
   if (ret < 0){
     LOG("ERROR", "Setting TCP_KEEPINTVL failed.");
     LOG("ERROR", strerror(errno));
-    return _exit(-1);
+    return core_exit();
   }
 #endif
 
@@ -148,7 +159,7 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
     if (ret < 0){
       LOG("ERROR", "Setting IPV6_V6ONLY failed.");
       LOG("ERROR", strerror(errno));
-      return _exit(-1);
+      return core_exit();
     }
   }
 #endif
@@ -1074,8 +1085,7 @@ static int tcp_close(lua_State *L){
   return 0;
 }
 
-LUAMOD_API int
-luaopen_tcp(lua_State *L){
+LUAMOD_API int luaopen_tcp(lua_State *L){
   luaL_checkversion(L);
   /* 添加SSL支持 */
   SSL_library_init();
