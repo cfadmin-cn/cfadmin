@@ -153,7 +153,7 @@ int core_worker_run(const char entry[]) {
 
 	lua_State *L = lua_newstate(L_ALLOC, NULL);
 	if (!L)
-		_exit(-1);
+		core_exit();
 
 	init_lua_libs(L);
 
@@ -163,14 +163,14 @@ int core_worker_run(const char entry[]) {
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
 		lua_close(L);
-		_exit(-1);
+		core_exit();
 	}
 
 	status = CO_RESUME(L, NULL, 0);
 	if (status > 1){
 		LOG("ERROR", lua_tostring(L, -1));
 		lua_close(L);
-		_exit(-1);
+		core_exit();
 	}
 
 	if (status == LUA_YIELD)
