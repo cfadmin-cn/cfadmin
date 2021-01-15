@@ -42,7 +42,7 @@ local function version_support (ver)
   if type(ver) == 'string' or type(ver) == 'number' then
     ver = tonumber(ver)
     if not ver then
-      return nil, "1. 不支持的版本"
+      return nil, "1. Unsupported version."
     end
     for _, version in ipairs(versions) do
       if ver == version then
@@ -57,7 +57,7 @@ local function version_support (ver)
       end
     end
   end
-  return false, '2. 不支持的版本.'
+  return false, '2. Unsupported version.'
 end
 
 local function sock_send (sock, data)
@@ -89,7 +89,7 @@ local function parser_cmd (data)
   local cmd = split(data, 1, Pos - 1)
   local exists = CMDS[cmd]
   if not exists then
-    return nil, "不受支持的命令:"..(data or cmd or data)
+    return nil, "Unsupported command: "..(data or cmd or data)
   end
   return cmd, Pos + 1
 end
@@ -128,12 +128,12 @@ local function build_frame (CMD, opt, body)
   return concat(req, CRLF)..CRLF2..(body or '')..NULL_LF
 end
 
-function read_response (sock)
+local function read_response (sock)
   local buffers = {}
   while 1 do
-    local data, len = sock_read(sock, 1)
+    local data = sock_read(sock, 1)
     if not data then
-      return nil, "服务端断开了连接"
+      return nil, "Server Close this session."
     end
     buffers[#buffers + 1] = data
     local response = concat(buffers)
@@ -142,7 +142,7 @@ function read_response (sock)
       if not cmd then
         return cmd, pos
       end
-      local headers, pos = parser_header(split(response, pos, find(response, LF, -2) - 1))
+      local headers = parser_header(split(response, pos, find(response, LF, -2) - 1))
       local ver = headers['version'] or headers['Version']
       if ver then
         local ok, err = version_support(ver)
@@ -161,7 +161,7 @@ function read_response (sock)
       return true, headers
     end
     if #response > 10240 then
-      return nil, '错误的server回应'
+      return nil, 'Invalide Response.'
     end
   end
 end

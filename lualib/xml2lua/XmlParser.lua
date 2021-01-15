@@ -259,7 +259,7 @@ local function _parseDtd(self, xml, pos)
 end
 
 local function parseDtd(self, xml, f)
-    f.match, f.endMatch, attrs = _parseDtd(self, xml, f.pos)
+    f.match, f.endMatch = _parseDtd(self, xml, f.pos)
     if not f.match then 
         err(self, self._errstr.dtdErr, f.pos)
     end 

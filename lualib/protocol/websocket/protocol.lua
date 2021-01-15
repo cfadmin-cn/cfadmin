@@ -117,26 +117,26 @@ function _M.recv_frame(sock, max_payload_len, force_masking)
     local payload_len = snd & 0x7f
 
     if payload_len == 126 then
-      local data, err = sock_recv(sock, 2)
+      local pkg, errinfo = sock_recv(sock, 2)
       if not data then
-          return nil, nil, "failed to receive the 2 byte payload length: " .. (err or "unknown")
+          return nil, nil, "failed to receive the 2 byte payload length: " .. (errinfo or "unknown")
       end
-      payload_len = (byte(data, 1) >> 8) | byte(data, 2)
+      payload_len = (byte(pkg, 1) >> 8) | byte(pkg, 2)
     elseif payload_len == 127 then
-      local data, err = sock_recv(sock, 8)
-      if not data then
-        return nil, nil, "failed to receive the 8 byte payload length: " .. (err or "unknown")
+      local pkg, errinfo = sock_recv(sock, 8)
+      if not pkg then
+        return nil, nil, "failed to receive the 8 byte payload length: " .. (errinfo or "unknown")
       end
 
-      if byte(data, 1) ~= 0 or byte(data, 2) ~= 0 or byte(data, 3) ~= 0 or byte(data, 4) ~= 0 then
+      if byte(pkg, 1) ~= 0 or byte(pkg, 2) ~= 0 or byte(pkg, 3) ~= 0 or byte(pkg, 4) ~= 0 then
         return nil, nil, "payload len too large"
       end
 
-      local fifth = byte(data, 5)
+      local fifth = byte(pkg, 5)
       if fifth & 0x80 ~= 0 then
         return nil, nil, "payload len too large"
       end
-      payload = fifth << 24 | byte(data, 6) << 16 | byte(data, 7) | byte(data, 8)
+      payload_len  = fifth << 24 | (byte(pkg, 6) << 16) | (byte(pkg, 7) << 8) | byte(pkg, 8)
     end
 
     if opcode & 0x8 ~= 0 then

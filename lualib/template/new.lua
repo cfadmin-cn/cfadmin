@@ -18,10 +18,6 @@ local byte = string.byte
 local null = null
 local sub = string.sub
 local print_view = io.write
-local var
-
-local _ENV = _ENV -- luacheck: globals _ENV
-local _G = _G
 
 local HTML_ENTITIES = {
     ["&"] = "&amp;",

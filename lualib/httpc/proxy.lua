@@ -1,8 +1,5 @@
 local httpc = require "httpc.class"
 
-local HTTP_PARSER = require "protocol.http.parser"
-local PARSER_HTTP_RESPONSE = HTTP_PARSER.PARSER_HTTP_RESPONSE
-
 local ua = require "httpc.ua"
 local protocol = require "httpc.protocol"
 local sock_new = protocol.sock_new
@@ -20,13 +17,12 @@ local ipv6 = sys.ipv6
 local str2ip = sys.str2ip
 
 local type = type
+local ipairs = ipairs
 local assert = assert
 local tonumber = tonumber
 
-local find = string.find
 local match = string.match
 local fmt = string.format
-local byte = string.byte
 local char = string.char
 local pack = string.pack
 local unpack = string.unpack
@@ -46,7 +42,7 @@ function Proxy.auth(Auth)
 end
 
 -- 构建请求内容
-function Proxy.build_request(proxy_config, source_config, headers, auth)
+function Proxy.build_request(source_config, headers, auth)
   local domain_and_port = source_config.domain .. ":" .. source_config.port
 
   -- 初始化请求基本信息
@@ -91,8 +87,7 @@ function Proxy.http_proxy_handshake(sock, proxy_config, source_config, info)
 
   -- 检查代理的通道是否需要SSL握手
   if source_config.protocol == "https" then
-    local ok = sock:ssl_handshake()
-    if not ok then
+    if not sock:ssl_handshake(proxy_config.domain) then
       return false, "httpc Proxy Connect ssl handshake failed."
     end
   end
@@ -108,8 +103,7 @@ function Proxy.socks5_proxy_handshake(sock, proxy_config, source_config)
     return false, "httpc socks5 Proxy Unsupported ipv6 protocol."
   end
 
-  local ok, err = sock:connect(proxy_config.domain, proxy_config.port)
-  if not ok then
+  if not sock:connect(proxy_config.domain, proxy_config.port) then
     return false, "httpc Proxy socks5 Connect failed."
   end
 
@@ -123,8 +117,7 @@ function Proxy.socks5_proxy_handshake(sock, proxy_config, source_config)
     METHODS = METHODS .. char(0x02)
   end
 
-  local ok = sock:send(pack(">BB", VER, NMETHODS) .. METHODS)
-  if not ok then
+  if not sock:send(pack(">BB", VER, NMETHODS) .. METHODS) then
     return false, "httpc socks5 Proxy closed in handshake. 1"
   end
 
@@ -185,36 +178,31 @@ function Proxy.socks5_proxy_handshake(sock, proxy_config, source_config)
   end
 
   if atype == 1 then -- 如果atype是IPv4类型
-    local data = sock:recv(4)
-    if not data then
+    if not sock:recv(4) then
       return false, "httpc socks5 Proxy Close this session when read IPv4 info."
     end
     -- print("代理服务器为本次连接分配的IPv4地址为:", table.concat({unpack(">BBBB", data)}, ".", 1, 4))
   elseif atype == 3 then -- 如果atype是domain类型
-    local data = sock:recv(1)
-    if not data then
+    if not sock:recv(1) then
       return false, "httpc socks5 Proxy Close this session when read domain atype."
     end
-    local domain = sock:recv(unpack(">B", data))
+    sock:recv(unpack(">B", data))
     -- print("代理服务器回应了一个域名:" .. domain)
   elseif atype == 4 then -- 如果atype是IPv6类型
-    local data = sock:recv(16)
-    if not data then
+    if not sock:recv(16) then
       return false, "httpc socks5 Proxy Close this session when read IPv6 atype."
     end
     -- print("代理服务器为本次连接分配的IPv6地址为:", table.concat({unpack(">HHHHHHHH", data)}, ":", 1, 8))
   end
 
-  local data = sock:recv(2)
-  if not data then
+  if not sock:recv(2) then
     return false, "httpc socks5 Proxy Server was shutdown before the connection was completed."
   end
   -- print("代理服务器为本次连接分配的端口为:", unpack(">I2", data))
 
   -- 到这里就可以认为代理服务器完成它的使命, 现在需要检查是否需要https握手.
   if source_config.protocol == "https" then
-    local ok = sock:ssl_handshake()
-    if not ok then
+    if not sock:ssl_handshake(source_config.domain) then
       return false, "httpc Proxy Connect ssl handshake failed."
     end
   end
@@ -223,15 +211,15 @@ function Proxy.socks5_proxy_handshake(sock, proxy_config, source_config)
 end
 
 function Proxy.connect(sock, proxy_config, source_config, info)
-  local ok, err = sock_connect(sock, proxy_config.protocol, proxy_config.domain, proxy_config.port)
-  if not ok then
-    return false, "httpc Proxy Sever failed. " .. err
+  local ok1, e1 = sock_connect(sock, proxy_config.protocol, proxy_config.domain, proxy_config.port)
+  if not ok1 then
+    return false, "httpc Proxy Sever failed. " .. e1
   end
 
   -- 尝试与代理服务器进行握手
-  local ok, err = Proxy.http_proxy_handshake(sock, proxy_config, source_config, info)
-  if not ok then
-    return false, "httpc Proxy Sever handshake failed. " .. (err or "")
+  local ok2, e2 = Proxy.http_proxy_handshake(sock, proxy_config, source_config, info)
+  if not ok2 then
+    return false, "httpc Proxy Sever handshake failed. " .. (e2 or "")
   end
 
   return true
@@ -284,7 +272,7 @@ function Proxy.tunnel_connect(opt)
   end
 
   -- 构建代理通道所需的握手信息
-  local info = Proxy.build_request(proxy_config, source_config, headers, auth)
+  local info = Proxy.build_request(source_config, headers, auth)
   -- print(info)
 
   -- 设定socket超时时间

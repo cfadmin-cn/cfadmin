@@ -1,5 +1,5 @@
 -- 格式化输出(美化)
-var_dump = function (data, showMetatable, lastCount)
+_G["var_dump"] = function (data, showMetatable, lastCount)
     if type(data) ~= "table" then
         --Value
         if type(data) == "string" then

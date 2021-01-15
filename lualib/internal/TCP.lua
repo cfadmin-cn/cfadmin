@@ -5,9 +5,9 @@ local new_tab = require("sys").new_tab
 local log = require "logging"
 local Log = log:new({ dump = true, path = 'internal-TCP' })
 
-local ipairs = ipairs
+local type = type
 local assert = assert
-local split = string.sub
+local io_open = io.open
 local spack = string.pack
 local insert = table.insert
 local remove = table.remove
@@ -54,6 +54,9 @@ local tcp_ssl_verify = tcp.ssl_verify
 local tcp_ssl_set_fd = tcp.ssl_set_fd
 local tcp_ssl_set_alpn = tcp.ssl_set_alpn
 local tcp_ssl_get_alpn = tcp.ssl_get_alpn
+local tcp_set_read_buf = tcp.tcp_set_read_buf
+local tcp_set_write_buf = tcp.tcp_set_write_buf
+local ssl_set_connect_server = tcp.ssl_set_connect_server
 local tcp_ssl_set_accept_mode = tcp.ssl_set_accept_mode
 local tcp_ssl_set_connect_mode = tcp.ssl_set_connect_mode
 local tcp_ssl_set_privatekey = tcp.ssl_set_privatekey
@@ -201,21 +204,19 @@ end
 
 -- ssl_sendfile实现
 function TCP:ssl_sendfile(filename, offset)
-  if type(filename) == 'string' and filename ~= '' then
-    local f, err = io.open(filename, "r")
-    if not f then
-      return nil, err
-    end
-    local ok = false
-    for buf in f:lines(offset or 65535) do
-      local ok = self:ssl_send(buf)
-      if not ok then
-        break
-      end
-    end
-    f:close()
-    return ok
+  if type(filename) ~= 'string' or filename == '' then
+    return nil, "Invalid filename."
   end
+  local f, err = io_open(filename, "r")
+  if not f then
+    return nil, err
+  end
+  for buf in f:lines(offset or 65535) do
+    if not self:ssl_send(buf) then
+      return false, f:close()
+    end
+  end
+  return true, f:close()
 end
 
 function TCP:send(buf)
@@ -229,10 +230,20 @@ function TCP:send(buf)
   if not wlen or wlen == #buf then
     return wlen == #buf
   end
+  -- 缓解发送大量数据集的时候调用频繁的问题
+  if not self.wsize or self.wsize < #buf then
+    self.wsize = #buf
+    if self.wsize > (1 << 16) then
+      if self.wsize > (1 << 20) then
+        self.wsize = 1 << 20
+      end
+      tcp_set_write_buf(self.fd, self.wsize);
+    end
+  end
   local co = co_self()
   self.SEND_IO = tcp_pop()
   self.send_current_co = co_self()
-  self.send_co = co_new(function ( ... )
+  self.send_co = co_new(function ( )
     while 1 do
       local len = tcp_write(self.fd, buf, wlen)
       if not len or len + wlen == #buf then
@@ -252,23 +263,30 @@ function TCP:send(buf)
 end
 
 function TCP:ssl_send(buf)
-  if not self.ssl then
-    Log:ERROR("Please use send method :)")
-    return nil, "Please use send method :)"
+  if not self.fd or not self.ssl or type(buf) ~= 'string' or buf == '' then
+    return nil, "SSL Write Buffer error."
   end
-  if not self.fd or type(buf) ~= 'string' or buf == '' then
-    return
-  end
-  local wlen = tcp_ssl_write(self.ssl, buf, #buf)
+  local ssl = self.ssl
+  local wlen = tcp_ssl_write(ssl, buf, #buf)
   if not wlen or wlen == #buf then
     return wlen == #buf
   end
-  self.SEND_IO = tcp_pop()
+  -- 缓解发送大量数据集的时候调用频繁的问题
+  if not self.wsize or self.wsize < #buf then
+    self.wsize = #buf
+    if self.wsize > (1 << 16) then
+      if self.wsize > (1 << 20) then
+        self.wsize = 1 << 20
+      end
+      tcp_set_write_buf(self.fd, self.wsize);
+    end
+  end
   local co = co_self()
+  self.SEND_IO = tcp_pop()
   self.send_current_co = co_self()
-  self.send_co = co_new(function ( ... )
+  self.send_co = co_new(function ( )
     while 1 do
-      local len = tcp_ssl_write(self.ssl, buf, #buf)
+      local len = tcp_ssl_write(ssl, buf, #buf)
       if not len or len == #buf then
         tcp_stop(self.SEND_IO)
         tcp_push(self.SEND_IO)
@@ -286,22 +304,22 @@ end
 
 function TCP:readline(sp, no_sp)
   if self.ssl then
-    Log:ERROR("Please use ssl_readline method :)")
-    return nil, "Please use ssl_readline method :)"
+    return self:ssl_readline(sp, no_sp)
   end
   if type(sp) ~= 'string' or #sp < 1 then
     return nil, "Invalid separator."
   end
-  local data, len = tcp_readline(self.fd, sp, no_sp)
-  if not len or len > 0 then
-    return data, not len and 'close' or len
+  local fd = self.fd
+  local data, len = tcp_readline(fd, sp, no_sp)
+  if type(len) ~= 'number' or len > 0 then
+    return data, len
   end
   local co = co_self()
   self.READ_IO = tcp_pop()
   self.read_current_co = co_self()
-  self.read_co = co_new(function ( ... )
+  self.read_co = co_new(function ( )
     while 1 do
-      local buf, buf_size = tcp_readline(self.fd, sp, no_sp)
+      local buf, buf_size = tcp_readline(fd, sp, no_sp)
       if type(buf) == "string" and type(buf_size) == 'number' then
         if self.timer then
           self.timer:stop()
@@ -329,7 +347,7 @@ function TCP:readline(sp, no_sp)
       co_wait()
     end
   end)
-  self.timer = ti_timeout(self._timeout, function ( ... )
+  self.timer = ti_timeout(self._timeout, function ( )
     tcp_push(self.READ_IO)
     tcp_stop(self.READ_IO)
     self.timer = nil
@@ -338,7 +356,7 @@ function TCP:readline(sp, no_sp)
     self.read_current_co = nil
     return co_wakeup(co, nil, "read timeout")
   end)
-  tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
+  tcp_start(self.READ_IO, fd, EVENT_READ, self.read_co)
   return co_wait()
 end
 
@@ -350,16 +368,17 @@ function TCP:ssl_readline(sp, no_sp)
   if type(sp) ~= 'string' or #sp < 1 then
     return nil, "Invalid separator."
   end
-  local data, len = tcp_sslreadline(self.ssl, sp, no_sp)
-  if not len or len > 0 then
-    return data, not len and 'close' or len
+  local ssl = self.ssl
+  local data, len = tcp_sslreadline(ssl, sp, no_sp)
+  if type(len) ~= 'number' or len > 0 then
+    return data, len
   end
   local co = co_self()
   self.read_current_co = co_self()
   self.READ_IO = tcp_pop()
-  self.read_co = co_new(function ( ... )
+  self.read_co = co_new(function ( )
     while 1 do
-      local buf, buf_size = tcp_sslreadline(self.ssl, sp, no_sp)
+      local buf, buf_size = tcp_sslreadline(ssl, sp, no_sp)
       if type(buf) == "string" and type(buf_size) == 'number' then
         if self.timer then
           self.timer:stop()
@@ -387,7 +406,7 @@ function TCP:ssl_readline(sp, no_sp)
       co_wait()
     end
   end)
-  self.timer = ti_timeout(self._timeout, function ( ... )
+  self.timer = ti_timeout(self._timeout, function ( )
     tcp_push(self.READ_IO)
     tcp_stop(self.READ_IO)
     self.timer = nil
@@ -401,104 +420,105 @@ function TCP:ssl_readline(sp, no_sp)
 end
 
 function TCP:recv(bytes)
-    if self.ssl then
-      return self:ssl_recv(bytes)
-    end
-    if not self.fd then
-      return
-    end
-    local data, len = tcp_read(self.fd, bytes)
-    if not len or len > 0 then
-      return data, not len and 'close' or len
-    end
-    local co = co_self()
-    self.READ_IO = tcp_pop()
-    self.read_current_co = co_self()
-    self.read_co = co_new(function ( ... )
-      local buf, len = tcp_read(self.fd, bytes)
-      if self.timer then
-        self.timer:stop()
-        self.timer = nil
+  if self.ssl then
+    return self:ssl_recv(bytes)
+  end
+  local fd = self.fd
+  local data, len = tcp_read(fd, bytes)
+  if type(len) ~= 'number' or len > 0 then
+    return data, len
+  end
+  -- 优化大数据集的调用次数太多的问题
+  if not self.rsize or self.rsize < bytes then
+    self.rsize = bytes
+    if self.rsize > (1 << 16) then
+      if self.rsize > (1 << 20) then
+        self.rsize = 1 << 20
       end
-      tcp_push(self.READ_IO)
-      tcp_stop(self.READ_IO)
-      self.READ_IO = nil
-      self.read_co = nil
-      self.read_current_co = nil
-      if not buf then
-        return co_wakeup(co)
-      end
-      return co_wakeup(co, buf, len)
-    end)
-    self.timer = ti_timeout(self._timeout, function ( ... )
-      tcp_push(self.READ_IO)
-      tcp_stop(self.READ_IO)
+      tcp_set_read_buf(fd, self.rsize);
+    end
+  end
+  local coctx = co_self()
+  self.READ_IO = tcp_pop()
+  self.read_current_co = co_self()
+  self.read_co = co_new(function ( )
+    local buf, bsize = tcp_read(fd, bytes)
+    if self.timer then
+      self.timer:stop()
       self.timer = nil
-      self.read_co = nil
-      self.READ_IO = nil
-      self.read_current_co = nil
-      return co_wakeup(co, nil, "read timeout")
-    end)
-    tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
-    return co_wait()
+    end
+    tcp_push(self.READ_IO)
+    tcp_stop(self.READ_IO)
+    self.READ_IO = nil
+    self.read_co = nil
+    self.read_current_co = nil
+    return co_wakeup(coctx, buf, bsize)
+  end)
+  self.timer = ti_timeout(self._timeout, function ( )
+    tcp_push(self.READ_IO)
+    tcp_stop(self.READ_IO)
+    self.timer = nil
+    self.read_co = nil
+    self.READ_IO = nil
+    self.read_current_co = nil
+    return co_wakeup(coctx, nil, "read timeout")
+  end)
+  tcp_start(self.READ_IO, fd, EVENT_READ, self.read_co)
+  return co_wait()
 end
 
 function TCP:ssl_recv(bytes)
-  if not self.ssl then
+  local ssl = self.ssl
+  if not ssl then
     Log:ERROR("Please use recv method :)")
     return nil, "Please use recv method :)"
   end
-  if not self.fd then
-    return
+  local buf, len = tcp_sslread(ssl, bytes)
+  if buf then
+    return buf, len
   end
-  local buf, len = tcp_sslread(self.ssl, bytes)
-  if not buf then
-    local co = co_self()
-    self.read_current_co = co_self()
-    self.READ_IO = tcp_pop()
-    self.read_co = co_new(function ( ... )
-      while 1 do
-        local buf, len = tcp_sslread(self.ssl, bytes)
-        if not buf and not len then
-          if self.timer then
-            self.timer:stop()
-            self.timer = nil
-          end
-          tcp_push(self.READ_IO)
-          tcp_stop(self.READ_IO)
-          self.READ_IO = nil
-          self.read_co = nil
-          self.read_current_co = nil
-          return co_wakeup(co)
-        end
-        if buf and len then
-          if self.timer then
-            self.timer:stop()
-            self.timer = nil
-          end
-          tcp_push(self.READ_IO)
-          tcp_stop(self.READ_IO)
-          self.READ_IO = nil
-          self.read_co = nil
-          self.read_current_co = nil
-          return co_wakeup(co, buf, len)
-        end
-        co_wait()
+  -- 优化大数据集的调用次数太多的问题
+  if not self.rsize or self.rsize < bytes then
+    self.rsize = bytes
+    if self.rsize > (1 << 16) then
+      if self.rsize > (1 << 20) then
+        self.rsize = 1 << 20
       end
-    end)
-    self.timer = ti_timeout(self._timeout, function ( ... )
-      tcp_push(self.READ_IO)
-      tcp_stop(self.READ_IO)
-      self.timer = nil
-      self.READ_IO = nil
-      self.read_co = nil
-      self.read_current_co = nil
-      return co_wakeup(co, nil, "read timeout")
-    end)
-    tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
-    return co_wait()
+      tcp_set_read_buf(self.fd, self.rsize);
+    end
   end
-  return buf, len
+  local coctx = co_self()
+  self.READ_IO = tcp_pop()
+  self.read_current_co = co_self()
+  self.read_co = co_new(function ( )
+    while true do
+      local buffer, bsize = tcp_sslread(ssl, bytes)
+      if (buffer and bsize) or (not buffer and not bsize) then
+        if self.timer then
+          self.timer:stop()
+          self.timer = nil
+        end
+        tcp_push(self.READ_IO)
+        tcp_stop(self.READ_IO)
+        self.READ_IO = nil
+        self.read_co = nil
+        self.read_current_co = nil
+        return co_wakeup(coctx, buffer, bsize)
+      end
+      co_wait()
+    end
+  end)
+  self.timer = ti_timeout(self._timeout, function ( )
+    tcp_push(self.READ_IO)
+    tcp_stop(self.READ_IO)
+    self.timer = nil
+    self.READ_IO = nil
+    self.read_co = nil
+    self.read_current_co = nil
+    return co_wakeup(coctx, nil, "read timeout")
+  end)
+  tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
+  return co_wait()
 end
 
 function TCP:listen(ip, port, cb)
@@ -522,22 +542,21 @@ function TCP:listen(ip, port, cb)
   return true, tcp_listen(self.LISTEN_IO, self.fd, self.listen_co)
 end
 
-local function ssl_accept(callback, opt, fd, ipaddr)
+local function ssl_accept(callback, fd, ipaddr, port, opt)
   local sock = TCP:new()
-  sock.mode = "server"
-  sock:set_fd(fd)
-  -- :timeout(0.1)
+  sock:set_fd(fd):timeout(5) -- 如果ssl握手长期未完成则选择断开连接
   sock.ssl, sock.ssl_ctx = tcp_ssl_new_fd(fd)
   if type(opt.pw) == 'string' and opt.pw ~= '' then
     sock:ssl_set_password(opt.pw)
   end
+  sock.mode = "server"
   sock:ssl_set_certificate(opt.cert)
   sock:ssl_set_privatekey(opt.key)
   tcp_ssl_set_accept_mode(sock.ssl, sock.ssl_ctx)
   if not sock:ssl_handshake() then
     return sock:close()
   end
-  return callback(sock, ipaddr)
+  return callback(sock, ipaddr, port)
 end
 
 function TCP:listen_ssl(ip, port, opt, cb)
@@ -565,7 +584,7 @@ function TCP:listen_ssl(ip, port, opt, cb)
   self.listen_ssl_co = co_new(function (fd, ipaddr, port)
     while 1 do
       if fd and ipaddr then
-        co_spawn(cb, fd, ipaddr, port)
+        co_spawn(ssl_accept, cb, fd, ipaddr, port, opt)
         fd, ipaddr, port = co_wait()
       end
     end
@@ -607,22 +626,19 @@ function TCP:connect(domain, port)
   local co = co_self()
   self.CONNECT_IO = tcp_pop()
   self.connect_current_co = co_self()
-  self.connect_co = co_new(function (connected)
+  self.connect_co = co_new(function (connected, errinfo)
     if self.timer then
-        self.timer:stop()
-        self.timer = nil
+      self.timer:stop()
+      self.timer = nil
     end
     tcp_push(self.CONNECT_IO)
     tcp_stop(self.CONNECT_IO)
     self.connect_current_co = nil
     self.CONNECT_IO = nil
     self.connect_co = nil
-    if connected then
-      return co_wakeup(co, true)
-    end
-    return co_wakeup(co, false, 'connect failed')
+    return co_wakeup(co, connected, errinfo)
   end)
-  self.timer = ti_timeout(self._timeout, function ( ... )
+  self.timer = ti_timeout(self._timeout, function ()
       tcp_push(self.CONNECT_IO)
       tcp_stop(self.CONNECT_IO)
       self.timer = nil
@@ -636,11 +652,11 @@ function TCP:connect(domain, port)
 end
 
 function TCP:ssl_connect(domain, port)
-  local ok, err = self:connect(domain, port)
+  local ok, errinfo = self:connect(domain, port)
   if not ok then
-    return nil, err
+    return false, errinfo
   end
-  return self:ssl_handshake()
+  return self:ssl_handshake(domain)
 end
 
 local function event_wait(self, event)
@@ -650,7 +666,7 @@ local function event_wait(self, event)
   -- 从对象池之中取出一个观察者对象
   self.CONNECT_IO = tcp_pop()
   -- 读/写回调
-  self.connect_co = co_new(function ( ... )
+  self.connect_co = co_new(function ( )
     -- 如果事件在超时之前到来需要停止定时器
     if self.timer then
       self.timer:stop()
@@ -666,7 +682,7 @@ local function event_wait(self, event)
     return co_wakeup(co, true)
   end)
   -- 定时器回调
-  self.timer = ti_timeout(self._timeout, function ( ... )
+  self.timer = ti_timeout(self._timeout, function ( )
     -- 停止当前IO事件观察者并且将其放入对象池之中
     tcp_push(self.CONNECT_IO)
     tcp_stop(self.CONNECT_IO)
@@ -677,20 +693,19 @@ local function event_wait(self, event)
     -- 唤醒协程
     return co_wakeup(co, nil, 'connect timeout.')
   end)
-  -- print(self.CONNECT_IO, self.fd, event, self.connect_co)
   -- 注册I/O事件
   tcp_start(self.CONNECT_IO, self.fd, event, self.connect_co)
   -- 让出执行权
   return co_wait()
 end
 
-function TCP:ssl_handshake()
+function TCP:ssl_handshake(domain)
   -- 如果设置了NPN/ALPN, 则需要在握手协商中指定.
   if self.alpn then
     tcp_ssl_set_alpn(self.ssl, self.ssl_ctx, spack(">B", #self.alpn) .. self.alpn)
   end
   -- 如果是服务端模式, 需要等待客户端先返送hello信息.
-  -- 如果是客户端, 则需要先发送hello信息.
+  -- 如果是客户端模式, 需要先发送hello信息.
   if self.mode == "server" then
     local ok, err = event_wait(self, EVENT_READ)
     if not ok then
@@ -702,21 +717,28 @@ function TCP:ssl_handshake()
     else
       tcp_ssl_set_fd(self.ssl, self.fd)
     end
+    -- 如果有必要的话, 增加TLS的SNI特性支持.
+    ssl_set_connect_server(self.ssl, domain or "localhost")
   end
   -- 开始握手
-  while 1 do
-    local ok, event = tcp_ssl_do_handshake(self.ssl)
-    if ok then
-      return true
-    end
+  :: CONTINUE ::
+  local successe, event = tcp_ssl_do_handshake(self.ssl)
+  if not successe then
+    -- 握手失败无需继续尝试
     if not event then
       return nil, "ssl handshake failed."
     end
-    local ok, err = event_wait(self, event)
-    if not ok then -- 超时
-      return nil, err
+    -- 获取下次握手的等待事件: `READ` 或 `WRITE`
+    local ok, errinfo = event_wait(self, event)
+    if ok then
+      -- 如果本次尝试成功则继续握手流程
+      goto CONTINUE
     end
+    -- 握手超时、连接超时或连接中断
+    return nil, errinfo
   end
+  -- 握手成功
+  return true
 end
 
 function TCP:count()

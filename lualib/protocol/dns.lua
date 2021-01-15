@@ -232,23 +232,21 @@ local function dns_query(domain, ip_version)
     check_wait(domain, wlist, nil, msg)
     return nil, msg
   end
-  local no_response = true
+  local responsed = true
   cf_fork(function ()
-    local times = 1
-    local req = pack_header()..pack_question(domain, msg)
-    while no_response do
-      for _ = 1, 5 do
-        local _ = dns_client:send(req) and dns_client:send(req)
-        if not no_response then
+    local req = pack_header() .. pack_question(domain, msg)
+    while responsed do
+      for _ = 1, 10 do
+        -- 用数量来减少UDP丢包率的问题
+        dns_client:send(req); dns_client:send(req); dns_client:send(req); cf_sleep(0.1)
+        if responsed then
           return
         end
-        cf_sleep(0.2)
       end
-      Log:WARN("第"..times.."次尝试解析["..domain.."]:")
-      times = times + 1
+      Log:WARN("Attempt to resolve domain name: [" .. domain .. "] failed.")
     end
   end)
-  local dns_resp, len = dns_client:recv(); dns_client:close(); no_response = false;
+  local dns_resp, len = dns_client:recv(); dns_client:close(); responsed = false;
   if not dns_resp or not len or len < LIMIT_HEADER_LEN then
     local err = "1. Malformed message length."
     check_wait(domain, wlist, nil, err)

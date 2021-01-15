@@ -495,6 +495,7 @@ function pgsql:connect()
 
   auth_type = strunpack(">I4", auth_type)
   if auth_type == RESP_AUTHMD5 then
+    local status
     self:write(self:authmd5(self:read(len - 8)))
     opcode, len, status = read_head(self)
     if not opcode or not status then
@@ -508,7 +509,7 @@ function pgsql:connect()
   -- 获取服务器配置信息
   local server = new_tab(0, 16)
   while 1 do
-    local opcode, len = read_opcode_and_len(self)
+    opcode, len = read_opcode_and_len(self)
     if opcode == RESP_STATUS then
       local k, v = strunpack("zz", self:read(len - 4))
       server[k] = v == 'on' and true or v

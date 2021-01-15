@@ -294,11 +294,11 @@ static void IO_CONNECT(CORE_P_ core_io *io, int revents){
   if (revents & EV_WRITE){
     lua_State *co = (lua_State *)core_get_watcher_userdata(io);
     if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
-      int CONNECTED = 0, err = 0;
-      socklen_t len = sizeof(socklen_t);
-      if(getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, (socklen_t*)&len) == 0 && err == 0) CONNECTED = 1;
-      lua_pushboolean(co, CONNECTED);
-      int status = CO_RESUME(co, NULL, 1);
+      socklen_t len = sizeof(socklen_t); int err = 0; int connected = 0;
+      if(getsockopt(io->fd, SOL_SOCKET, SO_ERROR, &err, (socklen_t*)&len) == 0 && err == 0) connected = 1;
+      lua_pushboolean(co, connected);
+      if (err) lua_pushstring(co, strerror(err));
+      int status = CO_RESUME(co, NULL, lua_gettop(co) - 1);
       if (status != LUA_YIELD && status != LUA_OK){
         LOG("ERROR", lua_tostring(co, -1));
         core_io_stop(CORE_LOOP_ io);
@@ -487,6 +487,8 @@ static int tcp_readline(lua_State *L) {
         lua_pushinteger(L, 0);
         return 2;
       }
+      lua_pushnil(L);
+      lua_pushstring(L, strerror(errno));
       return 0;
     }
     const char *p = fast_cmp(tmp_buf, len, sp, sp_len);
@@ -538,6 +540,8 @@ static int tcp_sslreadline(lua_State *L){
         lua_pushinteger(L, 0);
         return 2;
       }
+      lua_pushnil(L);
+      lua_pushstring(L, strerror(errno));
       return 0;
     }
     const char *p = fast_cmp(tmp_buf, len, sp, sp_len);
@@ -592,7 +596,9 @@ static int tcp_read(lua_State *L){
       }
     }
   } while(0);
-  return 0;
+  lua_pushnil(L);
+  lua_pushstring(L, strerror(errno));
+  return 2;
 }
 
 static int tcp_sslread(lua_State *L){
@@ -847,6 +853,24 @@ static int tcp_start(lua_State *L){
   return 0;
 }
 
+// 设置SSL客户端的SNI特性
+static int ssl_set_connect_server(lua_State *L) {
+  SSL *ssl = (SSL*) lua_touserdata(L, 1);
+  if (!ssl)
+    return luaL_error(L, "Invalid SSL ssl.");
+
+  size_t size = 0;
+  const char *hostname = (const char *)luaL_checklstring(L, 2, &size);
+  if (!hostname || size < 1)
+    return luaL_error(L, "Invalid host name.");
+
+#if defined(SSL_set_tlsext_host_name)
+  SSL_set_tlsext_host_name(ssl, hostname);
+#endif
+
+  return 1;
+}
+
 static int ssl_set_connect_mode(lua_State *L) {
   SSL *ssl = (SSL*) lua_touserdata(L, 1);
   if (!ssl)
@@ -1085,6 +1109,40 @@ static int tcp_close(lua_State *L){
   return 0;
 }
 
+/* 修改写缓冲区大小 */
+static int tcp_set_write_buf(lua_State *L) {
+  int fd = lua_tointeger(L, 1);
+  if (fd < 0)
+    return 0;
+  int bsize = lua_tointeger(L, 2);
+  if (bsize < (1 << 16) || bsize > (1 << 20))
+    return 0;
+
+#if defined(SO_SNDBUF)
+  if (-1 == setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(socklen_t)))
+    return 0;
+#endif
+  
+  return 1;
+}
+
+/* 修改读缓冲区大小 */
+static int tcp_set_read_buf(lua_State *L) {
+  int fd = lua_tointeger(L, 1);
+  if (fd < 0)
+    return 0;
+  int bsize = lua_tointeger(L, 2);
+  if (bsize < (1 << 16) || bsize > (1 << 20))
+    return 0;
+
+#if defined(SO_RCVBUF)
+  if (-1 == setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &bsize, sizeof(socklen_t)))
+    return 0;
+#endif
+
+  return 1;
+}
+
 LUAMOD_API int luaopen_tcp(lua_State *L){
   luaL_checkversion(L);
   /* 添加SSL支持 */
@@ -1127,11 +1185,14 @@ LUAMOD_API int luaopen_tcp(lua_State *L){
     {"ssl_verify", ssl_verify},
     {"ssl_set_alpn", ssl_set_alpn},
     {"ssl_get_alpn", ssl_get_alpn},
+    {"tcp_set_read_buf", tcp_set_read_buf},
+    {"tcp_set_write_buf", tcp_set_write_buf},
     {"ssl_set_accept_mode", ssl_set_accept_mode},
     {"ssl_set_connect_mode", ssl_set_connect_mode},
     {"ssl_set_privatekey", ssl_set_privatekey},
     {"ssl_set_certificate", ssl_set_certificate},
     {"ssl_set_userdata_key", ssl_set_userdata_key},
+    {"ssl_set_connect_server", ssl_set_connect_server},
     {NULL, NULL}
   };
   luaL_setfuncs(L, tcp_libs, 0);
