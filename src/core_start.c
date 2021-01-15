@@ -2,7 +2,7 @@
 
 int core_worker_run(const char entry[]);
 
-int core_master_run(pid_t *pids[], int* pidcount);
+int core_master_run(pid_t *pids, int* pidcount);
 
 enum {
   isMaster = 1,
@@ -212,7 +212,7 @@ int main(int argc, char const *argv[]) {
       npid[i] = pid;
     }
     /* 执行主进程事件循环 */
-    return core_master_run((pid_t **)npid, &nprocess);
+    return core_master_run(npid, &nprocess);
   } 
 
   /* 是否需要后台运行 */

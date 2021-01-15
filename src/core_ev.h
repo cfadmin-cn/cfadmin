@@ -11,10 +11,8 @@
 #define EV_USE_FLOOR 1
 
 #define EV_FORK_ENABLE 0
-#define EV_CHILD_ENABLE 0
-#define EV_CHECK_ENABLE 0
 #define EV_EMBED_ENABLE 0
-#define EV_PREPARE_ENABLE 0
+#define EV_CHECK_ENABLE 0
 #define EV_PREPARE_ENABLE 0
 
 /* 使用四叉堆结构 */

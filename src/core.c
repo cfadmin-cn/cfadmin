@@ -20,13 +20,11 @@
 
 /* 忽略信号 */
 static void SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
-	// LOG("ERROR", signum_to_string(signal->signum));
 	return ;
 }
 
 /* 退出信号 */
 static void SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
-	// LOG("ERROR", signum_to_string(signal->signum));
 	if (ev_userdata(loop) && core_get_watcher_userdata(signal)) {
 		int index;
 		pid_t *pids = (pid_t *)ev_userdata(loop);
@@ -37,8 +35,18 @@ static void SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
 				kill(pid, SIGKILL);
 		}
 	}
-	_exit(-1);
+	_exit(0);
 	return ;
+}
+
+/* 子进程退出则打印异常 */
+static void CHILD_CB (core_loop *loop, ev_child *w, int revents){
+	ev_child_stop(loop, w);
+	ev_feed_signal_event(loop, SIGQUIT);
+	if (w->rstatus){
+		printf ("[WARNING]: sub process %d exited with signal: %x\n", w->rpid, w->rstatus);
+		fflush(stdout);
+	}
 }
 
 static void ERROR_CB(const char *msg){
@@ -179,7 +187,7 @@ int core_worker_run(const char entry[]) {
 	return core_start(loop, 0);
 }
 
-int core_master_run(pid_t *pids[], int* pidcount) {
+int core_master_run(pid_t *pids, int* pidcount) {
 	/* hook libev 内存分配 */
 	core_ev_set_allocator(EV_ALLOC);
 	/* hook 事件循环错误信息 */
@@ -188,6 +196,13 @@ int core_master_run(pid_t *pids[], int* pidcount) {
 	signal_init(pidcount);
 	/* 设置pid */ 
 	ev_set_userdata(core_default_loop(), pids);
+	/* 注册子进程监听 */
+	ev_child childs[*pidcount];
+	int index;
+	for (index = 0; index < *pidcount; index++) {
+		ev_child_init(&childs[index], CHILD_CB, pids[index], 0);
+		ev_child_start(core_default_loop(), &childs[index]);
+	}
 	/* 初始化主进程 */ 
 	return core_start(core_loop_fork(core_default_loop()), 0);
 }
