@@ -104,6 +104,32 @@ static int lnew_tab(lua_State *L){
   return 1;
 }
 
+/* 高效替换字符串 */
+static int lstrrep(lua_State *L){
+  size_t src_len = 0;
+  const char *src = (const char *)luaL_checklstring(L, 1, &src_len);
+  if (!src || src_len == 0)
+    return luaL_error(L, "Invalid source string.");
+
+  lua_Integer pos = luaL_checkinteger(L, 2);
+  if (pos < 1 || pos > src_len)
+    return luaL_error(L, "Invalid source pos.");
+
+  size_t rep_len = 0;
+  const char *rep = (const char *)luaL_checklstring(L, 3, &rep_len);
+  if (!rep || rep_len == 0 || rep_len > src_len || rep_len > (src_len - pos + 1))
+    return luaL_error(L, "Invalid rep string.");
+
+  luaL_Buffer B;
+  char* str = luaL_buffinitsize(L, &B, src_len);
+  /* 将源字符串拷贝到开辟空间 */
+  memmove(str, src, src_len);
+  /* 将替换内容覆盖原先的内存 */
+  memmove(str + (pos - 1), rep, rep_len);
+  luaL_pushresultsize(&B, src_len);
+  return 1;
+}
+
 static int linterface(lua_State *L){
   struct ifaddrs *ifc, *ifc1;
   if(getifaddrs(&ifc))
@@ -155,6 +181,7 @@ LUAMOD_API int luaopen_sys(lua_State *L){
     {"date", ldate},
     {"ipv4", lipv4},
     {"ipv6", lipv6},
+    {"strrep", lstrrep},
     {"str2ip", lstr2ip},
     {"ip2str", lip2str},
     {"hostname", lhostname},
