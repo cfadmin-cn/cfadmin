@@ -246,7 +246,7 @@ local function dns_query(domain, ip_version)
       Log:WARN("Attempt to resolve domain name: [" .. domain .. "] failed.")
     end
   end)
-  local dns_resp, len = dns_client:recv(); dns_client:close(); responsed = false;
+  local dns_resp, len = dns_client:recv(); dns_client:close(); responsed = true;
   if not dns_resp or not len or len < LIMIT_HEADER_LEN then
     local err = "1. Malformed message length."
     check_wait(domain, wlist, nil, err)
