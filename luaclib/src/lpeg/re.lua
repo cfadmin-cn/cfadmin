@@ -262,6 +262,4 @@ local re = {
   updatelocale = updatelocale,
 }
 
-if version == "Lua 5.1" then _G.re = re end
-
 return re
