@@ -15,7 +15,7 @@
 	"./?.dll;;./msys-?.dll;;"									\
 																						\
   "3rd/?.so;;3rd/lib?.so;;"									\
-  "3rd/?.dylib;3rd/lib?.dylib;;"						\
+  "3rd/?.dylib;;3rd/lib?.dylib;;"						\
   "3rd/?.dll;;3rd/msys-?.dll;;"
 
 /* 忽略信号 */
@@ -44,18 +44,19 @@ static void CHILD_CB (core_loop *loop, ev_child *w, int revents){
 	ev_child_stop(loop, w);
 	ev_feed_signal_event(loop, SIGQUIT);
 	if (w->rstatus){
-		printf ("[WARNING]: sub process %d exited with signal: %x\n", w->rpid, w->rstatus);
+		printf ("[WARNING]: sub process %d exited with signal: %d\n", w->rpid, w->rstatus);
 		fflush(stdout);
 	}
 }
 
+/* 内部异常 */
 static void ERROR_CB(const char *msg){
 	LOG("ERROR", msg);
 	return ;
 }
 
+/* 为libev内存hook注入日志 */
 static void *EV_ALLOC(void *ptr, long nsize){
-	// 为libev内存hook注入日志;
 	if (nsize == 0) return xfree(ptr), NULL;
 	for (;;) {
 		void *newptr = xrealloc(ptr, nsize);
@@ -65,8 +66,8 @@ static void *EV_ALLOC(void *ptr, long nsize){
 	}
 }
 
+/* 为lua内存hook注入日志 */
 static void* L_ALLOC(void *ud, void *ptr, size_t osize, size_t nsize){
-	// 为lua内存hook注入日志;
 	/* 用户自定义数据 */
 	(void)ud;  (void)osize;
 	if (nsize == 0) return xfree(ptr), NULL;
@@ -104,6 +105,9 @@ void init_lua_libs(lua_State *L){
   lua_setfield(L, 1, "cpath");
 
   lua_settop(L, 0);
+
+	/* 优化Lua的GC */
+	CO_GCRESET(L);
 }
 
 /* 注册需要忽略的信号 */
@@ -116,13 +120,13 @@ core_signal sigint;
 core_signal sigterm;
 core_signal sigquit;
 
-void signal_init(int* nprocess){
+static inline void signal_init(int* nprocess){
 
-	/* 忽略父进程退出的信号 */
+	/* 忽略连接中断信号 */
 	core_signal_init(&sighup, SIG_IGNORE, SIGHUP);
 	core_signal_start(CORE_LOOP_ &sighup);
 
-	/* 忽略管道信号 */
+	/* 忽略无效的管道读/写信号 */
 	core_signal_init(&sigpipe, SIG_IGNORE, SIGPIPE);
 	core_signal_start(CORE_LOOP_ &sigpipe);
 
@@ -135,6 +139,7 @@ void signal_init(int* nprocess){
 	core_signal_start(CORE_LOOP_ &sigterm);
 	if (nprocess)
 		core_set_watcher_userdata(&sigterm, nprocess);
+
 	/* INT信号 显示退出 */
 	core_signal_init(&sigint, SIG_EXIT, SIGINT);
 	core_signal_start(CORE_LOOP_ &sigint);
@@ -164,8 +169,6 @@ int core_worker_run(const char entry[]) {
 		core_exit();
 
 	init_lua_libs(L);
-
-	CO_GCRESET(L);
 
 	status = luaL_loadfile(L, entry);
 	if (status > 1){
