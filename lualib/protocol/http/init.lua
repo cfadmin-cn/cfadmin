@@ -574,8 +574,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       -- 不计算数据传输时间, 仅计算实际回调处理所用时间.
       tolog(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
       -- 根据实际情况分块发送
-      local ok = send_header(sock, header) and send_body(sock, body, filepath) or false
-      if not ok then
+      if not send_header(sock, header) or not send_body(sock, body, filepath) then
         return sock:close()
       end
       if statucode ~= 200 or Connection ~= 'Connection: keep-alive' then
