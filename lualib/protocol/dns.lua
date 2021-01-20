@@ -232,10 +232,10 @@ local function dns_query(domain, ip_version)
     check_wait(domain, wlist, nil, msg)
     return nil, msg
   end
-  local responsed = true
+  local responsed = false
   cf_fork(function ()
     local req = pack_header() .. pack_question(domain, msg)
-    while responsed do
+    while not responsed do
       for _ = 1, 10 do
         -- 用数量来减少UDP丢包率的问题
         dns_client:send(req); dns_client:send(req); dns_client:send(req); cf_sleep(0.1)
