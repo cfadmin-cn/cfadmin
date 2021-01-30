@@ -6,7 +6,6 @@ local class = require "class"
 local ua = require "httpc.ua"
 local protocol = require "httpc.protocol"
 local sock_new = protocol.sock_new
-local sock_recv = protocol.sock_recv
 local sock_send = protocol.sock_send
 local sock_connect = protocol.sock_connect
 local httpc_response = protocol.httpc_response
@@ -18,34 +17,13 @@ local build_json_req = protocol.build_json_req
 local build_file_req = protocol.build_file_req
 local build_put_req = protocol.build_put_req
 local build_delete_req = protocol.build_delete_req
-local build_jwt = protocol.build_jwt
 local build_basic_authorization = protocol.build_basic_authorization
 
 local type = type
 local assert = assert
-local ipairs = ipairs
-local tostring = tostring
 local tonumber = tonumber
 
 local upper = string.upper
-local random = math.random
-local find = string.find
-local match = string.match
-local split = string.sub
-local splite = string.gmatch
-local spliter = string.gsub
-local lower = string.lower
-local insert = table.insert
-local concat = table.concat
-local toint = math.tointeger
-local fmt = string.format
-
-local SERVER = "cf/0.1"
-
-local CRLF = '\x0d\x0a'
-local CRLF2 = '\x0d\x0a\x0d\x0a'
-
-local methods = {'get', 'post', 'json', 'file'}
 
 local httpc = class("httpc")
 
@@ -53,10 +31,6 @@ function httpc:ctor (opt)
   self.reconnect = true
   self.timeout = opt.timeout or 15
   self.server = ua.get_user_agent()
-end
-
-function httpc:jwt(...)
-  return build_jwt(...)
 end
 
 function httpc:basic_authorization( ... )
@@ -192,6 +166,10 @@ function httpc:get (domain, headers, args, timeout)
     return nil, "2. 不同的域名不可使用httpc对象来请求"
   end
 
+  if timeout then
+    self.timeout = timeout
+  end
+
   opt.args = args
   opt.headers = headers
   opt.server = self.server
@@ -227,6 +205,10 @@ function httpc:post (domain, headers, body, timeout)
 
   if self.port and self.port ~= opt.port then
     return nil, "2. 不同的域名不可使用httpc对象来请求"
+  end
+
+  if timeout then
+    self.timeout = timeout
   end
 
   opt.body = body
@@ -266,6 +248,10 @@ function httpc:delete (domain, headers, body, timeout)
     return nil, "2. 不同的域名不可使用httpc对象来请求"
   end
 
+  if timeout then
+    self.timeout = timeout
+  end
+
   opt.body = body
   opt.headers = headers
   opt.server = self.server
@@ -301,6 +287,10 @@ function httpc:put (domain, headers, body, timeout)
 
   if self.port and self.port ~= opt.port then
     return nil, "2. 不同的域名不可使用httpc对象来请求"
+  end
+
+  if timeout then
+    self.timeout = timeout
   end
 
   opt.body = body
@@ -341,6 +331,10 @@ function httpc:json (domain, headers, json, timeout)
     return nil, "2. 不同的域名不可使用httpc对象来请求"
   end
 
+  if timeout then
+    self.timeout = timeout
+  end
+
   assert(type(json) == "string" or type(json) == "table", "attempted passed a invalide json string or table.")
 
   opt.json = json
@@ -378,6 +372,10 @@ function httpc:file (domain, headers, files, timeout)
 
   if self.port and self.port ~= opt.port then
     return nil, "2. 不同的域名不可使用httpc对象来请求"
+  end
+
+  if timeout then
+    self.timeout = timeout
   end
 
   opt.files = files

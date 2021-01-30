@@ -1,5 +1,4 @@
 local log = require "logging"
-local sys = require "system"
 local tcp = require "internal.TCP"
 local wsserver = require "protocol.websocket.server"
 
@@ -8,14 +7,23 @@ local Log = log:new({ dump = true, path = 'protocol-http'})
 local crypt = require "crypt"
 local sha1 = crypt.sha1
 local base64encode = crypt.base64encode
+
+local sys = require "sys"
 local now = sys.now
-local DATE = os.date
-local new_tab = require("sys").new_tab
-local insert = table.insert
+local new_tab = sys.new_tab
 
 local lz = require "lz"
 local decompress = lz.compress
 local gzcompress = lz.gzcompress
+
+-- 如果有安装lua-br, 可以优先使用支持的Brotli算法.
+local brcompress
+local ok, br = pcall(require, "lbr")
+local lg = require"logging":new {dump = true, path = "br"}
+lg:INFO(ok, br)
+if ok and type(br) == "table" and type(br.compress) == "function" then
+  brcompress = br.compress
+end
 
 local form = require "httpd.Form"
 local FILE_TYPE = form.FILE
@@ -36,19 +44,19 @@ local next = next
 local xpcall = xpcall
 local pairs = pairs
 local ipairs = ipairs
-local time = os.time
 local lower = string.lower
-local upper = string.upper
 local match = string.match
 local fmt = string.format
 local ceil = math.ceil
 local toint = math.tointeger
 local find = string.find
 local split = string.sub
-local splite = string.gmatch
-local spliter = string.gsub
-local remove = table.remove
+
+local DATE = os.date
+local time = os.time
+
 local concat = table.concat
+local insert = table.insert
 
 local CRLF = '\x0d\x0a'
 local CRLF2 = '\x0d\x0a\x0d\x0a'
@@ -535,16 +543,23 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
           sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           goto CONTINUE
         end
-        local accept_encoding = HEADER['Accept-Encoding']
+        local accept_encoding = HEADER['Accept-Encoding'] or HEADER['accept-encoding']
         if type(accept_encoding) == 'string' and enable_gzip and #body >= 50 then
-          -- body压缩选择优先使用gzip, 否则使用deflate, 如果都没有则使用原始字符串.
-          if find(lower(accept_encoding), "gzip") then
+          local ac = lower(accept_encoding)
+          -- 压缩选择优先br,其次使用gzip, 最后使用deflate, 如果都没有则使用原始字符串.
+          if brcompress and find(ac, "br") then
+            local compress_body = brcompress(body)
+            if compress_body then
+              header[#header+1] = 'Content-Encoding: br'
+              body = compress_body
+            end
+          elseif find(ac, "gzip") then
             local compress_body = gzcompress(body)
             if compress_body then
               header[#header+1] = 'Content-Encoding: gzip'
               body = compress_body
             end
-          elseif find(lower(accept_encoding), "deflate") then
+          elseif find(ac, "deflate") then
             local compress_body = decompress(body)
             if compress_body then
               header[#header+1] = 'Content-Encoding: deflate'

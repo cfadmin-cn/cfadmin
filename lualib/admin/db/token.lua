@@ -24,7 +24,7 @@ end
 
 -- Token 是否存在
 function token.token_exists (db, token)
-  local ret, err = db:query(fmt([[SELECT uid, name, token FROM cfadmin_tokens WHERE token = '%s']], token:gsub("'", "\\'")))
+  local ret = db:query(fmt([[SELECT uid, name, token FROM cfadmin_tokens WHERE token = '%s']], token:gsub("['\\]", "")))
   if not ret or #ret == 0 then
     return
   end
@@ -33,7 +33,7 @@ end
 
 -- 根据token查用户信息
 function token.token_to_userinfo (db, token)
-  local token, err = db:query(fmt([[
+  local tokens, err = db:query(fmt([[
   SELECT
   	`cfadmin_users`.id,
   	`cfadmin_users`.name,
@@ -53,11 +53,11 @@ function token.token_to_userinfo (db, token)
   	`cfadmin_tokens`.uid = `cfadmin_users`.id AND
     `cfadmin_roles`.id = `cfadmin_users`.role AND
   	`cfadmin_tokens`.token = '%s'
-  LIMIT 1]], token:gsub("'", "\\'")))
-  if type(token) ~= 'table' or #token < 1 then
+  LIMIT 1]], token:gsub("['\\]", "")))
+  if type(tokens) ~= 'table'then
     return nil, err
   end
-  return token[1]
+  return tokens[1]
 end
 
 -- 删除其他用户token信息

@@ -69,9 +69,9 @@ end
 function user.user_exists (db, username, uid)
   local condition
   if username then
-    condition = fmt([[`cfadmin_users`.username = '%s']], username:gsub("'", "\\'"))
+    condition = fmt([[`cfadmin_users`.username = '%s']], username:gsub("['\\]", ""))
   elseif uid then
-    condition = fmt([[`cfadmin_users`.id = '%s']], tostring(uid):gsub("'", "\\'"))
+    condition = fmt([[`cfadmin_users`.id = '%s']], tostring(uid):gsub("['\\]", ""))
   else
     return
   end
@@ -93,7 +93,7 @@ end
 
 -- 用户名或者登录名是否存在
 function user.user_name_or_username_exists (db, name, username)
-  local ret, err = db:query(fmt([[SELECT name, username FROM cfadmin_users WHERE active = '1' AND (name = '%s' OR username = '%s')]], name, username))
+  local ret = db:query(fmt([[SELECT name, username FROM cfadmin_users WHERE active = '1' AND (name = '%s' OR username = '%s')]], name, username))
   if ret and #ret > 0 then
     return true
   end
@@ -102,7 +102,7 @@ end
 
 -- 用户信息
 function user.user_info (db, uid)
-  local ret, err = db:query(fmt([[
+  local ret = db:query(fmt([[
   SELECT
   	`cfadmin_users`.id,
     `cfadmin_users`.name,

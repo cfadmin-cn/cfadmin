@@ -478,19 +478,6 @@ local function build_basic_authorization(username, password)
   return "Authorization", "Basic " .. base64encode(username .. ":" .. password)
 end
 
--- Json Web Token
-local function build_jwt(secret, payload)
-  local content = new_tab(3, 0)
-  -- header
-  content[#content + 1] = base64urlencode(json_encode{ alg = "HS256", typ = "JWT" })
-  -- payload
-  content[#content + 1] = base64urlencode(payload)
-  -- signature
-  content[#content + 1] = hmac_sha256(secret, concat(content, "."), true)
-  -- result.
-  return "Authorization", "Bearer " .. concat(content, ".")
-end
-
 return {
   sock_new = sock_new,
   sock_recv = sock_recv,
@@ -505,6 +492,5 @@ return {
   build_file_req = build_file_req,
   build_put_req = build_put_req,
   build_delete_req = build_delete_req,
-  build_jwt = build_jwt,
   build_basic_authorization = build_basic_authorization,
 }

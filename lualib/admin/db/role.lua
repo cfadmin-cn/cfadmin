@@ -10,13 +10,13 @@ local role = {}
 function role.role_list (db, opt)
   local limit = toint(opt.limit) or 10
   local page = toint(opt.page) or 1
-  local roles, err = db:query(fmt([[SELECT id, name, create_at, update_at FROM cfadmin_roles WHERE active = '1' ORDER BY id LIMIT %s, %s]], limit * (page - 1) , limit))
+  local roles = db:query(fmt([[SELECT id, name, create_at, update_at FROM cfadmin_roles WHERE active = '1' ORDER BY id LIMIT %s, %s]], limit * (page - 1) , limit))
   if not roles then
     return
   end
-  for _, role in ipairs(roles) do
-    role.create_at = os_date("%Y-%m-%d %H:%M:%S", role.create_at)
-    role.update_at = os_date("%Y-%m-%d %H:%M:%S", role.update_at)
+  for _, r in ipairs(roles) do
+    r.create_at = os_date("%F %X", r.create_at)
+    r.update_at = os_date("%F %X", r.update_at)
   end
   return roles
 end
@@ -33,7 +33,7 @@ end
 
 -- 角色名已存在
 function role.role_name_exists (db, name)
-  local ret, err = db:query(fmt([[SELECT id, name FROM cfadmin_roles WHERE name = '%s' AND active = '1' LIMIT 1]], name))
+  local ret = db:query(fmt([[SELECT id, name FROM cfadmin_roles WHERE name = '%s' AND active = '1' LIMIT 1]], name))
   if ret and #ret > 0 then
     return ret[1]
   end
@@ -42,7 +42,7 @@ end
 
 -- 角色id已存在
 function role.role_id_exists (db, id)
-  local ret, err = db:query(fmt([[SELECT id, name FROM cfadmin_roles WHERE id = '%s' AND active = '1' LIMIT 1]], id))
+  local ret = db:query(fmt([[SELECT id, name FROM cfadmin_roles WHERE id = '%s' AND active = '1' LIMIT 1]], id))
   if ret and #ret > 0 then
     return ret[1]
   end

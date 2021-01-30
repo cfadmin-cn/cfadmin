@@ -10,7 +10,7 @@ function permission.user_have_menu_permission (db, uid, url)
     return false
   end
   -- 查询菜单Menu ID
-  local minfo = db:query(fmt([[SELECT * FROM cfadmin_menus WHERE `cfadmin_menus`.url = '%s' AND `cfadmin_menus`.active = '1' LIMIT 1]], url))[1]
+  local minfo = db:query(fmt([[SELECT * FROM cfadmin_menus WHERE `cfadmin_menus`.url = '%s' AND `cfadmin_menus`.active = 1 LIMIT 1]], url))[1]
   if type(minfo) ~= 'table' then
     return true
   end

@@ -11,7 +11,6 @@ local cf_wakeup = cf.wakeup
 local ua = require "httpc.ua"
 local protocol = require "httpc.protocol"
 local sock_new = protocol.sock_new
-local sock_recv = protocol.sock_recv
 local sock_send = protocol.sock_send
 local sock_connect = protocol.sock_connect
 local httpc_response = protocol.httpc_response
@@ -23,31 +22,11 @@ local build_json_req = protocol.build_json_req
 local build_file_req = protocol.build_file_req
 local build_put_req = protocol.build_put_req
 local build_delete_req = protocol.build_delete_req
-local build_jwt = protocol.build_jwt
 local build_basic_authorization = protocol.build_basic_authorization
 
 local type = type
 local assert = assert
-local ipairs = ipairs
-local tostring = tostring
-
-local random = math.random
-local find = string.find
-local match = string.match
-local split = string.sub
-local splite = string.gmatch
-local spliter = string.gsub
-local lower = string.lower
 local upper = string.upper
-local insert = table.insert
-local concat = table.concat
-local toint = math.tointeger
-local fmt = string.format
-
-local SERVER = "cf/0.1"
-
-local CRLF = '\x0d\x0a'
-local CRLF2 = '\x0d\x0a\x0d\x0a'
 
 local __TIMEOUT__ = 15
 
@@ -344,6 +323,5 @@ return {
 	file = file,
 	put = put,
 	multi_request = multi_request,
-	jwt = build_jwt,
 	basic_authorization = build_basic_authorization,
 }
