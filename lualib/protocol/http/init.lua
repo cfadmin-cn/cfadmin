@@ -19,8 +19,6 @@ local gzcompress = lz.gzcompress
 -- 如果有安装lua-br, 可以优先使用支持的Brotli算法.
 local brcompress
 local ok, br = pcall(require, "lbr")
-local lg = require"logging":new {dump = true, path = "br"}
-lg:INFO(ok, br)
 if ok and type(br) == "table" and type(br.compress) == "function" then
   brcompress = br.compress
 end
