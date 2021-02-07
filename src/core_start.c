@@ -66,20 +66,19 @@ void cfadmin_specify_pid_file(const char *filename) {
 void cfadmin_specify_kill_process(const char *spid) {
   int pid = atoi(spid);
   if (pid <= 1) {
-    FILE *fp = fopen(spid, "rb");
-    if (!fp) {
+    FILE *fp = NULL;
+    if ((fp = fopen(spid, "rb")) == NULL) {
       LOG("ERROR", "Invalid Pid or pid file name.");
+      fclose(fp);
       return;
     }
-    char pbuf[20];
-    memset(pbuf, 0x0, 20);
-    fread(pbuf, 1, 20, fp);
-    fclose(fp);
-    pid = atoi(pbuf);
-    if (pid <= 1){
+    char pbuf[20]; memset(pbuf, 0x00, 20);
+    if (fread(pbuf, 1, 20, fp) <= 0 || (pid = atoi(pbuf)) <= 1) {
       LOG("ERROR", "Invalid Pid or File name.");
+      fclose(fp);
       return;
     }
+    fclose(fp);
     remove(pid_filename);
   }
   kill(pid, SIGQUIT);
