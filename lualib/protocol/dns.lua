@@ -49,8 +49,8 @@ local dns_list = {}
 local thread_id = 0
 
 local function gen_id()
-    thread_id = thread_id % MAX_THREAD_ID + 1
-    return thread_id
+  thread_id = thread_id % MAX_THREAD_ID + 1
+  return thread_id
 end
 
 local function check_cache(domain)
@@ -104,10 +104,12 @@ if #dns_list < 1 then
   local file = io.open("/etc/resolv.conf", "r")
   if file then
     for line in file:lines() do
-      local ip = match(line, "nameserver (.-)$")
-      local ok, v = check_ip(ip)
-      if ok and v then
-        insert(dns_list, ip)
+      if not find(line, "^[ ]*#.-") then
+        local ip = match(line, "nameserver ([^ ]+)$")
+        local ok, v = check_ip(ip)
+        if ok and v then
+          insert(dns_list, ip)
+        end
       end
     end
     file:close()
@@ -280,28 +282,28 @@ local function dns_query(domain, ip_version)
       answer.ip = unpack_rdata(answer.rdata, answer.atype)
       local cache = dns_cache[domain]
       if not cache then
+        dns_cache[domain] = {ip = answer.ip, ttl = answer.ttl > 0 and (t + answer.ttl) or nil }
+      elseif cache.ttl and cache.ttl < t + answer.ttl then
         dns_cache[domain] = {ip = answer.ip, ttl = t + answer.ttl}
-      else
-        if cache.ttl and cache.ttl < t + answer.ttl then
-          dns_cache[domain] = {ip = answer.ip, ttl = t + answer.ttl}
-        end
       end
     end
   end
-  local ok, v = check_ip(answer.ip)
-  if not ok then
+  answer = dns_cache[domain]
+  if not answer then
     if not ip_version then -- 如果IPv4无法解析则尝试ipv6, 反之亦然.
       return dns_query(domain, msg == 4 and 6 or 4)
     end
-    local err = "5. " .. v .. " (" .. (domain) .. ")"
+    local err = "5. (" .. (domain) .. ") query failed."
     check_wait(domain, wlist, nil, err)
     return nil, err
   end
-  if ok and v == 4 then
-    answer.ip = prefix..answer.ip
+  local ip = answer.ip
+  local _, v = check_ip(ip)
+  if v == 4 then
+    ip = prefix..ip
   end
-  check_wait(domain, wlist, true, answer.ip)
-  return true, answer.ip
+  check_wait(domain, wlist, true, ip)
+  return true, ip
 end
 
 function dns.flush()
@@ -319,6 +321,14 @@ function dns.resolve(domain, ip_version)
   if type(domain) ~= 'string' or domain == '' then
     return nil, "attempt to pass an invalid domain."
   end
+  -- 如果有dns缓存直接返回, 任何依据都要以缓存为主
+  local ip = check_cache(domain)
+  if ip then
+    if check_ipv6(ip) then
+      return true, ip
+    end
+    return true, prefix..ip
+  end
   -- 如果是正确的ipv4地址直接返回
   local ok, v = check_ip(domain)
   if ok then
@@ -326,14 +336,6 @@ function dns.resolve(domain, ip_version)
       return ok, domain
     end
     return ok, prefix..domain
-  end
-  -- 如果有dns缓存直接返回
-  local ip = check_cache(domain)
-  if ip then
-    if check_ipv6(ip) then
-      return true, ip
-    end
-    return true, prefix..ip
   end
   -- 如果有其他协程也正巧在查询这个域名, 那么就加入到等待列表内
   local wlist = cos[domain]

@@ -19,7 +19,7 @@
 ---Converts the decimal code of a character to its corresponding char
 --if it's a graphical char, otherwise, returns the HTML ISO code
 --for that decimal value in the format &#code
---@param code the decimal value to convert to its respective character
+--@param code number @the decimal value to convert to its respective character
 local function decimalToHtmlChar(code)
     local n = tonumber(code)
     if n >= 0 and n < 256 then
@@ -32,7 +32,7 @@ end
 ---Converts the hexadecimal code of a character to its corresponding char
 --if it's a graphical char, otherwise, returns the HTML ISO code
 --for that hexadecimal value in the format &#xCode
---@param code the hexadecimal value to convert to its respective character
+--@param code number @the hexadecimal value to convert to its respective character
 local function hexadecimalToHtmlChar(code)
     local n = tonumber(code, 16)
     if n >= 0 and n < 256 then
@@ -94,11 +94,11 @@ local XmlParser = {
 }
 
 --- Instantiates a XmlParser object.
---@param _handler Handler module to be used to convert the XML string
+--@param _handler table @Handler module to be used to convert the XML string
 --               to another formats. See the available handlers at the handler directory.
 --               Usually you get an instance to a handler module using, for instance:
 --               local handler = require("xmlhandler/tree").
---@param _options Options for this XmlParser instance.
+--@param _options table @Options for this XmlParser instance.
 --@see XmlParser.options
 function XmlParser.new(_handler, _options)
     local obj = {
@@ -113,9 +113,9 @@ function XmlParser.new(_handler, _options)
 end
 
 ---Checks if a function/field exists in a table or in its metatable
---@param table the table to check if it has a given function
---@param elementName the name of the function/field to check if exists
---@return true if the function/field exists, false otherwise
+--@param table table @the table to check if it has a given function
+--@param elementName string @the name of the function/field to check if exists
+--@return boolean @true if the function/field exists, false otherwise
 local function fexists(table, elementName)
     if table == nil then
         return false
@@ -154,10 +154,10 @@ local function parseEntities(self, s)
 end
 
 --- Parses a string representing a tag.
---@param s String containing tag text
---@return a {name, attrs} table
--- where name is the name of the tag and attrs 
--- is a table containing the atributtes of the tag
+--- where name is the name of the tag and attrs
+--- is a table containing the atributtes of the tag
+--@param s string @String containing tag text
+--@return table @{name, attrs} table
 local function parseTag(self, s)
     local tag = {
             name = string.gsub(s, self._TAG, '%1'),
@@ -168,7 +168,7 @@ local function parseTag(self, s)
             tag.attrs[k] = parseEntities(self, v)
             tag.attrs._ = 1 
           end
-                          
+
     string.gsub(s, self._ATTR1, parseFunction) 
     string.gsub(s, self._ATTR2, parseFunction)
 
@@ -361,7 +361,7 @@ local function parseTagType(self, xml, f)
 end
 
 --- Get next tag (first pass - fix exceptions below).
---@return true if the next tag could be got, false otherwise
+--@return boolean @true if the next tag could be got, false otherwise
 local function getNextTag(self, xml, f)
   f.match, f.endMatch, f.text, f.endt1, f.tagstr, f.endt2 = string.find(xml, self._XML, f.pos)
   if not f.match then 
@@ -386,8 +386,8 @@ local function getNextTag(self, xml, f)
 end
 
 --Main function which starts the XML parsing process
---@param xml the XML string to parse
---@param parseAttributes indicates if tag attributes should be parsed or not. 
+--@param xml string @the XML string to parse
+--@param parseAttributes boolean @indicates if tag attributes should be parsed or not. 
 --       If omitted, the default value is true.
 function XmlParser:parse(xml, parseAttributes)
     if type(self) ~= "table" or getmetatable(self) ~= XmlParser then

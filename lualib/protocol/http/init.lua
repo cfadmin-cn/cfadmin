@@ -314,6 +314,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
   local server = http.__server
   local enable_cookie = http.__enable_cookie
   local enable_gzip = http.__enable_gzip
+  local compress_bytes = http.__compress_bytes
   local enable_cros_timeout = http.__enable_cros_timeout
   local cookie_secure = http.__cookie_secure
   local before_func = http.__before_func
@@ -542,7 +543,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
           goto CONTINUE
         end
         local accept_encoding = HEADER['Accept-Encoding'] or HEADER['accept-encoding']
-        if type(accept_encoding) == 'string' and enable_gzip and #body >= 50 then
+        if type(accept_encoding) == 'string' and enable_gzip and #body >= (toint(compress_bytes) or 128) then
           local ac = lower(accept_encoding)
           -- 压缩选择优先br,其次使用gzip, 最后使用deflate, 如果都没有则使用原始字符串.
           if brcompress and find(ac, "br") then

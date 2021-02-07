@@ -53,8 +53,8 @@ local xml2lua = {}
 local XmlParser = require("xml2lua.XmlParser")
 
 ---Recursivelly prints a table in an easy-to-ready format
---@param tb The table to be printed
---@param level the indentation level to start with
+--@param tb table @The table to be printed
+--@param level integer @the indentation level to start with
 local function printableInternal(tb, level)
   if tb == nil then
      return
@@ -73,11 +73,11 @@ local function printableInternal(tb, level)
 end
 
 ---Instantiates a XmlParser object to parse a XML string
---@param handler Handler module to be used to convert the XML string
+--@param handler table Handler module to be used to convert the XML string
 --to another formats. See the available handlers at the handler directory.
 -- Usually you get an instance to a handler module using, for instance:
 -- local handler = require("xmlhandler/tree").
---@return a XmlParser object used to parse the XML
+--@return string @XmlParser object used to parse the XML
 --@see XmlParser
 function xml2lua.parser(handler)    
     if handler == xml2lua then
@@ -97,15 +97,15 @@ function xml2lua.parser(handler)
 end
 
 ---Recursivelly prints a table in an easy-to-ready format
---@param tb The table to be printed
+--@param tb table The table to be printed
 function xml2lua.printable(tb)
     printableInternal(tb)
 end
 
 ---Handler to generate a string prepresentation of a table
 --Convenience function for printHandler (Does not support recursive tables).
---@param t Table to be parsed
---@return a string representation of the table
+--@param t table to be parsed
+--@return string @representation of the table
 function xml2lua.toString(t)
     local sep = ''
     local res = ''
@@ -126,8 +126,8 @@ function xml2lua.toString(t)
 end
 
 --- Loads an XML file from a specified path
--- @param xmlFilePath the path for the XML file to load
--- @return the XML loaded file content
+-- @param xmlFilePath string @the path for the XML file to load
+-- @return string @the XML loaded file content
 function xml2lua.loadFile(xmlFilePath)
     local f, e = io.open(xmlFilePath, "r")
     if f then
@@ -140,17 +140,14 @@ function xml2lua.loadFile(xmlFilePath)
     error(e)
 end
 
----Gets an _attr element from a table that represents the attributes of an XML tag,
+---comment Gets an _attr element from a table that represents the attributes of an XML tag,
 --and generates a XML String representing the attibutes to be inserted
 --into the openning tag of the XML
---
---@param attrTable table from where the _attr field will be got
---@return a XML String representation of the tag attributes
+--@param attrTable table @from where the _attr field will be got
+--@return string @a XML String representation of the tag attributes
 local function attrToXml(attrTable)
   local s = ""
-  local attrTable = attrTable or {}
-  
-  for k, v in pairs(attrTable) do
+  for k, v in pairs(attrTable or {}) do
       s = s .. " " .. k .. "=" .. '"' .. v .. '"'
   end
   return s
@@ -159,7 +156,7 @@ end
 ---Gets the first key of a given table
 local function getFirstKey(tb)
    if type(tb) == "table" then
-      for k, v in pairs(tb) do
+      for k, _ in pairs(tb) do
           return k
       end
       return nil
@@ -169,12 +166,10 @@ local function getFirstKey(tb)
 end
 
 ---Converts a Lua table to a XML String representation.
---@param tb Table to be converted to XML
---@param tableName Name of the table variable given to this function,
---                 to be used as the root tag.
---@param level Only used internally, when the function is called recursively to print indentation
---
---@return a String representing the table content in XML
+--@param tb table @Table to be converted to XML
+--@param tableName string @Name of the table variable given to this function, to be used as the root tag.
+--@param level integer @Only used internally, when the function is called recursively to print indentation
+--@return string @String representing the table content in XML
 function xml2lua.toXml(tb, tableName, level)
   local level = level or 1
   local firstLevel = level

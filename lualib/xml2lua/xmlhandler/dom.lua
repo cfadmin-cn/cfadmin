@@ -40,7 +40,7 @@ local dom = init()
 --Each instance can handle a single XML.
 --By using such a constructor, you can parse
 --multiple XML files in the same application.
---@return the handler instance
+--@return table @the handler instance
 function dom:new()
     local obj = init()
 
@@ -51,7 +51,7 @@ function dom:new()
 end
 
 ---Parses a start tag.
--- @param tag a {name, attrs} table
+-- @param tag table @a {name, attrs} table
 -- where name is the name of the tag and attrs 
 -- is a table containing the atributtes of the tag
 function dom:starttag(tag)
@@ -72,7 +72,8 @@ function dom:starttag(tag)
 end
 
 ---Parses an end tag.
--- @param tag a {name, attrs} table
+-- @param tag table @a {name, attrs} table
+-- @param s string @a {name, attrs} table
 -- where name is the name of the tag and attrs 
 -- is a table containing the atributtes of the tag
 function dom:endtag(tag, s)
@@ -88,7 +89,7 @@ function dom:endtag(tag, s)
 end
 
 ---Parses a tag content.
--- @param text text to process
+-- @param text string @text to process
 function dom:text(text)
     local node = { _type = "TEXT", 
                    _text = text
@@ -97,7 +98,7 @@ function dom:text(text)
 end
 
 ---Parses a comment tag.
--- @param text comment text
+-- @param text string @comment text
 function dom:comment(text)
     if self.options.commentNode then
         local node = { _type = "COMMENT", 
@@ -108,7 +109,7 @@ function dom:comment(text)
 end
 
 --- Parses a XML processing instruction (PI) tag
--- @param tag a {name, attrs} table
+-- @param tag table @a {name, attrs} table
 -- where name is the name of the tag and attrs 
 -- is a table containing the atributtes of the tag
 function dom:pi(tag)
@@ -122,7 +123,7 @@ function dom:pi(tag)
 end
 
 ---Parse the XML declaration line (the line that indicates the XML version).
--- @param tag a {name, attrs} table
+-- @param tag table @a {name, attrs} table
 -- where name is the name of the tag and attrs 
 -- is a table containing the atributtes of the tag
 function dom:decl(tag)
@@ -136,7 +137,7 @@ function dom:decl(tag)
 end
 
 ---Parses a DTD tag.
--- @param tag a {name, attrs} table
+-- @param tag table @a {name, attrs} table
 -- where name is the name of the tag and attrs 
 -- is a table containing the atributtes of the tag
 function dom:dtd(tag)

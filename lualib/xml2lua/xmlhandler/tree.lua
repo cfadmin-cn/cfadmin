@@ -3,9 +3,8 @@ local function init()
         root = {},
         options = {noreduce = {}}
     }
-    
-    obj._stack = {obj.root, n=1}  
-    return obj  
+    obj._stack = {obj.root, n = 1}
+    return obj
 end
 
 --- @module XML Tree Handler.
@@ -61,7 +60,7 @@ local tree = init()
 --Each instance can handle a single XML.
 --By using such a constructor, you can parse
 --multiple XML files in the same application.
---@return the handler instance
+--@return table @the handler instance
 function tree:new()
     local obj = init()
 
@@ -73,11 +72,10 @@ end
 
 --Gets the first key of a table
 --@param tb table to get its first key
---@return the table's first key, nil if the table is empty
---or the given parameter if it isn't a table
+--@return table @the table's first key, nil if the table is empty or the given parameter if it isn't a table
 local function getFirstKey(tb)
    if type(tb) == "table" then
-      for k, v in pairs(tb) do
+      for k, _ in pairs(tb) do
           return k
       end
 
@@ -87,8 +85,10 @@ local function getFirstKey(tb)
    return tb
 end
 
---- Recursively removes redundant vectors for nodes
--- with single child elements
+--- Recursively removes redundant vectors for nodes with single child elements
+---@param node table
+---@param key string
+---@param parent table
 function tree:reduce(node, key, parent)
     for k,v in pairs(node) do
         if type(v) == 'table' then
@@ -104,7 +104,7 @@ function tree:reduce(node, key, parent)
 end
 
 ---Parses a start tag.
--- @param tag a {name, attrs} table
+-- @param tag table @a {name, attrs} table
 -- where name is the name of the tag and attrs
 -- is a table containing the atributtes of the tag
 function tree:starttag(tag)
@@ -115,7 +115,7 @@ function tree:starttag(tag)
 
     --Table in the stack representing the tag being processed
     local current = self._stack[#self._stack]
-    
+
     if current[tag.name] then
         table.insert(current[tag.name], node)
     else
@@ -126,7 +126,7 @@ function tree:starttag(tag)
 end
 
 ---Parses an end tag.
--- @param tag a {name, attrs} table
+-- @param tag table @a {name, attrs} table
 -- where name is the name of the tag and attrs
 -- is a table containing the atributtes of the tag
 function tree:endtag(tag, s)
@@ -142,12 +142,12 @@ function tree:endtag(tag, s)
         self:reduce(prev, nil, nil)
     end
 
-    local firstKey = getFirstKey(current)
+    getFirstKey(current)
     table.remove(self._stack)
 end
 
 ---Parses a tag content.
--- @param t text to process
+-- @param text string text to process
 function tree:text(text)
     local current = self._stack[#self._stack]
     table.insert(current, text)
