@@ -96,24 +96,26 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
   if (mode == SERVER) {
     ret = setsockopt(sockfd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &Enable, sizeof(Enable));
     if (ret < 0){
-      LOG("ERROR", "Setting TCP_DEFER_ACCEPT failed.");
-      LOG("ERROR", strerror(errno));
-      return core_exit();
+      LOG("WARN", "Setting TCP_DEFER_ACCEPT failed.");
+      LOG("WARN", strerror(errno));
+      // 不能退出的原因是因为要兼容那垃圾WSL实现.
+      // return core_exit();
     }
   }
 #elif defined(SO_ACCEPTFILTER)
   /* TODO: 暂不实现 */
 #endif
 
-/* 开启快速连接复用 */
+/* 开启TCP快速连接 */
 #if defined(TCP_FASTOPEN) && defined(MSG_FASTOPEN)
   if (mode == SERVER) {
     int len = 5;
     ret = setsockopt(sockfd, IPPROTO_TCP, TCP_FASTOPEN, &len, sizeof(len));
     if (ret < 0){
-      LOG("ERROR", "Setting TCP_FASTOPEN failed.");
-      LOG("ERROR", strerror(errno));
-      return core_exit();
+      LOG("WARN", "Setting TCP_FASTOPEN failed.");
+      LOG("WARN", strerror(errno));
+      // 不能退出的原因是因为要兼容那垃圾WSL实现.
+      // return core_exit();
     }
   }
 #endif
