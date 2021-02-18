@@ -506,8 +506,9 @@ static int tcp_readline(lua_State *L) {
       return 2;
     }
     // 检查是否需要去掉分隔符
-    tmp_size = no_sp ? (p - sp_len) - tmp_buf + 1 : p - tmp_buf + 1;
-    tmp_size = read(fd, tmp_buf, tmp_size);
+    tmp_size = read(fd, tmp_buf, p - tmp_buf + 1);
+    if (no_sp)
+      tmp_size -= sp_len;
     break;
   }
   lua_pushlstring(L, tmp_buf, tmp_size);
@@ -559,8 +560,9 @@ static int tcp_sslreadline(lua_State *L){
       return 2;
     }
     // 检查是否需要去掉分隔符
-    tmp_size = no_sp ? (p - sp_len) - tmp_buf + 1 : p - tmp_buf + 1;
-    tmp_size = SSL_read(ssl, tmp_buf, tmp_size);
+    tmp_size = SSL_read(ssl, tmp_buf, p - tmp_buf + 1);
+    if (no_sp)
+      tmp_size -= sp_len;
     break;
   }
   lua_pushlstring(L, tmp_buf, tmp_size);
