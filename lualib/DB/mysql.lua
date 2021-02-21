@@ -6,9 +6,6 @@ local mysql = require "protocol.mysql"
 local log = require "logging"
 local Log = log:new({ dump = true, path = 'DB'})
 
-local crypt = require "crypt"
-local hashkey = crypt.hashkey
-
 local co = require "internal.Co"
 local co_self = co.self
 local co_wait = co.wait
@@ -18,16 +15,12 @@ local co_wakeup = co.wakeup
 local type = type
 local error = error
 local xpcall = xpcall
-local ipairs = ipairs
 local assert = assert
-local tostring = tostring
-local tonumber = tonumber
 
 local fmt = string.format
 
 local insert = table.insert
 local remove = table.remove
-local concat = table.concat
 
 -- 空闲连接时间
 local WAIT_TIMEOUT = 31536000

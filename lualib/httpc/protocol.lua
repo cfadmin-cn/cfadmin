@@ -19,6 +19,7 @@ local PARSER_HTTP_RESPONSE = HTTP_PARSER.PARSER_HTTP_RESPONSE
 local type = type
 local assert = assert
 local ipairs = ipairs
+local tonumber = tonumber
 
 local random = math.random
 local find = string.find
@@ -119,59 +120,59 @@ local function httpc_response(sock, SSL)
     return nil, "Can't used this method before other httpc method.."
   end
   local body
-  local data = sock:readline("\r\n\r\n")
-  if not data then
-    return nil, SSL.." A peer of remote server close this connection."
+  local buf = sock:readline(CRLF2)
+  if not buf then
+    return nil, SSL .. " A peer of remote server close this connection."
   end
-  local VERSION, CODE, STATUS, HEADER = PARSER_HTTP_RESPONSE(data)
+  local VERSION, CODE, STATUS, HEADER = PARSER_HTTP_RESPONSE(buf)
   if not CODE or not HEADER or (VERSION ~= 1.0 and VERSION ~= 1.1) then
-    return nil, SSL.." can't resolvable protocol."
-  end
-  if CODE == 302 or CODE == 301 or CODE == 303 or CODE == 307 then
-    return CODE, HEADER['Location'] or HEADER['location'], HEADER
+    return nil, SSL .. " can't resolvable protocol."
   end
   local Content_Encoding = HEADER['Content-Encoding'] or HEADER['content-encoding']
   local Content_Length = toint(HEADER['Content-Length'] or HEADER['content-length'])
   local Chunked = HEADER['Transfer-Encoding'] or HEADER['transfer-encoding']
-  if not Content_Length and not Chunked then
-    return CODE, STATUS, HEADER
-  end
-  if Content_Length and Content_Length > 0 then
-    local buffer = read_data(sock, Content_Length)
-    if not buffer then
-      return nil, SSL .. "[Content_Length] A peer of remote server close this connection."
-    end
-    body = buffer
-  elseif Chunked and find(Chunked, "chunked") then
+  if Chunked and find(Chunked, "chunked") then
     local resp = new_tab(128, 0)
+    local socket_recv = sock.recv
     while 1 do
-      local trunk_size = sock:readline("\r\n", true)
-      local tsize = tonumber(trunk_size, 16)
-      if not tsize or tsize == 0 then
-        if tsize then
+      local chunked_size = sock:readline(CRLF, true)
+      local csize = toint(tonumber(chunked_size, 16))
+      if not csize or csize == 0 then
+        if csize then
           -- 这行代码是用来去除`\r\n`的.
-          sock:recv(2)
+          socket_recv(sock, 2)
           break
         end
         return nil, "Invalid http trunked body."
       end
-      local buffer = read_data(sock, tsize)
+      local buffer = read_data(sock, csize)
       if not buffer then
-        return nil, SSL .. "[Content_Length] A peer of remote server close this connection."
+        return nil, SSL .. " [Content_Length] A peer of remote server close this connection."
       end
       resp[#resp+1] = buffer
       -- 这行代码是用来去除`\r\n`的.
-      sock:recv(2)
+      socket_recv(sock, 2)
     end
     body = concat(resp)
+  elseif Content_Length then
+    body = ""
+    if Content_Length > 0 then
+      local buffer = read_data(sock, Content_Length)
+      if not buffer then
+        return nil, SSL .. " [Content_Length] A peer of remote server close this connection."
+      end
+      body = buffer
+    end
   else
-    return CODE, "", HEADER
+    return CODE, STATUS, HEADER
   end
-  local RESP
+  local RESP = body
   if Content_Encoding == "gzip" then
     RESP = gzuncompress(body)
-  else
-    RESP = body
+  end
+  -- 如果有重定向, 则优先返回重定向的地址; 否则返回接收到的body内容
+  if CODE == 301 or CODE == 302 or CODE == 303 or CODE == 307 or CODE == 308 then
+    return CODE, HEADER['Location'] or HEADER['location'] or RESP, HEADER
   end
   return CODE, RESP, HEADER
 end

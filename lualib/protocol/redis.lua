@@ -167,6 +167,7 @@ end
 
 function redis:set_timeout(timeout)
   self.sock._timeout = timeout
+	return self
 end
 
 -- 订阅

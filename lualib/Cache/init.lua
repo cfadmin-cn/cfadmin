@@ -9,6 +9,8 @@ local co_wait = Co.wait
 local co_wakeup = Co.wakeup
 
 local ipairs = ipairs
+local assert = assert
+local tostring = tostring
 local setmetatable = setmetatable
 
 local table = table
@@ -26,12 +28,12 @@ local commands = {
 }
 
 local function in_command(cmd)
-    for _, command in ipairs(commands) do
-        if lower(cmd) == command then
-            return true
-        end
+  for _, command in ipairs(commands) do
+    if lower(cmd) == command then
+        return true
     end
-    return false
+  end
+  return false
 end
 
 local keys = {}
@@ -46,17 +48,15 @@ local function CREATE_CACHE(opt)
   local times = 1
   local rds
   while 1 do
-      rds = redis:new(opt)
-      rds:set_timeout(3)
+      rds = redis:new(opt):set_timeout(3)
       local ok, err = rds:connect()
       if ok then
         if not opt.INITIALIZATION then
-          local ok, ret = rds:cmd("CONFIG", "GET", "TIMEOUT")
-          if ret[2] ~= '0' then
+          local opok, ret = assert(rds:cmd("CONFIG", "GET", "TIMEOUT"))
+          if opok and ret[2] ~= '0' then
             assert(rds:cmd("CONFIG SET", "TIMEOUT", "0"), "SET TIMEOUT faild.")
           end
         end
-        rds:set_timeout(0)
         break
       end
       Log:WARN('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
@@ -64,7 +64,7 @@ local function CREATE_CACHE(opt)
       times = times + 1
       timer.sleep(3)
   end
-  return rds
+  return rds:set_timeout(0)
 end
 
 -- 加入到协程池内
@@ -85,11 +85,11 @@ end
 -- 从连接池内取出一个cache对象
 local function pop_cache(self)
   if #self.cache_pool > 0 then
-      return remove(self.cache_pool)
+    return remove(self.cache_pool)
   end
   if self.current < self.max then
-      self.current = self.current + 1
-      return CREATE_CACHE(self)
+    self.current = self.current + 1
+    return CREATE_CACHE(self)
   end
   add_wait(self, co_self())
   return co_wait()

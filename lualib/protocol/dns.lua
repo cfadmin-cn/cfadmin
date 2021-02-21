@@ -97,7 +97,9 @@ local function gen_cache()
       end
       file:close()
     end
-    dns_cache['localhost'] = {ip = prefix..'127.0.0.1'}
+    if not dns_cache['localhost'] then
+      dns_cache['localhost'] = {ip = prefix..'127.0.0.1'}
+    end
 end
 
 if #dns_list < 1 then
@@ -268,7 +270,8 @@ local function dns_query(domain, ip_version)
     check_wait(domain, wlist, nil, err)
     return nil, err
   end
-  local question, nbyte = unpack_question(dns_resp, nbyte)
+  local question
+  question, nbyte = unpack_question(dns_resp, nbyte)
   if question.name ~= domain then
     local err = "4. Inconsistent query domain."
     check_wait(domain, wlist, nil, err)
@@ -276,7 +279,7 @@ local function dns_query(domain, ip_version)
   end
   local answer
   local t = now()
-  for i = 1, answer_header.ancount do
+  for _ = 1, answer_header.ancount do
     answer, nbyte = unpack_answer(dns_resp, nbyte)
     if answer.atype == QTYPE.A or answer.atype == QTYPE.AAAA then
       answer.ip = unpack_rdata(answer.rdata, answer.atype)

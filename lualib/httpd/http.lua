@@ -2,33 +2,38 @@ local type = type
 local assert = assert
 local find = string.find
 
-local http = {}
---[[
-	httpd 的 before函数本身仅根据状态码来确定具体Action
-	如果使用者在函数内直接写入状态码, 请确保您非常清楚before函数的实现.
---]]
+---comment 可以用来控制`before`方法内的行为.
+local HTTP = {}
 
--- 成功
-function http.ok()
+---comment 允许`httpd.before`通过(passed)
+function HTTP.ok()
 	return 200
 end
 
--- 重定向
-function http.redirect(domain, code)
-	assert(type(domain) == 'string' and domain ~= '' and find(domain, '^http[s]?://.+'), '重定向必须给出一个字符串类型的域名(http[s]://domain)')
-	if type(code) == 'number' and (code == 301 or code == 302) then
-		return code, domain
+---comment 此方法可以让开发者在`httpd.before`函数内重定向.
+---@param code integer @重定向的HTTP状态码(301,302,303,307,308)
+---@param url string   @重定向的url(`https://cfadmin.cn` or `/api`)
+---@return integer @此方法只可用在`httpd:bedore`方法内.
+---@return string  @调用方法必须是`return http.redirect(code, url)`
+function HTTP.redirect(code, url)
+	assert(type(url) == 'string' and url ~= '' and (find(url, '^http[s]?://.+') or find(url, '^/.*')), 'Redirection must give a string type domain name ("http[s]://domain" or "/")')
+	if type(code) == 'number' and (code == 301 or code == 302 or code == 303 or code == 307 or code == 308) then
+		return code, url
 	end
-	return 302, domain
+	return 302, url
 end
 
--- 指定错误码
-function http.throw(code, body)
-	assert(type(code) == 'number' and code >= 400 and code < 500, '指定错误码必须在范围之内(400 - 499)')
+---comment 此方法可以让开发者在`httpd.before`函数内抛出异常.
+---@param code integer @`HTTP`异常状态码(`400`-`600`之间)
+---@param body string  @异常的具体内容(optional)
+---@return integer @此方法只可用在`httpd:bedore`方法内.
+---@return string  @调用方法必须是`return http.throw(code, body)`
+function HTTP.throw(code, body)
+	assert(type(code) == 'number' and code >= 400 and code < 600, 'The specified error code must be within the range (400-600).')
 	if type(body) == 'string' and body ~= '' then
 		return code, body
 	end
 	return code
 end
 
-return http
+return HTTP

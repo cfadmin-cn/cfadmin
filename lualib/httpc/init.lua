@@ -88,7 +88,14 @@ local function raw( parameter )
 	return code, msg, headers
 end
 
--- HTTP GET
+---comment HTTP[S] `GET`请求方法
+---@param domain   string                                   @合法的`http[s]`域名.
+---@param headers  table<integer, table<integer, string>>   @合法的请求头部, 格式:`{ {"key1", "value1"}, ... }`.
+---@param args     table<integer, table<integer, string>>   @合法的请求内容, 格式:`{ {"key1", "value1"}, ... }`.
+---@param timeout  number																	  @此请求最长等待时间.
+---@return integer			  																	@http协议请求状态码, 如果是连接失败或等待超时则为`nil`.
+---@return string 																					@服务器的响应内容.
+---@return table<string, string>            								@服务器的响应头部.
 local function get(domain, headers, args, timeout)
 	local opt, err = splite_protocol(domain)
 	if not opt then
@@ -117,7 +124,14 @@ local function get(domain, headers, args, timeout)
 	return code, msg, headers
 end
 
--- HTTP POST
+---comment HTTP[S] `POST`请求方法
+---@param domain   string                                   @合法的`http[s]`域名.
+---@param headers  table<integer, table<integer, string>>   @合法的请求头部, 格式:`{ {"key1", "value1"}, ... }`.
+---@param body     table<integer, table<integer, string>>   @合法的请求内容, 格式:`{ {"key1", "value1"}, ... }`.
+---@param timeout  number																	  @此请求最长等待时间.
+---@return integer			  																	@http协议请求状态码, 如果是连接失败或等待超时则为`nil`.
+---@return string 																					@服务器的响应内容.
+---@return table<string, string>            								@服务器的响应头部.
 local function post(domain, headers, body, timeout)
 	local opt, err = splite_protocol(domain)
 	if not opt then
@@ -146,7 +160,14 @@ local function post(domain, headers, body, timeout)
 	return code, msg, headers
 end
 
--- HTTP DELETE
+---comment HTTP[S] `DELETE`请求方法
+---@param domain   string                                   @合法的`http[s]`域名.
+---@param headers  table<integer, table<integer, string>>   @合法的请求头部, 格式:`{ {"key1", "value1"}, ... }`.
+---@param body     table<integer, table<integer, string>>   @合法的请求内容, 格式:`{ {"key1", "value1"}, ... }`.
+---@param timeout  number																	  @此请求最长等待时间.
+---@return integer			  																	@http协议请求状态码, 如果是连接失败或等待超时则为`nil`.
+---@return string 																					@服务器的响应内容.
+---@return table<string, string>            								@服务器的响应头部.
 local function delete(domain, headers, body, timeout)
 
 	local opt, err = splite_protocol(domain)
@@ -176,7 +197,14 @@ local function delete(domain, headers, body, timeout)
 	return code, msg, headers
 end
 
--- HTTP PUT
+---comment HTTP[S] `PUT`请求方法
+---@param domain   string                                   @合法的`http[s]`域名.
+---@param headers  table<integer, table<integer, string>>   @合法的请求头部, 格式:`{ {"key1", "value1"}, ... }`.
+---@param body     table<integer, table<integer, string>>   @合法的请求内容, 格式:`{ {"key1", "value1"}, ... }`.
+---@param timeout  number																	  @此请求最长等待时间.
+---@return integer			  																	@http协议请求状态码, 如果是连接失败或等待超时则为`nil`.
+---@return string 																					@服务器的响应内容.
+---@return table<string, string>            								@服务器的响应头部.
 local function put(domain, headers, body, timeout)
 
 	local opt, err = splite_protocol(domain)
@@ -206,6 +234,14 @@ local function put(domain, headers, body, timeout)
 	return code, msg, headers
 end
 
+---comment HTTP[S] `POST`请求方法(使用`JSON`作为请求体)
+---@param domain   string                                   @合法的`http[s]`域名.
+---@param headers  table<integer, table<integer, string>>   @合法的请求头部, 格式:`{ {"key1", "value1"}, ... }`.
+---@param json     table | string												    @可序列化的`table`或合法的`json`字符串.
+---@param timeout  number																	  @此请求最长等待时间.
+---@return integer			  																	@http协议请求状态码, 如果是连接失败或等待超时则为`nil`.
+---@return string 																					@服务器的响应内容.
+---@return table<string, string>            								@服务器的响应头部.
 local function json(domain, headers, json, timeout)
 
 	local opt, err = splite_protocol(domain)
@@ -237,6 +273,14 @@ local function json(domain, headers, json, timeout)
 	return code, msg, headers
 end
 
+---comment HTTP[S] `POST`请求方法(使用`JSON`作为请求体)
+---@param domain   string                                   @合法的`http[s]`域名.
+---@param headers  table<integer, table<integer, string>>   @合法的请求头部, 格式:`{ {"key1", "value1"}, ... }`.
+---@param files    table																    @合法的文件内容: { }
+---@param timeout  number																	  @此请求最长等待时间.
+---@return integer			  																	@http协议请求状态码, 如果是连接失败或等待超时则为`nil`.
+---@return string 																					@服务器的响应内容.
+---@return table<string, string>            								@服务器的响应头部.
 local function file(domain, headers, files, timeout)
 
 	local opt, err = splite_protocol(domain)

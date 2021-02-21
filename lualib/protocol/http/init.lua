@@ -72,6 +72,10 @@ local PARSER_HTTP_REQUEST = HTTP_PARSER.PARSER_HTTP_REQUEST
 local PARSER_HTTP_RESPONSE = HTTP_PARSER.PARSER_HTTP_RESPONSE
 local RESPONSE_CHUNKED_PARSER = HTTP_PARSER.RESPONSE_CHUNKED_PARSER
 
+-- OPCODE
+local OPCODE_THROW = -256
+local OPCODE_REDIRECT = -65536
+
 local HTTP_PROTOCOL = {
   API = 1,
   [1] = "API",
@@ -288,11 +292,10 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
   end
   -- require "utils"
   -- var_dump(header)
-  http:tolog(101, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, req_time(start_time))
-  local ok = sock:send(concat(response, CRLF)..CRLF2)
-  if not ok then
+  if not sock:send(concat(response, CRLF)..CRLF2) then
     return
   end
+  http:tolog(101, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, req_time(start_time))
   return wsserver.start { cls = cls, sock = sock, ext = ext }
 end
 
@@ -311,7 +314,7 @@ end
 function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
   local buffers = {}
   local ttl = http.ttl
-  local server = http.__server
+  local server = http.__server or SERVER
   local enable_cookie = http.__enable_cookie
   local enable_gzip = http.__enable_gzip
   local compress_bytes = http.__compress_bytes
@@ -366,7 +369,8 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
         goto CONTINUE
       end
       -- 根据请求方法进行解析, 解析失败返回501
-      local ok, content = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
+      local content
+      ok, content = PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
       if not ok then
         if content == 413 then
           sock:send(ERROR_RESPONSE(http, 413, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
@@ -391,7 +395,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
           res[#res+1] = 'Access-Control-Allow-Credentials: true'
           res[#res+1] = 'Access-Control-Max-Age: ' .. enable_cros_timeout
         end
-        res[#res+1] = 'Server: ' .. (server or SERVER)
+        res[#res+1] = 'Server: ' .. server
         res[#res+1] = 'Connection: keep-alive'
         res[#res+1] = 'Content-Length: 0'
         sock:send(concat(res, CRLF)..CRLF2)
@@ -401,48 +405,44 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       content['method'], content['path'], content['headers'], content['client_ip'], content['client_port'] = METHOD, PATH, HEADER, ipaddr, port
       -- before 函数只影响接口与view
       if before_func and (typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE) then
-        local ok, code, data = safe_call(before_func, tab_copy(content))
+        local code, data
+        ok, code, data = safe_call(before_func, tab_copy(content))
         if not ok then -- before 函数执行出错
           Log:ERROR(code)
           sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           goto CONTINUE
         end
-        if code then
-          if type(code) == "number" then
-            if code < 200 or code > 500 then
-              Log:ERROR("before function: Illegal return value")
-              sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-              goto CONTINUE
-            elseif code == 301 or code == 302 then
+        if type(code) == "number" then
+          if code == 301 or code == 302 or code == 303 or code == 307 or code == 308 then
+            tolog(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+            sock:send(concat({
+              REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
+              'Connection: keep-alive',
+              'Server: ' .. server,
+              'Content-Length: 0',
+              'Location: ' .. (data or "https://cfadmin.cn/"),
+              CRLF
+            }, CRLF))
+            goto CONTINUE
+          elseif code >= 400 and code < 600 then
+            if type(data) == 'string' and data ~= '' then
               tolog(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
-              sock:send(concat({
+              sock:send(concat({concat({
                 REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
+                'Origin: *',
+                'Allow: GET, POST, PUT, HEAD, OPTIONS',
+                'Server: ' .. server,
                 'Connection: keep-alive',
-                'Server: ' .. (server or SERVER),
-                'Location: ' .. (data or "https://github.com/CandyMi/core_framework"),
-              }, CRLF)..CRLF2)
-              goto CONTINUE
-            elseif code ~= 200 then
-              if data then
-                if type(data) == 'string' and data ~= '' then
-                  tolog(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
-                  sock:send(concat({concat({
-                    REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
-                    'Origin: *',
-                    'Allow: GET, POST, PUT, HEAD, OPTIONS',
-                    'Server: ' .. (server or SERVER),
-                    'Connection: keep-alive',
-                    'Content-Type: ' .. REQUEST_MIME_RESPONSE('html'),
-                    'Content-Length: ' .. tostring(#data),
-                  }, CRLF), CRLF2, data}))
-                  goto CONTINUE
-                end
-              end
-              sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
+                'Content-Type: ' .. (typ == HTTP_PROTOCOL.API and REQUEST_MIME_RESPONSE('json') or REQUEST_MIME_RESPONSE('html')),
+                'Content-Length: ' .. tostring(#data),
+              }, CRLF), CRLF2, data}))
               goto CONTINUE
             end
-          else
-            sock:send(ERROR_RESPONSE(http, 401, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
+            sock:send(ERROR_RESPONSE(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
+            goto CONTINUE
+          elseif code ~= 200 then
+            Log:ERROR("before function: Illegal return value")
+            sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
             goto CONTINUE
           end
         else
@@ -452,7 +452,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       end
 
       local header = new_tab(16, 0)
-      local ok, body, body_len, filepath, static, statucode
+      local body, body_len, filepath, static, statucode
 
       if typ == HTTP_PROTOCOL.API or typ == HTTP_PROTOCOL.USE then
         -- 如果httpd开启了记录Cookie字段, 则每次尝试是否deCookie
@@ -485,6 +485,32 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
           Log:ERROR(body or "empty response.")
           sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           goto CONTINUE
+        end
+        -- 开发者主动`抛出异常`与`重定向`的时候需要特殊处理.
+        if type(body) == "table" and body.__OPCODE__ and body.__CODE__ and body.__MSG__ then
+          local opcode, rcode, response = body.__OPCODE__, body.__CODE__, body.__MSG__
+          if opcode == OPCODE_THROW then -- 抛异常
+            sock:send(concat({
+              REQUEST_STATUCODE_RESPONSE(rcode), HTTP_DATE(),
+              'Server: ' .. server,
+              'Connection: keep-alive',
+              'Content-Length: ' .. tostring(#response),
+              'Content-Type: ' .. (typ == HTTP_PROTOCOL.API and REQUEST_MIME_RESPONSE('json') or REQUEST_MIME_RESPONSE('html')),
+              "", response
+            }, CRLF))
+            tolog(http, rcode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+          elseif opcode == OPCODE_REDIRECT then -- 重定向
+            sock:send(concat({
+              REQUEST_STATUCODE_RESPONSE(rcode), HTTP_DATE(),
+              'Server: ' .. server,
+              'Connection: keep-alive',
+              'Content-Length: 0',
+              'Location: ' .. response,
+              CRLF,
+            }, CRLF))
+            tolog(http, rcode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+          end
+          return sock:close()
         end
         statucode = 200
         insert(header, 1, REQUEST_STATUCODE_RESPONSE(statucode))
@@ -525,7 +551,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       header[#header+1] = 'Accept-Ranges: none'
       header[#header+1] = 'Origin: *'
       header[#header+1] = 'Allow: GET, POST, PUT, HEAD, OPTIONS'
-      header[#header+1] = 'Server: ' .. (server or SERVER)
+      header[#header+1] = 'Server: ' .. server
       local Connection = 'Connection: keep-alive'
       if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
         Connection = 'Connection: close'

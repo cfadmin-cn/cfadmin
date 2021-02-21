@@ -5,6 +5,7 @@ local crypt = require "crypt"
 local base64encode = crypt.base64encode
 
 local type = type
+local toint = math.tointeger
 local tonumber = tonumber
 local tostring = tostring
 local match = string.match
@@ -12,10 +13,12 @@ local fmt = string.format
 local os_date = os.date
 local concat = table.concat
 
-local MAX_PACKET_SIZE = 1024
+local MAX_PACKET_SIZE = 4096
+
+local CRLF = '\x0d\x0a'
 
 local function read_packet(str)
-	local str_code, err = match(str, "(%d+) (.+)\r\n")
+	local str_code, err = match(str, "(%d+) (.+)")
 	local code = tonumber(str_code)
 	if not code then
 		return
@@ -45,29 +48,28 @@ end
 
 -- 发送握手包
 function smtp:hello_packet ()
-	-- 接收服务端信息
-  local code, data, err
-  data, err = self:recv(MAX_PACKET_SIZE)
+  local code, data, info
+  -- 接收服务端信息
+  data = self:readline(CRLF)
   if not data then
-    return nil, err
+    return nil, "SMTP Client Can't connect to server."
   end
-  code, err = read_packet(data)
+  code, info = read_packet(data)
   if not code then
-    return nil, time().."[HELO ERROR]: 不支持的协议."
+    return nil, "[HELO ERROR]: Unsupported protocol."
   end
   -- 发送HELO命令
-  local ok = self:send("HELO cf_smtp/0.1\r\n")
-  if not ok then
-    return nil, time().."[HELO ERROR]: 发送HELO失败."
+  if not self:sendline("HELO cf_smtp/0.1", CRLF) then
+    return nil, "[HELO ERROR]: Failed to send HELO message."
   end
   -- 接收HELO回应
-  data, err = self:recv(MAX_PACKET_SIZE)
+  data = self:recv(MAX_PACKET_SIZE)
   if not data then
-    return nil, err
+    return nil, "SMTP Server Close this session."
   end
-  code, err = read_packet(data)
-  if code ~= 250 and code ~= 220 then
-    return nil, time()..'[HELO ERROR]: ' .. (err or '服务器关闭了连接.')
+  code, info = data:sub(1, 3), data:sub(4)
+  if toint(code) ~= 250 and toint(code) ~= 220 then
+    return nil, "[HELO ERROR]: " .. (info or "Invalid Response." )
   end
   return true
 end
@@ -76,75 +78,71 @@ end
 function smtp:auth_packet ()
   local code, data, err
 	-- 发送登录认证请求
-  local ok = self:send("AUTH LOGIN\r\n")
-  if not ok then
-    return nil, "AUTH LOGIN ERROR]: 发送AUTH LOGIN失败"
+  if not self:sendline("AUTH LOGIN", CRLF) then
+    return nil, "AUTH LOGIN ERROR]: SMTP Server Close this session."
   end
-  data, err = self:recv(MAX_PACKET_SIZE)
+  data = self:readline(CRLF)
   if not data then
-    return nil, time()..'[AUTH LOGIN ERROR]: 1.' .. (err or '服务器关闭了连接. ')
+    return nil, '[AUTH LOGIN ERROR]: 1. SMTP Server Close this session.'
   end
   code, err = read_packet(data)
   if not code or code ~= 334 then
-    return nil, time()..'[AUTH LOGIN ERROR]: 1. 验证失败('.. tostring(code) .. (err or '未知错误') ..')'
+    return nil, '[AUTH LOGIN ERROR]: 1. 验证失败('.. tostring(code) .. (err or '未知错误') ..')'
   end
   -- 发送base64用户名
-  local ok = self:send(base64encode(self.username)..'\r\n')
-  if not ok then
-    return nil, "[AUTH LOGIN ERROR]: 发送username失败"
+  if not self:sendline(base64encode(self.username), CRLF) then
+    return nil, "[AUTH LOGIN ERROR]: SMTP Server Close this session when sending username."
   end
-  data, err = self:recv(MAX_PACKET_SIZE)
+  data = self:readline(CRLF)
   if not data then
-    return nil, time()..'[AUTH LOGIN ERROR]: 2.' .. (err or '服务器关闭了连接.')
+    return nil, '[AUTH LOGIN ERROR]: 2. SMTP Server Close this session.'
   end
   code, err = read_packet(data)
   if not code or code ~= 334 then
-    return nil, time()..'[AUTH LOGIN ERROR]: 2. 验证失败('.. tostring(code) .. (err or '未知错误') ..')'
+    return nil, '[AUTH LOGIN ERROR]: 2. verification failed('.. (err or '未知错误') ..')'
   end
   -- 发送base64密码
-  local ok = self:send(base64encode(self.password)..'\r\n')
-  if not ok then
-    return nil, "[AUTH LOGIN ERROR]: 发送password失败"
+  if not self:sendline(base64encode(self.password), CRLF) then
+    return nil, "[AUTH LOGIN ERROR]: SMTP Server Close this session when sending password."
   end
-  data, err = self:recv(MAX_PACKET_SIZE)
+  data = self:readline(CRLF)
   if not data then
-    return nil, time()..'[AUTH LOGIN ERROR]: 3.' .. (err or '服务器关闭了连接.')
+    return nil, '[AUTH LOGIN ERROR]: 3. SMTP Server Close this session.'
   end
   code, err = read_packet(data)
   if not code or code ~= 235 then
-    return nil, time()..'[AUTH LOGIN ERROR]: 3. 验证失败('.. tostring(code) .. (err or '未知错误') ..')'
+    return nil, '[AUTH LOGIN ERROR]: ' .. (err or 'Token verification failed.')
   end
-  return code, err
+  return true
 end
 
 -- 发送邮件头部
 function smtp:send_header ()
   local code, data, err
   -- 发送邮件来源
-  local ok = self:send(fmt("MAIL FROM: <%s>\r\n", self.from))
-  if not ok then
-    return nil, "[MAIL FROM ERROR]: 发送FROM失败"
+  if not self:sendline(fmt("MAIL FROM: <%s>", self.from), CRLF) then
+    return nil, "[MAIL FROM ERROR]: Sending `MAIL FROM` Failed."
   end
-  data, err = self:recv(MAX_PACKET_SIZE)
+  data = self:readline(CRLF)
   if not data then
-    return nil, time()..'[MAIL FROM ERROR]: ' .. (err or '服务器关闭了连接. ')
+    return nil, '[MAIL FROM ERROR]: SMTP Server Close this session.'
   end
   code, err = read_packet(data)
   if not code or code ~= 250 then
-    return nil, time()..'[MAIL FROM ERROR]: ('.. tostring(code) .. (err or '未知错误') ..')'
+    return nil, '[MAIL FROM ERROR]: ('.. tostring(code) .. (err or 'Unknown Error.') ..')'
   end
   -- 发送邮件接收者
-  local ok = self:send(fmt("RCPT TO: <%s>\r\n", self.to))
+  local ok = self:sendline(fmt("RCPT TO: <%s>", self.to), CRLF)
   if not ok then
-    return nil, "[MAIL FROM ERROR]: 发送TO失败"
+    return nil, "[RCPT TO ERROR]: Sending `RCPT TO` Failed."
   end
-  data, err = self:recv(MAX_PACKET_SIZE)
+  data = self:readline(CRLF)
   if not data then
-    return nil, time()..'[RCPT TO ERROR]: ' .. (err or '服务器关闭了连接. ')
+    return nil, '[RCPT TO ERROR]: SMTP Server Close this session.'
   end
   code, err = read_packet(data)
   if not code or code ~= 250 then
-    return nil, time()..'[RCPT TO ERROR]: ('.. tostring(code) .. (err or '未知错误') ..')'
+    return nil, '[RCPT TO ERROR]: ('.. tostring(code) .. (err or '未知错误') ..')'
   end
   return true
 end
@@ -153,17 +151,16 @@ end
 function smtp:send_content ()
   local code, data, err
   -- 发送DATA命令, 开始发送邮件实体
-  local ok = self:send("DATA\r\n")
-  if not ok then
-    return nil, "[MAIL CONTENT ERROR]: 发送DATA失败"
+  if not self:sendline("DATA", CRLF) then
+    return nil, "[MAIL CONTENT ERROR]: Sending `DATA` Failed."
   end
-  data, err = self:recv(MAX_PACKET_SIZE)
+  data = self:readline(CRLF)
   if not data then
-    return nil, time()..'[MAIL CONTENT ERROR]: ' .. (err or '服务器关闭了连接. ')
+    return nil, '[MAIL CONTENT ERROR]: SMTP Server Close this session.'
   end
   code, err = read_packet(data)
   if not code or code ~= 354 then
-    return nil, time()..'[MAIL CONTENT ERROR]: ('.. tostring(code) .. (err or '未知错误') ..')'
+    return nil, '[MAIL CONTENT ERROR]: ('.. tostring(code) .. (err or '未知错误') ..')'
   end
   if self.mime and self.mime == 'html' then
     self.mime = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n"
@@ -171,22 +168,15 @@ function smtp:send_content ()
 		self.mime = "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n"
   end
 	-- 发送邮件实体头部
-	local ok = self:send(concat({
-		fmt("From: <%s>\r\n", self.from),
-		fmt("To: <%s>\r\n", self.to),
-		fmt("Subject: %s\r\n", self.subject),
-		self.mime,
-		'\r\n'
-	}))
+	local ok = self:send(concat({fmt("From: <%s>\r\n", self.from), fmt("To: <%s>\r\n", self.to), fmt("Subject: %s\r\n", self.subject), self.mime, CRLF}))
 	if not ok then
 		return nil, "[MAIL CONTENT ERROR]: 发送Content Headers失败."
 	end
 	-- 发送邮件实体内容
-  local ok = self:send(base64encode(self.content)..'\r\n\r\n.\r\n')
-  if not ok then
+  if not self:sendline(base64encode(self.content), "\r\n\r\n.\r\n") then
     return nil, "[MAIL CONTENT ERROR]: 发送Content Body失败."
   end
-  data, err = self:recv(MAX_PACKET_SIZE)
+  data = self:readline(CRLF)
   if not data then
     return nil, time()..'[MAIL CONTENT ERROR]: ' .. (err or '服务器关闭了连接. ')
   end
@@ -194,17 +184,18 @@ function smtp:send_content ()
   if not code or code ~= 250 then
     return nil, time()..'[MAIL CONTENT ERROR]: ('.. tostring(code) .. (err or '未知错误') ..')'
   end
-  return true
+  return self:sendline("QUIT", CRLF)
 end
 
 function smtp:send_mail ()
-  local ok, err = self:send_header()
+  local ok, err
+  ok, err = self:send_header()
   if not ok then
-    return ok, err
+    return false, err
   end
-  local ok, err = self:send_content()
+  ok, err = self:send_content()
   if not ok then
-    return ok, err
+    return false, err
   end
   return true
 end
@@ -216,7 +207,6 @@ function smtp:set_timeout (timeout)
   end
   return self
 end
-
 
 -- 连接到smtp服务器
 function smtp:connect ()
@@ -241,6 +231,19 @@ function smtp:send (data)
     return self.sock:ssl_send(data)
   end
   return self.sock:send(data)
+end
+
+-- sendline
+function smtp:readline(sp)
+  if self.ssl then
+    return self.sock:ssl_readline(sp, true)
+  end
+  return self.sock:readline(sp, true)
+end
+
+-- sendline
+function smtp:sendline(data, sp)
+  return self.sock:send(data) and self.sock:send(sp)
 end
 
 function smtp:close ()

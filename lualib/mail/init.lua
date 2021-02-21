@@ -2,7 +2,6 @@ local smtp = require "protocol.smtp"
 
 local toint = math.tointeger
 local match = string.match
-local os_date = os.date
 
 local function check_mail(mail)
 	if match(mail, '.+@.+') then
@@ -11,59 +10,52 @@ local function check_mail(mail)
 	return false
 end
 
-local function time()
-	return os_date("[%Y/%m/%d %H:%M:%S]")
-end
-
 local mail = {}
 
 function mail.send(opt)
-	local ok, session, err
 	if not opt.username or not opt.password or opt.username == '' or opt.password == '' then
-		return nil, "用户名或密码不能为空"
+		return nil, "Username or password cannot be empty."
 	end
-	if not opt.from or not opt.to or opt.from == '' or opt.to == '' then
-		return nil, "邮箱发送者与接受者不能空"
-	end
-	if not check_mail(opt.from) or not check_mail(opt.to) then
-		return nil, "发送者与接受者邮箱格式不正确"
+	if not opt.from or not opt.to or opt.from == '' or opt.to == '' or not check_mail(opt.from) or not check_mail(opt.to) then
+		return nil, "The sender or receiver of the email cannot be empty."
 	end
 	if not opt.host or not opt.port or opt.host == '' or (not toint(opt.port)) or (toint(opt.port) <= 0 or toint(opt.port) > 65535) then
-		return nil, "邮件server配置错误, 请检查配置参数."
+		return nil, "Invalid target mail server configuration."
 	end
 	if not opt.subject or opt.subject == '' then
-		return nil, "邮件主题为空, 请检查配置参数."
+		return nil, "The email subject is empty, please check the configuration parameters."
 	end
 	if not opt.content or opt.content == '' then
-		return nil, "邮件内容为空, 请检查配置参数"
+		return nil, "The email content is empty, please check the configuration parameters."
 	end
-
 	local s = smtp:new(opt):set_timeout(15)
-
+	-- 开始发送邮件
+	local ok, err
 	-- 尝试连接服务器
-	local ok, err = s:connect()
+	ok, err = s:connect()
 	if not ok then
 		return nil, err, s:close()
 	end
 	-- print("连接成功")
 	-- 尝试握手包
-	local ok, err = s:hello_packet()
+	ok, err = s:hello_packet()
 	if not ok then
 		return nil, err, s:close()
 	end
 	-- print("握手成功")
 	-- 身份认证
-	local ok, err = s:auth_packet()
+	ok, err = s:auth_packet()
 	if not ok then
 		return nil, err, s:close()
 	end
 	-- print("认证成功")
 	-- 发送数据
-	local ok, err = s:send_mail()
+	ok, err = s:send_mail()
+	s:close()
 	if not ok then
-		return nil, err, s:close()
+		return nil, err
 	end
-	return ok, time()..": 邮件发送成功!", s:close()
+	return ok
 end
 
 
