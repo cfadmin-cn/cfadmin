@@ -36,6 +36,7 @@ local secCookie = Cookie.setSecure -- 设置Cookie加密字段
 local seCookie = Cookie.serialization -- 序列化
 local deCookie = Cookie.deserialization -- 反序列化
 
+local null = null
 local type = type
 local tostring = tostring
 local next = next
@@ -45,7 +46,6 @@ local ipairs = ipairs
 local lower = string.lower
 local match = string.match
 local fmt = string.format
-local ceil = math.ceil
 local toint = math.tointeger
 local find = string.find
 local split = string.sub
@@ -137,8 +137,23 @@ local function safe_call (f, ...)
   return ok, r1, r2, r3, r4, t5
 end
 
+local function readall(sock, bsize, buffers)
+  while 1 do
+    local buf = sock:recv(bsize)
+    if not buf then
+      return
+    end
+    bsize = bsize - #buf
+    buffers[#buffers + 1] = buf
+    if bsize == 0 then
+      break
+    end
+  end
+  return true
+end
+
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
-  local content = new_tab(0, 8)
+  local content = new_tab(0, 16)
   if METHOD == "GET" then
     local spl_pos = find(PATH, '%?')
     if spl_pos and spl_pos < #PATH then
@@ -147,35 +162,20 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
   elseif METHOD == "POST" or METHOD == "PUT" then
     local body_len = toint(HEADER['Content-Length']) or toint(HEADER['Content-length']) or toint(HEADER['content-length'])
     if body_len and body_len > 0 then
-      local BODY = ''
-      local RECV_BODY = true
-      local CRLF_START, CRLF_END = find(buffer, RE_CRLF2)
+      if body_len >= (max_body_size or (1024 * 1024)) then
+        return nil, 413
+      end
+      local buffers = new_tab(32, 0)
+      local bsize = body_len
+      local _, CRLF_END = find(buffer, RE_CRLF2)
       if #buffer > CRLF_END then
-        BODY = split(buffer, CRLF_END + 1, -1)
-        if #BODY == body_len then
-          RECV_BODY = false
-        end
+        bsize = bsize - (#buffer - CRLF_END)
+        buffers[#buffers+1] = split(buffer, CRLF_END + 1)
       end
-      if RECV_BODY then
-        local buf_len = #BODY
-        local buffers = body_len > 65535 and new_tab(ceil(body_len / 65535), 0) or {}
-        buffers[#buffers + 1] = BODY
-        while 1 do
-          local buf, len = sock:recv(65535)
-          if not buf then
-            return
-          end
-          buf_len = buf_len + len
-          if buf_len >= (max_body_size or (1024 * 1024)) then
-            return nil, 413
-          end
-          buffers[#buffers + 1] = buf
-          if buf_len == body_len then
-            BODY = concat(buffers)
-            break
-          end
-        end
+      if bsize > 0 and not readall(sock, bsize, buffers) then
+        return nil, null
       end
+      local BODY = concat(buffers)
       if METHOD == 'PUT' then
         content['body'] = BODY
         return true, content
@@ -374,9 +374,11 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       if not ok then
         if content == 413 then
           sock:send(ERROR_RESPONSE(http, 413, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-          goto CONTINUE
+        elseif content ~= null then
+          sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
+        else -- 断开连接
+          return sock:close()
         end
-        sock:send(ERROR_RESPONSE(http, 501, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
         goto CONTINUE
       end
       -- 如果请求使用了 HEAD 与 OPTIONS 方法, 这里会根据配置检查是否需要返回跨域标识. (除非您手动设置请求头部, 否则一般不会遇到此处逻辑.)
