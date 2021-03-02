@@ -4,6 +4,12 @@ local ti = require "timer"
 local new_tab = require("sys").new_tab
 
 local type = type
+local pcall = pcall
+local assert = assert
+
+local insert = table.insert
+local remove = table.remove
+
 local ti_new = ti.new
 local ti_start = ti.start
 local ti_stop = ti.stop
@@ -14,116 +20,93 @@ local co_spawn = co.spawn
 local co_wakeup = co.wakeup
 local co_self = co.self
 
-local co_self_ex = coroutine.running
-local co_wait_ex = coroutine.yield
-local co_wakeup_ex = coroutine.resume
-
-local remove = table.remove
-
-local Timer = new_tab(0, 1 << 10)
 
 local TIMER_LIST = new_tab(1 << 10, 0)
 
+local TIMER_MAP = new_tab(0, 1 << 10)
+
 -- 内部函数防止被误用
 local function Timer_new()
-  -- if #TIMER_LIST > 0 then
-  --   return remove(TIMER_LIST)
-  -- end
-  -- return ti_new()
   return remove(TIMER_LIST) or ti_new()
 end
 
-local function Timer_release(t)
-  ti_stop(t)
-  TIMER_LIST[#TIMER_LIST+1] = t
+-- 启动定时器
+local function Timer_start(obj)
+  obj.t = Timer_new()
+  TIMER_MAP[obj] = obj
+  ti_start(obj.t, obj.timeout or obj.repeats, obj.co)
+  return obj
 end
 
-local function Timer_start(self)
-  Timer[self] = self
-  ti_start(self.t, self.timeout or self.repeats, self.co)
-end
-
-local function Timer_stop(self)
-  if self and not self.stoped then
-    self.stoped = true
-    if self.t then
-      Timer_release(self.t)
-      self.t = nil
-    end
-    Timer[self] = nil
+-- 停止定时器
+local function Timer_stop(obj)
+  if not obj or not obj.stoped then
+    obj.stoped = true
+    local o = assert(TIMER_MAP[obj], "[Timer ERROR]: Invalid timer object.")
+    ti_stop(o.t); insert(TIMER_LIST, o.t);
+    TIMER_MAP[o] = nil; o.t = nil; o.co = nil
   end
 end
 
-function Timer.count()
-  return #TIMER_LIST
+local Timer = { __VERSION__ = 0.2 }
+
+local function stop(t)
+  assert(type(t) == 'table', "[Timer ERROR]: stop timer must like `t:stop()`. ")
+  t.stoped = true
 end
 
--- 超时器 --
 function Timer.timeout(timeout, cb)
   if type(timeout) ~= 'number' or timeout <= 0 then
     return
   end
-  if type(cb) ~= 'function' then
-    return
-  end
-  local t = Timer_new()
-  if not t then
-    return
-  end
-  local once = {stoped = false, timeout = timeout, stop = Timer_stop, t = t, co = nil}
-  once.co = co_new(function( ... )
-    if once.stoped then
+  assert(type(cb) == 'function', "[Timer ERROR]: Invalid callback.")
+  local timer = { stop = stop }
+  timer.co = co_spawn(function ()
+    Timer.sleep(timeout)
+    if timer.stoped then
+      timer.co = nil
       return
     end
-    co_spawn(cb)
-    Timer_stop(once)
+    local ok, errinfo = pcall(cb)
+    if not ok then
+      print("[Timer ERROR]: " .. errinfo)
+    end
+    -- 停止定时器
   end)
-  Timer_start(once)
-  return once
+  return timer
 end
 
--- 循环定时器 --
-function Timer.at(repeats, cb)
-  if type(repeats) ~= 'number' or repeats <= 0 then
+function Timer.at(timeout, cb)
+  if type(timeout) ~= 'number' or timeout <= 0 then
     return
   end
-  if type(cb) ~= 'function' then
-    return
-  end
-  local t = Timer_new()
-  if not t then
-    return
-  end
-  local at = {stoped = false, repeats = repeats, stop = Timer_stop, t = t, co = nil}
-  at.co = co_new(function( ... )
-    while 1 do
-      if at.stoped then
+  assert(type(cb) == 'function', "[Timer ERROR]:  Invalid callback.")
+  local timer = { stop = stop }
+  timer.co = co_spawn(function ()
+    while true do
+      Timer.sleep(timeout)
+      if timer.stoped then
+        timer.co = nil
         return
       end
       co_spawn(cb)
-      co_wait_ex()
     end
+    -- 停止定时器
   end)
-  Timer_start(at)
-  return at
+  return timer
 end
 
--- 休眠 --
 function Timer.sleep(timeout)
   if type(timeout) ~= 'number' or timeout <= 0 then
     return
   end
-  local t = Timer_new()
-  if not t then
-    return
-  end
-  local sleep = {stoped = false, timeout = timeout, t = t, co = nil }
-  local co = co_self()
-  sleep.co = co_new(function (...)
-    Timer_stop(sleep)
-    return co_wakeup(co)
+  local current_co = co_self()
+  local t = {stoped = false, timeout = timeout, stop = Timer_stop, t = nil, co = nil}
+  t.co = co_new(function ( )
+    Timer_stop(t)
+    return co_wakeup(current_co)
   end)
-  Timer_start(sleep)
+  Timer_start(t)
   return co_wait()
 end
 
