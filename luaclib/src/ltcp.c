@@ -169,7 +169,7 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
 }
 
 /* server fd */
-static int create_server_fd(int port, int backlog){
+static int create_server_fd(const char *ip, int port, int backlog){
   errno = 0;
   /* 建立 TCP Server Socket */
   int sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
@@ -186,6 +186,13 @@ static int create_server_fd(int port, int backlog){
   SA.sin6_family = AF_INET6;
   SA.sin6_port = htons(port);
   SA.sin6_addr = in6addr_any;
+
+  struct in6_addr addr;
+  if (!strcmp(ip, "::1") && inet_pton(AF_INET6, "::1", &addr) == 1){
+    SA.sin6_addr = addr;
+  } else if (!strcmp(ip, "127.0.0.1") && inet_pton(AF_INET6, "::ffff:127.0.0.1", &addr) == 1) {
+    SA.sin6_addr = addr;
+  }
 
   /* 绑定套接字失败 */
   int bind_success = bind(sockfd, (struct sockaddr *)&SA, sizeof(SA));
@@ -698,7 +705,7 @@ static int new_server_fd(lua_State *L){
 
   int backlog = lua_tointeger(L, 3);
 
-  int fd = create_server_fd(port, 0 >= backlog ? 128 : backlog);
+  int fd = create_server_fd(ip, port, 0 >= backlog ? 128 : backlog);
   if (0 >= fd)
     return 0;
 
