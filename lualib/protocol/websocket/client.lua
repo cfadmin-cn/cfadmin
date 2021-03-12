@@ -8,6 +8,8 @@ local tcp = require "internal.TCP"
 local cf = require "cf"
 local cf_fork = cf.fork
 
+local new_tab = require "sys".new_tab
+
 local wbproto = require "protocol.websocket.protocol"
 local _recv_frame = wbproto.recv_frame
 local _send_frame = wbproto.send_frame
@@ -35,17 +37,13 @@ local byte = string.byte
 local find = string.find
 local fmt = string.format
 local match = string.match
+local strpack = string.pack
 
 local CRLF = '\x0d\x0a'
 local CRLF2 = '\x0d\x0a\x0d\x0a'
-local RE_CRLF2 = '[\x0d]?\x0a[\x0d]?\x0a'
 
-local function sock_read (self, byte)
-  local sock = self.sock
-  if self.ssl then
-    return sock:ssl_recv(byte)
-  end
-  return sock:recv(byte)
+local function sock_readline (sock, sp)
+  return sock:readline(sp)
 end
 
 local function sock_send (self, data)
@@ -70,46 +68,47 @@ local function sock_close (self)
 end
 
 local function check_response (self, secure)
-  local buffers = {}
-  while 1 do
-    local data = sock_read(self, 1024)
-    if not data then
-      return nil, '服务端断开了连接'
-    end
-    buffers[#buffers + 1] = data
-    local buffer = concat(buffers)
-    if find(buffer, RE_CRLF2) then
-      local version, code, msg, headers = PARSER_HTTP_RESPONSE(buffer)
-      if tonumber(version) ~= 1.1 or tonumber(code) ~= 101 or not headers then
-        sock_close(self)
-        return nil, "Error: protocol upgrade failed."
-      end
-      if not next(headers) then
-        sock_close(self)
-        return nil, "Error: unsupported response header."
-      end
-      local sec_key = headers['Sec-WebSocket-Accept']
-      local connection = headers['Connection']
-      if not connection or connection:lower() ~= 'upgrade' then
-        sock_close(self)
-        return nil, 'Error: Unsupported websocket protocol version.'
-      end
-      if sec_key ~= secure then
-        sock_close(self)
-        return nil, 'Error: `Sec-WebSocket-Accept` verification failed.'
-      end
-      if type(headers['Sec-WebSocket-Extensions']) == 'string' and find(headers['Sec-WebSocket-Extensions'], "permessage%-deflate") then
-        self.ext = 'deflate'
-      end
-      return true
-    end
+
+  -- 读取协议头
+  local buffer = sock_readline(self.sock, CRLF2)
+  if not buffer then
+    return false, '[WS ERROR] : Server Close this session when recv http handshake.'
   end
+
+  -- 解析协议头
+  local version, code, _, headers = PARSER_HTTP_RESPONSE(buffer)
+  if tonumber(version) ~= 1.1 or tonumber(code) ~= 101 or not headers then
+    sock_close(self)
+    return nil, "Error: protocol upgrade failed."
+  end
+  if not next(headers) then
+    sock_close(self)
+    return nil, "Error: unsupported response header."
+  end
+
+  -- 验证握手信息
+  local connection = headers['Connection']
+  if not connection or connection:lower() ~= 'upgrade' then
+    sock_close(self)
+    return nil, 'Error: Unsupported websocket protocol version.'
+  end
+  if headers['Sec-WebSocket-Accept'] ~= secure then
+    sock_close(self)
+    return nil, 'Error: `Sec-WebSocket-Accept` verification failed.'
+  end
+  if type(headers['Sec-WebSocket-Extensions']) == 'string' and find(headers['Sec-WebSocket-Extensions'], "permessage%-deflate") then
+    self.ext = 'deflate'
+  end
+
+  return true
 end
 
 -- HTTP[s] Over WebSocket Upgrade
 local function do_handshake (self)
 
-  local ok, err = sock_connect(self, self.domain, self.port)
+  local ok, err
+
+  ok, err = sock_connect(self, self.domain, self.port)
   if not ok then
     sock_close(self)
     return nil, err
@@ -136,7 +135,8 @@ local function do_handshake (self)
     'Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits',
     CRLF
   }
-  local ok, err = sock_send(self, concat(req, CRLF))
+
+  ok, err = sock_send(self, concat(req, CRLF))
   if not ok then
     sock_close(self)
     return ok, err
@@ -152,7 +152,7 @@ local function url_split (self)
   end
 
   if not path or path == '' then
-    return nil, "Connection failed: wss no path needs to end with`/`."
+    path = '/'
   end
 
   local domain, port
@@ -168,10 +168,7 @@ local function url_split (self)
     end
     port = toint(port)
     if not port then
-      port = 80
-      if scheme == 'wss' then
-        port = 443
-      end
+      port = scheme == 'wss' and 443 or 80
     end
   else
     domain, port = domain_port, scheme == 'ws' and 80 or 443
@@ -181,6 +178,7 @@ local function url_split (self)
   if scheme == 'wss' then
     self.ssl = true
   end
+
   self.domain = domain
   self.port = port
   self.path = path
@@ -191,10 +189,11 @@ local websocket = class("websocket-client")
 
 function websocket:ctor (opt)
   self.ssl = nil
+  self.ext = nil
   self.url = opt.url
   self.sock = tcp:new()
-  self.sock._timeout = opt.timeout
-  self.send_masked = opt.send_masked or true
+  self.send_masked = true
+  self.sock._timeout = toint(opt.timeout)
   self.max_payload_len = opt.max_payload_len or 65535
 end
 
@@ -222,43 +221,47 @@ function websocket:connect ()
   return true, err
 end
 
--- 接受数据
-function websocket:recv()
-  if not self.state then
-    return nil, 'not connected.'
-  end
-  local data, typ, err = _recv_frame(self.sock, self.max_payload_len, not self.send_masked)
-  if typ == 'close' or not typ then
-    self.state = nil
-    if type == 'close' then
-      return nil, 'server was closed session'
-    end
-    return nil, data or err
-  end
-  return data, typ
-end
-
--- 发送 text/binary
-function websocket:send (data, is_binary)
-  if not self.state then
-    return nil, 'not connected.'
-  end
-  local func = function ()
-    return _send_frame(self.sock, true, is_binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked, self.ext)
-  end
+function websocket:request(func)
   if not self.queue then
-    self.queue = { func }
-    return cf_fork(function ()
+    self.queue = new_tab(16, 0)
+    self.co = cf_fork(function ()
+      -- print("do")
       for _, f in ipairs(self.queue) do
         local ok, err = pcall(f)
         if not ok then
           Log:ERROR(err)
         end
       end
-      self.queue = nil
+      -- print("end")
+      self.co, self.queue = nil, nil
     end)
   end
   return insert(self.queue, func)
+end
+
+-- 接受数据
+function websocket:recv()
+  if not self.state then
+    return nil, 'not connected.'
+  end
+  local data, typ, err = _recv_frame(self.sock, self.max_payload_len, false)
+  if not data then
+    self.state = nil
+    return false, err
+  end
+  return data, typ
+end
+
+-- 发送 text/binary
+function websocket:send (data, bin)
+  if not self.state then
+    return nil, 'not connected.'
+  end
+  assert(type(data) == 'string' and data ~= '', "Invalid websocket send data.")
+  local sock = self.sock
+  return self:request(function ()
+    return _send_frame(sock, true, bin and 0x02 or 0x01, data, self.max_payload_len, self.send_masked, self.ext)
+  end)
 end
 
 -- 发送ping
@@ -266,22 +269,10 @@ function websocket:ping(data)
   if not self.state then
     return nil, 'not connected.'
   end
-  local func = function ()
-    return _send_frame(self.sock, true, 0x9, data, self.max_payload_len, self.send_masked, self.ext)
-  end
-  if not self.queue then
-    self.queue = { func }
-    return cf_fork(function ()
-      for _, f in ipairs(self.queue) do
-        local ok, err = pcall(f)
-        if not ok then
-          Log:ERROR(err)
-        end
-      end
-      self.queue = nil
-    end)
-  end
-  return insert(self.queue, func)
+  local sock = self.sock
+  return self:request(function ()
+    return _send_frame(sock, true, 0x09, type(data) == 'string' and #data <= 125 and data or "", self.max_payload_len, self.send_masked, self.ext)
+  end)
 end
 
 -- 发送pong
@@ -289,28 +280,28 @@ function websocket:pong(data)
   if not self.state then
     return nil, 'not connected.'
   end
-  local func = function ()
-    return _send_frame(self.sock, true, 0xA, data, self.max_payload_len, self.send_masked, self.ext)
-  end
-  if not self.queue then
-    self.queue = { func }
-    return cf_fork(function ()
-      for _, f in ipairs(self.queue) do
-        local ok, err = pcall(f)
-        if not ok then
-          Log:ERROR(err)
-        end
-      end
-      self.queue = nil
-    end)
-  end
-  return insert(self.queue, func)
+  local sock = self.sock
+  return self:request(function ()
+    return _send_frame(sock, true, 0x0A, type(data) == 'string' and #data <= 125 and data or "", self.max_payload_len, self.send_masked, self.ext)
+  end)
 end
 
 -- 清理连接
 function websocket:close ()
   if self.sock then
-    sock_close(self)
+    local sock = self.sock
+    return self:request(function ()
+      if self.state then
+        self:request(function ()
+          return _send_frame(sock, true, 0x08, strpack(">H", 1000), self.max_payload_len, self.send_masked, self.ext)
+        end)
+      end
+      if sock then
+        self:request(function ()
+          return sock_close(self)
+        end)
+      end
+    end)
   end
 end
 

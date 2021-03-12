@@ -1,10 +1,11 @@
 local cf = require "cf"
 local cf_fork = cf.fork
-local cf_sleep = cf.sleep
 
-local wbproto = require "protocol.websocket.protocol"
-local _recv_frame = wbproto.recv_frame
-local _send_frame = wbproto.send_frame
+local new_tab = require"sys".new_tab
+
+local wsproto = require "protocol.websocket.protocol"
+local _recv_frame = wsproto.recv_frame
+local _send_frame = wsproto.send_frame
 
 local Log = require "logging":new { dump = true, path = 'protocol-websocket-server'}
 
@@ -13,7 +14,7 @@ local pcall = pcall
 local ipairs = ipairs
 local assert = assert
 local insert = table.insert
-local char = string.char
+local strpack = string.pack
 
 local class = require "class"
 
@@ -39,9 +40,9 @@ end
 -- 异步消息发送
 function ws:add_to_queue (f)
   if not self.queue then
-    self.queue = {f}
-    return cf_fork(function (...)
-      for index, func in ipairs(self.queue) do
+    self.queue = new_tab(64, 0)
+    self.co = cf_fork(function ()
+      for _, func in ipairs(self.queue) do
         local ok, writeable = pcall(func)
         if not ok then
           Log:ERROR(writeable)
@@ -50,10 +51,10 @@ function ws:add_to_queue (f)
           break
         end
       end
-      self.queue = nil
+      self.co, self.queue = nil, nil
     end)
   end
-  return self.queue and insert(self.queue, f)
+  return insert(self.queue, f)
 end
 
 -- 发送text/binary消息
@@ -63,7 +64,7 @@ function ws:send (data, binary)
   end
   assert(type(data) == 'string' and data ~= '', "websoket error: send need string data.")
   self:add_to_queue(function ()
-    return _send_frame(self.sock, true, binary and 0x2 or 0x1, data, self.max_payload_len, self.send_masked, self.ext)
+    return _send_frame(self.sock, true, binary and 0x02 or 0x01, data, self.max_payload_len, self.send_masked, self.ext)
   end)
 end
 
@@ -74,11 +75,14 @@ function ws:close(data)
   end
   self.closed = true
   self:add_to_queue(function ()
-    return _send_frame(self.sock, true, 0x8, char(((1000 >> 8) & 0xff), (1000 & 0xff))..(type(data) == 'string' and data or ""), self.max_payload_len, self.send_masked, self.ext)
+    return _send_frame(self.sock, true, 0x08, strpack(">H", 1000) .. (type(data) == 'string' and data or ""), self.max_payload_len, self.send_masked, self.ext) and self.sock:close()
   end)
-  self:add_to_queue(function ()
-    return self.sock:close()
-  end)
+end
+
+-- 退出
+function ws:exit()
+  self.closed = true
+  self:add_to_queue(function () end)
 end
 
 local Websocket = { __Version__ = 1.0 }
@@ -96,33 +100,32 @@ function Websocket.start(opt)
   local on_close = assert(type(cls.on_close) == 'function' and cls.on_close, "'on_close' method is not implemented.")
 
   sock._timeout = cls.timeout or nil
-  local send_masked = cls.send_masked or nil
   local max_payload_len = cls.max_payload_len or 65535
-  w:set_send_masked(send_masked)
   w:set_max_payload_len(max_payload_len)
   local ok, err = pcall(on_open, cls)
   if not ok then
     Log:ERROR(err)
     return
   end
+  -- Websocket 交互协议循环
   while 1 do
-    local data, typ, err = _recv_frame(sock, max_payload_len, send_masked)
-    if (not data and not typ) or typ == 'close' then
-      w.closed = true
-      if err and err ~= 'read timeout' then
-        local ok, err = pcall(on_error, cls, err)
+    local data, typ, errinfo = _recv_frame(sock, max_payload_len, true)
+    if not typ or typ == 'close' or typ == 'error' then
+      w:exit()
+      if typ == 'error' then
+        ok, err = pcall(on_error, cls, errinfo)
         if not ok then
           Log:ERROR(err)
         end
       end
-      local ok, err = pcall(on_close, cls, data or err)
+      ok, err = pcall(on_close, cls, data or errinfo)
       if not ok then
         Log:ERROR(err)
       end
       break
     end
     if typ == 'ping' then
-      w:add_to_queue(function () return _send_frame(sock, true, 0xA, data or '', max_payload_len, send_masked, ext) end)
+      w:add_to_queue(function () return _send_frame(sock, true, 0x0A, data or '', max_payload_len, false, ext) end)
     end
     if typ == 'text' or typ == 'binary' then
       cf_fork(on_message, cls, data, typ == 'binary')
