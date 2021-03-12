@@ -21,6 +21,7 @@ local tostring = tostring
 local getmetatable = getmetatable
 
 local modf = math.modf
+local toint = math.tointeger
 local debug_getinfo = debug.getinfo
 local io_open = io.open
 local io_write = io.write
@@ -134,6 +135,7 @@ function Log:ctor (opt)
     self.dumped = opt.dump
     self.path = opt.path
     self.today = Y_m_d()
+    self.buffer_size = toint(opt.buffer_size)
   end
 end
 
@@ -192,7 +194,7 @@ local function async_write(self, log)
         开始根据counter来决定是否刷写磁盘, 如果counter数量大于0的时候说明需要;
         这可以减少空闲时间的无效操作, 也可以减少一些特殊情况下的性能损耗问题;
       ]]
-      if self.counter % ASYNC_BUFFER_SIZE == 0 then
+      if self.counter % (self.buffer_size or ASYNC_BUFFER_SIZE) == 0 then
         self.counter = 0
         return
       end
@@ -224,7 +226,7 @@ function Log:dump(log)
   if not self.file then
     self.file = assert(io_open(LOG_FOLDER..self.path..'_'..self.today..'.log', 'a+'))
     if not self.sync and ASYNC then
-      self.file:setvbuf("full", ASYNC_BUFFER_SIZE)
+      self.file:setvbuf("full", self.buffer_size or ASYNC_BUFFER_SIZE)
     end
   end
   --[[

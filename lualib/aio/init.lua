@@ -85,7 +85,7 @@ function File:read( bytes )
     end
     return nil, "Invalid file read bytes."
   end
-  self.__READ__ = assert(not self.__READ__, "File:read/readall方法不可以在多个协程中并发调用.")
+  self.__READ__ = assert(not self.__READ__, "[File:read/readall ERROR] : This method cannot be called concurrently in multiple coroutines.")
   local stat, err = aio.stat(self.path)
   if not stat then
     self.__READ__ = nil
@@ -105,7 +105,7 @@ function File:readall()
   if self.status == "closed" then
     return nil, "File already Closed."
   end
-  self.__READ__ = assert(not self.__READ__, "File:read/readall方法不可以在多个协程中并发调用.")
+  self.__READ__ = assert(not self.__READ__, "[File:read/readall ERROR] : This method cannot be called concurrently in multiple coroutines.")
   local stat, err = aio.stat(self.path)
   if not stat then
     self.__READ__ = nil
@@ -128,7 +128,7 @@ function File:write( data )
   if type(data) ~= 'string' or data == "" then
     return nil, "Invalid file write data."
   end
-  self.__WRITE__ = assert(not self.__WRITE__, "File:write方法不可以在多个协程中并发调用.")
+  self.__WRITE__ = assert(not self.__WRITE__, "[File:write ERROR] : This method cannot be called concurrently in multiple coroutines.")
   -- 如果没有构建write_offset, 则需要通过stat构建; 否则永远只从尾部开始写入.
   if not self.write_offset then
     if not self.stat then
@@ -152,7 +152,7 @@ function File:flush()
   if self.status == "closed" then
     return nil, "File already Closed."
   end
-  self.__FLUSH__ = assert(not self.__FLUSH__, "File:flush方法不可以在多个协程中并发调用.")
+  self.__FLUSH__ = assert(not self.__FLUSH__, "[File:flush ERROR] : This method cannot be called concurrently in multiple coroutines.")
   local ok, err = aio.flush(self.fd)
   self.__FLUSH__ = nil
   return ok, err
@@ -163,7 +163,7 @@ function File:clean()
   if self.status == "closed" then
     return nil, "File already Closed."
   end
-  self.__CLEAN__ = assert(not self.__CLEAN__, "File:clean方法不可以在多个协程中并发调用.")
+  self.__CLEAN__ = assert(not self.__CLEAN__, "[File:clean ERROR] : This method cannot be called concurrently in multiple coroutines.")
   local ok, err = aio.truncate(self.path, 0)
   if not ok then
     self.__CLEAN__ = nil

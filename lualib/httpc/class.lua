@@ -59,6 +59,17 @@ function httpc:disable_reconnect()
   return self
 end
 
+-- 检查域名和端口是否一致.
+function httpc:check_domain(opt)
+  if self.domain and self.domain ~= opt.domain then
+    return false
+  end
+  if self.port and self.port ~= opt.port then
+    return false
+  end
+  return true
+end
+
 function httpc:send_request(opt, data)
   if not self.sock then
     if not self.reconnect then
@@ -102,12 +113,8 @@ function httpc:raw( parameter )
     return nil, err
   end
 
-  if self.domain and self.domain ~= opt.domain then
-    return nil, "1. 不同的域名不可使用httpc对象来请求"
-  end
-
-  if self.port and self.port ~= opt.port then
-    return nil, "2. 不同的域名不可使用httpc对象来请求"
+  if not self:check_domain(opt) then
+    return nil, "Invalid httpc domain or port."
   end
 
   local method = type(parameter.method) == 'string' and upper(parameter.method) or nil
@@ -158,12 +165,8 @@ function httpc:get (domain, headers, args, timeout)
     return nil, err
   end
 
-  if self.domain and self.domain ~= opt.domain then
-    return nil, "1. 不同的域名不可使用httpc对象来请求"
-  end
-
-  if self.port and self.port ~= opt.port then
-    return nil, "2. 不同的域名不可使用httpc对象来请求"
+  if not self:check_domain(opt) then
+    return nil, "Invalid httpc domain or port."
   end
 
   if timeout then
@@ -199,12 +202,8 @@ function httpc:post (domain, headers, body, timeout)
     return nil, err
   end
 
-  if self.domain and self.domain ~= opt.domain then
-    return nil, "1. 不同的域名不可使用httpc对象来请求"
-  end
-
-  if self.port and self.port ~= opt.port then
-    return nil, "2. 不同的域名不可使用httpc对象来请求"
+  if not self:check_domain(opt) then
+    return nil, "Invalid httpc domain or port."
   end
 
   if timeout then
@@ -240,12 +239,8 @@ function httpc:delete (domain, headers, body, timeout)
     return nil, err
   end
 
-  if self.domain and self.domain ~= opt.domain then
-    return nil, "1. 不同的域名不可使用httpc对象来请求"
-  end
-
-  if self.port and self.port ~= opt.port then
-    return nil, "2. 不同的域名不可使用httpc对象来请求"
+  if not self:check_domain(opt) then
+    return nil, "Invalid httpc domain or port."
   end
 
   if timeout then
@@ -281,12 +276,8 @@ function httpc:put (domain, headers, body, timeout)
     return nil, err
   end
 
-  if self.domain and self.domain ~= opt.domain then
-    return nil, "1. 不同的域名不可使用httpc对象来请求"
-  end
-
-  if self.port and self.port ~= opt.port then
-    return nil, "2. 不同的域名不可使用httpc对象来请求"
+  if not self:check_domain(opt) then
+    return nil, "Invalid httpc domain or port."
   end
 
   if timeout then
@@ -323,12 +314,8 @@ function httpc:json (domain, headers, json, timeout)
     return nil, err
   end
 
-  if self.domain and self.domain ~= opt.domain then
-    return nil, "1. 不同的域名不可使用httpc对象来请求"
-  end
-
-  if self.port and self.port ~= opt.port then
-    return nil, "2. 不同的域名不可使用httpc对象来请求"
+  if not self:check_domain(opt) then
+    return nil, "Invalid httpc domain or port."
   end
 
   if timeout then
@@ -366,12 +353,8 @@ function httpc:file (domain, headers, files, timeout)
     return nil, err
   end
 
-  if self.domain and self.domain ~= opt.domain then
-    return nil, "1. 不同的域名不可使用httpc对象来请求"
-  end
-
-  if self.port and self.port ~= opt.port then
-    return nil, "2. 不同的域名不可使用httpc对象来请求"
+  if not self:check_domain(opt) then
+    return nil, "Invalid httpc domain or port."
   end
 
   if timeout then
