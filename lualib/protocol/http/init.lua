@@ -282,10 +282,10 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
   local ext = nil
   local extension = header['Sec-WebSocket-Extensions']
   if type(extension) == 'string' and extension ~= '' then
-    if find(header['Sec-WebSocket-Extensions'], "permessage%-deflate") then
+    if find(extension, "permessage%-deflate") then
       response[#response+1] = "Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits=15; server_no_context_takeover; client_no_context_takeover"
       ext = "deflate"
-    elseif find(header['Sec-WebSocket-Extensions'], "x%-webkit%-deflate%-frame") then
+    elseif find(extension, "x%-webkit%-deflate%-frame") then
       response[#response+1] = "Sec-WebSocket-Extensions: x-webkit-deflate-frame; no_context_takeover"
       ext = "deflate"
     end
