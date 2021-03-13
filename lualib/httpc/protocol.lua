@@ -8,6 +8,9 @@ local new_tab = require "sys".new_tab
 local json = require "json"
 local json_encode = json.encode
 
+local xml2lua = require "xml2lua"
+local toxml = xml2lua.toxml
+
 local crypt = require "crypt"
 local url_encode = crypt.urlencode
 local base64encode = crypt.base64encode
@@ -337,6 +340,33 @@ local function build_json_req (opt)
   return concat(request, CRLF) .. CRLF2 .. opt.json
 end
 
+local function build_xml_req(opt)
+  local request = new_tab(16, 0)
+  insert(request, fmt("POST %s HTTP/1.1", opt.path))
+  insert(request, fmt("Host: %s", (opt.port == 80 or opt.port == 443) and opt.domain or opt.domain..':'..opt.port))
+  insert(request, fmt("User-Agent: %s", opt.server))
+  insert(request, 'Accept: */*')
+  insert(request, 'Accept-Encoding: gzip, identity')
+  insert(request, 'Connection: keep-alive')
+  if type(opt.headers) == "table" then
+    for _, header in ipairs(opt.headers) do
+      assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
+      assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
+      insert(request, header[1]..': '..header[2])
+    end
+  end
+  if type(opt.xml) == 'string' and opt.xml ~= '' then
+    insert(request, 'Content-Type: application/xml')
+    insert(request, fmt("Content-Length: %s", #opt.xml))
+  end
+  if type(opt.xml) == 'table' then
+    opt.xml = toxml(opt.xml, "xml")
+    insert(request, 'Content-Type: application/xml')
+    insert(request, "Content-Length: " .. #opt.xml)
+  end
+  return concat(request, CRLF) .. CRLF2 .. opt.xml
+end
+
 local function build_file_req (opt)
   local request = new_tab(16, 0)
   insert(request, fmt("POST %s HTTP/1.1\r\n", opt.path))
@@ -429,6 +459,7 @@ return {
   build_post_req = build_post_req,
   build_json_req = build_json_req,
   build_file_req = build_file_req,
+  build_xml_req = build_xml_req,
   build_put_req = build_put_req,
   build_delete_req = build_delete_req,
   build_basic_authorization = build_basic_authorization,

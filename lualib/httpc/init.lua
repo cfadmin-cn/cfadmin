@@ -20,6 +20,7 @@ local build_get_req = protocol.build_get_req
 local build_post_req = protocol.build_post_req
 local build_json_req = protocol.build_json_req
 local build_file_req = protocol.build_file_req
+local build_xml_req = protocol.build_xml_req
 local build_put_req = protocol.build_put_req
 local build_delete_req = protocol.build_delete_req
 local build_basic_authorization = protocol.build_basic_authorization
@@ -273,7 +274,46 @@ local function json(domain, headers, json, timeout)
 	return code, msg, headers
 end
 
----comment HTTP[S] `POST`请求方法(使用`JSON`作为请求体)
+---comment HTTP[S] `POST`请求方法(使用`XML`作为请求体)
+---@param domain   string                                   @合法的`http[s]`域名.
+---@param headers  table<integer, table<integer, string>>   @合法的请求头部, 格式:`{ {"key1", "value1"}, ... }`.
+---@param xml     table | string												    @可序列化的`table`或合法的`json`字符串.
+---@param timeout  number																	  @此请求最长等待时间.
+---@return integer			  																	@http协议请求状态码, 如果是连接失败或等待超时则为`nil`.
+---@return string 																					@服务器的响应内容.
+---@return table<string, string>            								@服务器的响应头部.
+local function xml(domain, headers, xml, timeout)
+
+	local opt, err = splite_protocol(domain)
+	if not opt then
+		return nil, err
+	end
+
+	assert(type(xml) == "string" or type(xml) == "table", "attempted passed a invalide json string or table.")
+
+	opt.xml = xml
+	opt.headers = headers
+	opt.server = ua.get_user_agent()
+
+	local REQ = build_xml_req(opt)
+
+	local sock = sock_new():timeout(timeout or __TIMEOUT__)
+	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+	if not ok then
+		sock:close()
+		return ok, err
+	end
+	local ok, err = sock_send(sock, opt.protocol, REQ)
+	if not ok then
+		sock:close()
+		return ok, err
+	end
+	local code, msg, headers = httpc_response(sock, opt.protocol)
+	sock:close()
+	return code, msg, headers
+end
+
+---comment HTTP[S] `POST`请求方法(使用`File`作为请求体)
 ---@param domain   string                                   @合法的`http[s]`域名.
 ---@param headers  table<integer, table<integer, string>>   @合法的请求头部, 格式:`{ {"key1", "value1"}, ... }`.
 ---@param files    table																    @合法的文件内容: { }
@@ -364,6 +404,7 @@ return {
 	post = post,
 	delete = delete,
 	json = json,
+	xml = xml,
 	file = file,
 	put = put,
 	multi_request = multi_request,

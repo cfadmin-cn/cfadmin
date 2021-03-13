@@ -15,6 +15,7 @@ local build_get_req = protocol.build_get_req
 local build_post_req = protocol.build_post_req
 local build_json_req = protocol.build_json_req
 local build_file_req = protocol.build_file_req
+local build_xml_req = protocol.build_xml_req
 local build_put_req = protocol.build_put_req
 local build_delete_req = protocol.build_delete_req
 local build_basic_authorization = protocol.build_basic_authorization
@@ -39,7 +40,7 @@ end
 
 -- 设置超时时间
 function httpc:set_timeout(timeout)
-  if tonumber(timeout) and tonumber(timeout) > 0 then
+  if tonumber(timeout) and tonumber(timeout) and tonumber(timeout) > 0 then
     self.timeout = tonumber(timeout)
     return self
   end
@@ -107,6 +108,16 @@ function httpc:send_request(opt, data)
   return true
 end
 
+-- 读取响应
+function httpc:read_response(opt)
+  local code, msg, headers = httpc_response(self.sock, opt.protocol)
+  if not code then
+    self.sock:close()
+    self.sock = nil
+  end
+  return code, msg, headers
+end
+
 function httpc:raw( parameter )
   local opt, err = splite_protocol(parameter.domain)
   if not opt then
@@ -149,13 +160,7 @@ function httpc:raw( parameter )
     return false, err
   end
 
-  local code, msg, headers = httpc_response(self.sock, opt.protocol)
-  if not code then
-    self.sock:close()
-    self.sock = nil
-  end
-  return code, msg, headers
-
+  return self:read_response(opt)
 end
 
 -- get 请求
@@ -169,7 +174,7 @@ function httpc:get (domain, headers, args, timeout)
     return nil, "Invalid httpc domain or port."
   end
 
-  if timeout then
+  if tonumber(timeout) and tonumber(timeout) > 0 then
     self.timeout = timeout
   end
 
@@ -187,12 +192,7 @@ function httpc:get (domain, headers, args, timeout)
     return false, err
   end
 
-  local code, msg, headers = httpc_response(self.sock, opt.protocol)
-  if not code then
-    self.sock:close()
-    self.sock = nil
-  end
-  return code, msg, headers
+  return self:read_response(opt)
 end
 
 -- post 请求
@@ -206,7 +206,7 @@ function httpc:post (domain, headers, body, timeout)
     return nil, "Invalid httpc domain or port."
   end
 
-  if timeout then
+  if tonumber(timeout) and tonumber(timeout) > 0 then
     self.timeout = timeout
   end
 
@@ -224,12 +224,7 @@ function httpc:post (domain, headers, body, timeout)
     return false, err
   end
 
-  local code, msg, headers = httpc_response(self.sock, opt.protocol)
-  if not code then
-    self.sock:close()
-    self.sock = nil
-  end
-  return code, msg, headers
+  return self:read_response(opt)
 end
 
 -- delete 请求
@@ -243,7 +238,7 @@ function httpc:delete (domain, headers, body, timeout)
     return nil, "Invalid httpc domain or port."
   end
 
-  if timeout then
+  if tonumber(timeout) and tonumber(timeout) > 0 then
     self.timeout = timeout
   end
 
@@ -261,12 +256,7 @@ function httpc:delete (domain, headers, body, timeout)
     return false, err
   end
 
-  local code, msg, headers = httpc_response(self.sock, opt.protocol)
-  if not code then
-    self.sock:close()
-    self.sock = nil
-  end
-  return code, msg, headers
+  return self:read_response(opt)
 end
 
 -- put 请求
@@ -280,7 +270,7 @@ function httpc:put (domain, headers, body, timeout)
     return nil, "Invalid httpc domain or port."
   end
 
-  if timeout then
+  if tonumber(timeout) and tonumber(timeout) > 0 then
     self.timeout = timeout
   end
 
@@ -298,12 +288,7 @@ function httpc:put (domain, headers, body, timeout)
     return false, err
   end
 
-  local code, msg, headers = httpc_response(self.sock, opt.protocol)
-  if not code then
-    self.sock:close()
-    self.sock = nil
-  end
-  return code, msg, headers
+  return self:read_response(opt)
 end
 
 -- json 请求
@@ -318,11 +303,11 @@ function httpc:json (domain, headers, json, timeout)
     return nil, "Invalid httpc domain or port."
   end
 
-  if timeout then
+  if tonumber(timeout) and tonumber(timeout) > 0 then
     self.timeout = timeout
   end
 
-  assert(type(json) == "string" or type(json) == "table", "attempted passed a invalide json string or table.")
+  assert(type(json) == "string" or type(json) == "table", "attempted passed a invalid json string or table.")
 
   opt.json = json
   opt.headers = headers
@@ -338,12 +323,42 @@ function httpc:json (domain, headers, json, timeout)
     return false, err
   end
 
-  local code, msg, headers = httpc_response(self.sock, opt.protocol)
-  if not code then
-    self.sock:close()
-    self.sock = nil
+  return self:read_response(opt)
+end
+
+-- xml 请求
+function httpc:xml (domain, headers, xml, timeout)
+
+  local opt, err = splite_protocol(domain)
+  if not opt then
+    return nil, err
   end
-  return code, msg, headers
+
+  if not self:check_domain(opt) then
+    return nil, "Invalid httpc domain or port."
+  end
+
+  if tonumber(timeout) and tonumber(timeout) > 0 then
+    self.timeout = timeout
+  end
+
+  assert(type(xml) == "string" or type(xml) == "table", "attempted passed a invalid xml string or table.")
+
+  opt.xml = xml
+  opt.headers = headers
+  opt.server = self.server
+
+  self.domain = opt.domain
+  self.port = opt.port
+
+  local REQ = build_xml_req(opt)
+
+  local ok, err = self:send_request(opt, REQ)
+  if not ok then
+    return false, err
+  end
+
+  return self:read_response(opt)
 end
 
 -- file 请求
@@ -357,9 +372,11 @@ function httpc:file (domain, headers, files, timeout)
     return nil, "Invalid httpc domain or port."
   end
 
-  if timeout then
+  if tonumber(timeout) and tonumber(timeout) > 0 then
     self.timeout = timeout
   end
+
+  assert(type(files) == "table", "attempted passed a invalid file.")
 
   opt.files = files
   opt.headers = headers
@@ -375,12 +392,7 @@ function httpc:file (domain, headers, files, timeout)
     return false, err
   end
 
-  local code, msg, headers = httpc_response(self.sock, opt.protocol)
-  if not code then
-    self.sock:close()
-    self.sock = nil
-  end
-  return code, msg, headers
+  return self:read_response(opt)
 end
 
 -- 异步请求
