@@ -136,14 +136,13 @@ local function httpc_response(sock, SSL)
   local Chunked = HEADER['Transfer-Encoding'] or HEADER['transfer-encoding']
   if Chunked and find(Chunked, "chunked") then
     local resp = new_tab(128, 0)
-    local socket_recv = sock.recv
     while 1 do
       local chunked_size = sock:readline(CRLF, true)
       local csize = toint(tonumber(chunked_size, 16))
       if not csize or csize == 0 then
         if csize then
           -- 这行代码是用来去除`\r\n`的.
-          socket_recv(sock, 2)
+          read_data(sock, 2)
           break
         end
         return nil, "Invalid http trunked body."
@@ -154,7 +153,7 @@ local function httpc_response(sock, SSL)
       end
       resp[#resp+1] = buffer
       -- 这行代码是用来去除`\r\n`的.
-      socket_recv(sock, 2)
+      read_data(sock, 2)
     end
     body = concat(resp)
   elseif Content_Length then

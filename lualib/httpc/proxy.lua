@@ -225,25 +225,11 @@ function Proxy.connect(sock, proxy_config, source_config, info)
   return true
 end
 
---[[
-通过CONNCET TUNNEL来完成认证与代理
-
-  opt.proxy_domain  参数表示代理服务器的域名/IP加上端口, 需要用http表示法并且要加上[/]结尾. 例如: http://proxy.com/, http://proxy.com:8080/;
-
-  opt.source_domain 参数表示需要访问的服务器的域名/IP加上端口, 需要用http表示法并且要加上[/]结尾. 例如: http://proxy.com/, http://proxy.com:8080/, https://www.baidu.com/;
-
-  opt.auth          参数表示需要使用basic 进行认证. opt.auth是一个table, 使用者需要为它的内部添加username与password字符串来标识代理账户与密码, Proxy内部会自动为其进行编码;
-
-  opt.headers       参数表示需要为通道握手添加额外的头部信息, 这在一些特殊的代理服务器中可能会用到. 这个参数是一个table, 并且内部表示法为: {{header_key1, header_value1}, {header_key2, header_value2}, {header_key3, header_value3}};
-
-  opt.timeout       参数表示与代理服务器之间握手的总开销时间, 超过这个时间将会主动断开连接;
-
-返回值:
-
-  此方法在代理通道建立成功后将会返回一个httpc class对象, 用户可以使用此对象来访问服务器的. 否则将会返回false与错误描述. 当您不想时候httpc的时候, 请主动调用它的close方法;
-
-  请注意: Proxy并不能保证代理、源站不会主动断开连接, httpc class断开连接的时候进行重连也无法恢复代理连接. 所以请重新使用tunnel_connect方法创建httpc对象;
---]]
+---comment 通过`HTTP CONNCET`来完成认证与代理. `proxy_domain`的语法为: `http://(域名或IP):端口/`; `source_domain`的语法为: `http[s]://(域名或IP):端口/`;(`/`是必须存在的);
+---comment 代理通道建立成功后将会返回一个`httpc class`对象. 失败返回`false`与`string`类型的错误信息. 在不需要使用的时候请调用它的`close`方法回收资源;
+---comment `Proxy`不会做任何连接有效保证, `httpc class`断开连接的时候请调用它的`close`方法回收资源, 重新使用`tunnel_connect`方法创建`httpc`对象;
+---@param opt table @`proxy_domain(代理IP)`/`opt.source_domain(目标IP)`/`opt.auth(可选的basice认证)`/`opt.headers(可选的头部信息)`/`opt.timeout(可选的连接超时时间)`
+---@return table | nil, string @成功返回`httpc class`, 失败返回`false`与`string`类型的错误信息 .
 function Proxy.tunnel_connect(opt)
 
   -- 解析代理服务器域名信息
@@ -288,23 +274,11 @@ function Proxy.tunnel_connect(opt)
   return httpc:new({ domain = opt.source_domain }):set_socket(sock):disable_reconnect()
 end
 
---[[
-通过SOCKES5 来完成认证与代理
-
-  opt.proxy_domain    参数表示代理服务器的域名/IP加上端口, 表示方式为: socks5://ip|domain:port
-
-  opt.source_domain   参数表示需要访问的服务器的域名/IP加上端口, 需要用http表示法并且要加上[/]结尾. 例如: http://proxy.com/, http://proxy.com:8080/, https://www.baidu.com/;
-
-  opt.auth            参数表示需要使用用户名/密码认证, opt.auth是一个table, 使用者需要为它的内部添加username与password字符串来标识代理账户与密码;
-
-  opt.timeout         参数表示与代理服务器之间握手的总开销时间, 超过这个时间将会主动断开连接;
-
-返回值:
-
-  此方法在代理通道建立成功后将会返回一个httpc class对象, 用户可以使用此对象来访问服务器的. 否则将会返回false与错误描述. 当您不想时候httpc的时候, 请主动调用它的close方法;
-
-  请注意: Proxy并不能保证代理、源站不会主动断开连接, httpc class断开连接的时候进行重连也无法恢复代理连接. 所以请重新使用socks5_connect方法创建httpc对象;
-]]
+---comment 通过`SOCK5 CONNCET`来完成认证与代理. `proxy_domain`的语法为: `socks5://(域名或IP):端口`; `source_domain`的语法为: `http[s]://(域名或IP):端口/`, `/`是必须存在的;
+---comment 代理通道建立成功后将会返回一个`httpc class`对象. 失败返回`false`与`string`类型的错误信息. 在不需要使用的时候请调用它的`close`方法回收资源;
+---comment `Proxy`不会做任何连接有效保证, `httpc class`断开连接的时候请调用它的`close`方法回收资源, 重新使用`socks5_connect`方法创建`httpc`对象;
+---@param opt table @`proxy_domain(代理IP)`/`opt.source_domain(目标IP)`/`opt.auth(可选的basice认证)`/`opt.headers(可选的头部信息)`/`opt.timeout(可选的连接超时时间)`
+---@return table | nil, string @成功返回`httpc class`, 失败返回`false`与`string`类型的错误信息 .
 function Proxy.socks5_connect(opt)
   -- 解析代理服务器域名信息
   local domain, port = match(type(opt.proxy_domain) == 'string' and opt.proxy_domain or "" , "socks5://[%[]?([^%]%[]+)[%]]?[:](%d+)")
