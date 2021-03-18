@@ -25,6 +25,6 @@ rebuild :
 
 clean :
 	@echo "********** Clean All Files **********"
-	@echo "rm -rf cfadmin libcore.so luaclib/*.so 3rd/*.so"
-	@$(RM) cfadmin libcore.so luaclib/*.so
+	@echo "rm -rf cfadmin libcore.so luaclib/*.so *.exe"
+	@$(RM) cfadmin libcore.so luaclib/*.so *.exe
 	@$(MAKE) -s -C 3rd clean
