@@ -14,7 +14,7 @@ CC = cc
 
 INCLUDES = -I../../../src -I/usr/local/include
 LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
-DLL = -lcore -llua
+DLL = -lcore
 
 build:
 	@$(CC) -o cjson.so lua_cjson.c fpconv.c strbuf.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)

@@ -13,7 +13,7 @@ INCLUDES += -I../../../src -I/usr/local/include
 LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
 
 CFLAGS = -O3 -Wall -shared -fPIC
-DLL = -lcore -llua
+DLL = -lcore
 
 build:
 	@$(CC) -o lfs.so lfs.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)

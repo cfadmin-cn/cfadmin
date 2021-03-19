@@ -17,17 +17,17 @@ internal :
 
 	@echo "********** Built-in modules **********"
 	@echo "CC	-	lsys"
-	@$(CC) -o sys.so src/lsys.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -llua
+	@$(CC) -o sys.so src/lsys.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	@echo "CC	-	ludp"
-	@$(CC) -o udp.so src/ludp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -llua
+	@$(CC) -o udp.so src/ludp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	@echo "CC	-	ltask"
-	@$(CC) -o task.so src/ltask.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -llua
+	@$(CC) -o task.so src/ltask.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	@echo "CC	-	ltimer"
-	@$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -llua
+	@$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	@echo "CC	-	laio"
-	@$(CC) -o laio.so src/laio.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -llua -leio
+	@$(CC) -o laio.so src/laio.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -leio
 	@echo "CC	-	ltcp"
-	@$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore -llua
+	@$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore
 
 3part :
 

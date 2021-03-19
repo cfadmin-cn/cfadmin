@@ -11,7 +11,7 @@ CC = cc
 INCLUDES += -I../../../src -I/usr/local/include
 LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
 CFLAGS = -O3 -shared -fPIC
-DLL = -lcore -llua
+DLL = -lcore
 
 build:
 	@$(CC) -o lpeg.so lpcap.c lpcode.c lpprint.c lptree.c lpvm.c $(CFLAGS) $(INCLUDES) $(LIBS) $(DLL)

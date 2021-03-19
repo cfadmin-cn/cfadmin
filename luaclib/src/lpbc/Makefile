@@ -13,7 +13,7 @@ INCLUDES += -I../../../src -I/usr/local/include
 LIBS = -L../ -L../../../ -L/usr/local/lib
 
 CFLAGS = -O3 -Wall -shared -fPIC -fno-strict-aliasing
-DLL = -lcore -llua
+DLL = -lcore
 
 build:
 	@$(CC) -o lprotobuf.so lpb.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
