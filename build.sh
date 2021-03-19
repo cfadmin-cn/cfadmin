@@ -16,11 +16,11 @@ current=`pwd`
 
 rm -rf build && mkdir build && cd build
 
-# git clone https://gitee.com/CandyMi/lua -b v5.3.5
-git clone https://github.com/CandyMi/lua -b v5.3.5
+# git clone https://gitee.com/CandyMi/lua -b v5.4.2
+git clone https://github.com/CandyMi/lua -b v5.4.2
 
-# git clone https://gitee.com/CandyMi/libev -b v4.25
-git clone https://github.com/CandyMi/libev -b v4.25
+# git clone https://gitee.com/CandyMi/libev -b v4.33
+git clone https://github.com/CandyMi/libev -b v4.33
 
 # git clone https://gitee.com/CandyMi/libeio
 git clone https://github.com/CandyMi/libeio
