@@ -3,23 +3,19 @@ local tcp = require "internal.TCP"
 
 local cf = require "cf"
 local cf_fork = cf.fork
-local cf_wait = cf.wait
-local cf_self = cf.self
-local cf_wakeup = cf.wakeup
 
 local logging = require "logging"
 local Log = logging:new{ dump = true, path = "protocol-stomp"}
 
 local protocol = require "protocol.stomp.protocol"
 local protocol_send = protocol.send
-local protocol_ack = protocol.ack
 local protocol_subscribe = protocol.subscribe
 local protocol_unsubscribe = protocol.unsubscribe
 local protocol_disconnect = protocol.disconnect
 local connect_and_login = protocol.connect
 
 local type = type
-local ipairs = ipairs
+local assert = assert
 local fmt = string.format
 local random = math.random
 
@@ -31,21 +27,30 @@ function stomp:ctor (opt)
   self.sock = tcp:new()
   self.host = opt.host
   self.port = opt.port
-  self.vhost = opt.vhost or ""
+  self.header = opt.header
+  self.vhost = opt.vhost or "/exchange"
   self.username = opt.username
   self.password = opt.password
 end
 
 -- 连接
 function stomp:connect ()
-  local ok, data = connect_and_login(self, {
+  -- 如果需要扩展头部
+  local opt = {
     ['id'] = self.id,
+    ['client_id'] = self.id,
     ['vhost'] = self.vhost,
     ['login'] = self.username,
     ['username'] = self.username,
     ['passcode'] = self.password,
-    ['password'] = self.password,
-  })
+  }
+  if type(self.header) == 'table' then
+    for key, value in pairs(self.header) do
+      opt[key] = value
+    end
+  end
+  -- 登录授权
+  local ok, data = connect_and_login(self, opt)
   if not ok then
     return ok, data
   end
@@ -58,44 +63,37 @@ function stomp:send (...)
   return self:publish(...)
 end
 
-function stomp:publish (topic, data)
+function stomp:publish (topic, payload)
   if not self.state then
-    return nil, "stomp未连接"
+    return nil, "[STOMP ERROR] : client not connected."
   end
-  if type(topic) ~= 'string' or type(data) ~= 'string' then
-    return nil, "错误的topic或data"
+  if type(topic) ~= 'string' or topic == '' or type(payload) ~= 'string' or payload == '' then
+    return nil, "[STOMP ERROR] : Invalide `topic` or `payload` arguments."
   end
-  return protocol_send(self, {
-    topic = topic,
-    data = data
-  })
+  return protocol_send(self, { topic = topic, payload = payload })
 end
 
 function stomp:subscribe (topic, func)
   if not self.state then
-    return nil, "stomp未连接"
+    return nil, "[STOMP ERROR] : client not connected."
   end
-  if type(topic) ~= 'string' then
-    return nil, '错误的stopic订阅参数'
+  if type(topic) ~= 'string' or topic == '' or type(func) ~= 'function' then
+    return nil, '[STOMP ERROR] : Invalide `topic` or `func` arguments.'
   end
-  local co = cf_self()
+  local errinfo
+  assert(protocol_subscribe(self, topic))
   cf_fork(function ()
-    local ok, pack = protocol_subscribe(self, topic, self.topic)
-    if not ok then
-      self.state = nil
-      return cf_wakeup(co, ok, pack)
-    end
-    cf_wakeup(co, ok, pack)
     while 1 do
-      local ok, msg = protocol_subscribe(self, topic, self.topic)
+      local ok, msg = protocol_subscribe(self, topic, true)
       if not ok then
-        local ok, err = pcall(func, msg)
+        Log:ERROR(msg)
+        ok, msg = pcall(func, false, msg)
         if not ok then
-          Log:ERROR(err)
+          Log:ERROR(msg)
         end
         return
       end
-      local ok, err = pcall(func, {
+      ok, errinfo = pcall(func, {
         len = msg['content-length'],
         id = msg['message-id'],
         session = msg['session'],
@@ -103,14 +101,14 @@ function stomp:subscribe (topic, func)
         pattern = msg['destination'],
       })
       if not ok then
-        Log:ERROR(err)
+        Log:ERROR(errinfo)
       end
     end
   end)
-  return cf_wait()
+  return true
 end
 
-function stomp:unsubscribe (...)
+function stomp:unsubscribe ()
   if not self.state then
     return nil, "stomp未连接"
   end

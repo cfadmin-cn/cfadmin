@@ -5,11 +5,8 @@ local logging = require "logging"
 local Log = logging:new{dump = true, path = 'MQ-stomp'}
 
 local cf = require "cf"
-local cf_self = cf.self
 local cf_fork = cf.fork
 local cf_sleep = cf.sleep
-local cf_wait = cf.wait
-local cf_wakeup = cf.wakeup
 
 local ipairs = ipairs
 local type = type
@@ -20,21 +17,20 @@ local mq = class('stomp-mq')
 function mq:ctor (opt)
   self.host = opt.host
   self.port = opt.port
-  self.auth = opt.auth
   self.vhost = opt.vhost
+  self.header = opt.header
+  self.username = opt.username
+  self.password = opt.password
   self.patterns = {}
   self.subsribes = {}
-  self.queue = {}
 end
 
 local function _login (opt)
   local times = 1
   while 1 do
     local mq = stomp:new {
-      host = opt.host,
-      port = opt.port,
-      auth = opt.auth,
-      vhost = opt.vhost,
+      host = opt.host, port = opt.port, vhost = opt.vhost, auth = opt.auth,
+      header = opt.header, username = opt.username, password = opt.password,
     }
     local ok, err = mq:connect()
     if ok then
@@ -49,54 +45,44 @@ end
 
 -- 订阅事件循环
 local function subscribe (self, pattern, func)
-  local mq = _login(self)
-  self.subsribes[#self.subsribes+1] = mq
-  return mq:subscribe(pattern, func)
+  local m = _login(self)
+  insert(self.subsribes, m)
+  return m:subscribe(pattern, func)
 end
 
 -- 发布事件循环
 local function publish (self, pattern, data)
-  if #self.queue == 0 then
-    self.queue[#self.queue + 1] = {pattern = pattern, data = data, co = cf_self()}
-    cf_fork(function (...)
+  if not self.queue then
+    self.queue = {}
+    cf_fork(function ()
       for _, msg in ipairs(self.queue) do
-        if not self.closed and self.emiter then
-          cf_wakeup(msg.co, self.emiter:publish(msg.pattern, msg.data))
+        if self.closed or not self.emiter:publish(msg.pattern, msg.data) then
+          break
         end
       end
-      self.queue = {}
+      self.queue = nil
     end)
-    return cf_wait()
   end
-  insert(self.queue, {pattern = pattern, data = data, co = cf_self()})
-  return cf_wait()
+  insert(self.queue, {pattern = pattern, data = data})
+  return true
 end
 
 -- 订阅
 function mq:on (pattern, func)
-  if type(pattern) ~= 'string' or pattern == '' then
-    return nil, "订阅消息失败: 错误的pattern类型"
-  end
-  if type(func) ~= 'function' then
-    return nil, "订阅消息失败: 错误的func类型"
-  end
+  assert((type(pattern) == 'string' and pattern ~= '') and type(func) == 'function', "[STOMP ERROR] : Invalid `pattern`/`func` type.")
   for _, patt in ipairs(self.patterns) do
     if patt == pattern then
-      return nil, '禁止重复订阅相同的频道'
+      return nil, '[STOMP ERROR] : already subscribe.'
     end
   end
-  self.patterns[#self.patterns + 1] = pattern
+  insert(self.patterns, pattern)
+  -- self.patterns[#self.patterns + 1] = pattern
   return subscribe(self, pattern, func)
 end
 
 -- 发布
 function mq:emit (pattern, data)
-  if type(pattern) ~= 'string' or pattern == '' then
-    return nil, "推送消息失败: 错误的pattern类型"
-  end
-  if type(data) ~= 'string' or data == '' then
-    return nil, "推送消息失败: 错误的data类型"
-  end
+  assert((type(pattern) == 'string' and pattern ~= '') and (type(data) == 'string' and data ~= ''), "[STOMP ERROR] : Invalid `pattern`/`data` type.")
   if not self.emiter then
     self.emiter = _login(self)
   end
