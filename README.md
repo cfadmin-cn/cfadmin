@@ -1,7 +1,7 @@
 <h1></h1>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wiki/CandyMi/core_framework/images/cfadmin.png" height="25%" width="25%" />
+  <img src="https://cfadmin.cn/images/logo.png" />
 </p>
 <h5 align="center">Lua 轻量级网络开发框架(A lua Lightweight Network Development Framework)</h5>
 <p align="center">
