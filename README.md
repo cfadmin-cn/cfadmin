@@ -42,9 +42,9 @@
 
 ### Website
 
-  * [Home](https://cfadmin.cn/)(Sorry! Only Chinese.)
+  * [Home](https://cfadmin.cn/)(Only Chinese.)
 
-  * [Wiki](https://doc.cfadmin.cn/)(Sorry! Only Chinese.)
+  * [Wiki](https://doc.cfadmin.cn/)(Only Chinese.)
 
 ### Build And Run
 
