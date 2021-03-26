@@ -89,7 +89,7 @@
 
   |Project Name|Project Logo|
   |:-:|:-:|
-  |商票易|![](https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/company-1.png)
+  |商票易|![](https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/company-2.png)
   |爆款捕手|![](https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/company-1.png)|
 
 ### License
