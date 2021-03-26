@@ -72,7 +72,7 @@
 
 ### feedback
 
-  * [issue](https://github.com/CandyMi/cfadmin/issues)
+  * [ISSUES](https://github.com/CandyMi/cfadmin/issues)
 
   * [QQ Group](https://shang.qq.com/wpa/qunwpa?idkey=5cc977ebaf4eb17391b2c6b03eb0ee36e3d3c1871bc95ba3c96ffc426a9dc907)
 
