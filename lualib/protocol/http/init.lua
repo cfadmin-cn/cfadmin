@@ -366,7 +366,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       local cls, typ, rest_args = route_find(http_router, METHOD, PATH)
       if not cls or not typ then
         sock:send(ERROR_RESPONSE(http, 404, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-        goto CONTINUE
+        return sock:close()
       end
       -- 根据请求方法进行解析, 解析失败返回501
       local content
@@ -533,7 +533,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
         if not body_len then
           statucode = 404
           sock:send(ERROR_RESPONSE(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
-          goto CONTINUE
+          return sock:close()
         end
         statucode = 200
         header[#header+1] = REQUEST_STATUCODE_RESPONSE(statucode)
