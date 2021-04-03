@@ -122,6 +122,7 @@ return {
   ['dashboard.menu.menu_manage.menu_add.form.icon.notice'] = 'Menu Left Icon',
 
   ['dashboard.menu.menu_manage.menu_add.form.submit'] = 'Submit',
+  ['dashboard.menu.menu_manage.menu_add.form.icon.help'] = 'View icon',
 
   ['dashboard.menu.menu_manage.menu_edit.form.name'] = 'Menu Name',
   ['dashboard.menu.menu_manage.menu_edit.form.name.notice'] = 'Displaye Menu Name',
@@ -131,6 +132,7 @@ return {
   ['dashboard.menu.menu_manage.menu_edit.form.icon.notice'] = 'Menu Left Icon',
 
   ['dashboard.menu.menu_manage.menu_edit.form.submit'] = 'Submit',
+  ['dashboard.menu.menu_manage.menu_edit.form.icon.help'] = 'View icon',
 
   -- 导航管理
   ['dashboard.menu.header_manage.title'] = 'NaviBar Manage',

@@ -123,7 +123,8 @@ return {
   ['dashboard.menu.menu_manage.menu_add.form.icon'] = '菜单图标',
   ['dashboard.menu.menu_manage.menu_add.form.icon.notice'] = '菜单左侧图标',
 
-  ['dashboard.menu.menu_manage.menu_add.form.submit'] = '提交',
+  ['dashboard.menu.menu_manage.menu_add.form.submit'] = '确认增加',
+  ['dashboard.menu.menu_manage.menu_add.form.icon.help'] = '查看图标代码',
 
   ['dashboard.menu.menu_manage.menu_edit.form.name'] = '菜单名称',
   ['dashboard.menu.menu_manage.menu_edit.form.name.notice'] = '菜单显示的名称',
@@ -132,7 +133,8 @@ return {
   ['dashboard.menu.menu_manage.menu_edit.form.icon'] = '菜单图标',
   ['dashboard.menu.menu_manage.menu_edit.form.icon.notice'] = '菜单左侧图标',
 
-  ['dashboard.menu.menu_manage.menu_edit.form.submit'] = '提交',
+  ['dashboard.menu.menu_manage.menu_edit.form.submit'] = '确认修改',
+  ['dashboard.menu.menu_manage.menu_edit.form.icon.help'] = '查看图标代码',
 
   -- 导航管理
   ['dashboard.menu.header_manage.title'] = '导航管理',
