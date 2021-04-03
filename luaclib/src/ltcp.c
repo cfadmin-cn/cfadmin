@@ -188,10 +188,29 @@ static int create_server_fd(const char *ip, int port, int backlog){
   SA.sin6_addr = in6addr_any;
 
   struct in6_addr addr;
+  /* 如果填写的是 ::1 */
   if (!strcmp(ip, "::1") && inet_pton(AF_INET6, "::1", &addr) == 1){
     SA.sin6_addr = addr;
+  /* 如果填写的是 127.0.0.1 */
   } else if (!strcmp(ip, "127.0.0.1") && inet_pton(AF_INET6, "::ffff:127.0.0.1", &addr) == 1) {
     SA.sin6_addr = addr;
+  /* 如果填写的是 其它IPv6地址 */
+  } else if (inet_pton(AF_INET6, ip, &addr) == 1) {
+    SA.sin6_addr = addr;
+  /* 检查IPv4地址或者是非法IP地址 */
+  } else {
+    struct in_addr addr4;
+    if (inet_pton(AF_INET, ip, &addr4) == 1) {
+      char *ipv6 = alloca(strlen(ip) + 8);
+      memset(ipv6, 0x0, strlen(ip) + 8);
+      memmove(ipv6, "::ffff:", 7);
+      memmove(ipv6 + 7, ip, strlen(ip));
+      if (inet_pton(AF_INET6, ipv6, &addr) != 1){
+        close(sockfd);
+        return -1;
+      }
+      SA.sin6_addr = addr;
+    }
   }
 
   /* 绑定套接字失败 */
