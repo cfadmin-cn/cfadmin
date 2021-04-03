@@ -7,6 +7,8 @@ local cf = require "cf"
 
 local sys = require("sys")
 local os_date = sys.date
+local ipv4 = sys.ipv4
+local ipv6 = sys.ipv6
 
 local type = type
 local ipairs = ipairs
@@ -211,34 +213,36 @@ function httpd:tolog(code, path, ip, ip_list, method, speed)
 end
 
 ---comment 监听普通套接字与端口
----@param ip string    @目前版本不会解析此参数, 请填写`"0.0.0.0"`即可.
----@param port integer @指定一个在有效范围内并未被占用的端口.
----@param backlog integer 默认为128
+---@param ip string        @需要监听的合法`IP`地址.
+---@param port integer     @指定一个在有效范围内并未被占用的端口.
+---@param backlog integer  @默认为`128`
 ---@return boolean
 function httpd:listen(ip, port, backlog)
   assert(type(ip) == 'string' and toint(port), "httpd error: invalid ip or port")
-  self.ip = ip
+  self.ip = (ipv4(ip) or ipv6(ip)) and ip or "0.0.0.0"
   self.port = port
-  self.sock:set_backlog(toint(backlog))
-  return assert(self.sock:listen(ip or "0.0.0.0", toint(port), function (fd, ipaddr, port)
+  self.sock:set_backlog(toint(backlog) and toint(backlog) > 0 and toint(backlog) or 128)
+  return assert(self.sock:listen(self.ip, self.port,
+    function (fd, ipaddr, port)
       return RAW_DISPATCH(fd, { ipaddr = match(ipaddr, '^::[f]+:(.+)') or ipaddr, port = port }, self)
-  end))
+    end)
+  )
 end
 
 ---comment 监听加密套接字与端口
----@param ip string    @目前版本不会解析此参数, 请填写`"0.0.0.0"`即可.
----@param port integer @指定一个在有效范围内并未被占用的端口.
+---@param ip string       @需要监听的合法`IP`地址.
+---@param port integer    @指定一个在有效范围内并未被占用的端口.
 ---@param backlog integer @默认为128
----@param key string     @指定TLS套接字所需的私钥所在路径;
----@param cert string    @指定TLS套接字所需的证书所在路径;
----@param pw string      @如果证书和私钥设置的密码请填写此字段;
+---@param key string      @指定TLS套接字所需的私钥所在路径;
+---@param cert string     @指定TLS套接字所需的证书所在路径;
+---@param pw string       @如果证书和私钥设置的密码请填写此字段;
 ---@return boolean
 function httpd:listen_ssl(ip, port, backlog, key, cert, pw)
   assert(type(ip) == 'string' and toint(port), "httpd error: invalid ip or port")
-  self.ssl_ip, self.ssl_port = ip, toint(port) or 443
+  self.ssl_ip, self.ssl_port = (ipv4(ip) or ipv6(ip)) and ip or "0.0.0.0", port
   self.ssl_key, self.ssl_cert, self.ssl_pw = key, cert, pw
-  self.sock:set_backlog(toint(backlog))
-  return assert(self.sock:listen_ssl(ip or "0.0.0.0", self.ssl_port, { cert = self.ssl_cert, key = self.ssl_key, pw = self.ssl_pw },
+  self.sock:set_backlog(toint(backlog) and toint(backlog) > 0 and toint(backlog) or 128)
+  return assert(self.sock:listen_ssl(self.ssl_ip, self.ssl_port, { cert = self.ssl_cert, key = self.ssl_key, pw = self.ssl_pw },
     function (sock, ipaddr, port)
       return RAW_DISPATCH(sock, { ipaddr = match(ipaddr, '^::[f]+:(.+)') or ipaddr, port = port }, self)
     end)
@@ -247,12 +251,12 @@ end
 
 ---comment 监听unixsock套接字
 ---@param unix_domain_path string @unixdomain所在路径
----@param backlog integer @默认为128
+---@param backlog integer         @默认为128
 ---@return boolean
 function httpd:listenx(unix_domain_path, backlog)
   assert(type(unix_domain_path) == 'string' and unix_domain_path ~= '', "httpd error: invalid unix domain path")
   self.unix_domain_path = unix_domain_path
-  self.sock:set_backlog(toint(backlog))
+  self.sock:set_backlog(toint(backlog) and toint(backlog) > 0 and toint(backlog) or 128)
   return assert(self.sock:listen_ex(unix_domain_path, true, function (fd, ipaddr)
     return RAW_DISPATCH(fd, { ipaddr = match(ipaddr, '^::[f]+:(.+)') or ipaddr }, self)
   end))
@@ -261,17 +265,10 @@ end
 ---comment 此方法应该在配置完成所有httpd参数后调用, 此方法之后的代码或将永远不可能被执行.
 function httpd:run()
   if self.ip and self.port then
-    local ip = "0.0.0.0"
-    if self.ip == "127.0.0.1" then
-      ip = "127.0.0.1"
-    end
-    if self.ip == "::1" then
-      ip = "::1"
-    end
     if self.logging then
-      self.logging:dump(fmt('[%s] [INFO] httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), ip, self.port))
+      self.logging:dump(fmt('[%s] [INFO] httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), self.ip, self.port))
     end
-    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), ip, self.port))
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), self.ip, self.port))
   end
 
   if self.unix_domain_path then
@@ -281,18 +278,11 @@ function httpd:run()
     io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s\n', os_date("%Y/%m/%d %H:%M:%S"), self.unix_domain_path))
   end
 
-  if self.ssl_key and self.ssl_cert then
-    local ip = "0.0.0.0"
-    if self.ssl_ip == "127.0.0.1" then
-      ip = "127.0.0.1"
-    end
-    if self.ssl_ip == "::1" then
-      ip = "::1"
-    end
+  if self.ssl_ip and self.ssl_port and self.ssl_key and self.ssl_cert then
     if self.logging then
-      self.logging:dump(fmt('[%s] [INFO] httpd ssl listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), ip, self.ssl_port))
+      self.logging:dump(fmt('[%s] [INFO] httpd ssl listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), self.ssl_ip, self.ssl_port))
     end
-    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd ssl listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), ip, self.ssl_port))
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd ssl listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), self.ssl_ip, self.ssl_port))
   end
 
   if self.logging then

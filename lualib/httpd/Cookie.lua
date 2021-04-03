@@ -12,6 +12,7 @@ local assert = assert
 local ipairs = ipairs
 local os_date = os.date
 local os_time = os.time
+local toint = math.tointeger
 local concat = table.concat
 local splite = string.gmatch
 
@@ -55,14 +56,20 @@ function Cookie.setCookie (name, value, expires, notall, https)
     cs = {}
     Cookie.server[co] = cs
   end
-  cs[#cs+1] = {
-    name = name,
-    value = value,
-    expires = expires,
-    path = '/',
-    httponly = notall and 'HttpOnly' or nil,
-    secure = https and 'Secure'
+  -- Cookie格式表
+  local tab = {
+    ['name'] = name,
+    ['value'] = value,
+    ['expires'] = expires,
+    ['path'] = '/',
+    ['httponly'] = notall and 'HttpOnly' or nil,
+    ['secure'] = https and 'Secure'
   }
+  -- 特殊兼容操作
+  if expires then
+    tab['max-age'] = toint(expires - os_time())
+  end
+  cs[#cs+1] = tab
 end
 
 -- 获取指定Cookie字段
@@ -110,12 +117,13 @@ function Cookie.serialization ()
   local tab = {}
   for _, cookie in ipairs(cs) do
     local t = {}
-    t[#t+1] = concat({cookie.name, '=', encode_value(cookie.value)})
-    t[#t+1] = cookie.expires and concat({'expires', '=', os_date("%a, %d %b %Y %X GMT", cookie.expires)})
-    t[#t+1] = concat({'path', '=', cookie.path})
-    t[#t+1] = cookie.httponly
-    if cookie.httponly then
-      t[#t+1] = cookie.secure
+    t[#t+1] = concat({cookie['name'], '=', encode_value(cookie['value'])})
+    t[#t+1] = cookie['max-age'] and concat({'max-age', '=', cookie['max-age']})
+    t[#t+1] = cookie['expires'] and concat({'expires', '=', os_date("%a, %d %b %Y %X GMT", cookie['expires'])})
+    t[#t+1] = concat({'path', '=', cookie['path']})
+    t[#t+1] = cookie['httponly']
+    if cookie['httponly'] then
+      t[#t+1] = cookie['secure']
     end
     tab[#tab+1] = 'Set-Cookie: '..concat(t, "; ")
   end
