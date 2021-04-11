@@ -2,9 +2,9 @@ local Co = require "internal.Co"
 local co_self = Co.self
 
 local crypt = require "crypt"
-local xor_str = crypt.xor_str
-local hexencode = crypt.hexencode
-local hexdecode = crypt.hexdecode
+local hashkey = crypt.hashkey
+local desencode = crypt.desencode
+local desdecode = crypt.desdecode
 
 local type = type
 local pcall = pcall
@@ -21,16 +21,16 @@ local secure = 'http://github.com/candymi/core_framework'
 
 -- 加密Cookie Value
 local function encode_value (value)
-  return xor_str(value, secure, true):upper()
+  return desencode(hashkey(secure), value, true):upper()
 end
 
 -- 解密Cookie Value
 local function decode_value (value)
-  local ok, msg = pcall(hexdecode, value:lower())
+  local ok, info = pcall(desdecode, hashkey(secure), value:lower(), true)
   if not ok then
-    return msg
+    return
   end
-  return xor_str(msg, secure)
+  return info
 end
 
 -- 当前协程注册的cookie
@@ -41,7 +41,7 @@ local Cookie = {
 
 function Cookie.setSecure (sec)
   if type(sec) == 'string' and sec ~= '' then
-      secure = sec
+    secure = sec
   end
 end
 
