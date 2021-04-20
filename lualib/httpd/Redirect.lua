@@ -2,6 +2,8 @@ local type = type
 local assert = assert
 local find = string.find
 
+local urldecode = require "url".decode
+
 local codes = {
   [301] = "301 Moved Permanently",   -- （永久移动）
   [302] = "302 Found",               -- （发现）
@@ -24,6 +26,7 @@ local function check_url(url)
   if type(url) ~= "string" or url == "" then
     return false
   end
+  url = urldecode(url)
   if find(url, "^/.*") then
     return url
   end
