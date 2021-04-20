@@ -130,25 +130,20 @@ function Router:hex_route (route)
 end
 
 -- 检查是路径回退是否超出静态文件根目录(是否合法路径.)
-function Router:check_path_deep (paths)
-  local head, tail = paths[1], paths[#paths]
-  if head == point2 or tail == point or tail == point2 then
-    return true
-  end
+function Router:is_out_of_directory (paths)
 	local deep = 1
-  for _, path in ipairs(paths) do
-    if path ~= point then
-      if path == point2 then
-        deep = deep - 1
-      else
-        deep = deep + 1
-      end
+  for _, p in ipairs(paths) do
+    if p == point2 then
+      deep = deep - 1
+    elseif p ~= point then
+      deep = deep + 1
     end
-		if deep <= 0 then
-			return true
-		end
-	end
-	return false
+    -- 如果超出目录则直接返回
+    if deep <= 0 then
+      return true
+    end
+  end
+  return false
 end
 
 -- 路由查找
@@ -192,11 +187,11 @@ function Router:find (method, path)
     return
   end
   local tab = self:hex_route(path)
-  -- 凡是找到'../'并且检查路径回退已经超出静态文件根目录返回404
-  if self:check_path_deep(tab) then
+  -- 凡是超出静态文件根目录返回404.
+  if self:is_out_of_directory(tab) then
     return
   end
-
+  -- 构建静态静态文件检查器
   if not self.load_file then
     self.load_file = function ( path )
       local filepath = prefix .. url_decode(path)
@@ -204,7 +199,7 @@ function Router:find (method, path)
       if type(stat) ~= 'table' or stat.mode ~= 'file' then
         return
       end
-      return stat.size, filepath, match(filepath, '%.([^.]+)$')
+      return stat.size, filepath, match(filepath, '[%.]?([^%./]+)$')
     end
   end
   return self.load_file, typ
