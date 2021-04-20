@@ -73,6 +73,7 @@ local PARSER_HTTP_RESPONSE = HTTP_PARSER.PARSER_HTTP_RESPONSE
 local RESPONSE_CHUNKED_PARSER = HTTP_PARSER.RESPONSE_CHUNKED_PARSER
 
 -- OPCODE
+local OPCODE_RESP = -128
 local OPCODE_THROW = -256
 local OPCODE_REDIRECT = -65536
 
@@ -431,8 +432,6 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
               tolog(http, code, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
               sock:send(concat({concat({
                 REQUEST_STATUCODE_RESPONSE(code), HTTP_DATE(),
-                'Origin: *',
-                'Allow: GET, POST, PUT, HEAD, OPTIONS',
                 'Server: ' .. server,
                 'Connection: keep-alive',
                 'Content-Type: ' .. (typ == HTTP_PROTOCOL.API and REQUEST_MIME_RESPONSE('json') or REQUEST_MIME_RESPONSE('html')),
@@ -488,33 +487,39 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
           sock:send(ERROR_RESPONSE(http, 500, PATH, HEADER['X-Real-IP'] or ipaddr, HEADER['X-Forwarded-For'] or ipaddr, METHOD, req_time(start)))
           goto CONTINUE
         end
+        statucode = 200
         -- 开发者主动`抛出异常`与`重定向`的时候需要特殊处理.
-        if type(body) == "table" and body.__OPCODE__ and body.__CODE__ and body.__MSG__ then
-          local opcode, rcode, response = body.__OPCODE__, body.__CODE__, body.__MSG__
-          if opcode == OPCODE_THROW then -- 抛异常
-            sock:send(concat({
-              REQUEST_STATUCODE_RESPONSE(rcode), HTTP_DATE(),
-              'Server: ' .. server,
-              'Connection: keep-alive',
-              'Content-Length: ' .. tostring(#response),
-              'Content-Type: ' .. (typ == HTTP_PROTOCOL.API and REQUEST_MIME_RESPONSE('json') or REQUEST_MIME_RESPONSE('html')),
-              "", response
-            }, CRLF))
-            tolog(http, rcode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
-          elseif opcode == OPCODE_REDIRECT then -- 重定向
-            sock:send(concat({
-              REQUEST_STATUCODE_RESPONSE(rcode), HTTP_DATE(),
-              'Server: ' .. server,
-              'Connection: keep-alive',
-              'Content-Length: 0',
-              'Location: ' .. response,
-              CRLF,
-            }, CRLF))
-            tolog(http, rcode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+        if type(body) == "table" and body.__OPCODE__ then
+          statucode = body.__CODE__
+          local opcode = body.__OPCODE__
+          if opcode == OPCODE_THROW then -- `异常`构造器
+            tolog(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+            if not send_header(sock, { REQUEST_STATUCODE_RESPONSE(statucode), HTTP_DATE(), 'Server: ' .. server, 'Connection: keep-alive', 'Content-Length: ' .. toint(#body.__MSG__), 'Content-Type: ' .. (typ == HTTP_PROTOCOL.API and REQUEST_MIME_RESPONSE('json') or REQUEST_MIME_RESPONSE('html'))}) or not send_body(sock, body.__MSG__) then
+              return sock:close()
+            end
+            -- goto CONTINUE
+          elseif opcode == OPCODE_RESP then -- `响应`构造器
+            local resp = new_tab(16, 0)
+            insert(resp, REQUEST_STATUCODE_RESPONSE(statucode))
+            insert(resp, HTTP_DATE())
+            insert(resp, 'Server: ' .. server)
+            insert(resp, 'Connection: keep-alive')
+            insert(resp, 'Content-Length: ' .. (toint(body.__FILESIZE__) or toint(#body.__MSG__)))
+            insert(resp, 'Content-Type: ' .. (body.__TYPE__ or body.__FILETYPE__ or "application/octet-stream"))
+            if body.__FILETYPE__ then
+              insert(resp, fmt('Content-Disposition: %s; filename="%s"', body.__FILEINLINE__ and "inline" or "attachment", body.__FILENAME__:match("[/]?([^/]+)$")))
+            end
+            tolog(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+            if not send_header(sock, resp) or not send_body(sock, body.__MSG__, body.__FILENAME__) then
+              return sock:close()
+            end
+            -- goto CONTINUE
+          elseif opcode == OPCODE_REDIRECT then -- `跳转`构造器
+            tolog(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
+            send_header(sock, { REQUEST_STATUCODE_RESPONSE(statucode), HTTP_DATE(), 'Server: ' .. server, 'Connection: keep-alive', 'Content-Length: 0', 'Location: ' .. body.__MSG__})
           end
           return sock:close()
         end
-        statucode = 200
         insert(header, 1, REQUEST_STATUCODE_RESPONSE(statucode))
       elseif typ == HTTP_PROTOCOL.WS then
         local ok, msg = safe_call(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)

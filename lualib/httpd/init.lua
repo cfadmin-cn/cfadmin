@@ -16,6 +16,8 @@ local ipairs = ipairs
 local fmt = string.format
 local match = string.match
 local io_write = io.write
+local io_type = io.type
+local io_output = io.output
 local toint = math.tointeger
 
 -- 请求解析
@@ -166,6 +168,7 @@ function httpd:enable_error_pages ()
 end
 
 ---comment 设置Cookie加密Key
+---@param secure string @开启并设置`Cookie`密钥
 function httpd:cookie_secure (secure)
   if type(secure) == 'string' and secure ~= '' then
     self.__cookie_secure = secure
@@ -173,6 +176,8 @@ function httpd:cookie_secure (secure)
 end
 
 ---comment 注册静态文件读取路径, foldor是一个目录, ttl是静态文件缓存周期
+---@param foldor string @目录名称
+---@param ttl number    @设置缓存时间
 function httpd:static(foldor, ttl)
   if not self.foldor then
     self.foldor = foldor or 'static'
@@ -207,7 +212,7 @@ function httpd:tolog(code, path, ip, ip_list, method, speed)
   if self.logging then
     self.logging:dump(fmt(LOG_FMT, now, ip, ip_list, path, method, code, speed))
   end
-  if io.type(io.output()) == 'file' then
+  if io_type(io_output()) == 'file' then
     io_write(fmt(LOG_FMT, now, ip, ip_list, path, method, code, speed))
   end
 end
@@ -219,8 +224,7 @@ end
 ---@return boolean
 function httpd:listen(ip, port, backlog)
   assert(type(ip) == 'string' and toint(port), "httpd error: invalid ip or port")
-  self.ip = (ipv4(ip) or ipv6(ip)) and ip or "0.0.0.0"
-  self.port = port
+  self.ip, self.port = (ipv4(ip) or ipv6(ip)) and ip or "0.0.0.0", port
   self.sock:set_backlog(toint(backlog) and toint(backlog) > 0 and toint(backlog) or 128)
   return assert(self.sock:listen(self.ip, self.port,
     function (fd, ipaddr, port)
@@ -232,7 +236,7 @@ end
 ---comment 监听加密套接字与端口
 ---@param ip string       @需要监听的合法`IP`地址.
 ---@param port integer    @指定一个在有效范围内并未被占用的端口.
----@param backlog integer @默认为128
+---@param backlog integer @默认为`128`, 这一般已经够用了.
 ---@param key string      @指定TLS套接字所需的私钥所在路径;
 ---@param cert string     @指定TLS套接字所需的证书所在路径;
 ---@param pw string       @如果证书和私钥设置的密码请填写此字段;
@@ -249,8 +253,8 @@ function httpd:listen_ssl(ip, port, backlog, key, cert, pw)
   )
 end
 
----comment 监听unixsock套接字
----@param unix_domain_path string @unixdomain所在路径
+---comment 监听`unixsock`套接字
+---@param unix_domain_path string @`unixdomain`所在路径
 ---@param backlog integer         @默认为128
 ---@return boolean
 function httpd:listenx(unix_domain_path, backlog)
@@ -262,7 +266,7 @@ function httpd:listenx(unix_domain_path, backlog)
   end))
 end
 
----comment 此方法应该在配置完成所有httpd参数后调用, 此方法之后的代码或将永远不可能被执行.
+---comment 此方法应该在配置完成所有`httpd`配置后调用, 此方法之后的代码或将永远不会被执行.
 function httpd:run()
   if self.ip and self.port then
     if self.logging then
