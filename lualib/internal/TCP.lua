@@ -43,8 +43,8 @@ local tcp_listen = tcp.listen
 local tcp_listen_ex = tcp.listen_ex
 local tcp_sendfile = tcp.sendfile
 
-local tcp_readline = tcp.readline
-local tcp_sslreadline = tcp.ssl_readline
+local tcp_peek = tcp.peek
+local tcp_sslpeek = tcp.sslpeek
 
 local tcp_new_client_fd = tcp.new_client_fd
 local tcp_new_server_fd = tcp.new_server_fd
@@ -302,121 +302,115 @@ function TCP:ssl_send(buf)
   return co_wait()
 end
 
-function TCP:readline(sp, no_sp)
+-- READLINE
+function TCP:readline(sp, nosp)
   if self.ssl then
-    return self:ssl_readline(sp, no_sp)
+    return self:ssl_readline(sp, nosp)
   end
   if type(sp) ~= 'string' or #sp < 1 then
     return nil, "Invalid separator."
   end
-  local fd = self.fd
-  local data, len = tcp_readline(fd, sp, no_sp)
-  if type(len) ~= 'number' or len > 0 then
-    return data, len
-  end
-  local co = co_self()
-  self.READ_IO = tcp_pop()
-  self.read_current_co = co_self()
-  self.read_co = co_new(function ( )
-    while 1 do
-      local buf, buf_size = tcp_readline(fd, sp, no_sp)
-      if type(buf) == "string" and type(buf_size) == 'number' then
-        if self.timer then
-          self.timer:stop()
-          self.timer = nil
-        end
+  local buffer
+  local msize = 65535
+  while 1 do
+    ::CONTONIE::
+    local buf, bsize = tcp_peek(self.fd, msize, true)
+    if not buf then
+      if bsize ~= 0 then
+        return false, bsize
+      end
+      local co = co_self()
+      self.READ_IO = tcp_pop()
+      self.read_co = co_new(function ( )
         tcp_push(self.READ_IO)
         tcp_stop(self.READ_IO)
         self.READ_IO = nil
         self.read_co = nil
-        self.read_current_co = nil
-        return co_wakeup(co, buf, buf_size)
-      end
-      if not buf and not buf_size then
-        if self.timer then
-          self.timer:stop()
-          self.timer = nil
-        end
+        return co_wakeup(co, true)
+      end)
+      self.timer = ti_timeout(self._timeout, function ( )
         tcp_push(self.READ_IO)
         tcp_stop(self.READ_IO)
+        self.timer = nil
         self.READ_IO = nil
         self.read_co = nil
         self.read_current_co = nil
-        return co_wakeup(co, nil, "server close")
+        return co_wakeup(co, nil, "read timeout")
+      end)
+      tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
+      local ok, errinfo = co_wait()
+      if not ok then
+        return false, errinfo
       end
-      co_wait()
+      goto CONTONIE
     end
-  end)
-  self.timer = ti_timeout(self._timeout, function ( )
-    tcp_push(self.READ_IO)
-    tcp_stop(self.READ_IO)
-    self.timer = nil
-    self.READ_IO = nil
-    self.read_co = nil
-    self.read_current_co = nil
-    return co_wakeup(co, nil, "read timeout")
-  end)
-  tcp_start(self.READ_IO, fd, EVENT_READ, self.read_co)
-  return co_wait()
+    buffer = buffer and (buffer .. buf) or buf
+    local s, e = buffer:find(sp)
+    if s and e then
+      tcp_peek(self.fd, #buf - (#buffer - e), false)
+      if nosp then
+        e = s - 1
+      end
+      return buffer:sub(1, e), e
+    end
+    tcp_peek(self.fd, bsize, false)
+  end
 end
 
-function TCP:ssl_readline(sp, no_sp)
+-- SSL READLINE
+function TCP:ssl_readline(sp, nosp)
   if not self.ssl then
-    Log:ERROR("Please use readline method :)")
-    return nil, "Please use readline method :)"
+    return self:readline(sp, nosp)
   end
   if type(sp) ~= 'string' or #sp < 1 then
     return nil, "Invalid separator."
   end
-  local ssl = self.ssl
-  local data, len = tcp_sslreadline(ssl, sp, no_sp)
-  if type(len) ~= 'number' or len > 0 then
-    return data, len
-  end
-  local co = co_self()
-  self.read_current_co = co_self()
-  self.READ_IO = tcp_pop()
-  self.read_co = co_new(function ( )
-    while 1 do
-      local buf, buf_size = tcp_sslreadline(ssl, sp, no_sp)
-      if type(buf) == "string" and type(buf_size) == 'number' then
-        if self.timer then
-          self.timer:stop()
-          self.timer = nil
-        end
+  local buffer
+  local msize = 65535
+  -- 开始读取数据
+  while 1 do
+    ::CONTONIE::
+    local buf, bsize = tcp_sslpeek(self.ssl, msize, true)
+    if not buf then
+      if bsize ~= 0 then
+        return false, bsize
+      end
+      local co = co_self()
+      self.READ_IO = tcp_pop()
+      self.read_co = co_new(function ( )
         tcp_push(self.READ_IO)
         tcp_stop(self.READ_IO)
         self.READ_IO = nil
         self.read_co = nil
-        self.read_current_co = nil
-        return co_wakeup(co, buf, buf_size)
-      end
-      if not buf and not buf_size then
-        if self.timer then
-          self.timer:stop()
-          self.timer = nil
-        end
+        return co_wakeup(co, true)
+      end)
+      self.timer = ti_timeout(self._timeout, function ( )
         tcp_push(self.READ_IO)
         tcp_stop(self.READ_IO)
+        self.timer = nil
         self.READ_IO = nil
         self.read_co = nil
         self.read_current_co = nil
-        return co_wakeup(co, nil, "server close")
+        return co_wakeup(co, nil, "read timeout")
+      end)
+      tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
+      local ok, errinfo = co_wait()
+      if not ok then
+        return false, errinfo
       end
-      co_wait()
+      goto CONTONIE
     end
-  end)
-  self.timer = ti_timeout(self._timeout, function ( )
-    tcp_push(self.READ_IO)
-    tcp_stop(self.READ_IO)
-    self.timer = nil
-    self.READ_IO = nil
-    self.read_co = nil
-    self.read_current_co = nil
-    return co_wakeup(co, nil, "read timeout")
-  end)
-  tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
-  return co_wait()
+    buffer = buffer and (buffer .. buf) or buf
+    local s, e = buffer:find(sp)
+    if s and e then
+      tcp_sslpeek(self.ssl, #buf - (#buffer - e), false)
+      if nosp then
+        e = s - 1
+      end
+      return buffer:sub(1, e), e
+    end
+    tcp_sslpeek(self.ssl, bsize, false)
+  end
 end
 
 function TCP:recv(bytes)

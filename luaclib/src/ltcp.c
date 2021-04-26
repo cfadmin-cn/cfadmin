@@ -9,23 +9,6 @@
 #define SERVER (0)
 #define CLIENT (1)
 
-/* 快速字符串比较 */
-static inline const char * fast_cmp(const char* src, size_t src_len, const char* sp, size_t sp_len) {
-  /* 如果只有一个字符, 那么使用memchr实现来完成 */
-  if (sp_len == 1)
-    return (const char *)memchr(src, sp[0], src_len);
-
-  size_t offset = 0;
-  while (offset < src_len) {
-    if (src[offset] == sp[0] && src_len - offset >= sp_len) {
-      if (!memcmp(src + offset, sp, sp_len))
-        return (const char *)src + offset + sp_len - 1;
-    }
-    offset++;
-  }
-  return NULL;
-}
-
 static inline void SETSOCKETOPT(int sockfd, int mode){
   int Enable = 1;
   int ret = 0;
@@ -489,110 +472,72 @@ static int tcp_sendfile(lua_State *L){
   return 1;
 }
 
-static int tcp_readline(lua_State *L) {
+static int tcp_peek(lua_State *L) {
   errno = 0;
 
   int fd = lua_tointeger(L, 1);
   if (0 >= fd) return 0;
 
-  size_t sp_len = 0;
-  const char * sp = luaL_checklstring(L, 2, &sp_len);
-  if (sp_len < 1 && !sp) return 0;
+  int bsize = lua_tointeger(L, 2);
+  char buffer[bsize];
 
-  int no_sp = lua_toboolean(L, 3);
+  if (0 == lua_toboolean(L, 3)) {
+    lua_pushinteger(L, read(fd, buffer, bsize));
+    return 1;
+  }
 
-  size_t tmp_size = 1024;
-  char *tmp_buf = NULL;
-  while (1) {
-    lua_settop(L, 2);
-    tmp_buf = lua_newuserdata(L, tmp_size);
-    memset(tmp_buf, 0x0, tmp_size);
-    int len = recv(fd, tmp_buf, tmp_size, MSG_PEEK);
+  while (1){
+    int len = recv(fd, buffer, bsize, MSG_PEEK);
     if (len <= 0){
       if (errno == EINTR) continue;
       if (errno == EWOULDBLOCK) {
         lua_pushnil(L);
         lua_pushinteger(L, 0);
-        return 2;
+        break;
       }
       lua_pushnil(L);
       lua_pushstring(L, strerror(errno));
-      return 0;
+      break;
     }
-    const char *p = fast_cmp(tmp_buf, len, sp, sp_len);
-    if (!p) {
-      // 如果查找不到分隔符, 我们需要检查是否因为我们读取的字节数量不够导致的;
-      if (len == tmp_size){
-        tmp_size *= 2;
-        continue;
-      }
-      // 如果读取了所有字节后还是没发现分隔符, 那就等待下一次再检查;
-      lua_pushboolean(L, 1);
-      lua_pushinteger(L, 0);
-      return 2;
-    }
-    // 检查是否需要去掉分隔符
-    tmp_size = read(fd, tmp_buf, p - tmp_buf + 1);
-    if (no_sp)
-      tmp_size -= sp_len;
+    lua_pushlstring(L, buffer, bsize);
+    lua_pushinteger(L, bsize);
     break;
   }
-  lua_pushlstring(L, tmp_buf, tmp_size);
-  lua_pushinteger(L, tmp_size);
   return 2;
 }
 
-static int tcp_sslreadline(lua_State *L){
-  SSL *ssl = lua_touserdata(L, 1);
-  if (!ssl)
-    return 0;
-
-  size_t sp_len = 0;
-  const char * sp = luaL_checklstring(L, 2, &sp_len);
-  if (sp_len < 1 && !sp)
-    return 0;
-
-  int no_sp = lua_toboolean(L, 3);
-
-  size_t tmp_size = 1024;
-  char *tmp_buf = NULL;
+static int tcp_sslpeek(lua_State *L) {
   errno = 0;
-  while (1) {
-    lua_settop(L, 2);
-    tmp_buf = lua_newuserdata(L, tmp_size);
-    memset(tmp_buf, 0x0, tmp_size);
-    int len = SSL_peek(ssl, tmp_buf, tmp_size);
-    if (0 > len){
-      if (errno == EINTR) continue;
+
+  SSL *ssl = lua_touserdata(L, 1);
+  if (!ssl) return 0;
+
+  int bsize = lua_tointeger(L, 2);
+  char buffer[bsize];
+
+  if (0 == lua_toboolean(L, 3)) {
+    lua_pushinteger(L, SSL_read(ssl, buffer, bsize));
+    return 1;
+  }
+
+  while (1){
+    int len = SSL_peek(ssl, buffer, bsize);
+    if (len <= 0){
+      if (errno == EINTR)
+        continue;
       if (SSL_ERROR_WANT_READ == SSL_get_error(ssl, len)){
         lua_pushnil(L);
         lua_pushinteger(L, 0);
-        return 2;
+        break;
       }
       lua_pushnil(L);
       lua_pushstring(L, strerror(errno));
-      return 0;
+      break;
     }
-    const char *p = fast_cmp(tmp_buf, len, sp, sp_len);
-    if (!p) {
-      // 如果查找不到分隔符, 我们需要检查是否因为我们读取的字节数量不够导致的;
-      if (len == tmp_size){
-        tmp_size *= 2;
-        continue;
-      }
-      // 如果读取了所有字节后还是没发现分隔符, 那就等待下一次再检查;
-      lua_pushboolean(L, 1);
-      lua_pushinteger(L, 0);
-      return 2;
-    }
-    // 检查是否需要去掉分隔符
-    tmp_size = SSL_read(ssl, tmp_buf, p - tmp_buf + 1);
-    if (no_sp)
-      tmp_size -= sp_len;
+    lua_pushlstring(L, buffer, bsize);
+    lua_pushinteger(L, bsize);
     break;
   }
-  lua_pushlstring(L, tmp_buf, tmp_size);
-  lua_pushinteger(L, tmp_size);
   return 2;
 }
 
@@ -1192,10 +1137,10 @@ LUAMOD_API int luaopen_tcp(lua_State *L){
   luaL_Reg tcp_libs[] = {
     {"read", tcp_read},
     {"write", tcp_write},
-    {"readline", tcp_readline},
+    {"peek", tcp_peek},
+    {"sslpeek", tcp_sslpeek},
     {"ssl_read", tcp_sslread},
     {"ssl_write", tcp_sslwrite},
-    {"ssl_readline", tcp_sslreadline},
     {"stop", tcp_stop},
     {"start", tcp_start},
     {"close", tcp_close},
