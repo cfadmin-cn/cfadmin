@@ -322,6 +322,10 @@ function TCP:readline(sp, nosp)
       local co = co_self()
       self.READ_IO = tcp_pop()
       self.read_co = co_new(function ( )
+        if self.timer then
+          self.timer:stop()
+          self.timer = nil
+        end
         tcp_push(self.READ_IO)
         tcp_stop(self.READ_IO)
         self.READ_IO = nil
@@ -378,6 +382,10 @@ function TCP:ssl_readline(sp, nosp)
       local co = co_self()
       self.READ_IO = tcp_pop()
       self.read_co = co_new(function ( )
+        if self.timer then
+          self.timer:stop()
+          self.timer = nil
+        end
         tcp_push(self.READ_IO)
         tcp_stop(self.READ_IO)
         self.READ_IO = nil
