@@ -644,6 +644,95 @@ static int laio_rmdir(lua_State* L) {
   return 1;
 }
 
+static void CHILD_CB (core_loop *loop, ev_child *w, int revents){
+  lua_State *co = (lua_State *)core_get_watcher_userdata(w);
+  if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+    lua_pushinteger(co, w->rstatus);
+    int status = CO_RESUME(co, NULL, 1);
+    if (status != LUA_YIELD && status != LUA_OK)
+      LOG("ERROR", lua_tostring(co, -1));
+  }
+  // 停止继续监听
+  ev_child_stop(loop, w);
+}
+
+// 实现异步`system`方法.
+static pid_t laio_system(lua_State *L, const char* command, int pfd) {
+  pid_t pid = fork();
+  if (pid < 0)
+    return (pid_t)-1;
+  if (pid < 1) {
+    // 子进程需要设置为独立的输入输出管道;
+    (void)dup2(pfd, STDIN_FILENO);
+    (void)dup2(pfd, STDOUT_FILENO);
+    (void)dup2(pfd, STDERR_FILENO);
+    // 子进程需要进与父子进程的的上下文分离
+    if (execl("/bin/sh", "sh", "-c", command, NULL))
+      write(STDOUT_FILENO, strerror(errno), strlen(strerror(errno)));
+    // 正常执行完毕是不会走到这里, 所以只能是执行失败.
+    exit(-1); // exit(EXIT_FAILURE);
+  }
+  return pid;
+}
+
+// 自定义创建进程
+static int laio_popen(lua_State *L) {
+  size_t clen = 0;
+  const char *command = luaL_checklstring(L, 1, &clen);
+  if (!command || clen == 0)
+    return luaL_error(L, "Invalid command.\n");
+
+  lua_State *co = lua_tothread(L, 2);
+
+  int std[] = { -1, -1 };
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, std) < 0)
+    return luaL_error(L, "Cand't create pipe.\n");
+
+  pid_t pid = laio_system(L, command, std[1]);
+  if (pid < 1) {
+    close(std[0]); close(std[1]);
+    return luaL_error(L, "Cand't create subprocess.\n");
+  }
+
+  lua_createtable(L, 0, 2);
+  // 记录子进程的`PID`.
+  lua_pushliteral(L, "pid");
+  lua_pushinteger(L, pid);
+  lua_rawset(L, -3);
+
+  // 记录双向通信用到的`管道`;
+  lua_pushliteral(L, "pipe");
+  lua_createtable(L, 2, 0);
+  // 创建`stdin`
+  lua_pushinteger(L, std[0]);
+  lua_rawseti(L, -2, 1);
+  // 创建`stdout`
+  lua_pushinteger(L, std[1]);
+  lua_rawseti(L, -2, 2);
+
+  lua_rawset(L, -3);
+
+  // 监听`子进程`的退出事件
+  lua_pushliteral(L, "child");
+  ev_child *w = lua_newuserdata(L, sizeof(ev_child));
+  core_set_watcher_userdata(w, co);
+  ev_child_init(w, CHILD_CB, pid, 0);
+  ev_child_start(core_default_loop(), w);
+  lua_rawset(L, -3);
+  // 返回一个包含`pipe`、`ev_child`指针的`table`.
+  return 1;
+}
+
+// 根据子进程的`pid`杀死子进程
+static int laio_kill(lua_State *L){
+  lua_Integer pid = luaL_checkinteger(L, 1);
+  if (pid > 1 && getpid() != pid)
+    kill(pid, SIGKILL);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
+
 LUAMOD_API int luaopen_laio(lua_State* L){
   // printf("主线程ID为: %d\n", pthread_self());
   luaL_checkversion(L);
@@ -671,6 +760,8 @@ LUAMOD_API int luaopen_laio(lua_State* L){
     { "create", laio_create },
     { "fflush", laio_fflush },
     { "remove", laio_remove },
+    { "popen", laio_popen },
+    { "kill", laio_kill },
     {NULL, NULL},
   };
   luaL_newlib(L, aio_libs);

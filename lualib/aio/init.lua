@@ -1,5 +1,9 @@
 local class = require "class"
 
+local tcp = require "tcp"
+local tcp_read = tcp.read
+local tcp_close = tcp.close
+
 local sys = require "sys"
 local new_tab = sys.new_tab
 
@@ -25,10 +29,13 @@ local aio_rename = laio.rename
 local aio_readdir = laio.readdir
 local aio_readpath = laio.readpath
 local aio_truncate = laio.truncate
+local aio_popen = laio.popen
+local aio_kill = laio.kill
 
 local type = type
 local assert = assert
 local toint = math.tointeger
+local tconcat = table.concat
 
 local aio = new_tab(0, 1 << 16)
 
@@ -456,6 +463,89 @@ function aio.remove(filename)
   end)
   aio[t] = aio_remove(t.event_co, filename)
   return co_wait()
+end
+
+-- `pfile`对象
+local pfile = { __name = "__PFILE__" }
+
+pfile.__index = pfile
+
+function pfile:read(bytes)
+  if not self.fd then
+    return false, "fd closed."
+  end
+  bytes = toint(bytes)
+  if bytes and bytes > 0 then
+    return tcp_read(self.fd, bytes)
+  end
+  bytes = 65535
+  local buffers = {}
+  while true do
+    local buf = tcp_read(self.fd, bytes)
+    if not buf then
+      self:close()
+      break
+    end
+    buffers[#buffers+1] = buf
+  end
+  return tconcat(buffers)
+end
+
+function pfile:__gc()
+  self:close()
+end
+
+function pfile:close()
+  if self.fd then
+    tcp_close(self.fd)
+    self.fd = nil
+  end
+end
+
+---comment @`io.popen`的非阻塞版实现
+---@param command string   @`command`是一个`string`类型的参数;
+---@param timeout number   @`timeout`是一个`Number`类型的参数(可选), 可以指定合适的超时时间来控制进程运行时长.
+---@return table|boolean   @子进程在退出后此方法才会返回; 正常退出返回`pfile`对象, 异常退出与错误退出返回`false`与出错信息;
+---@return nil|string      @需要注意的是`pfile`对象必须开发者手动关闭, 否则可能会造成`fd`泄漏的问题.
+function aio.popen(command, timeout)
+  local ok, obj, co_timer, killed
+  local co = co_self()
+  local co_cb = co_new(function (id)
+    -- 正常结束返回`0`, 异常结束返回`进程id`, 超时`kill`返回信号代码(9);
+    -- print("进程结束: ", id)
+    if co_timer then
+      co_timer:stop()
+    end
+    return co_wakeup(co, id == 0 and true or false)
+  end)
+  ok, obj = pcall(aio_popen, command, co_cb)
+  if not ok then
+    return false, "[AIO_POPEN ERROR] : " .. obj
+  end
+  co_timer = cf.timeout(tonumber(timeout), function ()
+    aio_kill(obj.pid)
+    killed = true
+    co_timer = nil
+  end)
+  tcp_close(obj.pipe[2])
+  local f = setmetatable({ fd = obj.pipe[1] }, pfile)
+  -- 等待子进程运行结束: 如果运行失败则返回错误信息, 如果运行成功则返回需要自己读取与手动关闭的`pfile`对象.
+  if not co_wait() then
+    local errinfo = f:read "*a"
+    if killed then
+      errinfo = "command timeout killed."
+    end
+    f:close()
+    return false, "[AIO_POPEN ERROR] : " .. errinfo
+  end
+  return f
+end
+
+---comment `kill`指定进程
+---@param pid integer 指定进程的`PID`
+function aio.kill(pid)
+  aio_kill(pid)
+  return true
 end
 
 return aio
