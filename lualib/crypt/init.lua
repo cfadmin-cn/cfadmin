@@ -24,6 +24,9 @@ require "crypt.crc"(crypt)
 -- Base64编码/解码算法
 require "crypt.b64"(crypt)
 
+-- RC4算法
+require "crypt.rc4"(crypt)
+
 -- AES对称加密算法
 require "crypt.aes"(crypt)
 

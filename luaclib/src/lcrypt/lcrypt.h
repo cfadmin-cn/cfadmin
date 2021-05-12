@@ -1,6 +1,7 @@
 #define LUA_LIB
 
 #include <core.h>
+#include <openssl/rc4.h>
 #include <openssl/md5.h>
 #include <openssl/sha.h>
 #include <openssl/pem.h>
@@ -53,6 +54,8 @@ int lhmac_sha224(lua_State *L);
 int lhmac_sha256(lua_State *L);
 int lhmac_sha384(lua_State *L);
 int lhmac_sha512(lua_State *L);
+
+int lrc4(lua_State *L);
 
 int laes_ecb_encrypt(lua_State *L);
 int laes_cbc_encrypt(lua_State *L);

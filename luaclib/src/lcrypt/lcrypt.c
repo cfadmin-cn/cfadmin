@@ -126,6 +126,7 @@ LUAMOD_API int luaopen_lcrypt(lua_State *L) {
     { "aes_ofb_decrypt", laes_ofb_decrypt },
     { "aes_ctr_decrypt", laes_ctr_decrypt },
     { "aes_gcm_decrypt", laes_gcm_decrypt },
+    { "rc4", lrc4 },
     // DES加密/解密
     { "desencode", ldesencode },
     { "desdecode", ldesdecode },

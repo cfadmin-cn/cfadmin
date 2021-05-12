@@ -16,5 +16,5 @@ INCLUDES = -I../../../src -I/usr/local/include
 LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
 
 build:
-	@$(CC) -o lcrypt.so lcrypt.c aes.c des.c dh.c rsa.c sha.c hmac.c hmac_ex.c b64.c crc.c url.c hex.c uuid.c sm.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
+	@$(CC) -o lcrypt.so lcrypt.c aes.c des.c dh.c rsa.c sha.c hmac.c hmac_ex.c b64.c crc.c url.c hex.c uuid.c sm.c rc.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	@mv *.so ../../
