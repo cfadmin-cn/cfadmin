@@ -171,15 +171,18 @@ static int create_server_fd(const char *ip, int port, int backlog){
   SA.sin6_addr = in6addr_any;
 
   struct in6_addr addr;
-  /* 如果填写的是 ::1 */
+  /* 如果填写的是`::1` */
   if (!strcmp(ip, "::1") && inet_pton(AF_INET6, "::1", &addr) == 1){
     SA.sin6_addr = addr;
-  /* 如果填写的是 127.0.0.1 */
+  /* 如果填写的是`127.0.0.1` */
   } else if (!strcmp(ip, "127.0.0.1") && inet_pton(AF_INET6, "::ffff:127.0.0.1", &addr) == 1) {
     SA.sin6_addr = addr;
-  /* 如果填写的是 其它IPv6地址 */
+  /* 如果填写的是其它`IPv6`地址 */
   } else if (inet_pton(AF_INET6, ip, &addr) == 1) {
     SA.sin6_addr = addr;
+  /* 如果填写的是 `0.0.0.0` 则监听所有地址 */
+  } else if (!strcmp(ip, "0.0.0.0")) {
+    SA.sin6_addr = in6addr_any;
   /* 检查IPv4地址或者是非法IP地址 */
   } else {
     struct in_addr addr4;
