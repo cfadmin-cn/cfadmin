@@ -88,6 +88,7 @@ LUAMOD_API int luaopen_lcrypt(lua_State *L) {
     { "md5", lmd5 },
     { "crc32", lcrc32 },
     { "crc64", lcrc64 },
+    { "adler32", ladler32 },
     { "sha1", lsha128 },
     { "sha128", lsha128 },
     { "sha224", lsha224 },

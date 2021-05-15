@@ -18,8 +18,8 @@ require "crypt.sha"(crypt)
 -- 哈希消息认证码算法
 require "crypt.hmac"(crypt)
 
--- 循环冗余校验算法
-require "crypt.crc"(crypt)
+-- 冗余校验算法
+require "crypt.checksum"(crypt)
 
 -- Base64编码/解码算法
 require "crypt.b64"(crypt)

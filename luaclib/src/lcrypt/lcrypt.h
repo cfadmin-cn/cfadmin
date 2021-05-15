@@ -22,6 +22,8 @@ int lfromhex(lua_State *L);
 int lcrc32(lua_State *L);
 int lcrc64(lua_State *L);
 
+int ladler32(lua_State *L);
+
 int lb64encode(lua_State *L);
 int lb64decode(lua_State *L);
 

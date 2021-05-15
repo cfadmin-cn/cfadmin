@@ -1,3 +1,13 @@
+/* 
+ * Copyright (C) 2020, CandyMi.
+ * Adler-32校验和简单算法：
+    1）通过求解两个16位的数值Adler、sum实现，并将结果连结成一个32位整数；
+		2）Adler就是字符串中每个字节的和，而sum是Adler在相加时每一步的阶段值之和；
+		3）在Adler-32开始求值前，adler初始化为1，然后加上每一个字节值; sum初始化为0，然后加上第一个步骤的Adler的值;
+		4）Adler与Sum每次求值的结果都需要对65521取模, 最终结果为: Adler | (sum << 16);
+	* 注意: 最终结果为int32或uint32(正负值), 目前只取正值.
+*/
+
 #include "lcrypt.h"
 #include <inttypes.h>
 
@@ -233,3 +243,20 @@ int lcrc64(lua_State *L){
   lua_pushlstring(L, (const char*)buf, 20);
   return 1;
 };
+
+int ladler32(lua_State *L){
+  size_t len = 0;
+  const uint8_t *buf = (const uint8_t *)luaL_checklstring(L, 1, &len);
+  if (!buf || len < 1)
+    return luaL_error(L, "invalid string.");
+
+	uint64_t adler = 1;
+	uint64_t sum = 0;
+	size_t index;
+	for (index = 0; index < len; index++) {
+		adler = (adler + buf[index]) % 65521;
+		sum = (sum + adler) % 65521;
+	}
+	lua_pushinteger(L, (uint32_t)(adler | (sum << 16)));
+  return 1;
+}
