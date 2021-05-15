@@ -1,6 +1,8 @@
 local CRYPT = require "lcrypt"
 local hmac64 = CRYPT.hmac64
 local hmac_hash = CRYPT.hmac_hash
+local hmac_md2 = CRYPT.hmac_md2
+local hmac_md4 = CRYPT.hmac_md4
 local hmac_md5 = CRYPT.hmac_md5
 local hmac64_md5 = CRYPT.hmac64_md5
 
@@ -9,6 +11,7 @@ local hmac_sha224 = CRYPT.hmac_sha224
 local hmac_sha256 = CRYPT.hmac_sha256
 local hmac_sha384 = CRYPT.hmac_sha384
 local hmac_sha512 = CRYPT.hmac_sha512
+local hmac_ripemd160 = CRYPT.hmac_ripemd160
 
 local hexencode = CRYPT.hexencode
 
@@ -32,6 +35,22 @@ end
 
 function HMAC.hmac_hash(key, text, hex)
   local hash = hmac_hash(key, text)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function HMAC.hmac_md2(key, text, hex)
+  local hash = hmac_md2(key, text)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function HMAC.hmac_md4(key, text, hex)
+  local hash = hmac_md4(key, text)
   if hash and hex then
     return hexencode(hash)
   end
@@ -88,6 +107,14 @@ end
 
 function HMAC.hmac_sha512(key, text, hex)
   local hash = hmac_sha512(key, text)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
+
+function HMAC.hmac_ripemd(key, text, hex)
+  local hash = hmac_ripemd160(key, text)
   if hash and hex then
     return hexencode(hash)
   end

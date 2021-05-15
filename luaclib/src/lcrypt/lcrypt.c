@@ -84,6 +84,7 @@ LUAMOD_API int luaopen_lcrypt(lua_State *L) {
     { "urlencode", lurlencode },
     { "urldecode", lurldecode },
     // SHA
+    { "md4", lmd4 },
     { "md5", lmd5 },
     { "crc32", lcrc32 },
     { "crc64", lcrc64 },
@@ -93,7 +94,9 @@ LUAMOD_API int luaopen_lcrypt(lua_State *L) {
     { "sha256", lsha256 },
     { "sha384", lsha384 },
     { "sha512", lsha512 },
+    { "ripemd160", lripemd160},
     // HMAC
+    { "hmac_md4", lhmac_md4 },
     { "hmac_md5", lhmac_md5 },
     { "hmac_sha1", lhmac_sha128 },
     { "hmac_sha128", lhmac_sha128 },
@@ -102,6 +105,7 @@ LUAMOD_API int luaopen_lcrypt(lua_State *L) {
     { "hmac_sha384", lhmac_sha384 },
     { "hmac_sha512", lhmac_sha512 },
     { "hmac_hash", lhmac_hash },
+    { "hmac_ripemd160", lhmac_ripemd160},
     { "xor_str", lxor_str },
     // 公钥加密 -> 私钥解密
     { "rsa_public_key_encode", lrsa_public_key_encode },

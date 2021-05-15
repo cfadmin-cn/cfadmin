@@ -9,6 +9,17 @@
 # define SHA512_DIGEST_LENGTH    64
 */
 
+int lmd4(lua_State *L) {
+  size_t sz = 0;
+  const char * text = luaL_checklstring(L, 1, &sz);
+  if (!text || sz <= 0)
+    return luaL_error(L, "Invalid text value.");
+  unsigned char result[MD4_DIGEST_LENGTH];
+  MD4((const unsigned char*) text, sz, result);
+  lua_pushlstring(L, (const char *)result, MD4_DIGEST_LENGTH);
+  return 1;
+};
+
 int lmd5(lua_State *L) {
   size_t sz = 0;
   const char * text = luaL_checklstring(L, 1, &sz);
@@ -72,5 +83,16 @@ int lsha512(lua_State *L) {
   unsigned char result[SHA512_DIGEST_LENGTH];
   SHA512((const unsigned char*) text, sz, result);
   lua_pushlstring(L, (const char *)result, SHA512_DIGEST_LENGTH);
+  return 1;
+};
+
+int lripemd160(lua_State *L) {
+  size_t sz = 0;
+  const char * text = luaL_checklstring(L, 1, &sz);
+  if (!text || sz <= 0)
+    return luaL_error(L, "Invalid text value.");
+  unsigned char result[RIPEMD160_DIGEST_LENGTH];
+  RIPEMD160((const unsigned char*) text, sz, result);
+  lua_pushlstring(L, (const char *)result, RIPEMD160_DIGEST_LENGTH);
   return 1;
 };

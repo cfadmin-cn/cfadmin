@@ -1,7 +1,9 @@
 #define LUA_LIB
 
 #include <core.h>
+#include <openssl/ripemd.h>
 #include <openssl/rc4.h>
+#include <openssl/md4.h>
 #include <openssl/md5.h>
 #include <openssl/sha.h>
 #include <openssl/pem.h>
@@ -41,19 +43,23 @@ int lhmac_hash(lua_State *L);
 int lhmac64(lua_State *L);
 int lhmac64_md5(lua_State *L);
 
+int lmd4(lua_State *L);
 int lmd5(lua_State *L);
 int lsha128(lua_State *L);
 int lsha224(lua_State *L);
 int lsha256(lua_State *L);
 int lsha384(lua_State *L);
 int lsha512(lua_State *L);
+int lripemd160(lua_State *L);
 
+int lhmac_md4(lua_State *L);
 int lhmac_md5(lua_State *L);
 int lhmac_sha128(lua_State *L);
 int lhmac_sha224(lua_State *L);
 int lhmac_sha256(lua_State *L);
 int lhmac_sha384(lua_State *L);
 int lhmac_sha512(lua_State *L);
+int lhmac_ripemd160(lua_State *L);
 
 int lrc4(lua_State *L);
 
