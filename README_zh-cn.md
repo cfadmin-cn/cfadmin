@@ -72,14 +72,9 @@
 
   * [我要加群](https://shang.qq.com/wpa/qunwpa?idkey=5cc977ebaf4eb17391b2c6b03eb0ee36e3d3c1871bc95ba3c96ffc426a9dc907)
 
-### 支持
+### 贡献者名单
 
-  **如果您使用的还算顺手, 可以支持一杯咖啡予以鼓励.**
-
-<p align="center">
-  <a><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/zhifubao.jpeg" height="30%" width="30%"></a>
-  <a><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/weixin.jpeg" height="37%" width="37%"></a>
-</p>
+  * [suzaichuan](https://github.com/suzaichuan) - `积极测试`与`问题反馈`.
 
 ### 用户列表
 

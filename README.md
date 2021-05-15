@@ -76,15 +76,6 @@
 
   * [QQ Group](https://shang.qq.com/wpa/qunwpa?idkey=5cc977ebaf4eb17391b2c6b03eb0ee36e3d3c1871bc95ba3c96ffc426a9dc907)
 
-### Support
-
-  **Encourage the price of a cup of coffee.**
-
-<p align="center">
-  <a><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/zhifubao.jpeg" height="30%" width="30%"></a>
-  <a><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/weixin.jpeg" height="37%" width="37%"></a>
-</p>
-
 ### List of contributors
 
   * [suzaichuan](https://github.com/suzaichuan) - `Test` and `Problem Feedback`.
