@@ -1,18 +1,14 @@
 #include "core.h"
 
 #define LUALIBS_PATH \
-	"lualib/?.lua;;lualib/?/init.lua;;" \
-	"3rd/?.lua;;3rd/?/init.lua;;" \
-	"script/?.lua;;script/?/init.lua;;"
+	"lualib/?.lua;;lualib/?/init.lua;;"       \
+	"script/?.lua;;script/?/init.lua;;"       \
+	"3rd/?.lua;;3rd/?/init.lua;;"
 
 #define LUACLIBS_PATH \
 	"luaclib/?.so;;luaclib/lib?.so;;"         \
 	"luaclib/?.dylib;;luaclib/lib?.dylib;;"   \
 	"luaclib/?.dll;;luaclib/msys-?.dll;;"     \
-																						\
-	"./?.so;;./lib?.so;;"                     \
-	"./?.dylib;;./lib?.dylib;;"               \
-	"./?.dll;;./msys-?.dll;;"									\
 																						\
   "3rd/?.so;;3rd/lib?.so;;"									\
   "3rd/?.dylib;;3rd/lib?.dylib;;"						\
@@ -195,17 +191,19 @@ int core_master_run(pid_t *pids, int* pidcount) {
 	core_ev_set_allocator(EV_ALLOC);
 	/* hook 事件循环错误信息 */
 	core_ev_set_syserr_cb(ERROR_CB);
+	/* 初始化事件循环对象 */
+	core_loop *loop = core_loop_fork(core_default_loop());
 	/* 初始化信号 */ 
 	signal_init(pidcount);
 	/* 设置pid */ 
-	ev_set_userdata(core_default_loop(), pids);
+	ev_set_userdata(loop, pids);
 	/* 注册子进程监听 */
 	ev_child childs[*pidcount];
 	int index;
 	for (index = 0; index < *pidcount; index++) {
 		ev_child_init(&childs[index], CHILD_CB, pids[index], 0);
-		ev_child_start(core_default_loop(), &childs[index]);
+		ev_child_start(loop, &childs[index]);
 	}
 	/* 初始化主进程 */ 
-	return core_start(core_loop_fork(core_default_loop()), 0);
+	return core_start(loop, 0);
 }

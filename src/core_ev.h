@@ -23,9 +23,10 @@
 #define EV_NO_SMP 1
 #define EV_NO_THREADS 1
 
-#if defined(linux) || defined(__linux__) || defined(__MSYS__)
-	#if defined(__MSYS__)
-		#define EV_USE_SELECT 1
+#if defined(linux) || defined(__linux__) || defined(__MSYS__) || defined(__CYGWIN__)
+	#if defined(__MSYS__) || defined(__CYGWIN__)
+		#define EV_USE_POLL 1
+		// #define EV_USE_SELECT 1
 	#else
 		#define EV_USE_EPOLL 1
 		#define EV_USE_INOTIFY 1

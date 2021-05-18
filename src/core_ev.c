@@ -30,7 +30,7 @@ void core_io_start(core_loop *loop, core_io *io){
 void core_io_stop(core_loop *loop, core_io *io){
 	if (io->events || io->fd){
 		ev_io_stop(loop ? loop : CORE_LOOP, io);
-		io->fd = io->events = 0x0;
+		io->fd = io->events = -1;
 	}
 }
 /* ===========  IO  =========== */
@@ -64,24 +64,21 @@ void core_signal_start(core_loop *loop, core_signal *signal){
 
 
 core_loop* core_loop_fork(core_loop *loop) {
-	ev_loop_fork(loop);
+	// ev_loop_fork(loop);
 	return loop;
 }
 
 core_loop* core_default_loop(){
-
 	int BEST_BACKEND = 0;
-
-#if defined(__MSYS__)
-  BEST_BACKEND |= EVBACKEND_SELECT | EVFLAG_SIGNALFD;
+#if defined(__MSYS__) || defined(__CYGWIN__)
+  BEST_BACKEND |= EVBACKEND_POLL | EVFLAG_SIGNALFD | EVFLAG_NOINOTIFY;
 #elif defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
-  BEST_BACKEND |= EVBACKEND_KQUEUE;
+  BEST_BACKEND |= EVBACKEND_KQUEUE | EVFLAG_NOINOTIFY | EVFLAG_NOTIMERFD;
 #elif defined(linux) || defined(__linux) || defined(__linux__)
   BEST_BACKEND |= EVBACKEND_EPOLL | EVFLAG_SIGNALFD;
 #else
-	BEST_BACKEND |= EVBACKEND_SELECT;
+	BEST_BACKEND |= EVBACKEND_SELECT | EVFLAG_NOINOTIFY | EVFLAG_NOTIMERFD;
 #endif
-
 	return ev_default_loop( BEST_BACKEND | EVFLAG_FORKCHECK );
 }
 
