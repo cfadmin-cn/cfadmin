@@ -28,7 +28,7 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#if defined(__MSYS__)
+#if defined(__MSYS__) || defined(__CYGWIN__)
   #define __OS__ ("Windows")
 #elif defined(__APPLE__)
   #define __OS__ ("Apple")
