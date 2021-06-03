@@ -297,7 +297,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
     return
   end
   http:tolog(101, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, req_time(start_time))
-  return wsserver.start { cls = cls, sock = sock, ext = ext }
+  return wsserver.start { cls = cls, args = form_argsencode(path), headers = header, sock = sock, ext = ext }
 end
 
 local function send_header (sock, header)
@@ -522,7 +522,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
         end
         insert(header, 1, REQUEST_STATUCODE_RESPONSE(statucode))
       elseif typ == HTTP_PROTOCOL.WS then
-        local ok, msg = safe_call(Switch_Protocol, http, cls, sock, HEADER, METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
+        local ok, msg = safe_call(Switch_Protocol, http, cls, sock, tab_copy(HEADER), METHOD, VERSION, PATH, HEADER['X-Real-IP'] or ipaddr, start)
         if not ok then
           Log:ERROR(msg)
         end

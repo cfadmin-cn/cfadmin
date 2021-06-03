@@ -93,7 +93,7 @@ function Websocket.start(opt)
   local ext = opt.ext
   local w = ws:new { sock = sock, ext = ext }
 
-  local cls = opt.cls:new { ws = w }
+  local cls = opt.cls:new { ws = w, args = opt.args, headers = opt.headers }
   local on_open = assert(type(cls.on_open) == 'function' and cls.on_open, "'on_open' method is not implemented.")
   local on_message = assert(type(cls.on_message) == 'function' and cls.on_message, "'on_message' method is not implemented.")
   local on_error = assert(type(cls.on_error) == 'function' and cls.on_error, "'on_error' method is not implemented.")
