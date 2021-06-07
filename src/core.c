@@ -71,7 +71,7 @@ static void EV_ERROR_CB(const char *msg){
 			pids[index] = -1;
 		}
 	}
-	/* 这里给SUCCESS的原因是方便时间循环出错后的打印 */
+	/* 减少无效打印, 专注错误提示 */
 	return exit(EXIT_SUCCESS);
 }
 
