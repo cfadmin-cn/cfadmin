@@ -297,7 +297,7 @@ local function Switch_Protocol(http, cls, sock, header, method, version, path, i
     return
   end
   http:tolog(101, path, header['X-Real-IP'] or ip, X_Forwarded_FORMAT(header['X-Forwarded-For'] or ip), method, req_time(start_time))
-  return wsserver.start { cls = cls, args = form_argsencode(path), headers = header, sock = sock, ext = ext }
+  return wsserver.start(sock, cls, form_argsencode(path), header, ext)
 end
 
 local function send_header (sock, header)
