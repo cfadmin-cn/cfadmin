@@ -111,6 +111,25 @@ void init_lua_libs(lua_State *L){
   lua_pushlightuserdata(L, NULL);
   lua_rawset(L, -3);
 
+	/* worker */
+	if (getenv("cfadmin_isWorker") || getenv("cfadmin_isMaster")) {
+		lua_pushliteral(L, "worker");
+		lua_createtable(L, 0, 3);
+		lua_pushliteral(L, "id");
+		lua_pushinteger(L, getpid() - getppid());
+		lua_rawset(L, -3);
+		lua_pushliteral(L, "pid");
+		lua_pushinteger(L, getpid());
+		lua_rawset(L, -3);
+		lua_pushliteral(L, "ppid");
+		lua_pushinteger(L, getppid());
+		lua_rawset(L, -3);
+		lua_pushliteral(L, "nprocess");
+		lua_pushinteger(L, atoi(getenv("cfadmin_nprocess")));
+		lua_rawset(L, -3);
+		lua_rawset(L, -3);
+	}
+
   lua_settop(L, 0);
 
   /* 注入lua搜索域 */
