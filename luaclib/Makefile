@@ -14,8 +14,6 @@ LIBS += -L./ -L../ -L/usr/local/lib
 CFLAGS = -Wall -O3 -fPIC --shared -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
 
 internal :
-
-	@echo "********** Built-in modules **********"
 	@echo "CC	-	lsys"
 	@$(CC) -o sys.so src/lsys.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	@echo "CC	-	ludp"
@@ -30,31 +28,21 @@ internal :
 	@$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore
 
 3part :
-
-	@echo "********** Third party modules **********"
 	@echo "CC	-	lz"
 	@$(MAKE) -C src/lz build
-
 	@echo "CC	-	lfs"
 	@$(MAKE) -C src/lfs build
-
 	@echo "CC	-	lffi"
 	@$(MAKE) -C src/lffi build
-
 	@echo "CC	-	lpbc"
 	@$(MAKE) -C src/lpbc build
-
 	@echo "CC	-	lpeg"
 	@$(MAKE) -C src/lpeg build
-
 	@echo "CC	-	lcrypt"
 	@$(MAKE) -C src/lcrypt build
-
 	@echo "CC	-	lcjson"
 	@$(MAKE) -C src/lcjson build
-
 	@echo "CC	-	lmsgpack"
 	@$(MAKE) -C src/lmsgpack build
-
 	@echo "CC	-	lhttpparser"
 	@$(MAKE) -C src/lhttpparser build

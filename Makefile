@@ -5,7 +5,7 @@ RM = rm -rf
 default :
 	@echo "======================================="
 	@echo "Please use 'make build' command to build it.."
-	@echo "Please use 'make rebuild' command to build it.."
+	@echo "Please use 'make rebuild' command to rebuild it.."
 	@echo "Please use 'make clean' command to clean all."
 	@echo "======================================="
 
@@ -15,8 +15,8 @@ default :
 
 build :
 	@$(MAKE) -s -C src build
-	@$(MAKE) -s -C luaclib internal
-	@$(MAKE) -s -C luaclib 3part
+	@echo "********** Built-in core modules **********"
+	@cd luaclib && $(MAKE) -s internal 3part -j4
 	@$(MAKE) -s -C 3rd build
 
 rebuild :
