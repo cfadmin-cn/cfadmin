@@ -727,11 +727,10 @@ static int laio_popen(lua_State *L) {
 static int laio_kill(lua_State *L){
   lua_Integer pid = luaL_checkinteger(L, 1);
   if (pid > 1 && getpid() != pid)
-    kill(pid, SIGKILL);
+    kill(pid, luaL_optinteger(L, 2, SIGKILL));
   lua_pushboolean(L, 1);
   return 1;
 }
-
 
 LUAMOD_API int luaopen_laio(lua_State* L){
   // printf("主线程ID为: %d\n", pthread_self());
