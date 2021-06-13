@@ -23,7 +23,6 @@ local pairs = pairs
 local error = error
 local ipairs = ipairs
 local tonumber = tonumber
-local tostring = tostring
 
 local slash = '\x2f'        -- '/'
 local slash2 = '\x2f\x2f'   -- '//'
@@ -56,7 +55,7 @@ function Router:toarray (v, t)
     return v
   end
   local array = new_tab(32, 0)
-  for str in v:gmatch("[^,%[%]%{%}]+") do
+  for str in splite(v, "[^,%[%]%{%}]+") do
     if not t or t == 'string[]' then
       array[#array+1] = str
     else
@@ -130,16 +129,15 @@ function Router:hex_route (route)
 end
 
 -- 检查是路径回退是否超出静态文件根目录(是否合法路径.)
-function Router:is_out_of_directory (paths)
-	local deep = 1
-  for _, p in ipairs(paths) do
-    if p == point2 then
+function Router:is_out_of_directory (path)
+  local deep = 1
+  for r in splite(path, "/([^/#%?]+)") do
+    if r == point2 then
       deep = deep - 1
-    elseif p ~= point then
+    elseif r ~= point then
       deep = deep + 1
     end
-    -- 如果超出目录则直接返回
-    if deep <= 0 then
+    if deep == 0 then
       return true
     end
   end
@@ -150,9 +148,9 @@ end
 function Router:find (method, path)
   -- 检查是否能O(1)定位普通路由
   path = url_decode(split(path, 1, (find(path, '?') or 0) - 1))
-	local t = self.routes[self:to_route(path)]
-  if t then
-    return t.class, t.type
+	local r = self.routes[self:to_route(path)]
+  if r then
+    return r.class, r.type
   end
   -- 检查是否需要查找rest路由
   if self.enable_rest then
@@ -186,9 +184,8 @@ function Router:find (method, path)
   if method ~= 'GET' and method ~= 'HEAD' then
     return
   end
-  local tab = self:hex_route(path)
   -- 凡是超出静态文件根目录返回404.
-  if self:is_out_of_directory(tab) then
+  if self:is_out_of_directory(path) then
     return
   end
   -- 构建静态静态文件检查器
