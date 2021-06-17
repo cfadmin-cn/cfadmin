@@ -23,6 +23,8 @@ static int daemoned = 0;
 
 static int pmode = 0;
 
+static int nostd = 1;
+
 #define MasterPrefix ("cfadmin - Manager Process :")
 #define WorkerPrefix ("cfadmin - Worker Process")
 
@@ -206,7 +208,7 @@ static inline int cfadmin_standalone_run(const char* entry) {
 }
 
 /* 设置为daemon进程, 并指定`entry`文件与`Pid`文件路径. */
-static inline pid_t cfadmin_daemon(int redirect) {
+static inline pid_t cfadmin_daemon(int nostd) {
 
   pid_t pid = fork();
   if (pid != 0)
@@ -222,7 +224,7 @@ static inline pid_t cfadmin_daemon(int redirect) {
   int stdin_fd, stdout_fd;
 
   // 关闭标准输入输出
-  if (!redirect) {
+  if (!nostd) {
     int nfd = open("/dev/null", O_RDWR);
     if (nfd < 0) {
       LOG("ERROR", strerror(errno));
@@ -235,7 +237,7 @@ static inline pid_t cfadmin_daemon(int redirect) {
       LOG("ERROR", strerror(errno));
       exit(-1);
     }
-    int wfd = open("logs/cfadmin_stdout.log", O_APPEND);
+    int wfd = open("logs/cfadmin_stdout.log", O_CREAT | O_TRUNC | O_WRONLY, 0644);
     if (wfd < 0) {
       LOG("ERROR", strerror(errno));
       exit(-1);
@@ -288,7 +290,7 @@ int main(int argc, char const *argv[]) {
   */
 
   /* 是否需要后台运行 */
-  pid_t p = daemoned ? cfadmin_daemon(1) : getpid() ;
+  pid_t p = daemoned ? cfadmin_daemon(nostd) : getpid() ;
 
   /*将主进程的PID写入到*/
   cfadmin_write_pid_file(pid_filename, p);
