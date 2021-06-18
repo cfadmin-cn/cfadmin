@@ -1,123 +1,3 @@
--- local task = require "task"
--- local new_tab = require("sys").new_tab
-
--- local task_new = task.new
--- local task_stop = task.stop
--- local task_start = task.start
-
--- local co_new = coroutine.create
--- local co_start = coroutine.resume
--- local co_wait = coroutine.yield
--- local co_status = coroutine.status
--- local co_self = coroutine.running
-
--- local type = type
--- local assert = assert
--- local xpcall = xpcall
--- local error = error
-
--- local insert = table.insert
--- local remove = table.remove
-
--- local cos = new_tab(0, 1 << 10)
-
--- local main_co = co_self()
--- local main_task = task_new()
-
--- local TASK_POOL = new_tab(1 << 10, 0)
-
--- local function task_pop()
--- 	return remove(TASK_POOL) or task_new()
--- end
-
--- local function task_push(task)
--- 	return insert(TASK_POOL, task)
--- end
-
--- local CO_POOL = new_tab(1 << 10, 0)
-
--- local function co_pop(func)
--- 	local co = remove(CO_POOL)
--- 	if co then
--- 		return co
--- 	end
--- 	co = co_new(func)
--- 	co_start(co)
--- 	return co
--- end
-
--- local function co_push(co)
--- 	return insert(CO_POOL, co)
--- end
-
--- local function dbg (info)
--- 	return print(string.format("[%s] %s", os.date("%Y/%m/%d %H:%M:%S"), debug.traceback(co_self(), info, 2)))
--- end
-
--- local function f()
--- 	while 1 do
--- 		local func, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9 = co_wait()
--- 		xpcall(func, dbg, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
--- 		local co, main = co_self()
--- 		if not main then
--- 			task_push(cos[co])
--- 			co_push(co)
--- 			cos[co] = nil
--- 		end
--- 	end
--- end
-
--- local Co = {}
-
--- -- 创建协程
--- function Co.new(f)
--- 	return co_new(f)
--- end
-
--- -- 查找
--- function Co.self()
--- 	return co_self()
--- end
-
--- -- 让出
--- function Co.wait()
--- 	local co = co_self()
--- 	assert(cos[co] or co == main_co, "非cf创建的协程不能让出执行权")
--- 	return co_wait()
--- end
-
--- -- 启动
--- function Co.spawn(func, ...)
--- 	if type(func) == "function" then
--- 		local co = co_pop(f)
--- 		cos[co] = task_pop()
--- 		return task_start(cos[co], co, func, ...)
--- 	end
--- 	error("Co Just Can spawn a Coroutine to run in sometimes.")
--- end
-
--- -- 唤醒
--- function Co.wakeup(co, ...)
--- 	assert(type(co) == 'thread', "试图传递一个非协程的类型的参数到wakeup内部.")
--- 	assert(co ~= co_self(), "不能唤醒当前正在执行的协程")
--- 	if main_co == co then
--- 		local status = co_status(co)
--- 		if status ~= 'suspended' then
--- 			return error('试图唤醒一个状态异常的协程')
--- 		end
--- 		return task_start(main_task, main_co, ...)
--- 	end
--- 	local t = assert(cos[co], "非cf创建的协程不能由cf来唤醒")
--- 	return task_start(t, co, ...)
--- end
-
--- function Co.count()
--- 	return #CO_POOL, #TASK_POOL
--- end
-
--- return Co
-
-
 local require = require
 local task = require "task"
 local task_new = task.new
@@ -149,6 +29,7 @@ local co_close = coroutine.close
 
 local main_co = nil
 local main_task = nil
+local main_waited = true
 local empty_args = {}
 
 local co_num = 0
@@ -159,29 +40,33 @@ co_map[co_self()] = true
 local co_wlist = new_tab(512, 0)
 
 local function co_wrapper()
+  -- 数字索引比字符串索引快.
+  local CO_INDEX, ARGS_INDEX = 1, 2
   return co_new(function ()
     local co_rlist = co_wlist
     co_wlist = new_tab(512, 0)
     while true do
       for _, obj in ipairs(co_rlist) do
-        local ok, errinfo = co_start(obj.co, tunpack(obj.args or empty_args))
+        local co, args = obj[CO_INDEX], obj[ARGS_INDEX]
+        local ok, errinfo = co_start(co, tunpack(args or empty_args))
         -- 如果协程`执行出错`或`执行完毕`, 则去掉引用销毁
-        if not ok or co_status(obj.co) ~= 'suspended' then
-          co_map[obj.co] = nil
+        if not ok or co_status(co) ~= 'suspended' then
           -- 如果发生异常，则应该把异常打印出来.
           if not ok then
-            print(fmt("[%s] [coroutine error] %s", os_date("%Y/%m/%d %H:%M:%S"), dbg_traceback(obj.co, errinfo, 1)))
+            print(fmt("[%s] [coroutine error] %s", os_date("%Y/%m/%d %H:%M:%S"), dbg_traceback(co, errinfo, 1)))
           end
           -- 如果支持销毁协程， 则可以尝试回收资源.
           if co_close then
-            co_close(obj.co)
+            co_close(co)
           end
+          co_map[co] = nil
           co_num = co_num - 1
         end
       end
       -- 如果没有执行对象则应该放弃执行权.
       -- 等待有任务之后再次唤醒后再执行
       if #co_wlist == 0 then
+        main_waited = true
         co_wait()
       end
       co_rlist = co_wlist
@@ -197,18 +82,18 @@ local function co_check_init()
     main_co = co_wrapper()
   end
   -- 如果协程未启动, 则启动协程开始运行.
-  if co_status(main_co) == 'suspended' then
+  if main_waited then
+    main_waited = false
     task_start(main_task, main_co)
   end
 end
 
 local function co_add_queue(co, ...)
-  local len, args = select("#", ...), nil
-  if len > 0 then
+  local args = nil
+  if select("#", ...) > 0 then
     args = tpack(...)
   end
-  co_num = co_num + 1
-  co_wlist[#co_wlist+1] = { co = co, args = args}
+  co_wlist[#co_wlist+1] = {co, args}
 end
 
 local Co = {}
@@ -238,8 +123,9 @@ end
 
 -- 创建协程
 function Co.spawn(func, ...)
-  assert(type(func) == "function", "[coroutine error]: Invalid callback.")
+  assert(type(func) == 'function', "[coroutine error]: Invalid callback.")
   -- 创建协程与打包参数
+  co_num = co_num + 1
   local co = co_new(func)
   co_map[co] = true
   co_check_init()
