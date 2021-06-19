@@ -552,6 +552,7 @@ local function ssl_accept(callback, fd, ipaddr, port, opt)
     sock:ssl_set_password(opt.pw)
   end
   sock.mode = "server"
+  sock:ssl_set_alpn(opt.alpn)
   sock:ssl_set_certificate(opt.cert)
   sock:ssl_set_privatekey(opt.key)
   tcp_ssl_set_accept_mode(sock.ssl, sock.ssl_ctx)
@@ -583,10 +584,11 @@ function TCP:listen_ssl(ip, port, opt, cb)
   if type(cb) ~= 'function' then
     return nil, "Listen function was invalid."
   end
+  local sslopt = { timeout = self.timeout, alpn = self.alpn, cert = opt.cert, key = opt.key, pw = opt.pw }
   self.listen_ssl_co = co_new(function (fd, ipaddr, port)
     while 1 do
       if fd and ipaddr then
-        co_spawn(ssl_accept, cb, fd, ipaddr, port, opt)
+        co_spawn(ssl_accept, cb, fd, ipaddr, port, sslopt)
         fd, ipaddr, port = co_wait()
       end
     end
