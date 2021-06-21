@@ -8,7 +8,6 @@ local new_tab = sys.new_tab
 
 local type = type
 local print = print
-local ipairs = ipairs
 local assert = assert
 local select = select
 
@@ -30,7 +29,6 @@ local co_close = coroutine.close
 local main_co = nil
 local main_task = nil
 local main_waited = true
-local empty_args = {}
 
 local co_num = 0
 
@@ -40,15 +38,19 @@ co_map[co_self()] = true
 local co_wlist = new_tab(512, 0)
 
 local function co_wrapper()
-  -- 数字索引比字符串索引快.
-  local CO_INDEX, ARGS_INDEX = 1, 2
   return co_new(function ()
+    -- 使用`数字索引`比`Hash索引`更快.
+    local CO_INDEX, ARGS_INDEX = 1, 2
+    -- 使用数字下标迭代比`ipairs`更快.
+    local start, total = 1, #co_wlist
+    -- 使用两级`FIFO`队列交替管理协程的运行与切换, 并且每次预分配的`FIFO`队列的大小与上次执行的协程的数量相关.
     local co_rlist = co_wlist
-    co_wlist = new_tab(512, 0)
+    co_wlist = new_tab((total & ~3) + 4, 0)
     while true do
-      for _, obj in ipairs(co_rlist) do
+      for index = start, total do
+        local obj = co_rlist[index]
         local co, args = obj[CO_INDEX], obj[ARGS_INDEX]
-        local ok, errinfo = co_start(co, tunpack(args or empty_args))
+        local ok, errinfo; if args then ok, errinfo = co_start(co, tunpack(args)); else ok, errinfo = co_start(co); end
         -- 如果协程`执行出错`或`执行完毕`, 则去掉引用销毁
         if not ok or co_status(co) ~= 'suspended' then
           -- 如果发生异常，则应该把异常打印出来.
@@ -65,12 +67,14 @@ local function co_wrapper()
       end
       -- 如果没有执行对象则应该放弃执行权.
       -- 等待有任务之后再次唤醒后再执行
-      if #co_wlist == 0 then
+      total = #co_wlist
+      if total == 0 then
         main_waited = true
         co_wait()
+        total = #co_wlist
       end
       co_rlist = co_wlist
-      co_wlist = new_tab(512, 0)
+      co_wlist = new_tab((total & ~3) + 4, 0)
     end
   end)
 end
