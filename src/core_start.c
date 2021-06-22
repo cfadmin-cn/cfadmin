@@ -237,7 +237,7 @@ static inline pid_t cfadmin_daemon(int nostd) {
       LOG("ERROR", strerror(errno));
       exit(-1);
     }
-    int wfd = open("logs/cfadmin_stdout.log", O_CREAT | O_TRUNC | O_WRONLY, 0644);
+    int wfd = open("cfadmin_stdout.log", O_CREAT | O_WRONLY | O_APPEND, 0644);
     if (wfd < 0) {
       LOG("ERROR", strerror(errno));
       exit(-1);
