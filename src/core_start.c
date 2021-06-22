@@ -198,6 +198,10 @@ static inline pid_t cfadmin_master_run() {
       return (pid_t)-1;
     }
 #ifdef __linux__
+#ifndef __USE_GNU
+  /* Linux可能会被忽略此宏导致无法编译通过. */
+  #define __USE_GNU 1
+#endif
     #include <sched.h>
     if (nprocess <= sysconf(_SC_NPROCESSORS_ONLN)){
       /* 在多进程环境下, Linux会尝试绑定到多个CPU上. */
