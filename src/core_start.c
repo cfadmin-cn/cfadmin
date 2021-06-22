@@ -204,7 +204,7 @@ static inline pid_t cfadmin_master_run() {
 #endif
     #include <sched.h>
     if (nprocess <= sysconf(_SC_NPROCESSORS_ONLN)){
-      /* 在多进程环境下, Linux会尝试绑定到多个CPU上. */
+      /* 在Linux会尝试绑定CPU亲缘性以提高进程执行效率. */
       cpu_set_t mask; CPU_ZERO(&mask); CPU_SET((i + 1) % nprocess, &mask);
       sched_setaffinity(pid, sizeof(mask), (const cpu_set_t *)&mask);
     }
