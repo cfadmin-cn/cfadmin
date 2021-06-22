@@ -29,7 +29,7 @@ static int nostd = 1;
 #define WorkerPrefix ("cfadmin - Worker Process")
 
 /* 打印使用指南 */
-void cfadmin_usage_print() {
+static inline void cfadmin_usage_print() {
   printf("cfadmin System  : %s(%s)\n", __OS__, __VERSION__ );
   printf("\n");
   printf("cfadmin Version : %s\n", __CFADMIN_VERSION__ );
@@ -96,7 +96,7 @@ static inline void cfadmin_specify_nprocess(const char* w) {
 }
 
 /* 后台运行 */
-void cfadmin_specify_process_daemon() {
+static inline void cfadmin_specify_process_daemon() {
   daemoned = 1;
 }
 
@@ -197,6 +197,14 @@ static inline pid_t cfadmin_master_run() {
       kill(ppid, SIGQUIT);
       return (pid_t)-1;
     }
+#ifdef __linux__
+    #include <sched.h>
+    if (nprocess <= sysconf(_SC_NPROCESSORS_ONLN)){
+      /* 在多进程环境下, Linux会尝试绑定到多个CPU上. */
+      cpu_set_t mask; CPU_ZERO(&mask); CPU_SET((i + 1) % nprocess, &mask);
+      sched_setaffinity(pid, sizeof(mask), (const cpu_set_t *)&mask);
+    }
+#endif
     npid[i] = pid;
   }
   return core_master_run(npid, &nprocess);
