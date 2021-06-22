@@ -157,6 +157,27 @@ static inline void cfadmin_set_parameters(int mode) {
   }
 }
 
+/* 设置不同系统下的CPU亲缘性 */
+static inline void cfadmin_set_cpu_affinity(int num, pid_t pid) {
+#if defined(__linux__)
+  #ifndef __USE_GNU
+    /* Linux可能会被忽略此宏导致无法编译通过. */
+    #define __USE_GNU 1
+  #endif
+    #include <sched.h>
+    if (nprocess <= sysconf(_SC_NPROCESSORS_ONLN)){
+      /* 在Linux会尝试绑定CPU亲缘性以提高进程执行效率. */
+      cpu_set_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % nprocess, &mask);
+      sched_setaffinity(pid, sizeof(mask), (const cpu_set_t *)&mask);
+    }
+#elif defined(__FreeBSD__)
+  #include <sys/param.h>
+  #include <sys/cpuset.h>
+  cpuset_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % nprocess, &mask);
+  cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpuset_t), (const cpuset_t *)&mask);
+#endif
+}
+
 /* 初始化参数 */
 static inline void cfadmin_unset_parameters() {
   unsetenv("cfadmin_isMaster");
@@ -187,6 +208,7 @@ static inline pid_t cfadmin_master_run() {
     if (pid <= 0) {
       if (!pid) {
         /* 启动工作进程 */
+        cfadmin_set_cpu_affinity(i, getpid());
         int e = execvp("./cfadmin", (char *const *)argp);
         if (e < 0)
           LOG("ERROR", strerror(errno));
@@ -197,18 +219,6 @@ static inline pid_t cfadmin_master_run() {
       kill(ppid, SIGQUIT);
       return (pid_t)-1;
     }
-#ifdef __linux__
-#ifndef __USE_GNU
-  /* Linux可能会被忽略此宏导致无法编译通过. */
-  #define __USE_GNU 1
-#endif
-    #include <sched.h>
-    if (nprocess <= sysconf(_SC_NPROCESSORS_ONLN)){
-      /* 在Linux会尝试绑定CPU亲缘性以提高进程执行效率. */
-      cpu_set_t mask; CPU_ZERO(&mask); CPU_SET((i + 1) % nprocess, &mask);
-      sched_setaffinity(pid, sizeof(mask), (const cpu_set_t *)&mask);
-    }
-#endif
     npid[i] = pid;
   }
   return core_master_run(npid, &nprocess);
