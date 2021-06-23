@@ -173,9 +173,9 @@ static inline void cfadmin_set_cpu_affinity(int num, pid_t pid) {
 #elif defined(__FreeBSD__)
   #include <sys/param.h>
   #include <sys/cpuset.h>
+  /* 在FreeBSD内支持CPU绑定的方式有差异 */
   cpuset_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % nprocess, &mask);
-  cpuset_setaffinity(CPU_LEVEL_W
-  HICH, CPU_WHICH_PID, -1, sizeof(cpuset_t), (const cpuset_t *)&mask);
+  cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpuset_t), (const cpuset_t *)&mask);
 #endif
 }
 
@@ -246,7 +246,7 @@ static inline pid_t cfadmin_daemon(int nostd) {
   /* 打开空设备 */
   int stdin_fd, stdout_fd;
 
-  // 关闭标准输入输出
+  /* 关闭标准输入输出 */
   if (!nostd) {
     int nfd = open("/dev/null", O_RDWR);
     if (nfd < 0) {
