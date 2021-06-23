@@ -173,9 +173,11 @@ static inline void cfadmin_set_cpu_affinity(int num, pid_t pid) {
 #elif defined(__FreeBSD__)
   #include <sys/param.h>
   #include <sys/cpuset.h>
-  /* 在FreeBSD内支持CPU绑定的方式有差异 */
-  cpuset_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % nprocess, &mask);
-  cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpuset_t), (const cpuset_t *)&mask);
+  if (nprocess <= sysconf(_SC_NPROCESSORS_ONLN)){
+    /* FreeBSD的CPU绑定的方式有函数与头文件的差异 */
+    cpuset_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % nprocess, &mask);
+    cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpuset_t), (const cpuset_t *)&mask);
+  }
 #endif
 }
 
