@@ -48,8 +48,19 @@ local raw_text = z.uncompress(cp_text)
 
 assert(raw_text == text, "测试LZ77压缩/解压方法失败")
 
-LOG:DEBUG("压缩前的文本长度为:" .. #raw_text, "压缩后的文本长度为:" .. #cp_text)
+LOG:DEBUG("compress压缩前的文本长度为:" .. #raw_text, "压缩后的文本长度为:" .. #cp_text)
 
+-- 分割线 ---
+
+local cp_text = z.compress2(text)
+
+local raw_text = z.uncompress2(cp_text)
+
+assert(raw_text == text, "测试gzip压缩/解压失败")
+
+LOG:DEBUG("compress2压缩前的文本长度为:" .. #raw_text, "压缩后的文本长度为:" .. #cp_text)
+
+-- 分割线 ---
 
 local cp_text = z.gzcompress(text)
 
@@ -57,4 +68,4 @@ local raw_text = z.gzuncompress(cp_text)
 
 assert(raw_text == text, "测试gzip压缩/解压失败")
 
-LOG:DEBUG("压缩前的文本长度为:" .. #raw_text, "压缩后的文本长度为:" .. #cp_text)
+LOG:DEBUG("gzcompress压缩前的文本长度为:" .. #raw_text, "压缩后的文本长度为:" .. #cp_text)
