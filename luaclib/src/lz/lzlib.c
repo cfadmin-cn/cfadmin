@@ -36,7 +36,7 @@ static int luncompress(lua_State *L) {
   if (in_size <= 0)
     return 0;
 
-  size_t out_size = in_size;
+  size_t out_size = in_size * 4;
 
   /* 若能传递压缩前的大小, 优先使用此数值 */
   int is_sum = 0;
@@ -44,7 +44,7 @@ static int luncompress(lua_State *L) {
   if (is_sum && before_size > 0 )
     out_size = before_size;
 
-  size_t offset = 1;
+  size_t offset = 4;
   size_t top = lua_gettop(L);
 
   do {
