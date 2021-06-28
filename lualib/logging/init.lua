@@ -60,42 +60,31 @@ local function debuginfo ()
 end
 
 -- 格式化
-local function table_format(t)
-  local tab = new_tab(16, 0)
-  while 1 do
-    local mt = getmetatable(t)
-    for key, value in pairs(t) do
-      local k, v
-      if type(key) == 'number' then
-        k = concat({'[', key, ']'})
-      elseif type(key) == 'string' then
-        k = concat({'["', key, '"]'})
-      else
-        k = concat({'[', tostring(key), ']'})
-      end
-      if type(value) == 'table' then
-        if t ~= value then
-          v = table_format(value)
-        else
-          if type(value) == 'table' then
-            v = table_format(value)
-          else
-            v = tostring(value)
-          end
-        end
-      elseif type(value) == 'string' then
-        v = concat({'"', value, '"'})
-      else
-        v = tostring(value)
-      end
-      tab[#tab+1] = concat({k, '=', v})
+local function table_format(tab)
+  local list = {}
+  for key, value in pairs(tab) do
+    local k, v
+    if type(key) == 'number' then
+      k = concat({'[', key, ']'})
+    elseif type(key) == 'string' then
+      k = concat({'["', key, '"]'})
+    else
+      k = concat({'[', tostring(key), ']'})
     end
-    if not mt or mt == t then
-      break
+    if type(value) == 'table' then
+      if key ~= '__index' then
+        v = table_format(value)
+      end
+    elseif type(value) == 'string' then
+      v = concat({'"', value, '"'})
+    elseif value then
+      v = tostring(value)
     end
-    t = mt
+    if k and v then
+      list[#list+1] = concat({k, '=', v})
+    end
   end
-  return concat({'{', concat(tab, ', '), '}'})
+  return concat({tab.__name or "", '{', concat(list, ', '), '}'})
 end
 
 local function info_fmt(...)
