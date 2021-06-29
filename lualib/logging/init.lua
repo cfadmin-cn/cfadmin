@@ -18,7 +18,6 @@ local select = select
 local assert = assert
 local pairs = pairs
 local tostring = tostring
-local getmetatable = getmetatable
 
 local modf = math.modf
 local toint = math.tointeger
