@@ -54,7 +54,7 @@ end
 
 -- LOG函数的调用信息
 local function debuginfo ()
-  local info = debug_getinfo(3, 'Sln')
+  local info = debug_getinfo(3, 'Sln') or debug_getinfo(2, 'Sln') or debug_getinfo(1, 'Sln')
   return concat({'[', info.source, ':', info.currentline, ']'})
 end
 
