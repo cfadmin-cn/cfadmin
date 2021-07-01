@@ -252,7 +252,7 @@ static int create_client_fd(const char *ipaddr, int port){
 
 static int create_server_unixsock(const char* path, size_t path_len, int backlog) {
   errno = 0;
-  int sockfd = socket(AF_LOCAL, SOCK_STREAM, IPPROTO_IP);
+  int sockfd = socket(AF_LOCAL, SOCK_STREAM, 0);
   if (0 >= sockfd){
     LOG("ERROR", strerror(errno));
     return -1;
@@ -277,6 +277,32 @@ static int create_server_unixsock(const char* path, size_t path_len, int backlog
   /* 监听套接字失败 */
   int listen_success = listen(sockfd, backlog);
   if (0 > listen_success) {
+    LOG("ERROR", strerror(errno));
+    close(sockfd);
+    return -1;
+  }
+
+  return sockfd;
+}
+
+static int create_client_unixsock(const char* path, size_t path_len) {
+  errno = 0;
+  int sockfd = socket(AF_LOCAL, SOCK_STREAM, 0);
+  if (0 >= sockfd){
+    LOG("ERROR", strerror(errno));
+    return -1;
+  }
+
+  struct sockaddr_un UN;
+  memset(&UN, 0x0, sizeof(UN));
+
+  UN.sun_family = AF_LOCAL;
+  memmove(UN.sun_path, path, path_len);
+
+  non_blocking(sockfd);
+
+  int ret = connect(sockfd, (struct sockaddr*)&UN, sizeof(UN));
+  if (0 > ret) {
     LOG("ERROR", strerror(errno));
     close(sockfd);
     return -1;
@@ -697,10 +723,10 @@ static int new_client_fd(lua_State *L){
   return 1;
 }
 
-static int new_unixsock_fd(lua_State *L) {
+static int new_server_unixsock_fd(lua_State *L) {
   size_t size = 0;
   const char* path = luaL_checklstring(L, 1, &size);
-  if (!path)
+  if (!path || size < 2)
     return 0;
 
   /* 传递rm为非nil与false值, 删除已经存在的文件 */
@@ -715,6 +741,24 @@ static int new_unixsock_fd(lua_State *L) {
   int backlog = luaL_checkinteger(L, 3);
 
   int fd = create_server_unixsock(path, size, 0 >= backlog ? 128 : backlog);
+  if (fd <= 0)
+    return 0;
+
+  lua_pushinteger(L, fd);
+  return 1;
+}
+
+static int new_client_unixsock_fd(lua_State *L){
+  size_t size = 0;
+  const char* path = luaL_checklstring(L, 1, &size);
+  if (!path || size < 2)
+    return 0;
+
+  // 如果文件不存在返回失败
+  if (access(path, F_OK))
+    return 0;
+
+  int fd = create_client_unixsock(path, size);
   if (fd <= 0)
     return 0;
 
@@ -1158,7 +1202,8 @@ LUAMOD_API int luaopen_tcp(lua_State *L){
     {"free_ssl", ssl_free},
     {"new_server_fd", new_server_fd},
     {"new_client_fd", new_client_fd},
-    {"new_unixsock_fd", new_unixsock_fd},
+    {"new_server_unixsock_fd", new_server_unixsock_fd},
+    {"new_client_unixsock_fd", new_client_unixsock_fd},
     {"sendfile", tcp_sendfile},
     {"ssl_verify", ssl_verify},
     {"ssl_set_alpn", ssl_set_alpn},

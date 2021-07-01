@@ -48,7 +48,8 @@ local tcp_sslpeek = tcp.sslpeek
 
 local tcp_new_client_fd = tcp.new_client_fd
 local tcp_new_server_fd = tcp.new_server_fd
-local tcp_new_unixsock_fd = tcp.new_unixsock_fd
+local tcp_new_sever_unixsock_fd = tcp.new_server_unixsock_fd
+local tcp_new_client_unixsock_fd = tcp.new_client_unixsock_fd
 
 local tcp_ssl_verify = tcp.ssl_verify
 local tcp_ssl_set_fd = tcp.ssl_set_fd
@@ -599,7 +600,7 @@ end
 function TCP:listen_ex(unix_domain_path, removed, cb)
   self.mode = "server"
   self.LISTEN_EX_IO = tcp_pop()
-  self.ufd = tcp_new_unixsock_fd(unix_domain_path, removed or true, self._backlog or 128)
+  self.ufd = tcp_new_sever_unixsock_fd(unix_domain_path, removed or true, self._backlog or 128)
   if not self.ufd then
     return nil, "Listen_ex unix domain socket failed. Please check the domain_path was exists and access."
   end
@@ -617,15 +618,24 @@ function TCP:listen_ex(unix_domain_path, removed, cb)
   return true, tcp_listen_ex(self.LISTEN_EX_IO, self.ufd, self.listen_ex_co)
 end
 
+function TCP:connectx(path)
+  self.mode = "client"
+  self.fd = tcp_new_client_unixsock_fd(assert(type(path) == 'string' and path, "Invalid unix domain path."))
+  if not self.fd then
+    return nil, "Connect to unix domain socket failed."
+  end
+  return true
+end
+
 function TCP:connect(domain, port)
   self.mode = "client"
   local ok, IP = dns_resolve(domain)
   if not ok then
-      return nil, "Can't resolve this domain or ip:"..(domain or IP or "")
+    return nil, "Can't resolve this domain or ip:" .. (domain or IP or "")
   end
   self.fd = tcp_new_client_fd(IP, port)
   if not self.fd then
-      return nil, "Connect This host fault! "..(domain or "no domain")..":"..(port or "no port")
+    return nil, "Connect This host fault! "..(domain or "no domain")..":"..(port or "no port")
   end
   local co = co_self()
   self.CONNECT_IO = tcp_pop()
@@ -643,13 +653,13 @@ function TCP:connect(domain, port)
     return co_wakeup(co, connected, errinfo)
   end)
   self.timer = ti_timeout(self._timeout, function ()
-      tcp_push(self.CONNECT_IO)
-      tcp_stop(self.CONNECT_IO)
-      self.timer = nil
-      self.CONNECT_IO = nil
-      self.connect_co = nil
-      self.connect_current_co = nil
-      return co_wakeup(co, nil, 'connect timeout.')
+    tcp_push(self.CONNECT_IO)
+    tcp_stop(self.CONNECT_IO)
+    self.timer = nil
+    self.CONNECT_IO = nil
+    self.connect_co = nil
+    self.connect_current_co = nil
+    return co_wakeup(co, nil, 'connect timeout.')
   end)
   tcp_connect(self.CONNECT_IO, self.fd, self.connect_co)
   return co_wait()
