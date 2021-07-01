@@ -662,6 +662,12 @@ static pid_t laio_system(lua_State *L, const char* command, int pfd) {
   if (pid < 0)
     return (pid_t)-1;
   if (pid < 1) {
+    // 完整独立进程会话ID
+    setsid();
+    // 重置子进程的信号掩码
+    signal(SIGINT, SIG_DFL);  signal(SIGHUP, SIG_DFL);
+    signal(SIGTERM, SIG_DFL); signal(SIGPIPE, SIG_DFL);
+    signal(SIGTSTP, SIG_DFL); signal(SIGQUIT, SIG_DFL); 
     // 子进程需要设置为独立的输入输出管道;
     (void)dup2(pfd, STDIN_FILENO);
     (void)dup2(pfd, STDOUT_FILENO);
