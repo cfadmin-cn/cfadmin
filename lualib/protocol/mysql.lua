@@ -452,8 +452,8 @@ local function send_packet (self, request)
 end
 
 local function mysql_login (self)
-  local sock = self.sock
-  if not sock or not sock:connect(self.host, self.port) then
+
+  if not self.sock:connect_ex(self.unixdomain or "") and not self.sock:connect(self.host, self.port) then
     return nil, "MySQL Server Connect failed."
   end
 
@@ -592,6 +592,7 @@ function mysql:ctor (opt)
   self.sock = tcp:new()
   self.host = opt.host or "localhost"
   self.port = opt.port or 3306
+  self.unixdomain = opt.unixdomain
   self.max_packet_size = 16777215
   self.charset = opt.charset or 33
   self.database = opt.database or "mysql"
@@ -604,7 +605,7 @@ end
 function mysql:connect ()
   local sock = self.sock
   if not sock then
-      return nil, "not initialized"
+    return nil, "not initialized"
   end
   return mysql_login(self)
 end

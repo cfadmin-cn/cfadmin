@@ -100,6 +100,7 @@ local DB = class("DB")
 function DB:ctor(opt)
   self.host = opt.host
   self.port = opt.port
+  self.unixdomain = opt.unixdomain
   self.username = opt.username
   self.password = opt.password
   self.database = opt.database

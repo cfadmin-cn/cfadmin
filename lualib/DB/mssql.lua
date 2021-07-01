@@ -18,20 +18,12 @@ local co_wakeup = co.wakeup
 local type = type
 local error = error
 local xpcall = xpcall
-local ipairs = ipairs
 local assert = assert
-local tostring = tostring
-local tonumber = tonumber
 
 local fmt = string.format
 
 local insert = table.insert
 local remove = table.remove
-local concat = table.concat
-
--- 空闲连接时间
-local WAIT_TIMEOUT = 31536000
-local INTERACTIVE_TIMEOUT = 31536000
 
 -- 数据库连接创建函数
 local function DB_CREATE (opt)
@@ -41,8 +33,6 @@ local function DB_CREATE (opt)
     db:set_timeout(3)
     local connect, err = db:connect()
     if connect then
-      -- assert(db:query(fmt('SET wait_timeout=%u', WAIT_TIMEOUT)))
-      -- assert(db:query(fmt('SET interactive_timeout=%u', INTERACTIVE_TIMEOUT)))
       db:set_timeout(0)
       break
     end
@@ -107,6 +97,7 @@ local DB = class("DB")
 function DB:ctor(opt)
   self.host = opt.host
   self.port = opt.port
+  self.unixdomain = opt.unixdomain
   self.username = opt.username
   self.password = opt.password
   self.database = opt.database

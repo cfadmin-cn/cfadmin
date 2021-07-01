@@ -140,6 +140,7 @@ function redis:ctor(opt)
 	self.sock = tcp:new()
 	self.host = opt.host
 	self.port = opt.port
+	self.unixdomain = opt.unixdomain
 	self.auth = opt.auth
 	self.db = opt.db
 end
@@ -149,18 +150,14 @@ function redis:isconnected()
 end
 
 function redis:connect()
-	local sock = self.sock
-	if not sock then
-		return nil, "Can't Create redis Socket"
+	-- 尝试多种连接渠道
+	if not self.sock:connect_ex(self.unixdomain or "") and not self.sock:connect(self.host, toint(self.port) or 6379) then
+		return nil, "redis network connect failed."
 	end
-	local ok, err
-	ok, err = sock:connect(self.host, toint(self.port) or 6379)
+	-- 登录状态检查
+	local ok, err = redis_login(self.sock, self.auth, self.db)
 	if not ok then
-		return nil, "redis connect error: please check network"
-	end
-	ok, err = redis_login(sock, self.auth, self.db)
-	if not ok then
-		return nil, "redis login error:"..(err or 'close')
+		return nil, "redis login error:" .. (err or 'close')
 	end
 	return true
 end

@@ -45,24 +45,22 @@ end
 
 -- 创建Cache函数
 local function CREATE_CACHE(opt)
-  local times = 1
   local rds
   while 1 do
-      rds = redis:new(opt):set_timeout(3)
-      local ok, err = rds:connect()
-      if ok then
-        if not opt.INITIALIZATION then
-          local opok, ret = assert(rds:cmd("CONFIG", "GET", "TIMEOUT"))
-          if opok and ret[2] ~= '0' then
-            assert(rds:cmd("CONFIG SET", "TIMEOUT", "0"), "SET TIMEOUT faild.")
-          end
+    rds = redis:new(opt):set_timeout(3)
+    local ok, err = rds:connect()
+    if ok then
+      if not opt.INITIALIZATION then
+        local opok, ret = assert(rds:cmd("CONFIG", "GET", "TIMEOUT"))
+        if opok and ret[2] ~= '0' then
+          assert(rds:cmd("CONFIG SET", "TIMEOUT", "0"), "SET TIMEOUT faild.")
         end
-        break
       end
-      Log:WARN('第'..tostring(times)..'次连接失败:'..err.." 3 秒后尝试再次连接")
-      rds:close()
-      times = times + 1
-      timer.sleep(3)
+      break
+    end
+    Log:WARN("The connection failed. The reasons are: [" .. err .. "], Try to reconnect after 3 seconds")
+    rds:close()
+    timer.sleep(3)
   end
   return rds:set_timeout(0)
 end
@@ -165,6 +163,7 @@ local Cache = class("Cache")
 function Cache:ctor (opt)
   self.host = opt.host
   self.port = opt.port
+  self.unixdomain = opt.unixdomain
   self.db = opt.db
   self.auth = opt.auth
   self.max = opt.max or 50

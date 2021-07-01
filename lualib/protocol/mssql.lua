@@ -28,11 +28,8 @@ local strgsub = string.gsub
 local strsub = string.sub
 
 local toint = math.tointeger
-local ceil = math.ceil
-local random = math.random
 
 local os_date = os.date
-local os_time = os.time
 
 local tabconcat = table.concat
 
@@ -877,6 +874,7 @@ function mssql:ctor(opt)
   self.sock = tcp:new()
   self.host = opt.host or "localhost"
   self.port = opt.port or 1433
+  self.unixdomain = opt.unixdomain
   self.TSQL = opt.TSQL == 1 and 1 or 0
   self.max_packet_size = opt.max_packet_size or 10240
   self.database = opt.database or "master"
@@ -916,9 +914,8 @@ function mssql:connect( ... )
     return nil, "Connection failed: please recreate the socket object."
   end
 
-  local ok, err = self.sock:connect(self.host, self.port)
-  if not ok then
-    return nil, err
+  if not self.sock:connect_ex(self.unixdomain or "") and not self.sock:connect(self.host, self.port) then
+    return nil, "MSSQL Server Connect failed."
   end
 
   -- 发送TDS-7.0登录协议

@@ -12,7 +12,6 @@ local sys = require "sys"
 local new_tab = sys.new_tab
 
 local null = null
-local tostring = tostring
 local tonumber = tonumber
 
 local fmt = string.format
@@ -22,7 +21,6 @@ local tconcat = table.concat
 local string = string
 local strsub  = string.sub
 local strbyte = string.byte
-local strchar = string.char
 local strpack = string.pack
 local strunpack = string.unpack
 local strgmatch = string.gmatch
@@ -430,12 +428,14 @@ local pgsql = class("pgsql")
 function pgsql:ctor(opt)
   self.sock = tcp:new()
   self.host = opt.host or "localhost"
-  self.port = opt.port or 3306
+  self.port = opt.port or 5432
+  self.unixdomain = opt.unixdomain
   self.database = opt.database or "postgres"
   self.username = opt.username or "postgres"
   self.password = opt.password or "postgres"
   self.charset = opt.charset or "UTF8"
   self.application_name = opt.application_name or "cfadmin"
+  -- self.state = "connected"
 end
 
 function pgsql:read(bytes)
@@ -477,9 +477,8 @@ end
 
 function pgsql:connect()
 
-  local ok, err = self.sock:connect(self.host, self.port)
-  if not ok then
-    return nil, err
+  if not self.sock:connect_ex(self.unixdomain or "") and not self.sock:connect(self.host, self.port) then
+    return nil, "MySQL Server Connect failed."
   end
 
   -- 发送启动协议
