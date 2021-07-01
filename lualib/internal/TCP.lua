@@ -618,7 +618,7 @@ function TCP:listen_ex(unix_domain_path, removed, cb)
   return true, tcp_listen_ex(self.LISTEN_EX_IO, self.ufd, self.listen_ex_co)
 end
 
-function TCP:connectx(path)
+function TCP:connect_ex(path)
   self.mode = "client"
   self.fd = tcp_new_client_unixsock_fd(assert(type(path) == 'string' and path, "Invalid unix domain path."))
   if not self.fd then
