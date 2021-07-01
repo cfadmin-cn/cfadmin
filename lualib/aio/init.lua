@@ -542,9 +542,10 @@ function aio.popen(command, timeout)
 end
 
 ---comment `kill`指定进程
----@param pid integer 指定进程的`PID`
-function aio.kill(pid)
-  aio_kill(pid)
+---@param pid    integer @进程的`PID`
+---@param signum integer @信号的`num`
+function aio.kill(pid, signum)
+  aio_kill(pid, signum)
   return true
 end
 
