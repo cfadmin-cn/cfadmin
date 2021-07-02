@@ -7,10 +7,9 @@
 
 // 用来退出父子进程
 static inline void core_exit() {
-	pid_t ppid = getppid();
-	if (ppid > 0)
-		kill(ppid, SIGQUIT);
-	return _exit(-1);
+	if (getppid() > 0)
+		kill(0, SIGKILL);
+	return _exit(EXIT_FAILURE);
 }
 
 #endif

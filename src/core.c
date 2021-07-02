@@ -30,15 +30,8 @@ static void SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
 /* 退出信号 */
 static void SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
 	if (ev_userdata(loop) && core_get_watcher_userdata(signal)) {
-		int index;
-		pid_t *pids = (pid_t *)ev_userdata(loop);
-		int nprocess = *(int*)core_get_watcher_userdata(signal);
-		for (index = 0; index < nprocess; index++) {
-			pid_t pid = pids[index];
-			if (pid > 0)
-				kill(pid, SIGKILL);
-			pids[index] = -1;
-		}
+		if (ev_userdata(loop))
+			kill(0, SIGKILL);
 	}
 	return exit(EXIT_SUCCESS);
 }
@@ -59,18 +52,8 @@ static void EV_ERROR_CB(const char *msg){
 	LOG("ERROR", strerror(errno));
 	if (core_default_loop()) {
 		pid_t *pids = (pid_t *)ev_userdata(core_default_loop());
-		if (!pids) {
-			kill(getppid(), SIGKILL);
-			return exit(EXIT_SUCCESS);
-		}
-		int index;
-		int nprocess = atoi(getenv("cfadmin_nprocess")) > 1 ? atoi(getenv("cfadmin_nprocess")) : 0;
-		for (index = 0; index < nprocess; index++) {
-			pid_t pid = pids[index];
-			if (pid > 0)
-				kill(pid, SIGKILL);
-			pids[index] = -1;
-		}
+		if (pids)
+			kill(0, SIGKILL);
 	}
 	/* 减少无效打印, 专注错误提示 */
 	return exit(EXIT_SUCCESS);
