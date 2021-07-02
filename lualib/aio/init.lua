@@ -518,7 +518,10 @@ function aio.popen(command, timeout, daemond)
       if co_timer then
         co_timer:stop()
       end
-      return co_wakeup(co, id == 0 and true or false)
+      if co then
+        co_wakeup(co, id == 0 and true or false)
+        co = nil
+      end
     end
   end)
   ok, obj = pcall(aio_popen, command, co_cb)
@@ -527,9 +530,9 @@ function aio.popen(command, timeout, daemond)
   end
   co_timer = cf.timeout(tonumber(timeout), function ()
     aio_kill(obj.pid + (daemond and 1 or 0))
-    print(obj.pid, daemond)
     if daemond then
       co_wakeup(co, false)
+      co = nil
     end
     killed = true
     co_timer = nil
@@ -553,23 +556,33 @@ end
 ---comment @`os.execute`的非阻塞版本实现, 它只执行期间也不会阻塞其它协程.
 ---@param command string   @`command`是一个`string`类型的参数, 它是用于执行的shell命令;
 ---@param timeout number   @`timeout`是一个`Number`类型的参数(可选), 可以指定合适的超时时间来控制进程运行时长.
-function aio.execute(command, timeout)
+---@param daemond boolean  @`daemond`是一个`boolean`类型的参数(可选), 它用来告诉框架应该计算合适的守护进程`PID`.
+function aio.execute(command, timeout, daemond)
   local ok, obj, co_timer
   local co = co_self()
   local co_cb = co_new(function (id)
     -- 正常结束返回`0`, 异常结束返回`进程id`, 超时`kill`返回信号代码(9);
     -- print("进程结束: ", id)
-    if co_timer then
-      co_timer:stop()
+    if not daemond then
+      if co_timer then
+        co_timer:stop()
+      end
+      if co then
+        co_wakeup(co, id == 0 and true or false)
+        co = nil
+      end
     end
-    return co_wakeup(co, id == 0 and true or false)
   end)
   ok, obj = pcall(aio_popen, command, co_cb)
   if not ok then
-    return false, "[AIO_EXECUTE ERROR] : " .. obj
+    return false, "[AIO_POPEN ERROR] : " .. obj
   end
   co_timer = cf.timeout(tonumber(timeout), function ()
-    aio_kill(obj.pid)
+    aio_kill(obj.pid + (daemond and 1 or 0))
+    if daemond then
+      co_wakeup(co, false)
+      co = nil
+    end
     co_timer = nil
   end)
   ok = co_wait()
