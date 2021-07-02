@@ -56,11 +56,12 @@ static void CHILD_CB (core_loop *loop, ev_child *w, int revents){
 /* 内部异常 */
 static void EV_ERROR_CB(const char *msg){
 	LOG("ERROR", msg);
+	LOG("ERROR", strerror(errno));
 	if (core_default_loop()) {
 		pid_t *pids = (pid_t *)ev_userdata(core_default_loop());
 		if (!pids) {
 			kill(getppid(), SIGKILL);
-			return;
+			return exit(EXIT_SUCCESS);
 		}
 		int index;
 		int nprocess = atoi(getenv("cfadmin_nprocess")) > 1 ? atoi(getenv("cfadmin_nprocess")) : 0;
@@ -241,11 +242,11 @@ int core_master_run(pid_t *pids, int* pidcount) {
 	/* 设置pid */ 
 	ev_set_userdata(loop, pids);
 	/* 注册子进程监听 */
-	ev_child childs[*pidcount];
+	core_child childs[*pidcount];
 	int index;
 	for (index = 0; index < *pidcount; index++) {
-	  ev_child_init(&childs[index], CHILD_CB, pids[index], 0);
-	  ev_child_start(loop, &childs[index]);
+		core_child_init(&childs[index], CHILD_CB, pids[index], 0);
+		core_child_start(loop, &childs[index]);
 	}
 	/* 初始化主进程 */ 
 	return core_start(loop, 0);

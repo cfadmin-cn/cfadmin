@@ -60,8 +60,13 @@
     #define EWOULDBLOCK EAGAIN
 #endif
 
-#define non_blocking(socket) (fcntl(socket, F_SETFL, fcntl(socket, F_GETFL, 0) | O_NONBLOCK));
+// 设置子进程自动关闭进程fd.
+#define non_exec(socket) {fcntl(socket, F_SETFD, fcntl(socket, F_GETFL, 0) | FD_CLOEXEC);}
 
+// 设置非阻塞模式
+#define non_blocking(socket) {non_exec(socket); fcntl(socket, F_SETFL, fcntl(socket, F_GETFL, 0) | O_NONBLOCK);}
+
+// 设置nodelay模式
 #define non_delay(socket) ({int Enable = 1; setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &Enable, sizeof(Enable));})
 
 /* [datetime][level][file][function][line][具体打印内容] */

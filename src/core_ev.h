@@ -64,12 +64,14 @@ typedef ev_io core_io;
 typedef ev_idle core_task;
 typedef ev_timer core_timer;
 typedef ev_signal core_signal;
+typedef ev_child core_child;
 typedef struct ev_loop core_loop;
 
 typedef void (*_IO_CB)(core_loop *loop, core_io *io, int revents);
 typedef void (*_TASK_CB)(core_loop *loop, core_task *task, int revents);
 typedef void (*_TIMER_CB)(core_loop *loop, core_timer *timer, int revents);
 typedef void (*_SIGNAL_CB)(core_loop *loop, core_signal *signal, int revents);
+typedef void (*_CHILD_CB)(core_loop *loop, core_child *w, int revents);
 
 /* ===========  Timer  =========== */
 void core_timer_init(core_timer *timer, _TIMER_CB cb);
@@ -100,6 +102,14 @@ void core_signal_init(core_signal *signal, _SIGNAL_CB cb, int signum);
 
 void core_signal_start(core_loop *loop, core_signal *signal);
 /* ===========  Signal  =========== */
+
+/* ===========  Child  =========== */
+void core_child_init(core_child *w, _CHILD_CB, pid_t pid, int trace);
+
+void core_child_start(core_loop *loop, core_child *w);
+
+void core_child_stop(core_loop *loop, core_child *w);
+/* ===========  Child  =========== */
 
 void core_break(core_loop *loop, int mode);
 
