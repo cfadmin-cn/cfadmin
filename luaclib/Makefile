@@ -23,9 +23,9 @@ internal :
 	@echo "CC	-	ltimer"
 	@$(CC) -o timer.so src/ltimer.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	@echo "CC	-	laio"
-	@$(CC) -o laio.so src/laio.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -leio -lev
+	@$(CC) -o laio.so src/laio.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -leio
 	@echo "CC	-	ltcp"
-	@$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lssl -lcrypto -lcore
+	@$(CC) -o tcp.so src/ltcp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore -lssl -lcrypto
 
 3part :
 	@echo "CC	-	lz"
