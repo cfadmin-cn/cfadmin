@@ -644,41 +644,39 @@ static int laio_rmdir(lua_State* L) {
   return 1;
 }
 
-static void CHILD_CB (core_loop *loop, ev_child *w, int revents){
+static void CHILD_CB (core_loop *loop, core_child *w, int revents){
   lua_State *co = (lua_State *)core_get_watcher_userdata(w);
-  if (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK){
+  if (co && (lua_status(co) == LUA_YIELD || lua_status(co) == LUA_OK)){
     lua_pushinteger(co, w->rstatus);
     int status = CO_RESUME(co, NULL, 1);
     if (status != LUA_YIELD && status != LUA_OK)
       LOG("ERROR", lua_tostring(co, -1));
   }
   // 停止继续监听
-  ev_child_stop(loop, w);
+  core_child_stop(loop, w);
 }
 
 // 实现异步`system`方法.
 static pid_t laio_system(lua_State *L, const char* command, int pfd) {
   pid_t pid = fork();
-  if (pid < 0)
-    return (pid_t)-1;
-  if (pid < 1) {
-    // 完整独立进程会话ID
-    setsid();
-    // 重置子进程的信号掩码
-    signal(SIGINT, SIG_DFL);  signal(SIGHUP, SIG_DFL);
-    signal(SIGTERM, SIG_DFL); signal(SIGPIPE, SIG_DFL);
-    signal(SIGTSTP, SIG_DFL); signal(SIGQUIT, SIG_DFL); 
-    // 子进程需要设置为独立的输入输出管道;
-    (void)dup2(pfd, STDIN_FILENO);
-    (void)dup2(pfd, STDOUT_FILENO);
-    (void)dup2(pfd, STDERR_FILENO);
-    // 子进程需要进与父子进程的的上下文分离
-    if (execl("/bin/sh", "sh", "-c", command, NULL))
-      write(STDOUT_FILENO, strerror(errno), strlen(strerror(errno)));
-    // 正常执行完毕是不会走到这里, 所以只能是执行失败.
-    exit(-1); // exit(EXIT_FAILURE);
-  }
-  return pid;
+  if (pid)
+    return pid;
+
+  // 完整独立进程会话ID
+  setsid();
+  // 重置子进程的信号掩码
+  signal(SIGINT, SIG_DFL);  signal(SIGHUP, SIG_DFL);
+  signal(SIGTERM, SIG_DFL); signal(SIGPIPE, SIG_DFL);
+  signal(SIGTSTP, SIG_DFL); signal(SIGQUIT, SIG_DFL);
+  // 子进程需要设置为独立的输入输出管道;
+  (void)dup2(pfd, STDIN_FILENO);
+  (void)dup2(pfd, STDOUT_FILENO);
+  (void)dup2(pfd, STDERR_FILENO);
+  // 子进程需要进与父子进程的的上下文分离
+  if (execl("/bin/sh", "sh", "-c", command, NULL))
+    write(STDOUT_FILENO, strerror(errno), strlen(strerror(errno)));
+  // 正常执行完毕是不会走到这里, 所以只能是执行失败.
+  exit(EXIT_FAILURE);
 }
 
 // 自定义创建进程
@@ -693,6 +691,9 @@ static int laio_popen(lua_State *L) {
   int std[] = { -1, -1 };
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, std) < 0)
     return luaL_error(L, "Cand't create pipe.\n");
+
+  // 设置非阻塞模式
+  // non_blocking(std[0]); non_blocking(std[1]);
 
   pid_t pid = laio_system(L, command, std[1]);
   if (pid < 1) {
@@ -718,22 +719,25 @@ static int laio_popen(lua_State *L) {
 
   lua_rawset(L, -3);
 
-  // 监听`子进程`的退出事件
   lua_pushliteral(L, "child");
-  ev_child *w = lua_newuserdata(L, sizeof(ev_child));
-  core_set_watcher_userdata(w, co);
-  ev_child_init(w, CHILD_CB, pid, 0);
-  ev_child_start(core_default_loop(), w);
+  core_child *w = lua_newuserdata(L, sizeof(core_child));
   lua_rawset(L, -3);
-  // 返回一个包含`pipe`、`ev_child`指针的`table`.
+
+  // 监听`子进程`的退出事件
+  core_set_watcher_userdata(w, co);
+  core_child_init(w, CHILD_CB, pid, 0);
+  core_child_start(core_default_loop(), w);
+  // 返回一个包含`pipe`、`core_child`指针的`table`.
   return 1;
 }
 
 // 根据子进程的`pid`杀死子进程
 static int laio_kill(lua_State *L){
   lua_Integer pid = luaL_checkinteger(L, 1);
-  if (pid > 1 && getpid() != pid)
-    kill(pid, luaL_optinteger(L, 2, SIGKILL));
+  if (getpid() != pid && pid != 1){
+    if (kill(pid, luaL_optinteger(L, 2, SIGKILL)))
+      LOG("ERROR", strerror(errno));
+  }
   lua_pushboolean(L, 1);
   return 1;
 }
