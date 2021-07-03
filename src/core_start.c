@@ -2,7 +2,7 @@
 
 int core_worker_run(const char entry[]);
 
-int core_master_run(int pidcount, pid_t pids);
+int core_master_run(pid_t *pids, int* pidcount);
 
 enum {
   isMaster = 1,
