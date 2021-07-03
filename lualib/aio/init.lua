@@ -514,31 +514,22 @@ function aio.popen(command, timeout, daemond)
   local co_cb = co_new(function (id)
     -- 正常结束返回`0`, 异常结束返回`进程id`, 超时`kill`返回信号代码(9);
     -- print("进程结束: ", id)
-    if not daemond then
-      if co_timer then
-        co_timer:stop()
-      end
-      if co then
-        co_wakeup(co, id == 0 and true or false)
-        co = nil
-      end
+    if co_timer then
+      co_timer:stop()
     end
+    return co_wakeup(co, id == 0 and true or false)
   end)
-  ok, obj = pcall(aio_popen, command, co_cb)
+  ok, obj = pcall(aio_popen, command, co_cb, daemond and 1 or 0)
   if not ok then
     return false, "[AIO_POPEN ERROR] : " .. obj
   end
   co_timer = cf.timeout(tonumber(timeout), function ()
-    aio_kill(obj.pid + (daemond and 1 or 0))
-    if daemond then
-      co_wakeup(co, false)
-      co = nil
-    end
+    aio_kill(obj.pid)
     killed = true
     co_timer = nil
   end)
   tcp_close(obj.pipe[2])
-  local f = setmetatable({ pid = obj.pid + (daemond and 1 or 0), fd = obj.pipe[1] }, pfile)
+  local f = setmetatable({ pid = obj.pid, fd = obj.pipe[1] }, pfile)
   -- 等待子进程运行结束: 如果运行失败则返回错误信息, 如果运行成功则返回需要自己读取与手动关闭的`pfile`对象.
   if not co_wait() then
     local errinfo = f:read "*a"
@@ -563,26 +554,17 @@ function aio.execute(command, timeout, daemond)
   local co_cb = co_new(function (id)
     -- 正常结束返回`0`, 异常结束返回`进程id`, 超时`kill`返回信号代码(9);
     -- print("进程结束: ", id)
-    if not daemond then
-      if co_timer then
-        co_timer:stop()
-      end
-      if co then
-        co_wakeup(co, id == 0 and true or false)
-        co = nil
-      end
+    if co_timer then
+      co_timer:stop()
     end
+    return co_wakeup(co, id == 0 and true or false)
   end)
-  ok, obj = pcall(aio_popen, command, co_cb)
+  ok, obj = pcall(aio_popen, command, co_cb, daemond and 1 or 0)
   if not ok then
     return false, "[AIO_POPEN ERROR] : " .. obj
   end
   co_timer = cf.timeout(tonumber(timeout), function ()
-    aio_kill(obj.pid + (daemond and 1 or 0))
-    if daemond then
-      co_wakeup(co, false)
-      co = nil
-    end
+    aio_kill(obj.pid)
     co_timer = nil
   end)
   ok = co_wait()

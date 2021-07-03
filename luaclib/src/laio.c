@@ -704,7 +704,7 @@ static int laio_popen(lua_State *L) {
   lua_createtable(L, 0, 2);
   // 记录子进程的`PID`.
   lua_pushliteral(L, "pid");
-  lua_pushinteger(L, pid);
+  lua_pushinteger(L, pid + luaL_optinteger(L, 3, 0));
   lua_rawset(L, -3);
 
   // 记录双向通信用到的`管道`;
