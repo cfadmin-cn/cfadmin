@@ -273,7 +273,7 @@ local function dns_query(domain, ip_version)
   local question
   question, nbyte = unpack_question(dns_resp, nbyte)
   if question.name ~= domain then
-    local err = "4. Inconsistent query domain."
+    local err = "4. Inconsistent query domain. " .. question.name
     check_wait(domain, wlist, nil, err)
     return nil, err
   end
