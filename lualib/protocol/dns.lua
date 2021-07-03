@@ -144,20 +144,16 @@ end
 
 local function pack_header()
     local tid = gen_id()
-    local flag = 0x100
+    local flag = 0x120
     local QCOUNT = 1
-    -- QCount 永远是1, flags 永远是256
+    -- QCount 永远是1, flags 永远是288
     return pack(">HHHHHH", tid, flag, QCOUNT, 0, 0, 0)
 end
 
 local function pack_question(name, version)
     -- local Query_Type  = QTYPE.A -- IPv4
     -- local Query_Type  = QTYPE.AAAA -- IPv6
-    local qtype = QTYPE.A
-    if version == 6 then
-      qtype = QTYPE.AAAA
-    end
-    local Query_Type  = qtype
+    local Query_Type = version == 6 and QTYPE.AAAA or QTYPE.A
     local Query_Class = 0x01 -- IN internet
     local question = {}
     for sp in splite(name, "([^%.]*)") do
@@ -209,10 +205,7 @@ local function unpack_answer(chunk, nbyte)
 end
 
 local function unpack_rdata(chunk, qtype)
-  if qtype == QTYPE.AAAA then
-    return fmt('%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x', unpack(">HHHHHHHH", chunk))
-  end
-  return fmt("%u.%u.%u.%u", unpack(">BBBB", chunk))
+  return qtype == QTYPE.AAAA and fmt('%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x', unpack(">HHHHHHHH", chunk)) or fmt("%u.%u.%u.%u", unpack(">BBBB", chunk))
 end
 
 local cos = {}
@@ -262,7 +255,8 @@ local function dns_query(domain, ip_version)
     check_wait(domain, wlist, nil, err)
     return nil, err
   end
-  if not answer_header.ancount or answer_header.ancount < 1 then
+  local ancount = answer_header.ancount
+  if not ancount or ancount < 1 then
     if not ip_version then -- 如果IPv4无法解析则尝试ipv6, 反之亦然.
       return dns_query(domain, msg == 4 and 6 or 4)
     end
@@ -279,7 +273,7 @@ local function dns_query(domain, ip_version)
   end
   local answer
   local t = now()
-  for _ = 1, answer_header.ancount do
+  for _ = 1, ancount do
     answer, nbyte = unpack_answer(dns_resp, nbyte)
     if answer.atype == QTYPE.A or answer.atype == QTYPE.AAAA then
       answer.ip = unpack_rdata(answer.rdata, answer.atype)
