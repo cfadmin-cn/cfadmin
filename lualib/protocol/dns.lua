@@ -70,6 +70,10 @@ local function check_cache(domain)
   return
 end
 
+local function add_cache(domain, ip)
+  dns_cache[domain] = { ip = ip }
+end
+
 local function check_ip(ip)
   if type(ip) == 'string' and ip ~= '' then
     if check_ipv4(ip) then
@@ -220,11 +224,8 @@ local function check_wait(domain, wlist, ...)
 end
 
 local function dns_query(domain, ip_version)
-  local wlist = cos[domain]
-  if not wlist then
-    wlist = new_tab(16, 0)
-    cos[domain] = wlist
-  end
+  local wlist = new_tab(32, 0)
+  cos[domain] = wlist
   local dns_client, msg = get_dns_client(ip_version)
   if not dns_client then
     check_wait(domain, wlist, nil, msg)
@@ -299,6 +300,7 @@ local function dns_query(domain, ip_version)
   local _, v = check_ip(ip)
   if v == 4 then
     ip = prefix..ip
+    answer.ip = ip
   end
   check_wait(domain, wlist, true, ip)
   return true, ip
@@ -330,9 +332,13 @@ function dns.resolve(domain, ip_version)
   -- 如果是正确的ipv4地址直接返回
   local ok, v = check_ip(domain)
   if ok then
+    -- 缓存IP->IP的映射, 减少查表与字符串连接次数.
+    -- 这样可以降低大量的内存与CPU的使用.
     if 6 == v then
+      add_cache(domain, domain)
       return ok, domain
     end
+    add_cache(domain, prefix..domain)
     return ok, prefix..domain
   end
   -- 如果有其他协程也正巧在查询这个域名, 那么就加入到等待列表内
