@@ -23,6 +23,7 @@ local insert = table.insert
 
 local now = os.time
 local random = math.random
+local lower = string.lower
 local fmt = string.format
 local find = string.find
 local match = string.match
@@ -266,7 +267,7 @@ local function dns_query(domain, ip_version)
   end
   local question
   question, nbyte = unpack_question(dns_resp, nbyte)
-  if question.name ~= domain then
+  if lower(question.name) ~= lower(domain) then
     local err = "4. Inconsistent query domain. " .. question.name
     check_wait(domain, wlist, nil, err)
     return nil, err
