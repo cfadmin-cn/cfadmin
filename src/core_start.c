@@ -2,7 +2,7 @@
 
 int core_worker_run(const char entry[]);
 
-int core_master_run(pid_t *pids, int* pidcount);
+int core_master_run(int pidcount, pid_t pids);
 
 enum {
   isMaster = 1,
@@ -216,10 +216,7 @@ static inline pid_t cfadmin_master_run() {
         if (e < 0)
           LOG("ERROR", strerror(errno));
       }
-      int index;
-      for (index = 0; index < i; index ++)
-        kill(npid[index], SIGQUIT);
-      kill(ppid, SIGQUIT);
+      kill(0, SIGQUIT);
       return (pid_t)-1;
     }
     npid[i] = pid;

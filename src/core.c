@@ -31,7 +31,7 @@ static void SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
 static void SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
 	if (ev_userdata(loop) && core_get_watcher_userdata(signal)) {
 		if (ev_userdata(loop))
-			kill(0, SIGKILL);
+			kill(0, SIGQUIT);
 	}
 	return exit(EXIT_SUCCESS);
 }
@@ -224,7 +224,7 @@ int core_master_run(pid_t *pids, int* pidcount) {
 	signal_init(pidcount);
 	/* 设置pid */ 
 	ev_set_userdata(loop, pids);
-	/* 注册子进程监听 */
+	/* 监听子进程 */
 	core_child childs[*pidcount];
 	int index;
 	for (index = 0; index < *pidcount; index++) {
