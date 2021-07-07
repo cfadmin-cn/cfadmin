@@ -505,10 +505,9 @@ end
 ---comment @`io.popen`的非阻塞版实现
 ---@param command string   @`command`是一个`string`类型的参数, 它是用于执行的shell命令;
 ---@param timeout number   @`timeout`是一个`Number`类型的参数(可选), 可以指定合适的超时时间来控制进程运行时长.
----@param daemond boolean  @`daemond`是一个`boolean`类型的参数(可选), 它用来告诉框架应该计算合适的守护进程`PID`.
 ---@return table|boolean   @子进程在退出后此方法才会返回; 正常退出返回`pfile`对象, 异常退出与错误退出返回`false`与出错信息;
 ---@return nil|string      @需要注意的是`pfile`对象必须开发者手动关闭, 否则可能会造成`fd`泄漏的问题.
-function aio.popen(command, timeout, daemond)
+function aio.popen(command, timeout)
   local ok, obj, co_timer, killed
   local co = co_self()
   local co_cb = co_new(function (id)
@@ -519,7 +518,7 @@ function aio.popen(command, timeout, daemond)
     end
     return co_wakeup(co, id == 0 and true or false)
   end)
-  ok, obj = pcall(aio_popen, command, co_cb, daemond and 1 or 0)
+  ok, obj = pcall(aio_popen, command, co_cb)
   if not ok then
     return false, "[AIO_POPEN ERROR] : " .. obj
   end
@@ -547,8 +546,7 @@ end
 ---comment @`os.execute`的非阻塞版本实现, 它只执行期间也不会阻塞其它协程.
 ---@param command string   @`command`是一个`string`类型的参数, 它是用于执行的shell命令;
 ---@param timeout number   @`timeout`是一个`Number`类型的参数(可选), 可以指定合适的超时时间来控制进程运行时长.
----@param daemond boolean  @`daemond`是一个`boolean`类型的参数(可选), 它用来告诉框架应该计算合适的守护进程`PID`.
-function aio.execute(command, timeout, daemond)
+function aio.execute(command, timeout)
   local ok, obj, co_timer
   local co = co_self()
   local co_cb = co_new(function (id)
@@ -559,7 +557,7 @@ function aio.execute(command, timeout, daemond)
     end
     return co_wakeup(co, id == 0 and true or false)
   end)
-  ok, obj = pcall(aio_popen, command, co_cb, daemond and 1 or 0)
+  ok, obj = pcall(aio_popen, command, co_cb)
   if not ok then
     return false, "[AIO_POPEN ERROR] : " .. obj
   end
