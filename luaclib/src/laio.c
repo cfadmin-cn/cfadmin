@@ -725,7 +725,7 @@ static int laio_popen(lua_State *L) {
 
   // 监听`子进程`的退出事件
   core_set_watcher_userdata(w, co);
-  core_child_init(w, CHILD_CB, pid, 0);
+  core_child_init(w, CHILD_CB, pid + luaL_optinteger(L, 3, 0), 0);
   core_child_start(core_default_loop(), w);
   // 返回一个包含`pipe`、`core_child`指针的`table`.
   return 1;
