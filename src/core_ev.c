@@ -76,11 +76,13 @@ void core_child_stop(core_loop *loop, core_child *w){
 
 
 core_loop* core_loop_fork(core_loop *loop) {
-	// ev_loop_fork(loop);
+	ev_loop_fork(loop);
 	return loop;
 }
 
 core_loop* core_default_loop(){
+	if (ev_default_loop_uc_())
+		return ev_default_loop_uc_();
 	int BEST_BACKEND = 0;
 #if defined(__MSYS__) || defined(__CYGWIN__)
   BEST_BACKEND |= EVBACKEND_SELECT | EVFLAG_SIGNALFD | EVFLAG_NOINOTIFY;

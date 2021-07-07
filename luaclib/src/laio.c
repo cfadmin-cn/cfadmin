@@ -664,10 +664,6 @@ static pid_t laio_system(lua_State *L, const char* command, int pfd) {
 
   // 完整独立进程会话ID
   setsid();
-  // 重置子进程的信号掩码
-  signal(SIGINT, SIG_DFL);  signal(SIGHUP, SIG_DFL);
-  signal(SIGTERM, SIG_DFL); signal(SIGPIPE, SIG_DFL);
-  signal(SIGTSTP, SIG_DFL); signal(SIGQUIT, SIG_DFL);
   // 子进程需要设置为独立的输入输出管道;
   (void)dup2(pfd, STDIN_FILENO);
   (void)dup2(pfd, STDOUT_FILENO);
@@ -686,14 +682,12 @@ static int laio_popen(lua_State *L) {
   if (!command || clen == 0)
     return luaL_error(L, "Invalid command.\n");
 
+  // 协程回调
   lua_State *co = lua_tothread(L, 2);
 
   int std[] = { -1, -1 };
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, std) < 0)
     return luaL_error(L, "Cand't create pipe.\n");
-
-  // 设置非阻塞模式
-  // non_blocking(std[0]); non_blocking(std[1]);
 
   pid_t pid = laio_system(L, command, std[1]);
   if (pid < 1) {
@@ -704,7 +698,7 @@ static int laio_popen(lua_State *L) {
   lua_createtable(L, 0, 2);
   // 记录子进程的`PID`.
   lua_pushliteral(L, "pid");
-  lua_pushinteger(L, pid + luaL_optinteger(L, 3, 0));
+  lua_pushinteger(L, pid);
   lua_rawset(L, -3);
 
   // 记录双向通信用到的`管道`;
@@ -725,7 +719,7 @@ static int laio_popen(lua_State *L) {
 
   // 监听`子进程`的退出事件
   core_set_watcher_userdata(w, co);
-  core_child_init(w, CHILD_CB, pid + luaL_optinteger(L, 3, 0), 0);
+  core_child_init(w, CHILD_CB, pid, 0);
   core_child_start(core_default_loop(), w);
   // 返回一个包含`pipe`、`core_child`指针的`table`.
   return 1;
