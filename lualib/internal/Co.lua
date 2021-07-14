@@ -7,6 +7,7 @@ local sys = require "sys"
 local new_tab = sys.new_tab
 
 local type = type
+local error = error
 local print = print
 local assert = assert
 local select = select
@@ -15,7 +16,6 @@ local os_date = os.date
 local fmt = string.format
 local dbg_traceback = debug.traceback
 
-local tpack = table.pack
 local tunpack = table.unpack
 
 local coroutine = coroutine
@@ -33,14 +33,14 @@ local main_waited = true
 local co_num = 0
 
 local co_map = new_tab(0, 1024)
-co_map[co_self()] = true
+co_map[co_self()] = {co_self(), nil, false}
 
 local co_wlist = new_tab(512, 0)
 
 local function co_wrapper()
   return co_new(function ()
     -- 使用`数字索引`比`Hash索引`更快.
-    local CO_INDEX, ARGS_INDEX = 1, 2
+    local CO_INDEX, ARGS_INDEX, WAKEUP_INDEX = 1, 2, 3
     -- 使用数字下标迭代比`ipairs`更快.
     local start, total = 1, #co_wlist
     -- 使用两级`FIFO`队列交替管理协程的运行与切换, 并且每次预分配的`FIFO`队列的大小与上次执行的协程的数量相关.
@@ -64,6 +64,7 @@ local function co_wrapper()
           co_map[co] = nil
           co_num = co_num - 1
         end
+        obj[ARGS_INDEX], obj[WAKEUP_INDEX] = nil, false
       end
       -- 如果没有执行对象则应该放弃执行权.
       -- 等待有任务之后再次唤醒后再执行
@@ -95,9 +96,16 @@ end
 local function co_add_queue(co, ...)
   local args = nil
   if select("#", ...) > 0 then
-    args = tpack(...)
+    args = {...}
   end
-  co_wlist[#co_wlist+1] = {co, args}
+  local ctx = co_map[co]
+  if not ctx then
+    ctx = {co, args, true}
+    co_map[co] = ctx
+  else
+    ctx[2], ctx[3] = args, true
+  end
+  co_wlist[#co_wlist+1] = ctx
 end
 
 local Co = {}
@@ -120,7 +128,22 @@ end
 
 -- 唤醒协程
 function Co.wakeup(co, ...)
-  assert(type(co) == 'thread' and co ~= co_self() and co_map[co], "[coroutine error]: Invcalid coroutine.")
+  if type(co) ~= 'thread' then
+    error("[coroutine error]: Invalid coroutine.")
+  end
+  if co == co_self() then
+    error("[coroutine error]: Cannot wake up a running coroutine.")
+  end
+  if co_status(co) ~= 'suspended' then
+    error("[coroutine error]: Invalid status coroutine. [" .. co_status(co) .. "]")
+  end
+  local ctx = co_map[co]
+  if not ctx then
+    error("[coroutine error]: This coroutine is not associated internally, so it cannot wakeup.")
+  end
+  if ctx[3] then
+    error("[coroutine error]: Try to wake up a coroutine several times.")
+  end
   co_check_init()
   co_add_queue(co, ...)
 end
@@ -131,7 +154,6 @@ function Co.spawn(func, ...)
   -- 创建协程与打包参数
   co_num = co_num + 1
   local co = co_new(func)
-  co_map[co] = true
   co_check_init()
   co_add_queue(co, ...)
   return co
