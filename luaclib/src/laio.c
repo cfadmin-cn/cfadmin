@@ -669,8 +669,9 @@ static pid_t laio_system(lua_State *L, const char* command, int pfd) {
   (void)dup2(pfd, STDOUT_FILENO);
   (void)dup2(pfd, STDERR_FILENO);
   // 子进程需要进与父子进程的的上下文分离
-  if (execl("/bin/sh", "sh", "-c", command, NULL))
-    write(STDOUT_FILENO, strerror(errno), strlen(strerror(errno)));
+  if (execl("/bin/sh", "sh", "-c", command, NULL)){
+    int wsize = write(STDOUT_FILENO, strerror(errno), strlen(strerror(errno)));(void)wsize;
+  }
   // 正常执行完毕是不会走到这里, 所以只能是执行失败.
   exit(EXIT_FAILURE);
 }
