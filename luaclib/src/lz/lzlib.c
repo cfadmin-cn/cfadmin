@@ -3,240 +3,199 @@
 #include <core.h>
 #include <zlib.h>
 
-#define MAX_COMPRESS_BUF_SIZE_TIMES (1 << 10)
+#ifndef MAX_WBITS
+#  define MAX_WBITS   15 /* 32K LZ77 window */
+#endif
 
+// 压缩模式
+enum zmode {
+  Z_COMPRESS1_MODE   =  0,
+  Z_COMPRESS2_MODE   =  1,
+  Z_GZCOMPRESS_MODE  =  2,
+};
+
+// 压缩窗口大小
+enum zwsize {
+  Z_COMPRESS1_WSIZE   =  MAX_WBITS,
+  Z_COMPRESS2_WSIZE   =  -MAX_WBITS,
+  Z_GZCOMPRESS_WSIZE  =  MAX_WBITS + 16,
+};
+
+// 初始化
 static inline void stream_init(z_stream *z) {
-  memset(z, 0x0, sizeof(*z));
+  memset(z, 0x0, sizeof(z_stream));
   z->zalloc = Z_NULL;
   z->zfree = Z_NULL;
   z->opaque = Z_NULL;
+}
+
+// 压缩
+static inline int stream_deflate(lua_State* L, int mode, const uint8_t* in, size_t in_size) {
+
+  z_stream z;
+  stream_init(&z);
+
+  size_t out_size;
+  uint8_t *out;
+
+  switch (mode) {
+    case Z_COMPRESS1_MODE:
+      if (Z_OK != deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, Z_COMPRESS1_WSIZE, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
+        return luaL_error(L, "[ZLIB ERROR]: Compress1 init failed.");
+
+      // 输出
+      out_size = compressBound(in_size);
+      out = lua_newuserdata(L, out_size);
+      break;
+    case Z_COMPRESS2_MODE:
+      if (Z_OK != deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, Z_COMPRESS2_WSIZE, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
+        return luaL_error(L, "[ZLIB ERROR]: Compress2 init failed.");
+
+      // 输出
+      out_size = deflateBound(&z, in_size);
+      out = lua_newuserdata(L, out_size);
+      break;
+    case Z_GZCOMPRESS_MODE:
+      if (Z_OK != deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, Z_GZCOMPRESS_WSIZE, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
+        return luaL_error(L, "[ZLIB ERROR]: GzCompress init failed.");
+
+      // 输出
+      out_size = deflateBound(&z, in_size);
+      out = lua_newuserdata(L, out_size);
+      break;
+    default:
+      return luaL_error(L, "[ZLIB ERROR]: Invalid zlib mode.");
+  }
+
+  // 输入
+  z.next_in = (uint8_t *)in;
+  z.avail_in = in_size;
+
+  z.next_out  = out;
+  z.avail_out = out_size;
+
+  int ret = deflate(&z, Z_FINISH);
+  // 压缩
+  if (ret != Z_STREAM_END) {
+    deflateEnd(&z);
+    return luaL_error(L, "[ZLIB ERROR]: deflate error(%d).", ret);
+  }
+  // 清理
+  if (deflateEnd(&z) != Z_OK){
+    return luaL_error(L, "[ZLIB ERROR]: deflateEnd error(%d).", ret);
+  }
+  // 结束
+  lua_pushlstring(L, (const char*)out, z.total_out);
+  lua_pushinteger(L, in_size);
+  return 2;
+}
+
+// 解缩
+static inline int stream_inflate(lua_State* L, int windsize, const uint8_t* in, size_t in_size) {
+  z_stream z;
+  stream_init(&z);
+
+  z.next_in = (uint8_t *)in;
+  z.avail_in = in_size;
+
+  if (Z_OK != inflateInit2(&z, windsize))
+    return 0;
+
+  luaL_Buffer B;
+  luaL_buffinit(L, &B);
+
+  int bszie = 65535;
+  uint8_t buffer[bszie];
+
+  uint64_t offset = 0;
+
+  for (;;) {  
+    z.next_out = buffer;
+    z.avail_out = bszie;
+    // 始终用最小的内存来解压数据.
+    int ret = inflate(&z, Z_NO_FLUSH);
+    // 如果已经到数据流的尾部.
+    if (ret == Z_STREAM_END){
+      luaL_addlstring(&B, (const char*)buffer, z.total_out - offset);
+      offset = z.total_out;
+      break;
+    }
+    // 如果数据出现其他异常情况
+    if (ret != Z_OK){
+      inflateEnd(&z);
+      lua_pushboolean(L, 0);
+      lua_pushfstring(L, "[ZLIB ERROR]: Invalid inflate buffer. %d", ret);
+      return 2;
+    }
+    // printf("inline : [ret] = %d, isize = [%ld], osize = [%ld]\n", ret, z.total_in, z.total_out);
+    // 每次迭代都需要把缓冲区的数据添加到内部.
+    luaL_addlstring(&B, (const char*)buffer, z.total_out - offset);
+    offset = z.total_out;
+  }
+  
+  int ret = inflateEnd(&z);
+  if (ret != Z_OK){
+    lua_pushboolean(L, 0);
+    lua_pushfstring(L, "[ZLIB ERROR]: Invalid inflateEnd buffer. %d", ret);
+    return 2;
+  }
+  // printf("over: [ret] = %d, isize = [%ld], osize = [%ld]\n", ret, z.total_in, z.total_out);
+  luaL_pushresult(&B);
+  return 1;
 }
 
 static int lcompress(lua_State *L) {
   size_t in_size = 0;
   const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
   if (in_size <= 0)
-    return 0;
+    return luaL_error(L, "[ZLIB ERROR]: Invalid in buffer.");
 
-  size_t out_size = compressBound(in_size);
-  uint8_t *out = lua_newuserdata(L, out_size);
-  memset(out, 0x0, out_size);
-
-  if (compress(out, &out_size, in, in_size) != Z_OK)
-    return 0;
-
-  lua_pushlstring(L, (const char*)out, out_size);
-  lua_pushinteger(L, in_size);
-  return 2;
+  return stream_deflate(L, Z_COMPRESS1_MODE, (const uint8_t*)in, in_size);
 }
 
 static int luncompress(lua_State *L) {
   size_t in_size = 0;
   const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
   if (in_size <= 0)
-    return 0;
+    return luaL_error(L, "[ZLIB ERROR]: Invalid in buffer.");
 
-  size_t out_size = in_size * 4;
-
-  /* 若能传递压缩前的大小, 优先使用此数值 */
-  int is_sum = 0;
-  lua_Integer before_size = lua_tointegerx(L, 2, &is_sum);
-  if (is_sum && before_size > 0 )
-    out_size = before_size;
-
-  size_t offset = 4;
-  size_t top = lua_gettop(L);
-
-  do {
-    uint8_t *out = lua_newuserdata(L, out_size);
-    memset(out, 0x0, out_size);
-
-    int ret = uncompress(out, &out_size, in, in_size);
-    if (ret == Z_OK || ret == Z_BUF_ERROR) {
-      if (ret == Z_OK){
-        lua_pushlstring(L, (const char *)out, out_size);
-        return 1;        
-      }
-      lua_settop(L, top);
-      offset ++;
-      out_size = in_size << offset;
-      continue;
-    }
-  } while(0);
-  return 0;
-}
-
-static int lgzip_compress(lua_State *L) {
-  size_t in_size = 0;
-  const char* in = luaL_checklstring(L, 1, &in_size);
-  if (in_size <= 0)
-    return 0;
-
-  z_stream z;
-  stream_init(&z);
-
-  int ok = deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, MAX_WBITS + 16, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
-  if (Z_OK != ok)
-    return 0;
-
-  z.next_in = (uint8_t *)in;
-  z.avail_in = in_size;
-
-  luaL_Buffer B;
-  z.avail_out = deflateBound(&z, in_size);
-  z.next_out = (uint8_t *)luaL_buffinitsize(L, &B, z.avail_out);
-  memset(z.next_out, 0x0, z.avail_out);
-
-  int ret = deflate(&z, Z_FINISH);
-  if (ret != Z_STREAM_END) {
-    luaL_pushresultsize(&B, 0);
-    deflateEnd(&z);
-    return 0;
-  }
-  if (deflateEnd(&z) != Z_OK){
-    luaL_pushresultsize(&B, 0);
-    return 0;
-  }
-  luaL_pushresultsize(&B, z.total_out);
-  return 1;
-}
-
-static int lgzip_uncompress(lua_State *L) {
-  size_t in_size = 0;
-  const char* in = luaL_checklstring(L, 1, &in_size);
-  if (in_size <= 0)
-    return 0;
-
-  z_stream z;
-  stream_init(&z);
-
-  int ok = inflateInit2(&z, MAX_WBITS + 16);
-  if (Z_OK != ok)
-    return 0;
-
-  size_t out_size = in_size << 1;
-  int top = lua_gettop(L);
-
-  for(;;) {
-    luaL_Buffer B;
-    z.next_in = (uint8_t *)in;
-    z.avail_in = in_size;
-    z.avail_out = out_size;
-    z.next_out = (uint8_t *)luaL_buffinitsize(L, &B, out_size);
-    memset(z.next_out, 0x0, z.avail_out);
-
-    int ret = inflate(&z, Z_FINISH);
-    if (ret == Z_STREAM_END) {
-      int ok = inflateEnd(&z);
-      if (ok != Z_OK)
-        return 0;
-      luaL_pushresultsize(&B, z.total_out);
-      break;
-    }
-    if (ret != Z_BUF_ERROR) {
-      luaL_pushresultsize(&B, 0);
-      inflateEnd(&z);
-      return 0;
-    }
-    /* 防止内存溢出 */
-    if (out_size > in_size * MAX_COMPRESS_BUF_SIZE_TIMES){
-      luaL_pushresultsize(&B, 0);
-      inflateEnd(&z);
-      return 0;
-    }
-    inflateReset(&z);
-    out_size <<= 1;
-    luaL_pushresultsize(&B, 0);
-    lua_settop(L, top);
-  }
-  return 1;
+  return stream_inflate(L, Z_COMPRESS1_WSIZE, (const uint8_t*)in, in_size);
 }
 
 static int lcompress2(lua_State *L) {
   size_t in_size = 0;
-  const char* in = luaL_checklstring(L, 1, &in_size);
+  const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
   if (in_size <= 0)
-    return 0;
+    return luaL_error(L, "[ZLIB ERROR]: Invalid in buffer.");
 
-  z_stream z;
-  stream_init(&z);
-
-  int ok = deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, MAX_WBITS * -1, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
-  if (Z_OK != ok)
-    return 0;
-
-  z.next_in = (uint8_t *)in;
-  z.avail_in = in_size;
-
-  luaL_Buffer B;
-  z.avail_out = deflateBound(&z, in_size);
-  z.next_out = (uint8_t *)luaL_buffinitsize(L, &B, z.avail_out);
-  memset(z.next_out, 0x0, z.avail_out);
-
-  int ret = deflate(&z, Z_FINISH);
-  if (ret != Z_STREAM_END) {
-    luaL_pushresultsize(&B, 0);
-    deflateEnd(&z);
-    return 0;
-  }
-  if (deflateEnd(&z) != Z_OK){
-    luaL_pushresultsize(&B, 0);
-    return 0;
-  }
-  luaL_pushresultsize(&B, z.total_out);
-  lua_pushinteger(L, in_size);
-  return 2;
+  return stream_deflate(L, Z_COMPRESS2_MODE, (const uint8_t*)in, in_size);
 }
 
 static int luncompress2(lua_State *L) {
   size_t in_size = 0;
-  const char* in = luaL_checklstring(L, 1, &in_size);
+  const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
   if (in_size <= 0)
-    return 0;
+    return luaL_error(L, "[ZLIB ERROR]: Invalid in buffer.");
 
-  z_stream z;
-  stream_init(&z);
+  return stream_inflate(L, Z_COMPRESS2_WSIZE, (const uint8_t*)in, in_size);
+}
 
-  int ok = inflateInit2(&z, MAX_WBITS * -1);
-  if (Z_OK != ok)
-    return 0;
+static int lgzip_compress(lua_State *L) {
+  size_t in_size = 0;
+  const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
+  if (in_size <= 0)
+    return luaL_error(L, "[ZLIB ERROR]: Invalid in buffer.");
 
-  size_t out_size = in_size * 4;
-  int top = lua_gettop(L);
+  return stream_deflate(L, Z_GZCOMPRESS_MODE, (const uint8_t*)in, in_size);
+}
 
-  for(;;) {
-    luaL_Buffer B;
-    z.next_in = (uint8_t *)in;
-    z.avail_in = in_size;
-    z.avail_out = out_size;
-    z.next_out = (uint8_t *)luaL_buffinitsize(L, &B, out_size);
-    memset(z.next_out, 0x0, z.avail_out);
+static int lgzip_uncompress(lua_State *L) {
+  size_t in_size = 0;
+  const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
+  if (in_size <= 0)
+    return luaL_error(L, "[ZLIB ERROR]: Invalid in buffer.");
 
-    int ret = inflate(&z, Z_FINISH);
-    if (ret == Z_STREAM_END) {
-      int ok = inflateEnd(&z);
-      if (ok != Z_OK)
-        return 0;
-      luaL_pushresultsize(&B, z.total_out);
-      break;
-    }
-    if (ret != Z_BUF_ERROR) {
-      luaL_pushresultsize(&B, 0);
-      inflateEnd(&z);
-      return 0;
-    }
-    /* 防止内存溢出 */
-    if (out_size > in_size * MAX_COMPRESS_BUF_SIZE_TIMES){
-      luaL_pushresultsize(&B, 0);
-      inflateEnd(&z);
-      return 0;
-    }
-    inflateReset(&z);
-    out_size *= 2;
-    luaL_pushresultsize(&B, 0);
-    lua_settop(L, top);
-  }
-  return 1;
+  return stream_inflate(L, Z_GZCOMPRESS_WSIZE, (const uint8_t*)in, in_size);
 }
 
 LUAMOD_API int luaopen_lz(lua_State *L){
