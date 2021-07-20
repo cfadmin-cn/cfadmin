@@ -167,7 +167,7 @@ static inline void cfadmin_set_cpu_affinity(int num, pid_t pid) {
   #include <sched.h>
   if (nprocess <= sysconf(_SC_NPROCESSORS_ONLN)){
     /* 在Linux会尝试绑定CPU亲缘性以提高进程执行效率. */
-    cpu_set_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % nprocess, &mask);
+    cpu_set_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % sysconf(_SC_NPROCESSORS_ONLN), &mask);
     sched_setaffinity(pid, sizeof(mask), (const cpu_set_t *)&mask);
   }
 #elif defined(__FreeBSD__)
@@ -175,7 +175,7 @@ static inline void cfadmin_set_cpu_affinity(int num, pid_t pid) {
   #include <sys/cpuset.h>
   if (nprocess <= sysconf(_SC_NPROCESSORS_ONLN)){
     /* FreeBSD的CPU绑定的方式有函数与头文件的差异 */
-    cpuset_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % nprocess, &mask);
+    cpuset_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % sysconf(_SC_NPROCESSORS_ONLN), &mask);
     cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpuset_t), (const cpuset_t *)&mask);
   }
 #endif
