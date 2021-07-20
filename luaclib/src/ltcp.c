@@ -596,7 +596,7 @@ static int tcp_read(lua_State *L){
   if (bytes <= 65535)
     str = alloca(65535);
   else
-    str = alloca(1048576);
+    str = alloca(262144);
 
   do {
     int rsize = read(fd, str, bytes);
@@ -633,7 +633,7 @@ static int tcp_sslread(lua_State *L){
   if (bytes <= 65535)
     str = alloca(65535);
   else
-    str = alloca(1048576);
+    str = alloca(262144);
 
   do {
     int rsize = SSL_read(ssl, str, bytes);
