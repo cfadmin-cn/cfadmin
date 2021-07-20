@@ -2,9 +2,15 @@
 #define __CORE_MEMORY__
 
 #if defined(JEMALLOC)
-	#include "jemalloc/jemalloc.h"
+	#include <jemalloc/jemalloc.h>
 #elif defined(TCMALLOC)
-	#include "gperftools/tcmalloc.h"
+	#include <gperftools/tcmalloc.h>
+	#ifndef EXIT_SUCCESS
+		#define EXIT_SUCCESS (0)
+	#endif
+	#ifndef EXIT_FAILURE
+		#define EXIT_FAILURE (1)
+	#endif
 	#define malloc  tc_malloc
 	#define calloc  tc_calloc
 	#define realloc tc_realloc
