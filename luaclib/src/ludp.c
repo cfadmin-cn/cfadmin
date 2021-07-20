@@ -2,6 +2,10 @@
 
 #include <core.h>
 
+#ifndef alloca
+  #define alloca __alloca
+#endif
+
 static inline void SETSOCKETOPT(int sockfd) {
 	int Enable = 1;
 	int ret = 0;
@@ -101,8 +105,9 @@ static int udp_recv(lua_State *L){
 	int fd = lua_tointeger(L, 1);
 	if (fd < 0)
 		return 0;
-	char str[4096] = {0};
-	int rsize = read(fd, str, 4096);
+	int bsize = 65535;
+	char* str = alloca(65535);
+	int rsize = read(fd, str, bsize);
 	if (rsize < 0)
 		return 0;
 	lua_pushlstring(L, str, rsize);

@@ -5,6 +5,10 @@
 #include <openssl/err.h>
 #include <openssl/crypto.h>
 
+#ifndef alloca
+  #define alloca __alloca
+#endif
+
 #define None (-1)
 #define SERVER (0)
 #define CLIENT (1)
@@ -508,7 +512,11 @@ static int tcp_peek(lua_State *L) {
   if (0 >= fd) return 0;
 
   int bsize = lua_tointeger(L, 2);
-  char buffer[bsize];
+  char* buffer = NULL;
+  if (bsize <= 65535)
+    buffer = alloca(65535);
+  else
+    buffer = lua_newuserdata(L, bsize);
 
   if (0 == lua_toboolean(L, 3)) {
     lua_pushinteger(L, read(fd, buffer, bsize));
@@ -542,7 +550,11 @@ static int tcp_sslpeek(lua_State *L) {
   if (!ssl) return 0;
 
   int bsize = lua_tointeger(L, 2);
-  char buffer[bsize];
+  char* buffer = NULL;
+  if (bsize <= 65535)
+    buffer = alloca(65535);
+  else
+    buffer = lua_newuserdata(L, bsize);
 
   if (0 == lua_toboolean(L, 3)) {
     lua_pushinteger(L, SSL_read(ssl, buffer, bsize));
@@ -580,10 +592,12 @@ static int tcp_read(lua_State *L){
     return 0;
 
   errno = 0;
-  char* str = alloca(1 << 16);
-  if (bytes > (1 << 16)){
-    str = (char*)lua_newuserdata(L, bytes);
-  }
+  char* str = NULL;
+  if (bytes <= 65535)
+    str = alloca(65535);
+  else
+    str = alloca(1048576);
+
   do {
     int rsize = read(fd, str, bytes);
     if (rsize > 0) {
@@ -614,12 +628,13 @@ static int tcp_sslread(lua_State *L){
   if (0 >= bytes)
     return 0;
 
-  char* str = alloca(1 << 16);
-  if (bytes > (1 << 16)){
-    str = (char*)lua_newuserdata(L, bytes);
-  }
-
   errno = 0;
+  char* str = NULL;
+  if (bytes <= 65535)
+    str = alloca(65535);
+  else
+    str = alloca(1048576);
+
   do {
     int rsize = SSL_read(ssl, str, bytes);
     if (0 < rsize) {
