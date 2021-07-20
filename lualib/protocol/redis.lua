@@ -16,6 +16,7 @@ local assert = assert
 local tonumber = tonumber
 local tostring = tostring
 
+local insert = table.insert
 local concat = table.concat
 local unpack = table.unpack
 
@@ -38,19 +39,27 @@ local function read_response(sock)
 end
 
 local function sock_readbytes(sock, bytes)
-  local buffers = new_tab(16, 0)
-  while 1 do
-    local data = sock:recv(bytes)
-    if not data then
-      sock.state = false
-      return nil, 'server close!!'
-    end
-    buffers[#buffers+1] = data
-    if #data == bytes then
-      return concat(buffers)
-    end
-    bytes = bytes - #data
-  end
+	local buffer = sock:recv(bytes)
+	if not buffer then
+		return
+	end
+	if #buffer == bytes then
+		return buffer
+	end
+	bytes = bytes - #buffer
+	local buffers = {buffer}
+  local sock_read = sock.recv
+	while 1 do
+		buffer = sock_read(sock, bytes)
+		if not buffer then
+			return
+		end
+    bytes = bytes - #buffer
+    insert(buffers, buffer)
+		if bytes == 0 then
+			return concat(buffers)
+		end
+	end
 end
 
 redcmd[36] = function(sock, data) -- '$'

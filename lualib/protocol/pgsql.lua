@@ -16,6 +16,7 @@ local tonumber = tonumber
 
 local fmt = string.format
 local toint = math.tointeger
+local tinsert = table.insert
 local tconcat = table.concat
 
 local string = string
@@ -440,19 +441,27 @@ end
 
 function pgsql:read(bytes)
   local sock = self.sock
-  local buffers = new_tab(32, 0)
-  while 1 do
-    local data = sock:recv(bytes)
-    if not data then
-      return nil, "server close this session."
-    end
-    buffers[#buffers+1] = data
-    bytes = bytes - #data
-    if bytes <= 0 then
-      break
-    end
-  end
-  return tconcat(buffers)
+	local buffer = sock:recv(bytes)
+	if not buffer then
+		return
+	end
+	if #buffer == bytes then
+		return buffer
+	end
+	bytes = bytes - #buffer
+	local buffers = {buffer}
+  local sock_read = sock.recv
+	while 1 do
+		buffer = sock_read(sock, bytes)
+		if not buffer then
+			return
+		end
+    bytes = bytes - #buffer
+    tinsert(buffers, buffer)
+		if bytes == 0 then
+			return tconcat(buffers)
+		end
+	end
 end
 
 function pgsql:write(data)

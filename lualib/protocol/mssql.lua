@@ -31,6 +31,7 @@ local toint = math.tointeger
 
 local os_date = os.date
 
+local tabinsert = table.insert
 local tabconcat = table.concat
 
 -- TDS公共头部类型
@@ -884,25 +885,28 @@ function mssql:ctor(opt)
 end
 
 function mssql:read( bytes )
-  local buffers = new_tab(32, 0)
   local sock = self.sock
-  while 1 do
-    local data
-    if sock.ssl then
-      data = sock:ssl_recv(bytes)
-    else
-      data = sock:recv(bytes)
-    end
-    if not data then
-      return nil, "server close this session."
-    end
-    buffers[#buffers+1] = data
-    bytes = bytes - #data
-    if bytes <= 0 then
-      break
-    end
-  end
-  return tabconcat(buffers)
+	local buffer = sock:recv(bytes)
+	if not buffer then
+		return
+	end
+	if #buffer == bytes then
+		return buffer
+	end
+	bytes = bytes - #buffer
+	local buffers = {buffer}
+  local sock_read = sock.recv
+	while 1 do
+		buffer = sock_read(sock, bytes)
+		if not buffer then
+			return
+		end
+    bytes = bytes - #buffer
+    tabinsert(buffers, buffer)
+		if bytes == 0 then
+			return tabconcat(buffers)
+		end
+	end
 end
 
 function mssql:write(data)

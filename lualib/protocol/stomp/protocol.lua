@@ -1,6 +1,7 @@
 local pairs = pairs
 local toint = math.tointeger
 local splite = string.gmatch
+local insert = table.insert
 local concat = table.concat
 
 local LF = '\x0a'
@@ -42,20 +43,28 @@ local function sock_send (sock, data)
   return sock:send(data)
 end
 
-local function sock_read (sock, byte)
-  local buffers = {}
-  while true do
-    local buf = sock:recv(byte)
-    if not buf then
-      return
-    end
-    buffers[#buffers+1] = buf
-    byte = byte - #buf
-    if byte == 0 then
-      break
-    end
-  end
-  return concat(buffers)
+local function sock_read (sock, bytes)
+	local buffer = sock:recv(bytes)
+	if not buffer then
+		return
+	end
+	if #buffer == bytes then
+		return buffer
+	end
+	bytes = bytes - #buffer
+	local buffers = {buffer}
+  local sock_recv = sock.recv
+	while 1 do
+		buffer = sock_recv(sock, bytes)
+		if not buffer then
+			return
+		end
+    bytes = bytes - #buffer
+    insert(buffers, buffer)
+		if bytes == 0 then
+			return concat(buffers)
+		end
+	end
 end
 
 local function sock_readline(sock, sp, nosp)

@@ -139,13 +139,14 @@ local function safe_call (f, ...)
 end
 
 local function readall(sock, bsize, buffers)
+  local sock_recv = sock.recv
   while 1 do
-    local buf = sock:recv(bsize)
-    if not buf then
+    local buffer = sock_recv(sock, bsize)
+    if not buffer then
       return
     end
-    bsize = bsize - #buf
-    buffers[#buffers + 1] = buf
+    bsize = bsize - #buffer
+    insert(buffers, buffer)
     if bsize == 0 then
       break
     end

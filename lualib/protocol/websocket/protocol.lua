@@ -14,6 +14,7 @@ local strpack = string.pack
 local strunpack = string.unpack
 local random = math.random
 local concat = table.concat
+local insert = table.insert
 
 local WS_TYPE = {
   [0x00] = "continuation",
@@ -25,19 +26,27 @@ local WS_TYPE = {
 }
 
 local function sock_recv (sock, bytes)
-  local buffers = new_tab(16, 0)
-  while true do
-    local buf = sock:recv(bytes)
-    if not buf then
-      return nil
-    end
-    buffers[#buffers+1] = buf
-    bytes = bytes - #buf
-    if bytes == 0 then
-      break
-    end
-  end
-  return concat(buffers)
+	local buffer = sock:recv(bytes)
+	if not buffer then
+		return
+	end
+	if #buffer == bytes then
+		return buffer
+	end
+	bytes = bytes - #buffer
+	local buffers = {buffer}
+  local sock_read = sock.recv
+	while 1 do
+		buffer = sock_read(sock, bytes)
+		if not buffer then
+			return
+		end
+    bytes = bytes - #buffer
+    insert(buffers, buffer)
+		if bytes == 0 then
+			return concat(buffers)
+		end
+	end
 end
 
 local function sock_send (sock, data)

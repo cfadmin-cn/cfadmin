@@ -25,6 +25,7 @@ local assert = assert
 local select = select
 local tonumber = tonumber
 local toint = math.tointeger
+local insert = table.insert
 local concat = table.concat
 
 local null = null
@@ -125,19 +126,27 @@ end
 
 local function sock_read (self, bytes)
   local sock = self.sock
-  local buffers = new_tab(32, 0)
-  while 1 do
-    local buf = sock:recv(bytes)
-    if not buf then
-      return nil, "MySQL Server closed."
-    end
-    buffers[#buffers+1] = buf
-    bytes = bytes - #buf
-    if bytes == 0 then
-      break
-    end
-  end
-  return concat(buffers)
+	local buffer = sock:recv(bytes)
+	if not buffer then
+		return
+	end
+	if #buffer == bytes then
+		return buffer
+	end
+	bytes = bytes - #buffer
+	local buffers = {buffer}
+  local sock_recv = sock.recv
+	while 1 do
+		buffer = sock_recv(sock, bytes)
+		if not buffer then
+			return
+		end
+    bytes = bytes - #buffer
+    insert(buffers, buffer)
+		if bytes == 0 then
+			return concat(buffers)
+		end
+	end
 end
 
 -- mysql_native认证
