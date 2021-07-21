@@ -513,8 +513,8 @@ static int tcp_peek(lua_State *L) {
 
   int bsize = lua_tointeger(L, 2);
   char* buffer = NULL;
-  if (bsize <= 65535)
-    buffer = alloca(65535);
+  if (bsize <= 262144)
+    buffer = alloca(bsize);
   else
     buffer = lua_newuserdata(L, bsize);
 
@@ -551,8 +551,8 @@ static int tcp_sslpeek(lua_State *L) {
 
   int bsize = lua_tointeger(L, 2);
   char* buffer = NULL;
-  if (bsize <= 65535)
-    buffer = alloca(65535);
+  if (bsize <= 262144)
+    buffer = alloca(bsize);
   else
     buffer = lua_newuserdata(L, bsize);
 
@@ -593,10 +593,10 @@ static int tcp_read(lua_State *L){
 
   errno = 0;
   char* str = NULL;
-  if (bytes <= 65535)
-    str = alloca(65535);
+  if (bytes <= 262144)
+    str = alloca(bytes);
   else
-    str = alloca(262144);
+    str = lua_newuserdata(L, bytes);
 
   do {
     int rsize = read(fd, str, bytes);
@@ -630,10 +630,10 @@ static int tcp_sslread(lua_State *L){
 
   errno = 0;
   char* str = NULL;
-  if (bytes <= 65535)
-    str = alloca(65535);
+  if (bytes <= 262144)
+    str = alloca(bytes);
   else
-    str = alloca(262144);
+    str = lua_newuserdata(L, bytes);
 
   do {
     int rsize = SSL_read(ssl, str, bytes);
