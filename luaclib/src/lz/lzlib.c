@@ -16,10 +16,12 @@ enum zmode {
 
 // 压缩窗口大小
 enum zwsize {
-  Z_COMPRESS1_WSIZE   =  MAX_WBITS,
+  Z_COMPRESS1_WSIZE   =  +MAX_WBITS,
   Z_COMPRESS2_WSIZE   =  -MAX_WBITS,
   Z_GZCOMPRESS_WSIZE  =  MAX_WBITS + 16,
 };
+
+static int zwindow[] = { Z_COMPRESS1_WSIZE, Z_COMPRESS2_WSIZE, Z_GZCOMPRESS_WSIZE };
 
 // 初始化
 static inline void stream_init(z_stream *z) {
@@ -38,34 +40,11 @@ static inline int stream_deflate(lua_State* L, int mode, const uint8_t* in, size
   size_t out_size;
   uint8_t *out;
 
-  switch (mode) {
-    case Z_COMPRESS1_MODE:
-      if (Z_OK != deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, Z_COMPRESS1_WSIZE, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
-        return luaL_error(L, "[ZLIB ERROR]: Compress1 init failed.");
+  if (Z_OK != deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, zwindow[mode], MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
+    return luaL_error(L, "[ZLIB ERROR]: deflateInit init failed.");
 
-      // 输出
-      out_size = compressBound(in_size);
-      out = lua_newuserdata(L, out_size);
-      break;
-    case Z_COMPRESS2_MODE:
-      if (Z_OK != deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, Z_COMPRESS2_WSIZE, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
-        return luaL_error(L, "[ZLIB ERROR]: Compress2 init failed.");
-
-      // 输出
-      out_size = deflateBound(&z, in_size);
-      out = lua_newuserdata(L, out_size);
-      break;
-    case Z_GZCOMPRESS_MODE:
-      if (Z_OK != deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, Z_GZCOMPRESS_WSIZE, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
-        return luaL_error(L, "[ZLIB ERROR]: GzCompress init failed.");
-
-      // 输出
-      out_size = deflateBound(&z, in_size);
-      out = lua_newuserdata(L, out_size);
-      break;
-    default:
-      return luaL_error(L, "[ZLIB ERROR]: Invalid zlib mode.");
-  }
+  out_size = deflateBound(&z, in_size);
+  out = lua_newuserdata(L, out_size);
 
   // 输入
   z.next_in = (uint8_t *)in;
@@ -99,7 +78,7 @@ static inline int stream_inflate(lua_State* L, int windsize, const uint8_t* in, 
   z.avail_in = in_size;
 
   if (Z_OK != inflateInit2(&z, windsize))
-    return 0;
+    return luaL_error(L, "[ZLIB ERROR]: inflateInit init failed.");
 
   luaL_Buffer B;
   luaL_buffinit(L, &B);
