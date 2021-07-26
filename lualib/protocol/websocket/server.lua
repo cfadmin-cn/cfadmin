@@ -1,5 +1,6 @@
 local cf = require "cf"
 local cf_fork = cf.fork
+local cf_sleep = cf.sleep
 
 local new_tab = require"sys".new_tab
 
@@ -81,7 +82,7 @@ end
 
 -- 退出
 function ws:exit()
-  self.closed = true
+  self:close()
   self:add_to_queue(function () end)
 end
 
@@ -129,7 +130,7 @@ function Websocket.start(sock, obj, args, headers, ext)
       cf_fork(on_message, cls, data, typ == 'binary')
     end
   end
-  return
+  return cf_sleep(0)
 end
 
 return Websocket
