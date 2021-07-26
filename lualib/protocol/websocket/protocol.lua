@@ -2,14 +2,12 @@ local crypt = require "crypt"
 local xor_str = crypt.xor_str
 
 local lz = require "lz"
-local compress2 = lz.compress2
-local uncompress2 = lz.uncompress2
+local wscompress = lz.wscompress
+local wsuncompress = lz.wsuncompress
 
 local new_tab = require("sys").new_tab
 
 local error = error
-local char = string.char
-local byte = string.byte
 local strpack = string.pack
 local strunpack = string.unpack
 local random = math.random
@@ -53,20 +51,12 @@ local function sock_send (sock, data)
   return sock:send(data)
 end
 
--- 压缩
-local function deflate_compress(data)
-  local comp = compress2(data)
-  if not comp then
-    return nil
-  end
-  return concat{char(byte(comp) - 1), comp:sub(2)}
-  -- return gsub(comp, ".", char(byte(comp) - 1), 1)
+local function wsdeflate(data)
+  return wscompress(data)
 end
 
--- 解压
-local function deflate_uncompress(data)
-  -- return uncompress2(gsub(data, ".", char(byte(data) + 1), 1))
-  return uncompress2(concat{char(byte(data) + 1), data:sub(2)})
+local function wsinflate(data)
+  return wsuncompress(data)
 end
 
 
@@ -179,7 +169,7 @@ function protocol.recv_frame(sock, max_payload_len, force_masking, buffers)
 
     -- 支持 permessage-deflate 必须解压缩数据载荷
     if rsv == 0x04 then
-      local buf  = deflate_uncompress(data)
+      local buf = wsinflate(data)
       if not buf then
         return false, 'error', "[WS ERROR] : received Invalid deflate buffers."
       end
@@ -220,7 +210,7 @@ function protocol.send_frame(sock, fin, opcode, payload, max_payload_len, maskin
   -- 如果有扩展协议则加上扩展响应头部
   if (opc ~= 'close' and opc ~= 'ping' and opc ~= 'pong') and payload_len > 125 and ext == 'deflate' then
     h1 = h1 | 0x40
-    payload = deflate_compress(payload)
+    payload = wsdeflate(payload)
     payload_len = #payload
   end
 
@@ -237,7 +227,7 @@ function protocol.send_frame(sock, fin, opcode, payload, max_payload_len, maskin
 
   local buffers = new_tab(3, 0)
 
-  buffers[#buffers+1] = strpack(">BB", h1, h2)
+  insert(buffers, strpack(">BB", h1, h2))
 
   if len_ext then
     buffers[#buffers+1] = len_ext
@@ -247,7 +237,7 @@ function protocol.send_frame(sock, fin, opcode, payload, max_payload_len, maskin
   if masking and payload_len > 0 then
     masking = strpack(">BBBB", random(255), random(255), random(255), random(255))
     payload = xor_str(payload, masking)
-    buffers[#buffers+1] = masking
+    insert(buffers, masking)
   end
 
   return sock_send(sock, concat(buffers)) and sock_send(sock, payload)
