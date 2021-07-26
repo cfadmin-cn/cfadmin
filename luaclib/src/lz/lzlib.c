@@ -177,6 +177,60 @@ static int lgzip_uncompress(lua_State *L) {
   return stream_inflate(L, Z_GZCOMPRESS_WSIZE, (const uint8_t*)in, in_size);
 }
 
+static int lws_compress(lua_State *L) {
+  size_t in_size = 0;
+  const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
+  if (in_size <= 0)
+    return luaL_error(L, "[ZLIB ERROR]: Invalid in buffer.");
+
+  z_stream z;
+  stream_init(&z);
+
+  if (Z_OK != deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, Z_COMPRESS2_WSIZE, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
+    return luaL_error(L, "[ZLIB ERROR]: deflateInit init failed.");
+
+  size_t out_size = deflateBound(&z, in_size);
+  uint8_t *out = lua_newuserdata(L, out_size);
+
+  // 输入
+  z.next_in = (uint8_t *)in;
+  z.avail_in = in_size;
+
+  z.next_out  = out;
+  z.avail_out = out_size;
+
+  int ret = deflate(&z, Z_FINISH);
+  // 压缩
+  if (ret != Z_STREAM_END) {
+    deflateEnd(&z);
+    return luaL_error(L, "[ZLIB ERROR]: deflate error(%d).", ret);
+  }
+  // 清理
+  if (deflateEnd(&z) != Z_OK){
+    return luaL_error(L, "[ZLIB ERROR]: deflateEnd error(%d).", ret);
+  }
+
+  out[0] = out[0] - 1;
+
+  // 结束
+  lua_pushlstring(L, (const char*)out, z.total_out);
+  lua_pushinteger(L, in_size);
+  return 2;
+}
+
+static int lws_uncompress(lua_State *L) {
+  size_t in_size = 0;
+  const uint8_t* in = (const uint8_t*)luaL_checklstring(L, 1, &in_size);
+  if (in_size <= 0)
+    return luaL_error(L, "[ZLIB ERROR]: Invalid in buffer.");
+
+  char *buf = (char *)in;
+  buf[0] = buf[0] + 1;
+  int ret = stream_inflate(L, Z_COMPRESS2_WSIZE, (const uint8_t*)in, in_size);
+  buf[0] = buf[0] - 1;
+  return ret;
+}
+
 LUAMOD_API int luaopen_lz(lua_State *L){
   luaL_checkversion(L);
   luaL_Reg zlib_libs[] = {
@@ -189,6 +243,9 @@ LUAMOD_API int luaopen_lz(lua_State *L){
     /* gzip压缩/解压方法 */
     {"gzcompress", lgzip_compress},
     {"gzuncompress", lgzip_uncompress},
+    /* Websocket压缩/解压方法 */
+    {"wscompress", lws_compress},
+    {"wsuncompress", lws_uncompress},
     {NULL, NULL}
   };
   luaL_newlib(L, zlib_libs);
