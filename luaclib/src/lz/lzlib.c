@@ -199,21 +199,11 @@ static int lws_compress(lua_State *L) {
   z.next_out  = out;
   z.avail_out = out_size;
 
-  int ret = deflate(&z, Z_FINISH);
-  // 压缩
-  if (ret != Z_STREAM_END) {
-    deflateEnd(&z);
-    return luaL_error(L, "[ZLIB ERROR]: deflate error(%d).", ret);
-  }
-  // 清理
-  if (deflateEnd(&z) != Z_OK){
-    return luaL_error(L, "[ZLIB ERROR]: deflateEnd error(%d).", ret);
-  }
-
-  out[0] = out[0] - 1;
+  deflate(&z, Z_SYNC_FLUSH);
+  deflateEnd(&z);
 
   // 结束
-  lua_pushlstring(L, (const char*)out, z.total_out);
+  lua_pushlstring(L, (const char*)out, z.total_out - 4);
   lua_pushinteger(L, in_size);
   return 2;
 }
