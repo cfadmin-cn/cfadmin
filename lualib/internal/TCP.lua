@@ -231,6 +231,7 @@ function TCP:send(buf)
   if not wlen or wlen == #buf then
     return wlen == #buf
   end
+  assert(not self.send_co, "[TCP ERROR]: Try to call the 'send' method multiple times.")
   -- 缓解发送大量数据集的时候调用频繁的问题
   if not self.wsize or self.wsize < #buf then
     self.wsize = #buf
@@ -272,6 +273,7 @@ function TCP:ssl_send(buf)
   if not wlen or wlen == #buf then
     return wlen == #buf
   end
+  assert(not self.send_co, "[TCP ERROR]: Try to call the 'send' method multiple times.")
   -- 缓解发送大量数据集的时候调用频繁的问题
   if not self.wsize or self.wsize < #buf then
     self.wsize = #buf
@@ -311,6 +313,7 @@ function TCP:readline(sp, nosp)
   if type(sp) ~= 'string' or #sp < 1 then
     return nil, "Invalid separator."
   end
+  assert(not self.read_co, "[TCP ERROR]: Try to call the 'recv' method multiple times.")
   local buffer
   local msize = 65535
   while 1 do
@@ -370,6 +373,7 @@ function TCP:ssl_readline(sp, nosp)
   if type(sp) ~= 'string' or #sp < 1 then
     return nil, "Invalid separator."
   end
+  assert(not self.read_co, "[TCP ERROR]: Try to call the 'recv' method multiple times.")
   local buffer
   local msize = 65535
   -- 开始读取数据
@@ -431,6 +435,7 @@ function TCP:recv(bytes)
   if type(len) ~= 'number' or len > 0 then
     return data, len
   end
+  assert(not self.read_co, "[TCP ERROR]: Try to call the 'recv' method multiple times.")
   -- 优化大数据集的调用次数太多的问题
   if not self.rsize or self.rsize < bytes then
     self.rsize = bytes
@@ -480,6 +485,7 @@ function TCP:ssl_recv(bytes)
   if buf then
     return buf, len
   end
+  assert(not self.read_co, "[TCP ERROR]: Try to call the 'recv' method multiple times.")
   -- 优化大数据集的调用次数太多的问题
   if not self.rsize or self.rsize < bytes then
     self.rsize = bytes
