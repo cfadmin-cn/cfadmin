@@ -9,6 +9,9 @@ local time_at = Timer.at
 local sleep = Timer.sleep
 local time_out = Timer.timeout
 
+local type = type
+local error = error
+local ipairs = ipairs
 local tonumber = tonumber
 
 local cf = {}
@@ -71,6 +74,34 @@ end
 ---@return nil
 function cf.wakeup(co, ...)
   return wakeup(co, ...)
+end
+
+local function cb(f, ctx)
+	local ok, errinfo = pcall(f)
+	ctx.waits = ctx.waits - 1
+	if ctx.waits == 0 then
+		wakeup(ctx.co)
+	end
+  if not ok then
+    return error(errinfo)
+  end
+end
+
+---comment 并发执行多协程, 指定的协程都结束后返回.
+---@param fn function @至少一个或多个任务函数
+---@return nil @始终不存在返回值.
+function cf.join(fn, ...)
+	local qlist = {fn, ...}
+  local ctx = { co = self(), waits = nil }
+  local waits = 0
+	for _, f in ipairs(qlist) do
+    if type(f) == 'function' then
+      fork(cb, f, ctx)
+      waits = waits + 1
+    end
+	end
+  ctx.waits = waits
+	return wait()
 end
 
 return cf
