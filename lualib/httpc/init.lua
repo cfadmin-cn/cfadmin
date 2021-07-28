@@ -1,12 +1,8 @@
-local system = require "system"
-local now = system.now
-local is_array_member = system.is_array_member
+local sys = require "sys"
+local now = sys.now
 
 local cf = require "cf"
-local cf_self = cf.self
-local cf_fork = cf.fork
-local cf_wait = cf.wait
-local cf_wakeup = cf.wakeup
+local cf_join = cf.join
 
 local ua = require "httpc.ua"
 local protocol = require "httpc.protocol"
@@ -27,11 +23,14 @@ local build_basic_authorization = protocol.build_basic_authorization
 
 local type = type
 local assert = assert
+local lower = string.lower
 local upper = string.upper
+local tunpack = table.unpack
+local tinsert = table.insert
 
 local __TIMEOUT__ = 15
 
-local methods = {'get', 'post', 'json', 'file'}
+local methods = { get = true, post = true, put = true, delete = true, xml = true, json = true, file = true}
 
 local function raw( parameter )
 	local opt, err = splite_protocol(parameter.domain)
@@ -39,14 +38,8 @@ local function raw( parameter )
 		return nil, err
 	end
 
-	local method = type(parameter.method) == 'string' and upper(parameter.method) or nil
-	assert( method and (
-			method == 'GET' or
-			method == 'POST' or
-			method == 'OPTIONS' or
-			method == 'DELETE' or
-			method == 'PUT'
-		),"invalide http method.")
+	local method = assert(type(parameter.method) == 'string' and methods[lower(parameter.method)] and upper(parameter.method), "[HTTPC ERROR]: invalide http method.")
+	parameter.method = method
 
 	-- GET方法禁止传递body
 	if parameter.method == "GET" then
@@ -250,8 +243,6 @@ local function json(domain, headers, json, timeout)
 		return nil, err
 	end
 
-	assert(type(json) == "string" or type(json) == "table", "attempted passed a invalide json string or table.")
-
 	opt.json = json
 	opt.headers = headers
 	opt.server = ua.get_user_agent()
@@ -288,8 +279,6 @@ local function xml(domain, headers, xml, timeout)
 	if not opt then
 		return nil, err
 	end
-
-	assert(type(xml) == "string" or type(xml) == "table", "attempted passed a invalide json string or table.")
 
 	opt.xml = xml
 	opt.headers = headers
@@ -350,51 +339,28 @@ local function file(domain, headers, files, timeout)
 	return code, msg, headers
 end
 
-local function multi_request (opt)
-	if type(opt) ~= 'table' then
-    return nil, "1. 错误的参数类型"
-  end
-  local len = #opt
-  if len > 0 then
-    local co = cf_self()
-    local response = {}
-    local wakeuped = false
-    for index = 1, len do
-      cf_fork(function ()
-				local t = now()
-        local req = opt[index]
-        -- 确认method
-        local method = req.method and req.method:lower()
-        if type(method) ~= 'string' or not is_array_member(methods, method) then
-          response[index] = {nil, '不被支持的请求方法.', now() - t}
-          if #response >= len and not wakeuped then
-            wakeuped = true
-            cf_wakeup(co, nil, response)
-          end
-          return
-        end
+local map = { get = get, post = post, delete = delete, json = json, xml = xml, file = file, put = put }
 
-				local code, msg
-        if method == 'get' then
-					code, msg = get(req.domain, req.headers, req.args, req.timeout)
-        elseif method == 'post' then
-          code, msg = post(req.domain, req.headers, req.body, req.timeout)
-        elseif method == 'json' then
-          code, msg = json(req.domain, req.headers, req.json, req.timeout)
-        elseif method == 'file' then
-          code, msg = file(req.domain, req.headers, req.files, req.timeout)
-        end
-				response[index] = {code, msg, now() - t}
-				if #response >= len and not wakeuped then
-					wakeuped = true
-					cf_wakeup(co, true, response)
-				end
-				return
-      end)
-    end
-    return cf_wait()
+local function multi_request (list)
+	if type(list) ~= 'table' or #list < 1 then
+    return false, "[HTTPC ERROR]: Invalid request parameter."
   end
-  return nil, "2. 错误的参数"
+	local s = now()
+	local response = {}
+	local array = {}
+	for index, req in ipairs(list) do
+		local fn = map[req.method and lower(req.method)]
+		if not fn then
+			response[index] = {false, '[HTTPC ERROR]: Unsupported request method.', {}, now() - s}
+		else
+			tinsert(array, function ()
+				local code, msg, headers = fn(req.domain, req.headers, req.args or req.body or req.json or req.xml or req.files, req.timeout)
+				response[index] = {code, msg, headers, now() - s}
+			end)
+		end
+	end
+	cf_join(tunpack(array))
+	return true, response
 end
 
 

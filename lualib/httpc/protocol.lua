@@ -330,11 +330,14 @@ local function build_json_req (opt)
   if type(opt.json) == 'string' and opt.json ~= '' then
     insert(request, 'Content-Type: application/json')
     insert(request, fmt("Content-Length: %s", #opt.json))
-  end
-  if type(opt.json) == 'table' then
+  elseif type(opt.json) == 'table' then
     opt.json = json_encode(opt.json)
     insert(request, 'Content-Type: application/json')
     insert(request, "Content-Length: " .. #opt.json)
+  else
+    opt.json = ""
+    insert(request, 'Content-Type: application/json')
+    insert(request, "Content-Length: 0")
   end
   return concat(request, CRLF) .. CRLF2 .. opt.json
 end
@@ -357,11 +360,14 @@ local function build_xml_req(opt)
   if type(opt.xml) == 'string' and opt.xml ~= '' then
     insert(request, 'Content-Type: application/xml')
     insert(request, fmt("Content-Length: %s", #opt.xml))
-  end
-  if type(opt.xml) == 'table' then
+  elseif type(opt.xml) == 'table' then
     opt.xml = toxml(opt.xml, "xml")
     insert(request, 'Content-Type: application/xml')
     insert(request, "Content-Length: " .. #opt.xml)
+  else
+    opt.xml = ""
+    insert(request, 'Content-Type: application/xml')
+    insert(request, "Content-Length: 0")
   end
   return concat(request, CRLF) .. CRLF2 .. opt.xml
 end
