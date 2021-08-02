@@ -6,6 +6,8 @@
   #define alloca __alloca
 #endif
 
+#define MBSIZE (262144)
+
 static inline void SETSOCKETOPT(int sockfd) {
 	int Enable = 1;
 	int ret = 0;
@@ -105,8 +107,8 @@ static int udp_recv(lua_State *L){
 	int fd = lua_tointeger(L, 1);
 	if (fd < 0)
 		return 0;
-	int bsize = 65535;
-	char* str = alloca(65535);
+	int bsize = MBSIZE;
+	char* str = alloca(MBSIZE);
 	int rsize = read(fd, str, bsize);
 	if (rsize < 0)
 		return 0;
