@@ -9,6 +9,8 @@
   #define alloca __alloca
 #endif
 
+#define MBSIZE (262144)
+
 #define None (-1)
 #define SERVER (0)
 #define CLIENT (1)
@@ -513,7 +515,7 @@ static int tcp_peek(lua_State *L) {
 
   int bsize = lua_tointeger(L, 2);
   char* buffer = NULL;
-  if (bsize <= 262144)
+  if (bsize <= MBSIZE)
     buffer = alloca(bsize);
   else
     buffer = lua_newuserdata(L, bsize);
@@ -551,7 +553,7 @@ static int tcp_sslpeek(lua_State *L) {
 
   int bsize = lua_tointeger(L, 2);
   char* buffer = NULL;
-  if (bsize <= 262144)
+  if (bsize <= MBSIZE)
     buffer = alloca(bsize);
   else
     buffer = lua_newuserdata(L, bsize);
@@ -593,7 +595,7 @@ static int tcp_read(lua_State *L){
 
   errno = 0;
   char* str = NULL;
-  if (bytes <= 262144)
+  if (bytes <= MBSIZE)
     str = alloca(bytes);
   else
     str = lua_newuserdata(L, bytes);
@@ -630,7 +632,7 @@ static int tcp_sslread(lua_State *L){
 
   errno = 0;
   char* str = NULL;
-  if (bytes <= 262144)
+  if (bytes <= MBSIZE)
     str = alloca(bytes);
   else
     str = lua_newuserdata(L, bytes);
