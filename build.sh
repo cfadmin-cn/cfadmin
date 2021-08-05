@@ -26,7 +26,7 @@ git clone https://github.com/CandyMi/libev -b v4.33
 git clone https://github.com/CandyMi/libeio
 
 echo "========== build libev ==========" &&
-  cd ${current}/build/libev && sh autogen.sh && ./configure --prefix=/usr/local --enable-shared=no &&
+  cd ${current}/build/libev && sh autogen.sh && ./configure --prefix=/usr/local --enable-shared=no --with-pic &&
 
   ## 1. 将头文件与库文件放到cf框架目录下（Put the header files and library files in the cf framework directory）
   make && cp e*.h ${current}/src && cd .libs && cp $(printf "%s" "`ls | grep libev | grep -v la`") ${current}/
@@ -35,7 +35,7 @@ echo "========== build libev ==========" &&
   # make && make install
 
 echo "========== build libeio ==========" &&
-  cd ${current}/build/libeio && sh autogen.sh && ./configure --prefix=/usr/local --enable-shared=no &&
+  cd ${current}/build/libeio && sh autogen.sh && ./configure --prefix=/usr/local --enable-shared=no --with-pic &&
 
   ## 1. 将头文件与库文件放到cf框架目录下（Put the header files and library files in the cf framework directory）
   make && cp e*.h ${current}/src && cd .libs && cp $(printf "%s" "`ls | grep libeio | grep -v la`") ${current}/
