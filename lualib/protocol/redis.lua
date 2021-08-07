@@ -2,6 +2,8 @@ local log = require "logging"
 local class = require "class"
 local Co = require "internal.Co"
 local tcp = require "internal.TCP"
+local tcp_recv = tcp.recv
+local tcp_readline = tcp.readline
 
 local new_tab = require "sys".new_tab
 
@@ -29,7 +31,7 @@ local CRLF = '\x0d\x0a'
 local redcmd = {}
 
 local function read_response(sock)
-  local result = sock:readline("\r\n")
+  local result = tcp_readline(sock, CRLF)
   if not result then
     sock.state = false
     return nil, 'server close!!'
@@ -39,7 +41,7 @@ local function read_response(sock)
 end
 
 local function sock_readbytes(sock, bytes)
-	local buffer = sock:recv(bytes)
+	local buffer = tcp_recv(sock, bytes)
 	if not buffer then
 		return
 	end
@@ -48,9 +50,8 @@ local function sock_readbytes(sock, bytes)
 	end
 	bytes = bytes - #buffer
 	local buffers = {buffer}
-  local sock_read = sock.recv
 	while 1 do
-		buffer = sock_read(sock, bytes)
+		buffer = tcp_recv(sock, bytes)
 		if not buffer then
 			return
 		end
