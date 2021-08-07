@@ -128,7 +128,8 @@ local function setmeta(self)
         if
           key == 'multi_set' or key == 'multi_get' or key == 'multi_del' or
           key == 'multi_hget' or key == 'multi_hset' or key == 'multi_hdel' or
-          key == 'multi_zget' or key == 'multi_zset' or key == 'multi_zdel'
+          key == 'multi_zget' or key == 'multi_zset' or key == 'multi_zdel' or
+          key == 'zpop_front' or key == 'zpop_back' or key == 'zpush_front' or key == 'zpush_back'
         then
           keys = {key}
         end
