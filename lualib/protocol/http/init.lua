@@ -154,6 +154,14 @@ local function readall(sock, bsize, buffers)
   return true
 end
 
+local function cros_append(header, timeout)
+  insert(header, 'Access-Control-Allow-Origin: *')
+  insert(header, 'Access-Control-Allow-Headers: *')
+  insert(header, 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS')
+  insert(header, 'Access-Control-Allow-Credentials: true')
+  insert(header, 'Access-Control-Max-Age: ' .. (timeout or 86400))
+end
+
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
   local content = new_tab(0, 16)
   if METHOD == "GET" then
@@ -167,7 +175,7 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
       if body_len >= (max_body_size or (1024 * 1024)) then
         return nil, 413
       end
-      local buffers = new_tab(32, 0)
+      local buffers = new_tab(16, 0)
       local bsize = body_len
       local _, CRLF_END = find(buffer, RE_CRLF2)
       if #buffer > CRLF_END then
@@ -389,11 +397,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
         res[#res+1] = 'Origin: *'
         res[#res+1] = 'Allow: GET, POST, PUT, HEAD, OPTIONS'
         if enable_cros_timeout then
-          res[#res+1] = 'Access-Control-Allow-Origin: *'
-          res[#res+1] = 'Access-Control-Allow-Headers: *'
-          res[#res+1] = 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS'
-          res[#res+1] = 'Access-Control-Allow-Credentials: true'
-          res[#res+1] = 'Access-Control-Max-Age: ' .. enable_cros_timeout
+          cros_append(res, enable_cros_timeout)
         end
         res[#res+1] = 'Server: ' .. server
         res[#res+1] = 'Connection: keep-alive'
@@ -609,11 +613,7 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       end
       -- 如果启用了跨域, 则开启头部支持.
       if enable_cros_timeout then
-        header[#header+1] = 'Access-Control-Allow-Origin: *'
-        header[#header+1] = 'Access-Control-Allow-Headers: *'
-        header[#header+1] = 'Access-Control-Allow-Methods: GET, POST, PUT, HEAD, OPTIONS'
-        header[#header+1] = 'Access-Control-Allow-Credentials: true'
-        header[#header+1] = 'Access-Control-Max-Age: ' .. enable_cros_timeout
+        cros_append(header, enable_cros_timeout)
       end
       -- 不计算数据传输时间, 仅计算实际回调处理所用时间.
       tolog(http, statucode, PATH, HEADER['X-Real-IP'] or ipaddr, X_Forwarded_FORMAT(HEADER['X-Forwarded-For'] or ipaddr), METHOD, req_time(start))
@@ -634,7 +634,6 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
     :: CONTINUE ::
   end
 end
-
 
 function HTTP_PROTOCOL.RAW_DISPATCH(s, opt, http)
   if type(s) == 'table' then
