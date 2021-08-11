@@ -9,7 +9,7 @@ default :
 
 CC = cc
 
-CFLAGS = -O3 -Wall -shared -fPIC -fno-strict-aliasing
+CFLAGS = -O3 -Wall -shared -fPIC -fno-strict-aliasing -Wno-deprecated-declarations
 DLL = -lcore -lcrypto
 
 INCLUDES = -I../../../src -I/usr/local/include

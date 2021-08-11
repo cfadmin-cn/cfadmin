@@ -320,7 +320,7 @@ int lsm2sign(lua_State *L){
   const char* text = luaL_checklstring(L, 2, &tsize);
 
   EVP_PKEY *sm2key = load_sm2prikey(L);
-  EVP_PKEY_set_alias_type(sm2key, EVP_PKEY_SM2);
+  // EVP_PKEY_set_alias_type(sm2key, EVP_PKEY_SM2);
 
   size_t osize = EVP_PKEY_size(sm2key);
   const char *out = lua_newuserdata(L, osize);
@@ -348,7 +348,7 @@ int lsm2verify(lua_State *L){
   const char* cipher = luaL_checklstring(L, 3, &csize);
 
   EVP_PKEY *sm2key = load_sm2pubkey(L);
-  EVP_PKEY_set_alias_type(sm2key, EVP_PKEY_SM2);
+  // EVP_PKEY_set_alias_type(sm2key, EVP_PKEY_SM2);
 
   EVP_MD_CTX *md_ctx = EVP_MD_CTX_new();
   EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new(sm2key, NULL);
