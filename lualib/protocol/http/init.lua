@@ -234,19 +234,15 @@ local function ERROR_RESPONSE(http, code, path, ip, forword, method, speed)
   local response = {
       REQUEST_STATUCODE_RESPONSE(code),
       HTTP_DATE(),
-      'Accept-Ranges: none',
-      'Origin: *',
-      'Allow: GET, POST, PUT, HEAD, OPTIONS',
       'Connection: keep-alive',
       'Server: ' .. (http.__server or SERVER),
     }
   local error_page = PAGES[code]
   if error_page and http.__enable_error_pages then
-    response[#response+1] = 'Content-length: ' .. #error_page
-    response[#response+1] = 'Content-length: ' .. #error_page
+    insert(response, 'Content-Length: ' .. #error_page)
     return concat({concat(response, CRLF), error_page}, CRLF2)
   else
-    response[#response+1] = 'Content-length: 0'
+    insert(response, 'Content-Length: 0')
     return concat({concat(response, CRLF), CRLF2})
   end
 end
