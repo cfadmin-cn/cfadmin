@@ -1,13 +1,13 @@
 <h1></h1>
 <div align="right">
 
-  [English](./README.md) | 简体中文
+  [English](README.md) | 简体中文
 
 </div>
 
 <div align="center">
   <p>
-    <img align="center" src="https://cfadmin.cn/images/logo.png" />
+    <img align="center" src="https://doc.cfadmin.cn/images/logo.png" />
   </p>
   <b>高效的<font color="red">异步</font>源于设计, 卓越的<font color="red">性能</font>实践真理.</b>
   <br><br>
