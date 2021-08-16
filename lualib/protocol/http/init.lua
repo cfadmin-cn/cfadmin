@@ -394,8 +394,6 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
         local res = new_tab(16, 0)
         res[#res+1] = REQUEST_STATUCODE_RESPONSE(200)
         res[#res+1] = HTTP_DATE()
-        res[#res+1] = 'Origin: *'
-        res[#res+1] = 'Allow: GET, POST, PUT, HEAD, OPTIONS'
         if enable_cros_timeout then
           cros_append(res, enable_cros_timeout)
         end
@@ -557,11 +555,10 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
       end
       header[#header+1] = HTTP_DATE()
       header[#header+1] = 'Accept-Ranges: none'
-      header[#header+1] = 'Origin: *'
-      header[#header+1] = 'Allow: GET, POST, PUT, HEAD, OPTIONS'
       header[#header+1] = 'Server: ' .. server
       local Connection = 'Connection: keep-alive'
-      if not HEADER['Connection'] or lower(HEADER['Connection']) == 'close' then
+      local keepalive = HEADER['Connection'] or HEADER['connection']
+      if not keepalive or lower(keepalive) == 'close' then
         Connection = 'Connection: close'
       end
       header[#header+1] = Connection
