@@ -1,14 +1,15 @@
 local class = require "class"
 
-local new_tab = require("sys").new_tab
-
-local log = require "logging"
-local Log = log:new({ dump = true, path = 'internal-TCP' })
+local sys = require "sys"
+local new_tab = sys.new_tab
 
 local type = type
 local assert = assert
 local io_open = io.open
+local ssub = string.sub
 local spack = string.pack
+local sfind = string.find
+local concat = table.concat
 local insert = table.insert
 local remove = table.remove
 
@@ -74,6 +75,12 @@ end
 
 local function tcp_push(tcp)
   return insert(POOL, tcp)
+end
+
+local tab = new_tab(3, 0)
+local function buffer_concat(buf_1, buf_2)
+  tab[1], tab[2] = buf_1, buf_2
+  return concat(tab)
 end
 
 local TCP = class("TCP")
@@ -313,12 +320,13 @@ function TCP:readline(sp, nosp)
   if type(sp) ~= 'string' or #sp < 1 then
     return nil, "Invalid separator."
   end
-  assert(not self.read_co, "[TCP ERROR]: Try to call the 'recv' method multiple times.")
-  local buffer
-  local msize = 65535
+  assert(not self.read_co, "[TCP ERROR]: Try to call the 'readline' method multiple times.")
+  local _timeout = self._timeout
+  local fd, buffer = self.fd, nil
+  local asize, msize = 0, 1024
   while 1 do
     ::CONTONIE::
-    local buf, bsize = tcp_peek(self.fd, msize, true)
+    local buf, bsize = tcp_peek(fd, msize, true)
     if not buf then
       if bsize ~= 0 then
         return false, bsize
@@ -336,7 +344,7 @@ function TCP:readline(sp, nosp)
         self.read_co = nil
         return co_wakeup(co, true)
       end)
-      self.timer = ti_timeout(self._timeout, function ( )
+      self.timer = ti_timeout(_timeout, function ( )
         tcp_push(self.READ_IO)
         tcp_stop(self.READ_IO)
         self.timer = nil
@@ -345,23 +353,24 @@ function TCP:readline(sp, nosp)
         self.read_current_co = nil
         return co_wakeup(co, nil, "read timeout")
       end)
-      tcp_start(self.READ_IO, self.fd, EVENT_READ, self.read_co)
+      tcp_start(self.READ_IO, fd, EVENT_READ, self.read_co)
       local ok, errinfo = co_wait()
       if not ok then
         return false, errinfo
       end
       goto CONTONIE
     end
-    buffer = buffer and (buffer .. buf) or buf
-    local s, e = buffer:find(sp)
+    asize = asize + bsize
+    buffer = buffer and buffer_concat(buffer, buf) or buf
+    local s, e = sfind(buffer, sp)
     if s and e then
-      tcp_peek(self.fd, #buf - (#buffer - e), false)
+      tcp_peek(fd, bsize - (asize - e), false)
       if nosp then
         e = s - 1
       end
-      return buffer:sub(1, e), e
+      return ssub(buffer, 1, e), e
     end
-    tcp_peek(self.fd, bsize, false)
+    tcp_peek(fd, bsize, false)
   end
 end
 
@@ -373,13 +382,14 @@ function TCP:ssl_readline(sp, nosp)
   if type(sp) ~= 'string' or #sp < 1 then
     return nil, "Invalid separator."
   end
-  assert(not self.read_co, "[TCP ERROR]: Try to call the 'recv' method multiple times.")
-  local buffer
-  local msize = 65535
+  assert(not self.read_co, "[TCP ERROR]: Try to call the 'ssl_readline' method multiple times.")
+  local _timeout = self._timeout
+  local ssl, buffer = self.ssl, nil
+  local asize, msize = 0, 1024
   -- 开始读取数据
   while 1 do
     ::CONTONIE::
-    local buf, bsize = tcp_sslpeek(self.ssl, msize, true)
+    local buf, bsize = tcp_sslpeek(ssl, msize, true)
     if not buf then
       if bsize ~= 0 then
         return false, bsize
@@ -397,7 +407,7 @@ function TCP:ssl_readline(sp, nosp)
         self.read_co = nil
         return co_wakeup(co, true)
       end)
-      self.timer = ti_timeout(self._timeout, function ( )
+      self.timer = ti_timeout(_timeout, function ( )
         tcp_push(self.READ_IO)
         tcp_stop(self.READ_IO)
         self.timer = nil
@@ -413,16 +423,17 @@ function TCP:ssl_readline(sp, nosp)
       end
       goto CONTONIE
     end
-    buffer = buffer and (buffer .. buf) or buf
-    local s, e = buffer:find(sp)
+    asize = asize + bsize
+    buffer = buffer and buffer_concat(buffer, buf) or buf
+    local s, e = sfind(buffer, sp)
     if s and e then
-      tcp_sslpeek(self.ssl, #buf - (#buffer - e), false)
+      tcp_sslpeek(ssl, bsize - (asize - e), false)
       if nosp then
         e = s - 1
       end
-      return buffer:sub(1, e), e
+      return ssub(buffer, 1, e), e
     end
-    tcp_sslpeek(self.ssl, bsize, false)
+    tcp_sslpeek(ssl, bsize, false)
   end
 end
 
@@ -478,7 +489,6 @@ end
 function TCP:ssl_recv(bytes)
   local ssl = self.ssl
   if not ssl then
-    Log:ERROR("Please use recv method :)")
     return nil, "Please use recv method :)"
   end
   local buf, len = tcp_sslread(ssl, bytes)
@@ -500,7 +510,7 @@ function TCP:ssl_recv(bytes)
   self.READ_IO = tcp_pop()
   self.read_current_co = co_self()
   self.read_co = co_new(function ( )
-    while true do
+    while 1 do
       local buffer, bsize = tcp_sslread(ssl, bytes)
       if (buffer and bsize) or (not buffer and not bsize) then
         if self.timer then
