@@ -17,6 +17,7 @@ local null = null
 local type = type
 local pcall = pcall
 local error = error
+local tostring = tostring
 local strpack = string.pack
 local strunpack = string.unpack
 
@@ -918,8 +919,16 @@ function mssql:connect( ... )
     return nil, "Connection failed: please recreate the socket object."
   end
 
-  if not self.sock:connect_ex(self.unixdomain or "") and not self.sock:connect(self.host, self.port) then
-    return nil, "MSSQL Server Connect failed."
+  if self.unixdomain then
+    if not self.sock:connect_ex(self.unixdomain) then
+      return nil, "MSSQL Server [" .. tostring(self.unixdomain) .. "] Connect failed."
+    end
+  elseif self.host and self.port then
+    if not self.sock:connect(self.host, self.port) then
+      return nil, "MSSQL Server TCP Connect failed."
+    end
+  else
+    return nil, "MSSQL Server driver Invalid Configure."
   end
 
   -- 发送TDS-7.0登录协议

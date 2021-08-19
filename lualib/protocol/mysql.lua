@@ -12,17 +12,13 @@ local randomkey = crypt.randomkey_ex
 local rsa_oaep_pkey_encode = crypt.rsa_public_key_oaep_padding_encode
 
 local sub = string.sub
-local find = string.find
 local strgsub = string.gsub
 local strformat = string.format
 local strbyte = string.byte
-local strchar = string.char
 local strrep = string.rep
 local strunpack = string.unpack
 local strpack = string.pack
-local setmetatable = setmetatable
 local assert = assert
-local select = select
 local tonumber = tonumber
 local toint = math.tointeger
 local insert = table.insert
@@ -31,6 +27,7 @@ local concat = table.concat
 local null = null
 local type = type
 local ipairs = ipairs
+local tostring = tostring
 local io_open = io.open
 local io_remove = os.remove
 
@@ -462,8 +459,16 @@ end
 
 local function mysql_login (self)
 
-  if not self.sock:connect_ex(self.unixdomain or "") and not self.sock:connect(self.host, self.port) then
-    return nil, "MySQL Server Connect failed."
+  if self.unixdomain then
+    if not self.sock:connect_ex(self.unixdomain or "") then
+      return nil, "MySQL Server [" .. tostring(self.unixdomain) .. "] Connect failed."
+    end
+  elseif self.host and self.port then
+    if not self.sock:connect(self.host, self.port) then
+      return nil, "MySQL Server TCP Connect failed."
+    end
+  else
+    return nil, "MySQL Server driver Invalid Configure."
   end
 
   local len, err = read_head(self)

@@ -13,6 +13,7 @@ local new_tab = sys.new_tab
 
 local null = null
 local tonumber = tonumber
+local tostring = tostring
 
 local fmt = string.format
 local toint = math.tointeger
@@ -486,8 +487,16 @@ end
 
 function pgsql:connect()
 
-  if not self.sock:connect_ex(self.unixdomain or "") and not self.sock:connect(self.host, self.port) then
-    return nil, "MySQL Server Connect failed."
+  if self.unixdomain then
+    if not self.sock:connect_ex(self.unixdomain or "") then
+      return nil, "PGSQL Server [" .. tostring(self.unixdomain) .. "] Connect failed."
+    end
+  elseif self.host and self.port then
+    if not self.sock:connect(self.host, self.port) then
+      return nil, "PGSQL Server TCP Connect failed."
+    end
+  else
+    return nil, "PGSQL Server driver Invalid Configure."
   end
 
   -- 发送启动协议
