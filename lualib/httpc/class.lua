@@ -72,23 +72,27 @@ function httpc:check_domain(opt)
 end
 
 function httpc:send_request(opt, data)
+  self.doing = assert(not self.doing, "httpc class cannot be used by multiple coroutines at the same time.")
+  -- 创建链接或重连
   if not self.sock then
     if not self.reconnect then
+      self.doing = nil
       return nil, "httpc class can't connect to server 1 : " .. self.domain
     end
     local sock = sock_new():timeout(self.timeout)
-    local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
-    if not ok then
+    if not sock_connect(sock, opt.protocol, opt.domain, opt.port) then
       sock:close()
+      self.doing = nil
       return nil, "httpc class can't connect to server : " .. self.domain
     end
     self.sock = sock
   end
-
-  local ok, err = sock_send(self.sock, opt.protocol, data)
-  if not ok then
+  -- 发送请求数据
+  if not sock_send(self.sock, opt.protocol, data) then
     self.sock:close()
+    self.sock = nil
     if not self.reconnect then
+      self.doing = nil
       return nil, "httpc class can't connect to server 2 : " .. self.domain
     end
     local ok, err
@@ -96,25 +100,30 @@ function httpc:send_request(opt, data)
     ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
     if not ok then
       sock:close()
+      self.doing = nil
       return ok, err
     end
     ok, err = sock_send(sock, opt.protocol, data)
     if not ok then
       sock:close()
+      self.doing = nil
       return nil, err
     end
     self.sock = sock
   end
+  self.doing = nil
   return true
 end
 
 -- 读取响应
 function httpc:read_response(opt)
+  self.doing = assert(not self.doing, "class cannot be used by multiple coroutines at the same time.")
   local code, msg, headers = httpc_response(self.sock, opt.protocol)
   if not code then
     self.sock:close()
     self.sock = nil
   end
+  self.doing = nil
   return code, msg, headers
 end
 
