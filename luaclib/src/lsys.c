@@ -11,6 +11,12 @@ static int lnow(lua_State *L){
 	return 1;
 }
 
+// 提供一个精确到毫秒的时间戳
+static int ltime(lua_State *L){
+	lua_pushinteger(L, (uint64_t)(now() * 1e3));
+	return 1;
+}
+
 /* 此方法可用于检查是否为有效ipv4地址*/
 static int lipv4(lua_State *L){
   size_t str_len = 0;
@@ -178,6 +184,7 @@ LUAMOD_API int luaopen_sys(lua_State *L){
   luaL_Reg sys_libs[] = {
     {"os", los},
     {"now", lnow},
+    {"time", ltime},
     {"date", ldate},
     {"ipv4", lipv4},
     {"ipv6", lipv6},
