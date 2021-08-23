@@ -270,9 +270,9 @@ end
 function httpd:run()
   if self.ip and self.port then
     if self.logging then
-      self.logging:dump(fmt('[%s] [INFO] httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), self.ip, self.port))
+      self.logging:dump(fmt('[%s] [INFO] httpd listen: %s:%d \n', os_date("%Y/%m/%d %H:%M:%S"), self.ip, self.port))
     end
-    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s:%s \n', os_date("%Y/%m/%d %H:%M:%S"), self.ip, self.port))
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd listen: %s:%d \n', os_date("%Y/%m/%d %H:%M:%S"), self.ip, self.port))
   end
 
   if self.unix_domain_path then
@@ -284,9 +284,9 @@ function httpd:run()
 
   if self.ssl_ip and self.ssl_port and self.ssl_key and self.ssl_cert then
     if self.logging then
-      self.logging:dump(fmt('[%s] [INFO] httpd ssl listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), self.ssl_ip, self.ssl_port))
+      self.logging:dump(fmt('[%s] [INFO] httpd ssl listen: %s:%d\n', os_date("%Y/%m/%d %H:%M:%S"), self.ssl_ip, self.ssl_port))
     end
-    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd ssl listen: %s:%s\n', os_date("%Y/%m/%d %H:%M:%S"), self.ssl_ip, self.ssl_port))
+    io_write(fmt('\27[32m[%s] [INFO]\27[0m httpd ssl listen: %s:%d\n', os_date("%Y/%m/%d %H:%M:%S"), self.ssl_ip, self.ssl_port))
   end
 
   if self.logging then
