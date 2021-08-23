@@ -32,10 +32,10 @@ local main_waited = true
 
 local co_num = 0
 
-local co_map = new_tab(0, 1024)
+local co_map = new_tab(0, 128)
 co_map[co_self()] = {co_self(), nil, false}
 
-local co_wlist = new_tab(512, 0)
+local co_wlist = new_tab(128, 0)
 
 local function co_wrapper()
   return co_new(function ()
@@ -45,7 +45,7 @@ local function co_wrapper()
     local start, total = 1, #co_wlist
     -- 使用两级`FIFO`队列交替管理协程的运行与切换, 并且每次预分配的`FIFO`队列的大小与上次执行的协程的数量相关.
     local co_rlist = co_wlist
-    co_wlist = new_tab((total & ~3) + 4, 0)
+    co_wlist = new_tab(128, 0)
     while true do
       for index = start, total do
         local obj = co_rlist[index]
@@ -75,7 +75,7 @@ local function co_wrapper()
         total = #co_wlist
       end
       co_rlist = co_wlist
-      co_wlist = new_tab((total & ~3) + 4, 0)
+      co_wlist = new_tab(128, 0)
     end
   end)
 end

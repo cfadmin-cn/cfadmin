@@ -19,9 +19,9 @@ local co_wait_ex = coroutine.yield
 local tremove = table.remove
 local tinsert = table.insert
 
-local Timer = new_tab(0, 1 << 10)
+local Timer = new_tab(0, 128)
 
-local Tlist = new_tab(1 << 10, 0)
+local Tlist = new_tab(128, 0)
 
 -- 创建`Timer`对象
 local function Timer_new()

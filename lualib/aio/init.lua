@@ -37,7 +37,7 @@ local assert = assert
 local toint = math.tointeger
 local tconcat = table.concat
 
-local aio = new_tab(0, 1 << 16)
+local aio = new_tab(0, 128)
 
 local File = class("__AIO__")
 

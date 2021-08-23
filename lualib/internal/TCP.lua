@@ -68,7 +68,7 @@ local tcp_ssl_set_userdata_key = tcp.ssl_set_userdata_key
 local EVENT_READ  = 0x01
 local EVENT_WRITE = 0x02
 
-local POOL = new_tab(1 << 10, 0)
+local POOL = new_tab(128, 0)
 local function tcp_pop()
   return remove(POOL) or tcp_new()
 end
