@@ -98,7 +98,7 @@ function Cookie.deserialization (cs)
     Cookie.client[co] = Cookies
     return
   end
-  for name, value in splite(cs, '([^ ;]+)=([^ ;]+)') do
+  for name, value in splite(cs, '([^ =]+)=([^ ;]+)') do
     Cookies[name] = value
   end
   Cookie.client[co] = Cookies
