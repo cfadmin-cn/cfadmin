@@ -87,7 +87,7 @@ local function check_ip(ip)
 end
 
 local function gen_cache()
-    local file = io.open("/etc/hosts", "r")
+    local file = io.open("/etc/hosts", "r") or io.open("/cygdrive/c/Windows/System32/drivers/etc/hosts", "r") or io.open("/c/Windows/System32/drivers/etc/hosts", "r")
     if file then
       for line in file:lines() do
         if not find(line, "^([%G]*)#") then
