@@ -7,14 +7,14 @@
 
 // 提供一个精确到微秒的时间戳
 static int lnow(lua_State *L){
-	lua_pushnumber(L, now());
-	return 1;
+  lua_pushnumber(L, now());
+  return 1;
 }
 
 // 提供一个精确到毫秒的时间戳
 static int ltime(lua_State *L){
-	lua_pushinteger(L, (uint64_t)(now() * 1e3));
-	return 1;
+  lua_pushinteger(L, (uint64_t)(now() * 1e3));
+  return 1;
 }
 
 /* 此方法可用于检查是否为有效ipv4地址*/
@@ -110,29 +110,29 @@ static int lnew_tab(lua_State *L){
   return 1;
 }
 
-/* 高效替换字符串 */
-static int lstrrep(lua_State *L){
-  size_t src_len = 0;
-  const char *src = (const char *)luaL_checklstring(L, 1, &src_len);
-  if (!src || src_len == 0)
-    return luaL_error(L, "Invalid source string.");
+/* 创建表 */
+static int lusage(lua_State *L) {
+  #include <sys/resource.h>
+  struct rusage usage;
+  int ret = getrusage(RUSAGE_SELF , &usage);
+  if (ret == -1){
+    lua_pushnil(L);
+    lua_pushstring(L, strerror(errno));
+    return 2;
+  }
 
-  lua_Integer pos = luaL_checkinteger(L, 2);
-  if (pos < 1 || pos > src_len)
-    return luaL_error(L, "Invalid source pos.");
+  lua_createtable(L, 0, 8);
 
-  size_t rep_len = 0;
-  const char *rep = (const char *)luaL_checklstring(L, 3, &rep_len);
-  if (!rep || rep_len == 0 || rep_len > src_len || rep_len > (src_len - pos + 1))
-    return luaL_error(L, "Invalid rep string.");
+  #define luaL_setki(L, k, i) ({lua_pushstring(L, (k)); lua_pushinteger(L, (i)); lua_rawset(L, -3);})
+  #define luaL_setkn(L, k, v) ({lua_pushstring(L, (k)); lua_pushnumber(L, (v));  lua_rawset(L, -3);})
+  luaL_setkn(L, "utime", usage.ru_utime.tv_sec +  (usage.ru_utime.tv_usec * 1e-6));
+  luaL_setkn(L, "ktime", usage.ru_stime.tv_sec +  (usage.ru_stime.tv_usec * 1e-6));
+  luaL_setki(L, "rss", usage.ru_maxrss); luaL_setki(L, "swap", usage.ru_nswap);
+  luaL_setki(L, "inblock", usage.ru_inblock); luaL_setki(L, "oublock", usage.ru_oublock);
+  luaL_setki(L, "hard_page_fault", usage.ru_majflt); luaL_setki(L, "soft_page_fault", usage.ru_minflt);
+  #undef luaL_setki
+  #undef luaL_setkn
 
-  luaL_Buffer B;
-  char* str = luaL_buffinitsize(L, &B, src_len);
-  /* 将源字符串拷贝到开辟空间 */
-  memmove(str, src, src_len);
-  /* 将替换内容覆盖原先的内存 */
-  memmove(str + (pos - 1), rep, rep_len);
-  luaL_pushresultsize(&B, src_len);
   return 1;
 }
 
@@ -188,7 +188,7 @@ LUAMOD_API int luaopen_sys(lua_State *L){
     {"date", ldate},
     {"ipv4", lipv4},
     {"ipv6", lipv6},
-    {"strrep", lstrrep},
+    {"usage", lusage},
     {"str2ip", lstr2ip},
     {"ip2str", lip2str},
     {"hostname", lhostname},
