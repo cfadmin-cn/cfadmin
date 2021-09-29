@@ -53,6 +53,7 @@ local TTimer = ti_new()
 Timer.TTimer = TTimer
 
 Timer.TCo = co_new(function ()
+  local run_idx, time_idx, func_idx, again_idx, async_idx = 1, 2, 3, 4, 5
   local TNow = get_tid(0)
   co_wait_ex(co_self())
   while true do
@@ -63,35 +64,41 @@ Timer.TCo = co_new(function ()
       if list then
         for idx = 1, #list do
           local ctx = list[idx]
-          if ctx[1] then
-            co_spawn(ctx[3])
-            if ctx[4] then -- 如果需要重复
-              set_ctx(get_tid(ctx[2]), ctx)
+          if ctx[run_idx] then
+            local cb = ctx[func_idx]
+            if ctx[async_idx] then
+              cb()
+            else
+              co_spawn(cb)
+            end
+            if ctx[again_idx] then -- 如果需要重复
+              set_ctx(get_tid(ctx[time_idx]), ctx)
             end
           end
         end
         set_ctx(tid, nil)
       end
     end
-    TNow = now
+    TNow = now + 1
     co_wait_ex()
   end
 end)
 
 -- 初始化
 co_start(Timer.TCo)
--- 选一个误差最小的间隔
-ti_start(TTimer, 0.01, Timer.TCo)
+-- 选更小的时间来定期检查.
+ti_start(TTimer, 0.005, Timer.TCo)
 
----@class Timer @定时器对象
+---@class Timer
 
 ---comment 初始化定时器对象
 ---@param timeout number   @超时时间
 ---@param again   boolean  @是否重复
+---@param async   boolean  @直接调用
 ---@param func    function @回调函数
----@return Timer
-local function Timer_Init(timeout, again, func)
-  local ctx = set_ctx(get_tid(timeout), { true, timeout, func, again })
+---@return Timer  @定时器对象
+local function Timer_Init(timeout, again, async, func)
+  local ctx = set_ctx(get_tid(timeout), { true, timeout, func, again, async })
   return {
     stop = function (self)
       if self and ctx and ctx[1] then
@@ -108,7 +115,7 @@ function Timer.timeout(timeout, callback)
   if type(timeout) ~= 'number' or timeout <= 0 or type(callback) ~= 'function' then
     return
   end
-  return Timer_Init(timeout, false, callback)
+  return Timer_Init(timeout, false, false, callback)
 end
 
 ---comment 重复定时器
@@ -118,7 +125,7 @@ function Timer.at(repeats, callback)
   if type(repeats) ~= 'number' or repeats <= 0 or type(callback) ~= 'function' then
     return
   end
-  return Timer_Init(repeats, true, callback)
+  return Timer_Init(repeats, true, false, callback)
 end
 
 ---comment 休眠当前协程
@@ -128,7 +135,7 @@ function Timer.sleep(nsleep)
     return
   end
   local coctx = co_self()
-  Timer_Init(nsleep, false, function ()
+  Timer_Init(nsleep, false, true, function ()
     return co_wakeup(coctx)
   end)
   co_wait()
