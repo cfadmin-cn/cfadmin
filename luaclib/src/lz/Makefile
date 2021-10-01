@@ -12,7 +12,7 @@ CC = cc
 INCLUDES += -I../../../src -I/usr/local/include
 LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
 
-CFLAGS = -O3 -Wall -shared -fPIC
+CFLAGS = -O3 -Wall -shared -fPIC -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
 DLL = -lcore -lz
 
 build:
