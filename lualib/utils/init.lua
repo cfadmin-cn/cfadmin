@@ -1,3 +1,6 @@
+require "utils.string"
+require "utils.table"
+
 -- 格式化输出(美化)
 _G["var_dump"] = function (data, showMetatable, lastCount)
     if type(data) ~= "table" then
@@ -24,8 +27,7 @@ _G["var_dump"] = function (data, showMetatable, lastCount)
         for key,value in pairs(data) do
             for i = 1,count do io.write("      ") end
             if type(key) == "string" then
-                -- io.write("\"", key, "\" = ")
-				io.write('["', key, '"] = ')
+                io.write('["', key, '"] = ')
             elseif type(key) == "number" then
                 io.write("[", key, "] = ")
             else
@@ -43,26 +45,3 @@ _G["var_dump"] = function (data, showMetatable, lastCount)
         io.write("\n")
     end
 end
-
--- local co = require "internal.Co"
--- local tcp = require "internal.TCP"
--- local Timer = require "internal.Timer"
--- co.spawn(function ( ... )
---     while 1 do
---         local self = co.self()
---         local ti = Timer.timeout(1, function()
---             local co_count, task_count = co.count()
---             local tcp_count = tcp.count()
---             local time_count = Timer.count()
---             print("=======================")
---             print("co 数量为:", co_count)
---             print("tcp 数量为:", tcp_count)
---             print("task 数量为:", task_count)
---             print("timer 数量为:", time_count)
---             print("当前内存为:", collectgarbage('count'))
---             print("=======================")
---             co.wakeup(self)
---         end)
---         co.wait()
---     end
--- end)
