@@ -32,8 +32,6 @@ internal :
 	@$(MAKE) -C src/lz build
 	@echo "CC	-	lfs"
 	@$(MAKE) -C src/lfs build
-	@echo "CC	-	lffi"
-	@$(MAKE) -C src/lffi build
 	@echo "CC	-	lpbc"
 	@$(MAKE) -C src/lpbc build
 	@echo "CC	-	lpeg"
