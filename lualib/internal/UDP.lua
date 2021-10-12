@@ -8,10 +8,15 @@ local co_self = co.self
 local co_wakeup = co.wakeup
 local co_wait = co.wait
 
+local G_Reference = {}
+local tab = debug.getregistry()
+tab['__G_UDP__'] = G_Reference
+
 local UDP = class("UDP")
 
 function UDP:ctor(opt)
   self.udp = udp.new()
+  G_Reference[self] = true
 end
 
 -- 超时时间
@@ -83,6 +88,8 @@ function UDP:close()
   if self._timeout then
     self._timeout = nil
   end
+
+  G_Reference[self] = nil
 end
 
 return UDP

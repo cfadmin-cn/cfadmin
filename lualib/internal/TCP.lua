@@ -65,6 +65,10 @@ local tcp_ssl_set_privatekey = tcp.ssl_set_privatekey
 local tcp_ssl_set_certificate = tcp.ssl_set_certificate
 local tcp_ssl_set_userdata_key = tcp.ssl_set_userdata_key
 
+local G_Reference = {}
+local tab = debug.getregistry()
+tab['__G_TCP__'] = G_Reference
+
 local EVENT_READ  = 0x01
 local EVENT_WRITE = 0x02
 
@@ -106,6 +110,7 @@ function TCP:ctor(...)
   -- 配套密码
   self.ssl_password = nil
 --]]
+  G_Reference[self] = true
 end
 
 -- 超时时间
@@ -870,6 +875,7 @@ function TCP:close()
     self.sfd = nil
   end
 
+  G_Reference[self] = nil
 end
 
 return TCP
