@@ -9,6 +9,10 @@
   #define alloca __alloca
 #endif
 
+#ifndef MSG_NOSIGNAL
+  #define MSG_NOSIGNAL (0)
+#endif
+
 #define MBSIZE (262144)
 
 #define None (-1)
@@ -44,6 +48,16 @@ static inline void SETSOCKETOPT(int sockfd, int mode){
       LOG("ERROR", strerror(errno));
       return core_exit();
     }
+  }
+#endif
+
+#ifdef SO_NOSIGPIPE
+  // 屏蔽信号
+  ret = setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &Enable, sizeof(Enable));
+  if (ret < 0) {
+    LOG("ERROR", "Setting SO_NOSIGPIPE failed.");
+    LOG("ERROR", strerror(errno));
+    return core_exit();
   }
 #endif
 
@@ -309,6 +323,7 @@ static int create_client_unixsock(const char* path, size_t path_len) {
 
   int ret = connect(sockfd, (struct sockaddr*)&UN, sizeof(UN));
   if (0 > ret) {
+    LOG("ERROR", strerror(errno));
     close(sockfd);
     return -1;
   }
@@ -467,7 +482,7 @@ IO_SENDFILE(CORE_P_ core_io *io, int revents){
     for(;;) {
       int rBytes = pread(sf->fd, buf, sf->offset, sf->pos);
       if (rBytes == 0) { lua_pushboolean(sf->L, 1); break; } // 所有数据写入发送完毕.
-      int wBytes = write(io->fd, buf, rBytes);
+      int wBytes = send(io->fd, buf, rBytes, MSG_DONTWAIT | MSG_NOSIGNAL);
       if (wBytes <= 0) {
         if (errno == EINTR) continue;
         if (errno == EWOULDBLOCK) return;
@@ -665,9 +680,7 @@ static int tcp_write(lua_State *L){
   errno = 0;
   int offset = lua_tointeger(L, 3);
   do {
-
-   int wsize = write(fd, response + offset, resp_len - offset);
-
+   int wsize = send(fd, response + offset, resp_len - offset, MSG_DONTWAIT | MSG_NOSIGNAL);
    if (wsize > 0) { lua_pushinteger(L, wsize); return 1; }
 
    if (wsize < 0){
