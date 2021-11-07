@@ -262,8 +262,7 @@ static int create_client_fd(const char *ipaddr, int port){
   }
 
   int ret = connect(sockfd, (struct sockaddr*)&SA, sizeof(SA));
-  if (ret < 0 && errno != EINPROGRESS){
-    LOG("ERROR", strerror(errno));
+  if (ret != 0 && errno != EINPROGRESS) {
     close(sockfd);
     return -1;
   }
