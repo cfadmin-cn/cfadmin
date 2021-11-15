@@ -90,8 +90,12 @@ static inline void cfadmin_specify_kill_process(const char *spid) {
 /* 指定子进程数量 */
 static inline void cfadmin_specify_nprocess(const char* w) {
   nprocess = atoi(w);
+  /* 检查核心数量是否有效 */
   if (nprocess <= 0 || nprocess > 255 )
     nprocess = 1;
+  /* 自动检查可用核心数量 */
+  if (!strcmp(w, "auto"))
+    nprocess = sysconf(_SC_NPROCESSORS_ONLN) < 1 ? 1 : sysconf(_SC_NPROCESSORS_ONLN);
 }
 
 /* 后台运行 */
