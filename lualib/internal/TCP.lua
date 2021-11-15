@@ -115,7 +115,7 @@ end
 
 -- 超时时间
 function TCP:timeout(Interval)
-  if Interval and Interval > 0 then
+  if type(Interval) == 'number' and Interval >= 0 then
     self._timeout = Interval
   end
   return self
