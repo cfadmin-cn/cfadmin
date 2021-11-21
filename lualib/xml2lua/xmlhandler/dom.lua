@@ -6,7 +6,7 @@ local function init()
     }
 end
 
---- @module Handler to generate a DOM-like node tree structure with
+-- @module Handler to generate a DOM-like node tree structure with
 --      a single ROOT node parent - each node is a table comprising 
 --      the fields below.
 --  

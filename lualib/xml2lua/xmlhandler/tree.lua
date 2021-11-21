@@ -7,7 +7,7 @@ local function init()
     return obj
 end
 
---- @module XML Tree Handler.
+-- @module XML Tree Handler.
 -- Generates a lua table from an XML content string.
 -- It is a simplified handler which attempts
 -- to generate a more 'natural' table based structure which
