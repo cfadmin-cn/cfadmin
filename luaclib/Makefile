@@ -11,11 +11,15 @@ INCLUDES += -I../src -I/usr/local/include
 LIBS += -L./ -L../ -L/usr/local/lib
 # CFLAGS = -Wall -O3 -fPIC --shared -DJEMALLOC -ljemalloc -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
 # CFLAGS = -Wall -O3 -fPIC --shared -DTCMALLOC -ltcmalloc -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
-CFLAGS = -Wall -O3 -fPIC --shared -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
+CFLAGS = -Wall -O3 -fPIC --shared -Wno-unused-function -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
 
 internal :
 	@echo "CC	-	lsys"
 	@$(CC) -o sys.so src/lsys.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
+	@echo "CC	-	lpack"
+	@$(CC) -o pack.so src/lpack.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
+	@echo "CC	-	lchild"
+	@$(CC) -o child.so src/lchild.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	@echo "CC	-	ludp"
 	@$(CC) -o udp.so src/ludp.c $(CFLAGS) $(INCLUDES) $(LIBS) -lcore
 	@echo "CC	-	ltask"

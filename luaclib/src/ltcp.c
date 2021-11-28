@@ -322,7 +322,7 @@ static int create_client_unixsock(const char* path, size_t path_len) {
 
   int ret = connect(sockfd, (struct sockaddr*)&UN, sizeof(UN));
   if (0 > ret) {
-    LOG("ERROR", strerror(errno));
+    // LOG("ERROR", strerror(errno));
     close(sockfd);
     return -1;
   }
