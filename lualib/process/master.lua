@@ -5,6 +5,9 @@ local dataset = require "process.dataset"
 local channel = require "process.channel"
 local channel_send = channel.send
 
+local lpack = require "pack"
+local lpack_encode = lpack.encode
+
 local session = require "process.session"
 local session_get_pid = session.get_pid
 
@@ -29,17 +32,16 @@ end
 
 ---comment 向所有`Worker`进程广播消息
 function process.broadcast(...)
+  local data = lpack_encode(nil, ...)
   for _, chan in pairs(channels) do
-    channel_send(chan, nil, ...)
+    channel_send(chan, data)
   end
 end
 
 ---comment 响应消息
 ---@param sessionid integer @响应`sessionid`的消息
 function process.ret(sessionid, ...)
-  local pid = session_get_pid(assert(sessionid, "Invalid `sessionid`"))
-  local chan = channels[pid]
-  channel_send(chan, sessionid, ...)
+  channel_send(channels[session_get_pid(assert(sessionid, "Invalid `sessionid`"))], lpack_encode(sessionid, ...))
 end
 
 ---comment 注册进程事件

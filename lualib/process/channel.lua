@@ -31,7 +31,7 @@ function Channel:ctor()
   self.id = dataset.get('pid')
 end
 
-function Channel:send(...)
+function Channel:send(data)
   if not self.queue then
     self.queue = {}
     local sock = self.sock
@@ -50,8 +50,7 @@ function Channel:send(...)
     self.waited = nil
     cf_wakeup(self.writer)
   end
-  self.queue[#self.queue + 1] = lpack_encode(...)
-  return true
+  self.queue[#self.queue + 1] = data
 end
 
 function Channel:recv()
@@ -132,7 +131,7 @@ function Channel:connect(mode)
       if self.sock:connect_ex(sockname) then
         self.sock:set_read_buffer_size(MAX_BUFFER_SIZE)
         self.sock:set_write_buffer_size(MAX_BUFFER_SIZE)
-        self:send(self.id)
+        self:send(lpack_encode(self.id))
         break
       end
     end
