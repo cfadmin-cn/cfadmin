@@ -137,6 +137,16 @@ function TCP:set_backlog(backlog)
   return self
 end
 
+-- 设置Read buffer大小
+function TCP:set_read_buffer_size(size)
+  tcp_set_read_buf(self.fd, size)
+end
+
+-- 设置Write buffer大小
+function TCP:set_write_buffer_size(size)
+  tcp_set_write_buf(self.fd, size)
+end
+
 -- 开启验证
 function TCP:ssl_set_verify()
   if not self.ssl or not self.ssl_ctx then
@@ -244,16 +254,6 @@ function TCP:send(buf)
     return wlen == #buf
   end
   assert(not self.send_co, "[TCP ERROR]: Try to call the 'send' method multiple times.")
-  -- 缓解发送大量数据集的时候调用频繁的问题
-  if not self.wsize or self.wsize < #buf then
-    self.wsize = #buf
-    if self.wsize > (1 << 16) then
-      if self.wsize > (1 << 20) then
-        self.wsize = 1 << 20
-      end
-      tcp_set_write_buf(self.fd, self.wsize);
-    end
-  end
   local co = co_self()
   self.SEND_IO = tcp_pop()
   self.send_current_co = co_self()
@@ -286,16 +286,6 @@ function TCP:ssl_send(buf)
     return wlen == #buf
   end
   assert(not self.send_co, "[TCP ERROR]: Try to call the 'send' method multiple times.")
-  -- 缓解发送大量数据集的时候调用频繁的问题
-  if not self.wsize or self.wsize < #buf then
-    self.wsize = #buf
-    if self.wsize > (1 << 16) then
-      if self.wsize > (1 << 20) then
-        self.wsize = 1 << 20
-      end
-      tcp_set_write_buf(self.fd, self.wsize);
-    end
-  end
   local co = co_self()
   self.SEND_IO = tcp_pop()
   self.send_current_co = co_self()
@@ -452,16 +442,6 @@ function TCP:recv(bytes)
     return data, len
   end
   assert(not self.read_co, "[TCP ERROR]: Try to call the 'recv' method multiple times.")
-  -- 优化大数据集的调用次数太多的问题
-  if not self.rsize or self.rsize < bytes then
-    self.rsize = bytes
-    if self.rsize > (1 << 16) then
-      if self.rsize > (1 << 20) then
-        self.rsize = 1 << 20
-      end
-      tcp_set_read_buf(fd, self.rsize);
-    end
-  end
   local coctx = co_self()
   self.READ_IO = tcp_pop()
   self.read_current_co = co_self()
@@ -501,16 +481,6 @@ function TCP:ssl_recv(bytes)
     return buf, len
   end
   assert(not self.read_co, "[TCP ERROR]: Try to call the 'recv' method multiple times.")
-  -- 优化大数据集的调用次数太多的问题
-  if not self.rsize or self.rsize < bytes then
-    self.rsize = bytes
-    if self.rsize > (1 << 16) then
-      if self.rsize > (1 << 20) then
-        self.rsize = 1 << 20
-      end
-      tcp_set_read_buf(self.fd, self.rsize);
-    end
-  end
   local coctx = co_self()
   self.READ_IO = tcp_pop()
   self.read_current_co = co_self()
