@@ -1165,7 +1165,7 @@ static int tcp_set_write_buf(lua_State *L) {
   if (fd < 0)
     return 0;
   int bsize = lua_tointeger(L, 2);
-  if (bsize < (1 << 16) || bsize > (1 << 20))
+  if (bsize <= 65535)
     return 0;
 
 #if defined(SO_SNDBUF)
@@ -1182,7 +1182,7 @@ static int tcp_set_read_buf(lua_State *L) {
   if (fd < 0)
     return 0;
   int bsize = lua_tointeger(L, 2);
-  if (bsize < (1 << 16) || bsize > (1 << 20))
+  if (bsize <= 65535)
     return 0;
 
 #if defined(SO_RCVBUF)
