@@ -1,4 +1,7 @@
 local TCP = require "internal.TCP"
+local sock_recv = TCP.recv
+local sock_send = TCP.send
+local sock_close = TCP.close
 
 local dataset = require "process.dataset"
 
@@ -11,14 +14,14 @@ local lpack_decode = lpack.decode
 
 local cf = require "cf"
 local cf_fork = cf.fork
-
+local cf_wait = cf.wait
+local cf_wakeup = cf.wakeup
 
 local ipairs = ipairs
-local assert = assert
-
 local strunpack = string.unpack
 local tconcat = table.concat
-local tunpack = table.unpack
+
+local MAX_BUFFER_SIZE = 4194304
 
 local class = require "class"
 
@@ -31,21 +34,31 @@ end
 function Channel:send(...)
   if not self.queue then
     self.queue = {}
-    cf_fork(function ()
-      for _, buf in ipairs(self.queue) do
-        self.sock:send(buf)
+    local sock = self.sock
+    self.writer = cf_fork(function ()
+      while true do
+        for _, buf in ipairs(self.queue) do
+          sock_send(sock, buf)
+        end
+        self.queue = {}
+        self.waited = true
+        cf_wait()
       end
-      self.queue = nil
     end)
+  end
+  if self.waited then
+    self.waited = nil
+    cf_wakeup(self.writer)
   end
   self.queue[#self.queue + 1] = lpack_encode(...)
   return true
 end
 
 function Channel:recv()
-  local data = self.sock:recv(4)
+  local sock = self.sock
+  local data = sock_recv(sock, 4)
   if not data then
-    return self.sock:close()
+    return sock_close(sock)
   end
   local buffers = {data}
   local len = strunpack("<I4", data)
@@ -54,9 +67,9 @@ function Channel:recv()
   end
   len = len - 4
   while true do
-    local buf, dsize = self.sock:recv(len)
+    local buf, dsize = sock_recv(sock, len)
     if not buf then
-      return self.sock:close()
+      return sock_close(sock)
     end
     buffers[#buffers+1] = buf
     if dsize == len then
@@ -65,7 +78,6 @@ function Channel:recv()
     len = len - dsize
   end
   return true, lpack_decode(tconcat(buffers))
-  -- return true, {lpack_decode(tconcat(buffers))}
 end
 
 function Channel:setcb(func)
@@ -102,6 +114,8 @@ function Channel:connect(mode)
     self.sock:listen_ex(sockname, true, function (fd)
       local chan = Channel:new()
       chan.sock = TCP:new():set_fd(fd)
+      chan.sock:set_read_buffer_size(MAX_BUFFER_SIZE)
+      chan.sock:set_write_buffer_size(MAX_BUFFER_SIZE)
       local _, id = chan:recv()
       chan.id = id
       channels[chan.id] = chan
@@ -116,6 +130,8 @@ function Channel:connect(mode)
     local sockname = dataset.get('ppid') .. '.sock'
     while true do
       if self.sock:connect_ex(sockname) then
+        self.sock:set_read_buffer_size(MAX_BUFFER_SIZE)
+        self.sock:set_write_buffer_size(MAX_BUFFER_SIZE)
         self:send(self.id)
         break
       end

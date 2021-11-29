@@ -1,7 +1,9 @@
 local event = require "process.event"
-local channel = require "process.channel"
 
 local dataset = require "process.dataset"
+
+local channel = require "process.channel"
+local channel_send = channel.send
 
 local session = require "process.session"
 local session_get_pid = session.get_pid
@@ -28,7 +30,7 @@ end
 ---comment 向所有`Worker`进程广播消息
 function process.broadcast(...)
   for _, chan in pairs(channels) do
-    chan:send(nil, ...)
+    channel_send(chan, nil, ...)
   end
 end
 
@@ -37,7 +39,7 @@ end
 function process.ret(sessionid, ...)
   local pid = session_get_pid(assert(sessionid, "Invalid `sessionid`"))
   local chan = channels[pid]
-  chan:send(sessionid, ...)
+  channel_send(chan, sessionid, ...)
 end
 
 ---comment 注册进程事件

@@ -1,6 +1,7 @@
-local channel = require "process.channel"
-
 local dataset = require "process.dataset"
+
+local channel = require "process.channel"
+local channel_send = channel.send
 
 local session = require "process.session"
 local session_getsid = session.getsid
@@ -19,13 +20,13 @@ end
 
 ---comment 向`Master`进程发送消息(非阻塞)
 function process.send(...)
-  mchan:send(nil, ...)
+  channel_send(mchan, nil, ...)
 end
 
 ---comment 向`Master`进程发送消息(会阻塞)
 function process.call(...)
   local sessionid = session_getsid()
-  mchan:send(sessionid, ...)
+  channel_send(mchan, sessionid, ...)
   return sessionid_wait(sessionid)
 end
 
