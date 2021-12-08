@@ -38,6 +38,12 @@ function process.broadcast(...)
   end
 end
 
+---comment 向指定`PID`的子进程发送消息
+---@param pid integer @子进程`PID`
+function process.send(pid, ...)
+  channel_send(assert(channels[pid], "Invalid `PID` session."), lpack_encode(nil, ...))
+end
+
 ---comment 响应消息
 ---@param sessionid integer @响应`sessionid`的消息
 function process.ret(sessionid, ...)

@@ -17,7 +17,6 @@ local cf_fork = cf.fork
 local cf_wait = cf.wait
 local cf_wakeup = cf.wakeup
 
-local ipairs = ipairs
 local strunpack = string.unpack
 local tconcat = table.concat
 
@@ -32,17 +31,23 @@ function Channel:ctor()
 end
 
 function Channel:send(data)
-  if not self.queue then
+  if not self.writer then
     self.queue = {}
-    local sock = self.sock
     self.writer = cf_fork(function ()
+      local sock = self.sock
+      local qlen, queue = #self.queue, self.queue
       while true do
-        for _, buf in ipairs(self.queue) do
-          sock_send(sock, buf)
-        end
         self.queue = {}
-        self.waited = true
-        cf_wait()
+        for idx = 1, qlen do
+          sock_send(sock, queue[idx])
+        end
+        queue = self.queue
+        qlen = #queue
+        if qlen == 0 then
+          self.waited = true
+          cf_wait()
+          qlen = #queue
+        end
       end
     end)
   end
@@ -59,22 +64,31 @@ function Channel:recv()
   if not data then
     return sock_close(sock)
   end
-  local buffers = {data}
   local len = strunpack("<I4", data)
   if len <= 4 then
     return true
   end
   len = len - 4
+  local buf, bsize = sock_recv(sock, len)
+  if not buf then
+    return sock_close(sock)
+  end
+  if bsize == len then
+    return true, lpack_decode( data .. buf )
+  end
+  local index = 3
+  local buffers = {data, buf, nil}
   while true do
-    local buf, dsize = sock_recv(sock, len)
+    buf, bsize = sock_recv(sock, len)
     if not buf then
       return sock_close(sock)
     end
-    buffers[#buffers+1] = buf
-    if dsize == len then
+    buffers[index] = buf
+    if bsize == len then
       break
     end
-    len = len - dsize
+    len = len - bsize
+    index = index + 1
   end
   return true, lpack_decode(tconcat(buffers))
 end
