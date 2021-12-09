@@ -17,8 +17,8 @@ local cf_fork = cf.fork
 local cf_wait = cf.wait
 local cf_wakeup = cf.wakeup
 
+local assert = assert
 local strunpack = string.unpack
-local tconcat = table.concat
 
 local MAX_BUFFER_SIZE = 4194304
 
@@ -73,24 +73,8 @@ function Channel:recv()
   if not buf then
     return sock_close(sock)
   end
-  if bsize == len then
-    return true, lpack_decode( data .. buf )
-  end
-  local index = 3
-  local buffers = {data, buf, nil}
-  while true do
-    buf, bsize = sock_recv(sock, len)
-    if not buf then
-      return sock_close(sock)
-    end
-    buffers[index] = buf
-    if bsize == len then
-      break
-    end
-    len = len - bsize
-    index = index + 1
-  end
-  return true, lpack_decode(tconcat(buffers))
+  assert(bsize == len, "Invalid message.")
+  return true, lpack_decode(data .. buf)
 end
 
 function Channel:setcb(func)
@@ -108,10 +92,8 @@ function Channel:setcb(func)
         cf_fork(func, sessionid, ...)
         return true
       end
-      while true do
-        if not dispatch(self:recv()) then
-          break
-        end
+      while dispatch(self:recv()) do
+        -- Nothing todo.
       end
     end)
   end
