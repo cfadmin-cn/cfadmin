@@ -65,7 +65,6 @@ static void SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
   /* 只有主进程退出的时候才需要通知子进程退出 */
   if (ev_userdata(loop))
     kill(0, SIGQUIT);
-
   return exit(EXIT_SUCCESS);
 }
 
@@ -73,8 +72,8 @@ static void SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
 static void EV_ERROR_CB(const char *msg){
   LOG("ERROR", msg);
   LOG("ERROR", strerror(errno));
-  if (core_default_loop()) {
-    pid_t *pids = (pid_t *)ev_userdata(core_default_loop());
+  if (CORE_LOOP) {
+    pid_t *pids = (pid_t *)ev_userdata(CORE_LOOP);
     if (pids)
       kill(0, SIGKILL);
   }
@@ -196,18 +195,21 @@ static inline void signal_init(){
   core_signal_init(&sigtstp, SIG_IGNORE, SIGTSTP);
   core_signal_start(CORE_LOOP_ &sigtstp);
 
-  /* TERM信号 显示退出 */
-  core_signal_init(&sigterm, SIG_EXIT, SIGTERM);
-  core_signal_start(CORE_LOOP_ &sigterm);
+  if (ev_userdata(CORE_LOOP)) {
 
-  /* INT信号 显示退出 */
-  core_signal_init(&sigint, SIG_EXIT, SIGINT);
-  core_signal_start(CORE_LOOP_ &sigint);
+    /* TERM信号 显示退出 */
+    core_signal_init(&sigterm, SIG_EXIT, SIGTERM);
+    core_signal_start(CORE_LOOP_ &sigterm);
 
-  /* QUIT信号 显示退出 */
-  core_signal_init(&sigquit, SIG_EXIT, SIGQUIT);
-  core_signal_start(CORE_LOOP_ &sigquit);
+    /* INT信号 显示退出 */
+    core_signal_init(&sigint, SIG_EXIT, SIGINT);
+    core_signal_start(CORE_LOOP_ &sigint);
 
+    /* QUIT信号 显示退出 */
+    core_signal_init(&sigquit, SIG_EXIT, SIGQUIT);
+    core_signal_start(CORE_LOOP_ &sigquit);
+
+  }
 }
 
 int core_worker_run(const char entry[]) {
@@ -216,7 +218,7 @@ int core_worker_run(const char entry[]) {
   /* hook 事件循环错误信息 */
   core_ev_set_syserr_cb(EV_ERROR_CB);
   /* 初始化事件循环对象 */
-  core_loop *loop = core_loop_fork(core_default_loop());
+  core_loop *loop = core_loop_fork(CORE_LOOP);
 
   int status = 0;
 
@@ -258,12 +260,11 @@ int core_master_run(pid_t *pids, int* pidcount) {
   /* hook 事件循环错误信息 */
   core_ev_set_syserr_cb(EV_ERROR_CB);
   /* 初始化事件循环对象 */
-  core_loop *loop = core_loop_fork(core_default_loop());
-  /* 初始化信号 */ 
-  signal_init();
-  /* 设置pid */ 
+  core_loop *loop = core_loop_fork(CORE_LOOP);
+  /* 设置pid */
   ev_set_userdata(loop, pids);
-  /* 监听子进程 */
+  /* 初始化信号 */
+  signal_init();
 
   lua_State *L = lua_newstate(L_ALLOC, NULL);
   if (!L){
@@ -274,11 +275,10 @@ int core_master_run(pid_t *pids, int* pidcount) {
 
   /* 加载 Lua 标准库 */
   init_lua_libs(L, MASTER);
-  // LOG("INFO", boot);
+
   /* 读取文件或默认运行 */
-  int status = luaL_loadbufferx(L, master_boot, strlen(master_boot), "=[boot.lua]", "t");
+  int status = luaL_loadbufferx(L, master_boot, strlen(master_boot), "=[main.lua]", "t");
   if (status != LUA_OK) {
-    printf("[%d], %s\n", status, lua_tostring(L, -1));
     lua_close(L);
     kill(0, SIGQUIT);
     core_exit();
