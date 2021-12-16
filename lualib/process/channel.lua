@@ -112,6 +112,9 @@ function Channel:connect(mode)
       chan.sock:set_read_buffer_size(MAX_BUFFER_SIZE)
       chan.sock:set_write_buffer_size(MAX_BUFFER_SIZE)
       local _, id = chan:recv()
+      if not id then
+        return chan.sock:close()
+      end
       chan.id = id
       channels[chan.id] = chan
       num = num + 1
