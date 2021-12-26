@@ -127,7 +127,25 @@ local function httpc_response(sock, SSL)
   if not buf then
     return nil, SSL .. " A peer of remote server close this connection."
   end
-  local VERSION, CODE, STATUS, HEADER = PARSER_HTTP_RESPONSE(buf)
+  local VERSION, CODE
+  -- 解析协议头部
+  local HEADER = {}
+  local start = true
+  for line in buf:gmatch("([^\r\n]+)\r\n") do
+    if start then
+      VERSION, CODE, STATUS = line:match("HTTP/([%d%.]+) ([%d]+) ([^ ]+)")
+      if not VERSION then
+        break
+      end
+      VERSION, CODE = tonumber(VERSION), toint(CODE)
+      start = false
+    else
+      local key, value = line:match("([^:]+):[ ]?([^\r\n]+)")
+      if key and value then
+        HEADER[key] = value
+      end
+    end
+  end
   if not CODE or not HEADER or (VERSION ~= 1.0 and VERSION ~= 1.1) then
     return nil, SSL .. " can't resolvable protocol."
   end
