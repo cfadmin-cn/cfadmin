@@ -285,7 +285,8 @@ int core_master_run(pid_t *pids, int* pidcount) {
   }
   /* 注入子进程Pid */
   lua_createtable(L, 0, 0);
-  for (int index = 0; index < *pidcount; index++) {
+  int index;
+  for (index = 0; index < *pidcount; index++) {
     lua_pushinteger(L, pids[index]);
     lua_seti(L, -2, index + 1);
   }
