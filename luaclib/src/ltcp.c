@@ -527,11 +527,7 @@ static int tcp_peek(lua_State *L) {
   if (0 >= fd) return 0;
 
   int bsize = lua_tointeger(L, 2);
-  char* buffer = NULL;
-  if (bsize <= MBSIZE)
-    buffer = alloca(bsize);
-  else
-    buffer = lua_newuserdata(L, bsize);
+  char* buffer = lua_newuserdata(L, bsize);
 
   if (0 == lua_toboolean(L, 3)) {
     lua_pushinteger(L, read(fd, buffer, bsize));
@@ -551,8 +547,8 @@ static int tcp_peek(lua_State *L) {
       lua_pushstring(L, strerror(errno));
       break;
     }
-    lua_pushlstring(L, buffer, bsize);
-    lua_pushinteger(L, bsize);
+    lua_pushlstring(L, buffer, len);
+    lua_pushinteger(L, len);
     break;
   }
   return 2;
@@ -565,11 +561,7 @@ static int tcp_sslpeek(lua_State *L) {
   if (!ssl) return 0;
 
   int bsize = lua_tointeger(L, 2);
-  char* buffer = NULL;
-  if (bsize <= MBSIZE)
-    buffer = alloca(bsize);
-  else
-    buffer = lua_newuserdata(L, bsize);
+  char* buffer = lua_newuserdata(L, bsize);
 
   if (0 == lua_toboolean(L, 3)) {
     lua_pushinteger(L, SSL_read(ssl, buffer, bsize));
@@ -590,8 +582,8 @@ static int tcp_sslpeek(lua_State *L) {
       lua_pushstring(L, strerror(errno));
       break;
     }
-    lua_pushlstring(L, buffer, bsize);
-    lua_pushinteger(L, bsize);
+    lua_pushlstring(L, buffer, len);
+    lua_pushinteger(L, len);
     break;
   }
   return 2;
