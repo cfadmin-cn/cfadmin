@@ -9,7 +9,6 @@ local Log = log:new({ dump = true, path = 'DB'})
 local co = require "internal.Co"
 local co_self = co.self
 local co_wait = co.wait
-local co_spawn = co.spawn
 local co_wakeup = co.wakeup
 
 local type = type
@@ -95,6 +94,81 @@ local function run_query(self, query)
   return ret, err
 end
 
+local function run_execute(self, query, ...)
+  local db, ret, err
+  while 1 do
+    db = pop_db(self)
+    if db then
+      ret, err = db:execute(query, ...)
+      if db.state then
+        break
+      end
+      db:close()
+      self.current = self.current - 1
+      db, ret, err = nil, nil, nil
+    end
+  end
+  local co = pop_wait(self)
+  if co then
+    co_wakeup(co, db)
+  else
+    add_db(self, db)
+  end
+  return ret, err
+end
+
+-- 事务session
+local session = class("session")
+
+function session:ctor(opt)
+  self.db   = opt.db
+  self.over = false
+end
+
+function session:execute(sql, ...)
+  if self.over then
+    return nil, "Please use `return session:rollback()` or `return session:commit()` after the transaction process is over or Process error."
+  end
+  -- assert(self.db.state, "MySQL transaction session closed. 1")
+  local ret, err = self.db:execute(sql, ...)
+  assert(self.db.state, "MySQL transaction session closed. 1")
+  return ret, err
+end
+
+function session:query(sql)
+  if self.over then
+    return nil, "Please use `return session:rollback()` or `return session:commit()` after the transaction process is over or Process error."
+  end
+  -- assert(self.db.state, "MySQL transaction session closed. 1")
+  local ret, err = self.db:query(sql)
+  assert(self.db.state, "MySQL transaction session closed. 2")
+  return ret, err
+end
+
+function session:rollback()
+  if self.over then
+    return
+  end
+  assert(self.db.state, "MySQL transaction session closed. 3")
+  self.db:query("rollback; set autocommit=1;")
+  assert(self.db.state, "MySQL transaction session closed. 4")
+  self.over = true
+  self.db = nil
+  return { state = "rollback" }
+end
+
+function session:commit()
+  if self.over then
+    return
+  end
+  assert(self.db.state, "MySQL transaction session closed. 5")
+  self.db:query("set autocommit=1;")
+  assert(self.db.state, "MySQL transaction session closed. 6")
+  self.over = true
+  self.db = nil
+  return { state = "successed" }
+end
+
 local DB = class("DB")
 
 function DB:ctor(opt)
@@ -142,36 +216,8 @@ function DB:transaction(f)
     end
     db, ret, err = nil, nil, nil
   end
-  -- 每个事务都有独立的session
-  local session = { nil, nil, nil }
-  session.query = function (self, sql)
-    assert(self and self == session, "Must use the syntax of `session:query()`")
-    if self.over then
-      return nil, "Please use `return session:rollback()` or `return session:commit()` after the transaction process is over or Process error."
-    end
-    assert(db.state, "MySQL transaction session closed. 1")
-    local ret, err = db:query(sql)
-    assert(db.state, "MySQL transaction session closed. 2")
-    return ret, err
-  end
-  session.rollback = function ( self )
-    assert(self and self == session, "Must use the syntax of `session:rollback()`")
-    assert(db.state, "MySQL transaction session closed. 3")
-    db:query("rollback; set autocommit=1;")
-    assert(db.state, "MySQL transaction session closed. 4")
-    self.over = true
-    return { state = "rollback" }
-  end
-  session.commit = function ( self )
-    assert(self and self == session, "Must use the syntax of `session:commit()`")
-    assert(db.state, "MySQL transaction session closed. 5")
-    db:query("set autocommit=1;")
-    assert(db.state, "MySQL transaction session closed. 6")
-    self.over = true
-    return { state = "successed" }
-  end
 
-  local ok, info = xpcall(f, traceback, session)
+  local ok, info = xpcall(f, traceback, session:new{ db = db })
   if not ok then
     -- 如果在自定义事务流程的内部发生了错误
     if not db.state then
@@ -179,9 +225,7 @@ function DB:transaction(f)
       db:close()
       local co = pop_wait(self)
       if co then
-        co_spawn(function ( ... )
-          co_wakeup(co, pop_db(self))
-        end)
+        co_wakeup(co, pop_db(self))
       end
       return nil, info
     end
@@ -203,7 +247,7 @@ function DB:transaction(f)
     else
       add_db(self, db)
     end
-    error("Must return after transaction ends`session:commit()`or`session:rollback()`.")
+    error("After the transaction ends, either 'return session:commit()' or 'return session:rollback()' must be required.")
   end
   local co = pop_wait(self)
   if co then
@@ -214,10 +258,16 @@ function DB:transaction(f)
   return info.state == "successed" and true or false
 end
 
--- 原始查询语句
+-- 查询接口
 function DB:query(query)
   assert(self.INITIALIZATION, "DB needs to be initialized first.")
-  return run_query(self, assert(type(query) == 'string' and query ~= '' and query , "Invalid MySQL syntax."))
+  return run_query(self, assert(type(query) == 'string' and query ~= '' and query , "Invalid MySQL query syntax."))
+end
+
+-- 预处理接口
+function DB:execute(query, ...)
+  assert(self.INITIALIZATION, "DB needs to be initialized first.")
+  return run_execute(self, assert(type(query) == 'string' and query ~= '' and query , "Invalid MySQL prepare syntax."), ...)
 end
 
 -- 字符串安全转义
