@@ -45,6 +45,7 @@ static int lrandomkey(lua_State *L) {
 
 #define lua_set_key_INT(L, key, value) ({ lua_pushstring((L), (key)); lua_pushinteger((L), (value)); lua_rawset((L), -3); })
 #define lua_set_key_STR(L, key, value) ({ lua_pushstring((L), (key)); lua_pushstring((L), (value)); lua_rawset((L), -3); })
+#define lua_set_key_PTR(L, key, value) ({ lua_pushstring((L), (key)); lua_pushlightuserdata((L), (void*)(value)); lua_rawset((L), -3); })
 
 static int crypt_set_key_value(lua_State *L) {
   /* OPENSSL VERSION NUMBER */
@@ -62,6 +63,15 @@ static int crypt_set_key_value(lua_State *L) {
   lua_set_key_INT(L, "nid_sha256", NID_sha256);
   lua_set_key_INT(L, "nid_sha512", NID_sha512);
 
+  /* 增加EVP的摘要方法模型  */
+  lua_set_key_PTR(L, "EVP_md5", EVP_md5());
+  // lua_set_key_PTR(L, "EVP_blake256", EVP_blake2s256());
+  // lua_set_key_PTR(L, "EVP_blake512", EVP_blake2b512());
+  lua_set_key_PTR(L, "EVP_sha128", EVP_sha1());
+  lua_set_key_PTR(L, "EVP_sha224", EVP_sha224());
+  lua_set_key_PTR(L, "EVP_sha256", EVP_sha256());
+  lua_set_key_PTR(L, "EVP_sha384", EVP_sha384());
+  lua_set_key_PTR(L, "EVP_sha512", EVP_sha512());
   return 1;
 }
 
@@ -107,6 +117,7 @@ LUAMOD_API int luaopen_lcrypt(lua_State *L) {
     { "hmac_sha512", lhmac_sha512 },
     { "hmac_hash", lhmac_hash },
     { "hmac_ripemd160", lhmac_ripemd160},
+    { "hmac_pbkdf2", lhmac_pbkdf2 },
     { "xor_str", lxor_str },
     // 公钥加密 -> 私钥解密
     { "rsa_public_key_encode", lrsa_public_key_encode },
