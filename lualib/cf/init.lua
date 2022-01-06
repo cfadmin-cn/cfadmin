@@ -13,8 +13,25 @@ local type = type
 local error = error
 local ipairs = ipairs
 local tonumber = tonumber
+local loadfile = loadfile
+
+local loadfilex = package.searchers[2]
 
 local cf = {}
+
+---comment  指定的`filename`文件内容为入口创建一个协程.
+---@param filename string @可被`loadfile`或`require`加载的代码文件.
+---@param ... any         @可选传递的可变参.
+function cf.run(filename, ...)
+  local f, errinfo = loadfile(filename, 'bt')
+  if not f then
+    f = loadfilex(filename)
+    if type(f) ~= 'function' then
+      return assert(nil, '\n' .. errinfo .. ' and ' .. f )
+    end
+  end
+  return cf.fork(f, ...)
+end
 
 ---comment  创建一个由cf管理的超时器(只会触发一次)
 ---@param timeout number @`timeout`大于0才会创建定时器.
@@ -77,11 +94,11 @@ function cf.wakeup(co, ...)
 end
 
 local function cb(f, ctx)
-	local ok, errinfo = pcall(f)
-	ctx.waits = ctx.waits - 1
-	if ctx.waits == 0 then
-		co_wakeup(ctx.co)
-	end
+  local ok, errinfo = pcall(f)
+  ctx.waits = ctx.waits - 1
+  if ctx.waits == 0 then
+    co_wakeup(ctx.co)
+  end
   if not ok then
     return error(errinfo)
   end
@@ -91,17 +108,17 @@ end
 ---@param fn function @至少一个或多个任务函数
 ---@return nil @始终不存在返回值.
 function cf.join(fn, ...)
-	local qlist = {fn, ...}
+  local qlist = {fn, ...}
   local ctx = { co = co_self(), waits = nil }
   local waits = 0
-	for _, f in ipairs(qlist) do
+  for _, f in ipairs(qlist) do
     if type(f) == 'function' then
       co_fork(cb, f, ctx)
       waits = waits + 1
     end
-	end
+  end
   ctx.waits = waits
-	return co_wait()
+  return co_wait()
 end
 
 return cf
