@@ -35,6 +35,9 @@ local co_num = 0
 local co_map = new_tab(0, 128)
 co_map[co_self()] = {co_self(), nil, false}
 
+local tab = debug.getregistry()
+tab['__G_CO__'] = co_map
+
 local co_wlist = new_tab(128, 0)
 
 local function co_wrapper()
@@ -162,6 +165,16 @@ end
 -- 计算数量
 function Co.count()
   return co_num
+end
+
+-- 刷新缓存
+function Co.flush()
+  local map = {}
+  for key, value in pairs(co_map) do
+    map[key] = value
+  end
+  co_map = map
+  tab['__G_CO__'] = map
 end
 
 return Co

@@ -81,10 +81,10 @@ local function tcp_push(tcp)
   return insert(POOL, tcp)
 end
 
-local tab = new_tab(3, 0)
+local tlist = new_tab(3, 0)
 local function buffer_concat(buf_1, buf_2)
-  tab[1], tab[2] = buf_1, buf_2
-  return concat(tab)
+  tlist[1], tlist[2] = buf_1, buf_2
+  return concat(tlist)
 end
 
 local TCP = class("TCP")
@@ -846,6 +846,16 @@ function TCP:close()
   end
 
   G_Reference[self] = nil
+end
+
+---comment 刷新
+function TCP.flush()
+  local G_REF = {}
+  for key, value in pairs(G_Reference) do
+    G_REF[key] = value
+  end
+  G_Reference = G_REF
+  tab['__G_TCP__'] = G_REF
 end
 
 return TCP

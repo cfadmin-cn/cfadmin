@@ -17,15 +17,12 @@ local co_self = co.self
 local co_start = coroutine.resume
 local co_wait_ex = coroutine.yield
 
-local tab = debug.getregistry()
-if tab['__G_TIMER__'] then
-  return tab['__G_TIMER__']
-end
-
 local Timer = {}
-tab['__G_TIMER__'] = Timer
 
 local TMap = {}
+
+local tab = debug.getregistry()
+tab['__G_TIMER__'] = TMap
 
 local function get_tid(offset)
   return (time() + offset * 1e3) * 0.1 // 1
@@ -87,7 +84,7 @@ end)
 -- 初始化
 co_start(Timer.TCo)
 -- 选更小的时间来定期检查.
-ti_start(TTimer, 0.005, Timer.TCo)
+ti_start(TTimer, 0.01, Timer.TCo)
 
 ---@class Timer
 
@@ -139,6 +136,16 @@ function Timer.sleep(nsleep)
     return co_wakeup(coctx)
   end)
   co_wait()
+end
+
+---comment 刷新
+function Timer.flush()
+  local Map = {}
+  for key, value in pairs(TMap) do
+    Map[key] = value
+  end
+  TMap = Map
+  tab['__G_TIMER__'] = Map
 end
 
 return Timer
