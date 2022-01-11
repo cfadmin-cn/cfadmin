@@ -48,7 +48,7 @@ local function co_wrapper()
     local start, total = 1, #co_wlist
     -- 使用两级`FIFO`队列交替管理协程的运行与切换, 并且每次预分配的`FIFO`队列的大小与上次执行的协程的数量相关.
     local co_rlist = co_wlist
-    co_wlist = new_tab(128, 0)
+    co_wlist = new_tab(32, 0)
     while true do
       for index = start, total do
         local obj = co_rlist[index]
@@ -78,7 +78,7 @@ local function co_wrapper()
         total = #co_wlist
       end
       co_rlist = co_wlist
-      co_wlist = new_tab(128, 0)
+      co_wlist = new_tab(32, 0)
     end
   end)
 end

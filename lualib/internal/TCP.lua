@@ -854,6 +854,7 @@ function TCP.flush()
   for key, value in pairs(G_Reference) do
     G_REF[key] = value
   end
+  POOL = {}
   G_Reference = G_REF
   tab['__G_TCP__'] = G_REF
 end
