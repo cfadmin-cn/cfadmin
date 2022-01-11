@@ -77,8 +77,8 @@ local function tcp_pop()
   return remove(POOL) or tcp_new()
 end
 
-local function tcp_push(tcp)
-  return insert(POOL, tcp)
+local function tcp_push(tio)
+  return insert(POOL, tio)
 end
 
 local tlist = new_tab(3, 0)
@@ -747,7 +747,7 @@ function TCP:ssl_handshake(domain)
 end
 
 function TCP:count()
-    return #POOL
+  return #POOL
 end
 
 function TCP:close()

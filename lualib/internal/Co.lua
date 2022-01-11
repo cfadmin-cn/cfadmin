@@ -53,7 +53,12 @@ local function co_wrapper()
       for index = start, total do
         local obj = co_rlist[index]
         local co, args = obj[CO_INDEX], obj[ARGS_INDEX]
-        local ok, errinfo; if args then ok, errinfo = co_start(co, tunpack(args)); else ok, errinfo = co_start(co); end
+        local ok, errinfo
+        if args then
+          ok, errinfo = co_start(co, tunpack(args)) -- 带参数的协程
+        else
+          ok, errinfo = co_start(co) -- `fork`的协程不需要参数
+        end
         -- 如果协程`执行出错`或`执行完毕`, 则去掉引用销毁
         if not ok or co_status(co) ~= 'suspended' then
           -- 如果发生异常，则应该把异常打印出来.
@@ -78,7 +83,7 @@ local function co_wrapper()
         total = #co_wlist
       end
       co_rlist = co_wlist
-      co_wlist = new_tab(32, 0)
+      co_wlist = new_tab(total >= 128 and 128 or total, 0)
     end
   end)
 end
