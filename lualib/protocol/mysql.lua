@@ -729,19 +729,23 @@ local function mysql_login (self)
     return nil, "MySQL Server driver Invalid Configure."
   end
 
-  local len, err = read_head(self)
+  local len, err, packet
+  len, err = read_head(self)
   if not len then
     return nil, err
   end
 
-  local packet, err = read_body(self, len)
+  packet, err = read_body(self, len)
   if not packet then
     return nil, err
   end
 
   local protocol, version, tid, salt, salt_len, auth_plugin, pos
-  protocol, version, tid, pos = strunpack("<BzI4", packet, pos)
-  -- print(protocol, version, tid, pos)
+  protocol, pos = strunpack("<B", packet, pos)
+  if protocol == 0xff then
+    return false, strformat('{errcode = %d, info = "%s"}', strunpack("<I2", packet, pos), packet:sub(pos + 1))
+  end
+  version, tid, pos = strunpack("<zI4", packet, pos)
 
   salt, pos = strunpack("<z", packet, pos)
   -- print("salt part 1: ", crypt.hexencode(salt))
