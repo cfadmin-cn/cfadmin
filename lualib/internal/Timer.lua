@@ -86,7 +86,15 @@ co_start(Timer.TCo)
 -- 选更小的时间来定期检查.
 ti_start(TTimer, 0.01, Timer.TCo)
 
----@class Timer
+---@class Timer @定时器对象
+local class = require "class"
+
+local TIMER = class("Timer")
+
+-- 初始化
+function TIMER:ctor() end
+-- 停止定时器
+function TIMER:stop() if self then self[1] = false end end
 
 ---comment 初始化定时器对象
 ---@param timeout number   @超时时间
@@ -95,14 +103,7 @@ ti_start(TTimer, 0.01, Timer.TCo)
 ---@param func    function @回调函数
 ---@return Timer  @定时器对象
 local function Timer_Init(timeout, again, async, func)
-  local ctx = set_ctx(get_tid(timeout), { true, timeout, func, again, async })
-  return {
-    stop = function (self)
-      if self and ctx and ctx[1] then
-        ctx[1] = false
-      end
-    end
-  }
+  return set_ctx(get_tid(timeout), setmetatable({true, timeout, func, again, async}, TIMER))
 end
 
 ---comment 一次性定时器
