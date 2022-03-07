@@ -164,69 +164,69 @@ end
 
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
   local content = new_tab(0, 16)
-  if METHOD == "GET" then
-    local spl_pos = find(PATH, '%?')
-    if spl_pos and spl_pos < #PATH then
-      content['args'] = form_argsencode(PATH)
+  local body_len = toint(HEADER['Content-Length']) or toint(HEADER['Content-length']) or toint(HEADER['content-length'])
+  local BODY
+  if body_len and body_len > 0 then
+    if body_len >= (max_body_size or (1024 * 1024)) then
+      return nil, 413
     end
-  elseif METHOD == "POST" or METHOD == "PUT" then
-    local body_len = toint(HEADER['Content-Length']) or toint(HEADER['Content-length']) or toint(HEADER['content-length'])
-    if body_len and body_len > 0 then
-      if body_len >= (max_body_size or (1024 * 1024)) then
-        return nil, 413
-      end
-      local buffers = new_tab(16, 0)
-      local bsize = body_len
-      local _, CRLF_END = find(buffer, RE_CRLF2)
-      if #buffer > CRLF_END then
-        bsize = bsize - (#buffer - CRLF_END)
-        buffers[#buffers+1] = split(buffer, CRLF_END + 1)
-      end
-      if bsize > 0 and not readall(sock, bsize, buffers) then
-        return nil, null
-      end
-      local BODY = concat(buffers)
-      if METHOD == 'PUT' then
-        content['body'] = BODY
-        return true, content
-      end
-      local FILE_ENCODE = 'multipart/form-data'
-      local XML_ENCODE_1  = 'text/xml'
-      local XML_ENCODE_2  = 'application/xml'
-      local JSON_ENCODE = 'application/json'
-      local URL_ENCODE  = 'application/x-www-form-urlencoded'
-      local format = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '(.-/[^;]*)')
-      if format == FILE_ENCODE then
-        local BOUNDARY = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '^.+=[%-]*(.+)')
-        if BOUNDARY and BOUNDARY ~= '' then
-          local typ, body = form_multipart(BODY, BOUNDARY)
-          if typ == FILE_TYPE then
-            content['files'] = body
-          elseif typ == ARGS_TYPE then
-            content['args'] = {}
-            for _, args in ipairs(body) do
-              content['args'][args[1]] = args[2]
-            end
+    local buffers = new_tab(16, 0)
+    local bsize = body_len
+    local _, CRLF_END = find(buffer, RE_CRLF2)
+    if #buffer > CRLF_END then
+      bsize = bsize - (#buffer - CRLF_END)
+      buffers[#buffers+1] = split(buffer, CRLF_END + 1)
+    end
+    if bsize > 0 and not readall(sock, bsize, buffers) then
+      return nil, null
+    end
+    BODY = concat(buffers)
+  end
+
+  local FILE_ENCODE = 'multipart/form-data'
+  local XML_ENCODE_1  = 'text/xml'
+  local XML_ENCODE_2  = 'application/xml'
+  local JSON_ENCODE = 'application/json'
+  local URL_ENCODE  = 'application/x-www-form-urlencoded'
+  local format = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '(.-/[^;]*)')
+
+  if format == JSON_ENCODE then
+    content['json'] = true
+  elseif format == XML_ENCODE_1 or format == XML_ENCODE_2 then
+    content['xml'] = true
+  elseif format == FILE_ENCODE then
+    if format == FILE_ENCODE then
+      local BOUNDARY = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '^.+=[%-]*(.+)')
+      if BOUNDARY and BOUNDARY ~= '' then
+        local files, formargs = form_multipart(BODY, BOUNDARY)
+        if files then
+          content['files'] = files
+        end
+        if formargs then
+          content['formargs'] = {}
+          for _, args in ipairs(formargs) do
+            content['formargs'][args[1]] = args[2]
           end
         end
-      elseif format == JSON_ENCODE then
-        content['json'] = true
-        content['body'] = BODY
-      elseif format == XML_ENCODE_1 or format == XML_ENCODE_2 then
-        content['xml'] = true
-        content['body'] = BODY
-      elseif format == URL_ENCODE then
-        content['args'] = form_urlencode(BODY)
-      else
-        content['body'] = BODY
       end
     end
-  elseif METHOD == "HEAD" or METHOD == "OPTIONS" then
-    return true, nil
-  else
-    -- 暂未支持其他方法
-    return
   end
+
+  local spl_pos = find(PATH, '%?')
+  local queryParams = form_argsencode(PATH)
+  if spl_pos and spl_pos < #PATH then
+    content['query'] = queryParams
+  end
+  if METHOD == "GET" or METHOD == "DELETE" then
+    content['args'] = queryParams
+  elseif METHOD == "POST" then
+    if format == FILE_ENCODE then
+      content['args'] = content['formargs']
+    elseif format == URL_ENCODE then
+      content['args'] = form_urlencode(BODY)
+    end
+  end
+  content['body'] = BODY
   return true, content
 end
 
@@ -460,7 +460,12 @@ function HTTP_PROTOCOL.DISPATCH(sock, opt, http)
           deCookie(HEADER["Cookie"] or HEADER["cookie"])
         end
         if http_router.enable_rest then
-          content['query'] = rest_args
+          if content['query'] then
+            -- 原则上说，不应该出现 /rest/{id}?id=1 这种设计
+            content['query'] = table.rmerge(content['query'], rest_args)
+          else
+            content['query'] = rest_args
+          end
         end
         if type(cls) == "table" then
           local method = cls[lower(METHOD)]
