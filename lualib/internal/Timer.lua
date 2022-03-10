@@ -5,6 +5,9 @@ local co = require "internal.Co"
 local ti = require "timer"
 
 local type = type
+local pairs = pairs
+local setmetatable = setmetatable
+
 local ti_new = ti.new
 local ti_start = ti.start
 
@@ -25,7 +28,11 @@ local tab = debug.getregistry()
 tab['__G_TIMER__'] = TMap
 
 local function get_tid(offset)
-  return (time() + offset * 1e3) * 0.1 // 1
+  local ts = time()
+  if offset > 0 then
+    ts = ts + offset * 1e3
+  end
+  return ts * 0.1 // 1
 end
 
 local function get_ctx(tid)
@@ -62,11 +69,10 @@ Timer.TCo = co_new(function ()
         for idx = 1, #list do
           local ctx = list[idx]
           if ctx[run_idx] then
-            local cb = ctx[func_idx]
             if ctx[async_idx] then
-              cb()
+              ctx[func_idx]()
             else
-              co_spawn(cb)
+              co_spawn(ctx[func_idx])
             end
             if ctx[again_idx] then -- 如果需要重复
               set_ctx(get_tid(ctx[time_idx]), ctx)
