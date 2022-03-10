@@ -11,6 +11,7 @@ local sbyte = string.byte
 local sgsub = string.gsub
 local sgmatch = string.gmatch
 
+local mtype = math.type
 local tconcat = table.concat
 
 ---comment 计算`pattern`在`text`中pos位置开始出现的总次数.
@@ -19,17 +20,17 @@ local tconcat = table.concat
 ---@param pos     integer  @字符串
 ---@return string @返回拼接好的字符串
 function string.count (text, pattern, pos)
-  local count = 0
-  if not pos then
+  if mtype(pos) ~= 'integer' or pos < 1 then
     pos = 1
   end
+  local count = 0
   while true do
-    local s, e = sfind(text, pattern, pos)
-    if not s or not e then
+    pos = sfind(text, pattern, pos)
+    if not pos then
       break
     end
     count = count + 1
-    pos = e + 1
+    pos = pos + 1
   end
   return count
 end
