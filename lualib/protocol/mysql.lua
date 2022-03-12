@@ -3,6 +3,7 @@
   Author: CandyMi[https://github.com/candymi]
 ]]
 
+local stream = require "stream"
 local tcp = require "internal.TCP"
 local crypt = require "crypt"
 local sha1 = crypt.sha1
@@ -133,28 +134,7 @@ local function sock_write (self, data)
 end
 
 local function sock_read (self, bytes)
-  local sock = self.sock
-	local buffer = sock:recv(bytes)
-	if not buffer then
-		return
-	end
-	if #buffer == bytes then
-		return buffer
-	end
-	bytes = bytes - #buffer
-	local buffers = {buffer}
-  local sock_recv = sock.recv
-	while 1 do
-		buffer = sock_recv(sock, bytes)
-		if not buffer then
-			return
-		end
-    bytes = bytes - #buffer
-    insert(buffers, buffer)
-		if bytes == 0 then
-			return concat(buffers)
-		end
-	end
+  return self.sock:readbytes(bytes)
 end
 
 -- mysql_native认证
@@ -729,6 +709,9 @@ local function mysql_login (self)
     return nil, "MySQL Server driver Invalid Configure."
   end
 
+  -- Socket Stream Wrapper.
+  self.sock = stream(self.sock)
+
   local len, err, packet
   len, err = read_head(self)
   if not len then
@@ -1012,7 +995,7 @@ end
 
 function mysql:set_timeout(timeout)
   if self.sock and tonumber(timeout) then
-    self.sock._timeout = timeout
+    self.sock:timeout(timeout)
   end
 end
 

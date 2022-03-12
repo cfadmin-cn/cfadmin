@@ -3,6 +3,7 @@
   Author: CandyMi[https://github.com/candymi]
 ]]
 
+local stream = require "stream"
 local tcp = require "internal.TCP"
 
 local crypt = require "crypt"
@@ -886,28 +887,7 @@ function mssql:ctor(opt)
 end
 
 function mssql:read( bytes )
-  local sock = self.sock
-	local buffer = sock:recv(bytes)
-	if not buffer then
-		return
-	end
-	if #buffer == bytes then
-		return buffer
-	end
-	bytes = bytes - #buffer
-	local buffers = {buffer}
-  local sock_read = sock.recv
-	while 1 do
-		buffer = sock_read(sock, bytes)
-		if not buffer then
-			return
-		end
-    bytes = bytes - #buffer
-    tabinsert(buffers, buffer)
-		if bytes == 0 then
-			return tabconcat(buffers)
-		end
-	end
+  return self.sock:readbytes(bytes)
 end
 
 function mssql:write(data)
@@ -930,6 +910,9 @@ function mssql:connect( ... )
   else
     return nil, "MSSQL Server driver Invalid Configure."
   end
+
+  -- Socket Stream Wrapper.
+  self.sock = stream(self.sock)
 
   -- 发送TDS-7.0登录协议
   self:write(tds_login7(self))
@@ -1046,7 +1029,7 @@ end
 
 function mssql:set_timeout(timeout)
   if self.sock and tonumber(timeout) then
-    self.sock._timeout = timeout
+    self.sock:timeout(timeout)
   end
 end
 
