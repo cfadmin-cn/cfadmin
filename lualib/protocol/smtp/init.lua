@@ -38,6 +38,7 @@ function smtp:ctor (opt)
   self.port = opt.port
   self.to = opt.to
   self.from = opt.from
+  self.fromName = opt.fromName
   self.mime = opt.mime
   self.subject = opt.subject
   self.content = opt.content
@@ -168,7 +169,7 @@ function smtp:send_content ()
 		self.mime = "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n"
   end
 	-- 发送邮件实体头部
-	local ok = self:send(concat({fmt("From: <%s>\r\n", self.from), fmt("To: <%s>\r\n", self.to), fmt("Subject: %s\r\n", self.subject), self.mime, CRLF}))
+	local ok = self:send(concat({fmt("From: %s <%s>\r\n", self.fromName or "", self.from), fmt("To: <%s>\r\n", self.to), fmt("Subject: %s\r\n", self.subject), self.mime, CRLF}))
 	if not ok then
 		return nil, "[MAIL CONTENT ERROR]: 发送Content Headers失败."
 	end

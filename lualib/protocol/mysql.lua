@@ -3,6 +3,7 @@
   Author: CandyMi[https://github.com/candymi]
 ]]
 
+local stream = require "stream"
 local tcp = require "internal.TCP"
 local crypt = require "crypt"
 local sha1 = crypt.sha1
@@ -15,12 +16,16 @@ local sub = string.sub
 local strgsub = string.gsub
 local strformat = string.format
 local strbyte = string.byte
+local strchar = string.char
 local strrep = string.rep
 local strunpack = string.unpack
 local strpack = string.pack
 local assert = assert
 local tonumber = tonumber
 local toint = math.tointeger
+local mtype = math.type
+
+local tpack = table.pack
 local insert = table.insert
 local concat = table.concat
 
@@ -49,6 +54,13 @@ local CMD_QUIT = 0x01
 
 -- 查询
 local CMD_QUERY = 0x03
+
+-- 编译
+local COM_STMT_PREPARE = 0x16
+-- 执行
+local COM_STMT_EXECUTE = 0x17
+
+local CURSOR_TYPE_NO_CURSOR = 0x00
 
 -- 类型转换函数
 local converts = new_tab(32, 0)
@@ -122,28 +134,7 @@ local function sock_write (self, data)
 end
 
 local function sock_read (self, bytes)
-  local sock = self.sock
-	local buffer = sock:recv(bytes)
-	if not buffer then
-		return
-	end
-	if #buffer == bytes then
-		return buffer
-	end
-	bytes = bytes - #buffer
-	local buffers = {buffer}
-  local sock_recv = sock.recv
-	while 1 do
-		buffer = sock_recv(sock, bytes)
-		if not buffer then
-			return
-		end
-    bytes = bytes - #buffer
-    insert(buffers, buffer)
-		if bytes == 0 then
-			return concat(buffers)
-		end
-	end
+  return self.sock:readbytes(bytes)
 end
 
 -- mysql_native认证
@@ -299,7 +290,7 @@ local function get_field (self)
   -- print("flags :", flags)
   decimals, pos = strunpack("<B", packet, pos)
   -- print("decimals :", decimals)
-  return { field_name = name, field_type = type, field_len = length }
+  return { field_name = name, field_type = type, field_len = length, is_signed = flags & 0x20 == 0 or false }
 end
 
 local function get_rows (packet, quantity)
@@ -307,7 +298,151 @@ local function get_rows (packet, quantity)
   local row_info, pos = nil, 1
   for i = 1, quantity do
     row_info, pos = get_lenenc_str(packet, pos)
-    row[#row+1] = row_info
+    row[i] = row_info
+  end
+  return row
+end
+
+local function _from_length_coded_bin(data, pos)
+  local first = strbyte(data, pos)
+  if not first then
+    return nil, pos
+  end
+  if first >= 0 and first <= 250 then
+    return first, pos + 1
+  end
+  if first == 251 then
+    return nil, pos + 1
+  end
+  if first == 252 then
+    pos = pos + 1
+    return strunpack("<I2", data, pos)
+    -- return _get_byte2(data, pos)
+  end
+  if first == 253 then
+    pos = pos + 1
+    return strunpack("<I3", data, pos)
+    -- return _get_byte3(data, pos)
+  end
+  if first == 254 then
+    pos = pos + 1
+    return strunpack("<I8", data, pos)
+    -- return _get_byte8(data, pos)
+  end
+  return false, pos + 1
+end
+
+local function _from_length_coded_str(data, pos)
+  local len
+  len, pos = _from_length_coded_bin(data, pos)
+  if len == nil then
+    return nil, pos
+  end
+  return sub(data, pos, pos + len - 1), pos + len
+end
+
+local function _get_datetime(data, pos)
+  local len, year, month, day, hour, minute, second
+  local value
+  len, pos = _from_length_coded_bin(data, pos)
+  if len == 7 then
+    year, month, day, hour, minute, second, pos = string.unpack("<I2BBBBB", data, pos)
+    value = strformat("%04d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, minute, second)
+  else
+    value = "2017-09-09 20:08:09"
+    --unsupported format
+    pos = pos + len
+  end
+  return value, pos
+end
+
+local function _get_decimal(data, pos)
+  local num
+  num, pos = _from_length_coded_str(data, pos)
+  return tonumber(num), pos
+end
+
+local binary_parser = {
+  [0x00] = _get_decimal,
+  [0x01] = function (data, pos, is_signed)
+    local fmt = is_signed and "<i1" or "<I1"
+    return strunpack(fmt, data, pos)
+  end,
+  [0x02] = function (data, pos, is_signed)
+    local fmt = is_signed and "<i2" or "<I2"
+    return strunpack(fmt, data, pos)
+  end,
+  [0x03] = function (data, pos, is_signed)
+    local fmt = is_signed and "<i4" or "<I4"
+    return strunpack(fmt, data, pos)
+  end,
+  [0x04] = function(data, pos)
+    return strunpack("<f", data, pos)
+  end,
+  [0x05] = function(data, pos)
+    return strunpack("<d", data, pos)
+  end,
+  [0x07] = _get_datetime,
+  [0x08] = function (data, pos, is_signed)
+    local fmt = is_signed and "<i8" or "<I8"
+    return strunpack(fmt, data, pos)
+  end,
+  [0x09] = function (data, pos, is_signed)
+    local fmt = is_signed and "<i3" or "<I3"
+    return strunpack(fmt, data, pos)
+  end,
+  [0x0a] = function (data, pos)
+    local year, month, day, _
+    _, year, month, day, pos = strunpack("<BI2BB", data, pos)
+    return strformat("%04u-%02u-%02u", year, month, day), pos
+  end,
+  [0x0c] = _get_datetime,
+  [0x0f] = _from_length_coded_str,
+  [0x10] = _from_length_coded_str,
+  [0xf5] = _from_length_coded_str,
+  [0xf6] = _get_decimal,
+  [0xf9] = _from_length_coded_str,
+  [0xfa] = _from_length_coded_str,
+  [0xfb] = _from_length_coded_str,
+  [0xfc] = _from_length_coded_str,
+  [0xfd] = _from_length_coded_str,
+  [0xfe] = _from_length_coded_str
+}
+
+local function get_bin_rows(data, cols)
+  local ncols = #cols
+  -- 空位图,前两个bit系统保留 (列数量 + 7 + 2) / 8
+  local null_count = (ncols + 9) // 8
+  local pos = 2 + null_count
+
+  --空字段表
+  local null_fields = {}
+  local field_index = 1
+  local byte
+  for i = 2, pos - 1 do
+    byte = strbyte(data, i)
+    for j = 0, 7 do
+      if field_index > 2 then
+        null_fields[field_index - 2] = byte & (1 << j) ~= 0 and true or false
+      end
+      field_index = field_index + 1
+    end
+  end
+
+  local parser
+  local row = new_tab(0, ncols)
+  for i = 1, ncols do
+    local col = cols[i]
+    -- var_dump(col)
+    if not null_fields[i] then
+      parser = binary_parser[col.field_type]
+      if not parser then
+        error("error! field key[" .. col.field_name .."] unsupported type " .. col.field_type)
+      end
+      row[col.field_name], pos = parser(data, pos, col.is_signed)
+    else
+      row[col.field_name] = null
+    end
   end
   return row
 end
@@ -322,7 +457,7 @@ local function get_eof_packet (packet)
 end
 
 local function get_eof (self, len)
-  local packet, err = read_body(self, len)
+  local packet = read_body(self, len)
   if not packet then
     return nil, "mysql server closed when client sended query packet."
   end
@@ -352,7 +487,7 @@ local function get_ok(packet, length)
 end
 
 local function read_response (self, results)
-  local packet, err = read_packet(self)
+  local packet = read_packet(self)
   if not packet then
     self.state = nil
     return nil, "1. mysql server closed when client sended query packet."
@@ -384,11 +519,11 @@ local function read_response (self, results)
       self.state = nil
       return nil, err
     end
-    fields[#fields+1] = field
+    fields[index] = field
   end
 
   local again = false
-  local len, err = read_head(self)
+  local len = read_head(self)
   if not len then
     self.state = nil
     return nil, "2. mysql server closed when client sended query packet."
@@ -405,7 +540,7 @@ local function read_response (self, results)
 
   local rows = new_tab(32, 0)
   while 1 do
-    local packet, err = read_packet(self)
+    packet, err = read_packet(self)
     if not packet then
       self.state = nil
       return nil, err
@@ -457,6 +592,109 @@ local function send_packet (self, request)
   return sock_write(self, strpack("<I3B", #request, self.packet_no & 255) .. request)
 end
 
+local function get_ignore_field(self, num)
+  if num > 0 then
+    for _ = 1, num do
+      local len = read_head(self)
+      if not len then
+        return false
+      end
+      sock_read(self, len)
+    end
+    local len = read_head(self)
+    if not sock_read(self, len) then
+      return false
+    end
+  end
+  return true
+end
+
+local function read_prepare_response(self)
+  local packet = read_packet(self)
+  if not packet then
+    self.state = nil
+    return nil, "1. mysql server closed when client sended query packet."
+  end
+  -- 预编译status只有OK或ERROR
+  local status = strbyte(packet, 1)
+  if status == RESP_ERROR then
+    return nil, get_mysql_error_packet(packet:sub(2))
+  end
+  if status ~= RESP_OK then
+    return nil, "2. Invalid mysql prepare protocol."
+  end
+  local info = {}
+  info.sid, info.fields, info.params, info.warnings = strunpack("<I4I2I2BI2", packet:sub(2))
+  if not get_ignore_field(self, info.fields) or not get_ignore_field(self, info.params) then
+    self.state = nil
+    return nil, "3. mysql server closed when client get response."
+  end
+  return info
+end
+
+local function read_execute_reponse(self)
+  local packet = read_packet(self)
+  if not packet then
+    self.state = nil
+    return nil, "1. mysql server closed when client sended query packet."
+  end
+  local err
+  local status = strbyte(packet, 1)
+  if status == RESP_ERROR then
+    return nil, get_mysql_error_packet(packet:sub(2))
+  end
+  -- 如果直接返回成功
+  if status == RESP_OK then
+    return get_ok(packet:sub(2), #packet - 1), nil
+  end
+
+  local fields = new_tab(status, 0)
+  for index = 1, status do
+    local field, err = get_field(self)
+    if not field then
+      self.state = nil
+      return nil, err
+    end
+    fields[index] = field
+  end
+
+  local len = read_head(self)
+  if not len then
+    self.state = nil
+    return nil, "2. mysql server closed when client sended query packet."
+  end
+  status, err = read_status(self)
+  if not status then
+    self.state = nil
+    return nil, err
+  end
+
+  get_eof(self, len - 1)
+  -- if sever.status_flags & SERVER_MORE_RESULTS == SERVER_MORE_RESULTS then
+  --   again = true
+  -- end
+  -- var_dump(sever)
+
+  local rows = new_tab(32, 0)
+  while 1 do
+    packet, err = read_packet(self)
+    if not packet then
+      self.state = nil
+      return nil, err
+    end
+    if strbyte(packet, 1) == RESP_EOF and #packet < 9 then
+      get_eof_packet(packet)
+      -- if sever.status_flags & SERVER_MORE_RESULTS == SERVER_MORE_RESULTS then
+      --   again = true
+      -- end
+      break
+    end
+    rows[#rows+1] = get_bin_rows(packet, fields)
+  end
+  -- var_dump(rows)
+  return rows
+end
+
 local function mysql_login (self)
 
   if self.unixdomain then
@@ -471,19 +709,26 @@ local function mysql_login (self)
     return nil, "MySQL Server driver Invalid Configure."
   end
 
-  local len, err = read_head(self)
+  -- Socket Stream Wrapper.
+  self.sock = stream(self.sock)
+
+  local len, err, packet
+  len, err = read_head(self)
   if not len then
     return nil, err
   end
 
-  local packet, err = read_body(self, len)
+  packet, err = read_body(self, len)
   if not packet then
     return nil, err
   end
 
   local protocol, version, tid, salt, salt_len, auth_plugin, pos
-  protocol, version, tid, pos = strunpack("<BzI4", packet, pos)
-  -- print(protocol, version, tid, pos)
+  protocol, pos = strunpack("<B", packet, pos)
+  if protocol == 0xff then
+    return false, strformat('{errcode = %d, info = "%s"}', strunpack("<I2", packet, pos), packet:sub(pos + 1))
+  end
+  version, tid, pos = strunpack("<zI4", packet, pos)
 
   salt, pos = strunpack("<z", packet, pos)
   -- print("salt part 1: ", crypt.hexencode(salt))
@@ -593,6 +838,90 @@ local function mysql_login (self)
   return true
 end
 
+local function _set_length_coded_bin(buf)
+  local n = #buf
+  if n < 251 then
+    return strpack("s1", buf)
+  end
+
+  if n < 65536 then
+    return strpack("<Bs2", 0xfc, buf)
+  end
+
+  if n < 16777216 then
+    return strpack("<Bs3", 0xfd, buf)
+  end
+
+  return strpack("<Bs8", 0xfe, buf)
+end
+
+local fmap = {
+  ['number'] = function(v)
+    if mtype(v) == "float" then
+      return '\x05\x00', strpack("<d", v)
+    else
+      return '\x08\x00', strpack("<i8", v)
+    end
+  end,
+  ['string'] = function(v)
+    return '\x0f\x00', _set_length_coded_bin(v)
+  end,
+  ['boolean'] = function(v)
+    return '\x01\x00', v and '\x01' or '\x00'
+  end,
+  ['nil'] = function(_)
+    return '\x06\x00', ''
+  end,
+  ['userdata'] = function (_)
+    return '\x06\x00', ''
+  end
+}
+
+local function mysql_execute(self, opt, ...)
+  local args = tpack(...)
+  local argn = args.n
+  if argn ~= opt.params then
+    return nil, "There is a mismatch in the number of arguments."
+  end
+  local sql = strpack("<BI4BI4", COM_STMT_EXECUTE, opt.sid, CURSOR_TYPE_NO_CURSOR, 0x01)
+  if argn > 0 then
+    local field_index = 1
+    local null_map = ""
+    local null_count = (argn + 7) // 8
+    -- null-bitmap 必须检查正确.
+    for _ = 1, null_count do
+      local nbyte = 0
+      for offset = 0, 7 do
+        if field_index <= argn then
+          local v = args[field_index]
+          nbyte = nbyte | (((v == nil or type(v) == 'userdata') and 1 or 0) << offset)
+        end
+        field_index = field_index + 1
+      end
+      null_map = null_map .. strchar(nbyte)
+    end
+    local tb_idx, vb_idx = 1, 1
+    local types_buf, values_buf = new_tab(16, 0), new_tab(16, 0)
+    for i = 1, argn, 1 do
+      local v = args[i]
+      local f = fmap[type(v)]
+      if not f then
+        error("invalid parameter type :" .. type(v))
+      end
+      types_buf[tb_idx], values_buf[vb_idx] = f(v)
+      tb_idx, vb_idx = tb_idx + 1, vb_idx + 1
+    end
+    sql = concat{sql, null_map, '\x01', concat(types_buf), concat(values_buf)}
+  end
+  send_packet(self, sql)
+  return read_execute_reponse(self)
+end
+
+local function mysql_prepare(self, stmt)
+  send_packet(self, strpack("<B", COM_STMT_PREPARE) .. stmt)
+  return read_prepare_response(self)
+end
+
 local function mysql_query (self, sql)
   send_packet(self, strpack("<B", CMD_QUERY) .. sql)
   return read_response(self)
@@ -613,6 +942,7 @@ function mysql:ctor (opt)
   self.username = opt.username or "root"
   self.password = opt.password or "root"
   self.packet_no = 0
+  self.stmts = {}
   -- self.state = "connected"
 end
 
@@ -633,6 +963,20 @@ function mysql:query (sql)
   return mysql_query(self, sql)
 end
 
+function mysql:execute(stmt, ...)
+  local info, errinfo = self.stmts[stmt], nil
+  if not info then
+    self.packet_no = -1
+    info, errinfo = mysql_prepare(self, stmt)
+    if not info then
+      return false, errinfo
+    end
+    self.stmts[stmt] = info
+  end
+  self.packet_no = -1
+  return mysql_execute(self, info, ...)
+end
+
 local escape_map = {
     ['\0'] = "\\0",
     ['\b'] = "\\b",
@@ -651,7 +995,7 @@ end
 
 function mysql:set_timeout(timeout)
   if self.sock and tonumber(timeout) then
-    self.sock._timeout = timeout
+    self.sock:timeout(timeout)
   end
 end
 

@@ -62,6 +62,7 @@ int lhmac_sha256(lua_State *L);
 int lhmac_sha384(lua_State *L);
 int lhmac_sha512(lua_State *L);
 int lhmac_ripemd160(lua_State *L);
+int lhmac_pbkdf2(lua_State *L);
 
 int lrc4(lua_State *L);
 

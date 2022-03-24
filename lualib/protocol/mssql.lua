@@ -3,6 +3,7 @@
   Author: CandyMi[https://github.com/candymi]
 ]]
 
+local stream = require "stream"
 local tcp = require "internal.TCP"
 
 local crypt = require "crypt"
@@ -257,17 +258,15 @@ FTYPE_TAB[TYPE_NVARCHAR] = function (packet, pos)
 end
 
 FTYPE_TAB[TYPE_TEXT] = function (packet, pos)
-  local large_type_size, collate_codepage, collate_flags, collate_charset_id, table_name_len
-  large_type_size, collate_codepage, collate_flags, collate_charset_id, pos = strunpack("<I4I2I2B", packet, pos)
-  table_name_len, pos = strunpack("<I2", packet, pos)
-  return pos + table_name_len * 2
+  local len
+  len, pos = strunpack("<I2", packet, pos + 11)
+  return pos + len * 2
 end
 
 FTYPE_TAB[TYPE_NTEXT] = function (packet, pos)
-  local large_type_size, collate_codepage, collate_flags, collate_charset_id, table_name_len
-  large_type_size, collate_codepage, collate_flags, collate_charset_id, pos = strunpack("<I4I2I2B", packet, pos)
-  table_name_len, pos = strunpack("<I2", packet, pos)
-  return pos + table_name_len * 2
+  local len
+  len, pos = strunpack("<I2", packet, pos + 11)
+  return pos + len * 2
 end
 
 FTYPE_TAB[TYPE_FLOAT32] = function (packet, pos)
@@ -409,30 +408,45 @@ end
 RTYPE_TAB[TYPE_CHAR] = function (packet, pos)
   local len
   len, pos = strunpack("<i2", packet, pos)
+  if len < 0 then
+    return null, pos
+  end
   return iconv_from(strsub(packet, pos, pos + len - 1), "GBK"), pos + len
 end
 
 RTYPE_TAB[TYPE_NCHAR] = function (packet, pos)
   local len
   len, pos = strunpack("<i2", packet, pos)
+  if len < 0 then
+    return null, pos
+  end
   return iconv_from(strsub(packet, pos, pos + len - 1), "UCS-2LE"), pos + len
 end
 
 RTYPE_TAB[TYPE_VARCHAR] = function (packet, pos)
   local len
   len, pos = strunpack("<i2", packet, pos)
+  if len < 0 then
+    return null, pos
+  end
   return iconv_from(strsub(packet, pos, pos + len - 1), "GBK"), pos + len
 end
 
 RTYPE_TAB[TYPE_NVARCHAR] = function (packet, pos)
   local len
   len, pos = strunpack("<i2", packet, pos)
+  if len < 0 then
+    return null, pos
+  end
   return iconv_from(strsub(packet, pos, pos + len - 1), "UCS-2LE"), pos + len
 end
 
 RTYPE_TAB[TYPE_TEXT] = function (packet, pos)
   local ptr_len, text_len
   ptr_len, pos = strunpack("<B", packet, pos)
+  if ptr_len == 0 then
+    return null, pos
+  end
   text_len, pos = strunpack("<I4", packet, pos + ptr_len + 8)
   return iconv_from(strsub(packet, pos, pos + text_len - 1), "GBK"), pos + text_len
 end
@@ -440,6 +454,9 @@ end
 RTYPE_TAB[TYPE_NTEXT] = function (packet, pos)
   local ptr_len, text_len
   ptr_len, pos = strunpack("<B", packet, pos)
+  if ptr_len == 0 then
+    return null, pos
+  end
   text_len, pos = strunpack("<I4", packet, pos + ptr_len + 8)
   return iconv_from(strsub(packet, pos, pos + text_len - 1), "UCS-2LE"), pos + text_len
 end
@@ -886,28 +903,7 @@ function mssql:ctor(opt)
 end
 
 function mssql:read( bytes )
-  local sock = self.sock
-	local buffer = sock:recv(bytes)
-	if not buffer then
-		return
-	end
-	if #buffer == bytes then
-		return buffer
-	end
-	bytes = bytes - #buffer
-	local buffers = {buffer}
-  local sock_read = sock.recv
-	while 1 do
-		buffer = sock_read(sock, bytes)
-		if not buffer then
-			return
-		end
-    bytes = bytes - #buffer
-    tabinsert(buffers, buffer)
-		if bytes == 0 then
-			return tabconcat(buffers)
-		end
-	end
+  return self.sock:readbytes(bytes)
 end
 
 function mssql:write(data)
@@ -930,6 +926,9 @@ function mssql:connect( ... )
   else
     return nil, "MSSQL Server driver Invalid Configure."
   end
+
+  -- Socket Stream Wrapper.
+  self.sock = stream(self.sock)
 
   -- 发送TDS-7.0登录协议
   self:write(tds_login7(self))
@@ -1046,7 +1045,7 @@ end
 
 function mssql:set_timeout(timeout)
   if self.sock and tonumber(timeout) then
-    self.sock._timeout = timeout
+    self.sock:timeout(timeout)
   end
 end
 

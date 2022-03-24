@@ -92,4 +92,14 @@ function UDP:close()
   G_Reference[self] = nil
 end
 
+---comment 刷新
+function UDP.flush()
+  local G_REF = {}
+  for key, value in pairs(G_Reference) do
+    G_REF[key] = value
+  end
+  G_Reference = G_REF
+  tab['__G_UDP__'] = G_REF
+end
+
 return UDP

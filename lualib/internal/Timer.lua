@@ -5,6 +5,9 @@ local co = require "internal.Co"
 local ti = require "timer"
 
 local type = type
+local pairs = pairs
+local setmetatable = setmetatable
+
 local ti_new = ti.new
 local ti_start = ti.start
 
@@ -17,18 +20,19 @@ local co_self = co.self
 local co_start = coroutine.resume
 local co_wait_ex = coroutine.yield
 
-local tab = debug.getregistry()
-if tab['__G_TIMER__'] then
-  return tab['__G_TIMER__']
-end
-
 local Timer = {}
-tab['__G_TIMER__'] = Timer
 
 local TMap = {}
 
+local tab = debug.getregistry()
+tab['__G_TIMER__'] = TMap
+
 local function get_tid(offset)
-  return (time() + offset * 1e3) * 0.1 // 1
+  local ts = time()
+  if offset > 0 then
+    ts = ts + offset * 1e3
+  end
+  return ts * 0.1 // 1
 end
 
 local function get_ctx(tid)
@@ -65,11 +69,10 @@ Timer.TCo = co_new(function ()
         for idx = 1, #list do
           local ctx = list[idx]
           if ctx[run_idx] then
-            local cb = ctx[func_idx]
             if ctx[async_idx] then
-              cb()
+              ctx[func_idx]()
             else
-              co_spawn(cb)
+              co_spawn(ctx[func_idx])
             end
             if ctx[again_idx] then -- 如果需要重复
               set_ctx(get_tid(ctx[time_idx]), ctx)
@@ -87,9 +90,17 @@ end)
 -- 初始化
 co_start(Timer.TCo)
 -- 选更小的时间来定期检查.
-ti_start(TTimer, 0.005, Timer.TCo)
+ti_start(TTimer, 0.01, Timer.TCo)
 
----@class Timer
+---@class Timer @定时器对象
+local class = require "class"
+
+local TIMER = class("Timer")
+
+-- 初始化
+function TIMER:ctor() end
+-- 停止定时器
+function TIMER:stop() if self then self[1] = false end end
 
 ---comment 初始化定时器对象
 ---@param timeout number   @超时时间
@@ -98,14 +109,7 @@ ti_start(TTimer, 0.005, Timer.TCo)
 ---@param func    function @回调函数
 ---@return Timer  @定时器对象
 local function Timer_Init(timeout, again, async, func)
-  local ctx = set_ctx(get_tid(timeout), { true, timeout, func, again, async })
-  return {
-    stop = function (self)
-      if self and ctx and ctx[1] then
-        ctx[1] = false
-      end
-    end
-  }
+  return set_ctx(get_tid(timeout), setmetatable({true, timeout, func, again, async}, TIMER))
 end
 
 ---comment 一次性定时器
@@ -139,6 +143,16 @@ function Timer.sleep(nsleep)
     return co_wakeup(coctx)
   end)
   co_wait()
+end
+
+---comment 刷新
+function Timer.flush()
+  local Map = {}
+  for key, value in pairs(TMap) do
+    Map[key] = value
+  end
+  TMap = Map
+  tab['__G_TIMER__'] = Map
 end
 
 return Timer

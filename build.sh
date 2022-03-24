@@ -16,14 +16,19 @@ current=`pwd`
 
 rm -rf build && mkdir build && cd build
 
-# git clone https://gitee.com/CandyMi/lua -b v5.4.3
-git clone https://github.com/CandyMi/lua -b v5.4.3
+# 通过时区,自动选择镜像源
+timeArea=`date +"%Z %z" `
+if [[ $timeArea == "CST +0800" ]] 
+then 
+  git clone https://gitee.com/CandyMi/lua -b v5.4.3
+  git clone https://gitee.com/CandyMi/libev -b v4.33
+  git clone https://gitee.com/CandyMi/libeio
 
-# git clone https://gitee.com/CandyMi/libev -b v4.33
-git clone https://github.com/CandyMi/libev -b v4.33
-
-# git clone https://gitee.com/CandyMi/libeio
-git clone https://github.com/CandyMi/libeio
+else 
+  git clone https://github.com/CandyMi/lua -b v5.4.3
+  git clone https://github.com/CandyMi/libev -b v4.33
+  git clone https://github.com/CandyMi/libeio
+fi
 
 echo "========== build libev ==========" &&
   cd ${current}/build/libev && sh autogen.sh && ./configure --prefix=/usr/local --enable-shared=no --with-pic &&
