@@ -162,9 +162,16 @@ local function cros_append(header, timeout)
   insert(header, 'Access-Control-Max-Age: ' .. (timeout or 86400))
 end
 
+local AllowMethod = {
+  GET = true,
+  POST = true,
+  DELETE = true,
+  PUT = true,
+  PATCH = true,
+}
+
 local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEADER)
-  local content = new_tab(0, 16)
-  local body_len = toint(HEADER['Content-Length']) or toint(HEADER['Content-length']) or toint(HEADER['content-length'])
+  local body_len = toint(HEADER['Content-Length'] or HEADER['content-length'])
   local BODY
   if body_len and body_len > 0 then
     if body_len >= (max_body_size or (1024 * 1024)) then
@@ -190,44 +197,49 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
   local URL_ENCODE  = 'application/x-www-form-urlencoded'
   local format = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '(.-/[^;]*)')
 
-  if format == JSON_ENCODE then
-    content['json'] = true
-  elseif format == XML_ENCODE_1 or format == XML_ENCODE_2 then
-    content['xml'] = true
-  elseif format == FILE_ENCODE then
-    if format == FILE_ENCODE then
-      local BOUNDARY = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '^.+=[%-]*(.+)')
-      if BOUNDARY and BOUNDARY ~= '' then
-        local files, formargs = form_multipart(BODY, BOUNDARY)
-        if files then
-          content['files'] = files
-        end
-        if formargs then
-          content['formargs'] = {}
-          for _, args in ipairs(formargs) do
-            content['formargs'][args[1]] = args[2]
+  if AllowMethod[string.upper(METHOD)] then
+    local content = new_tab(0, 16)
+    if format == JSON_ENCODE then
+      content['json'] = true
+    elseif format == XML_ENCODE_1 or format == XML_ENCODE_2 then
+      content['xml'] = true
+    elseif format == FILE_ENCODE then
+      if format == FILE_ENCODE then
+        local BOUNDARY = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '^.+=[%-]*(.+)')
+        if BOUNDARY and BOUNDARY ~= '' then
+          local files, formargs = form_multipart(BODY, BOUNDARY)
+          if files then
+            content['files'] = files
+          end
+          if formargs then
+            content['formargs'] = {}
+            for _, args in ipairs(formargs) do
+              content['formargs'][args[1]] = args[2]
+            end
           end
         end
       end
     end
-  end
 
-  local spl_pos = find(PATH, '%?')
-  local queryParams = form_argsencode(PATH)
-  if spl_pos and spl_pos < #PATH then
-    content['query'] = queryParams
-  end
-  if METHOD == "GET" or METHOD == "DELETE" then
-    content['args'] = queryParams
-  elseif METHOD == "POST" then
-    if format == FILE_ENCODE then
-      content['args'] = content['formargs']
-    elseif format == URL_ENCODE then
-      content['args'] = form_urlencode(BODY)
+    local spl_pos = find(PATH, '%?')
+    local queryParams = form_argsencode(PATH)
+    if spl_pos and spl_pos < #PATH then
+      content['query'] = queryParams
     end
+    if METHOD == "GET" or METHOD == "DELETE" then
+      content['args'] = queryParams
+    elseif METHOD == "POST" then
+      if format == FILE_ENCODE then
+        content['args'] = content['formargs']
+      elseif format == URL_ENCODE then
+        content['args'] = form_urlencode(BODY)
+      end
+    end
+    content['body'] = BODY
+    return true, content
+  else
+    return true
   end
-  content['body'] = BODY
-  return true, content
 end
 
 local function X_Forwarded_FORMAT(ip_list)
