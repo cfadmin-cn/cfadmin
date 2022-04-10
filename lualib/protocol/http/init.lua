@@ -49,6 +49,7 @@ local fmt = string.format
 local toint = math.tointeger
 local find = string.find
 local split = string.sub
+local upper = string.upper
 
 local DATE = os.date
 local time = os.time
@@ -196,50 +197,49 @@ local function PASER_METHOD(http, sock, max_body_size, buffer, METHOD, PATH, HEA
   local JSON_ENCODE = 'application/json'
   local URL_ENCODE  = 'application/x-www-form-urlencoded'
   local format = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '(.-/[^;]*)')
+  if not AllowMethod[upper(METHOD)] then
+    return true
+  end
 
-  if AllowMethod[string.upper(METHOD)] then
-    local content = new_tab(0, 16)
-    if format == JSON_ENCODE then
-      content['json'] = true
-    elseif format == XML_ENCODE_1 or format == XML_ENCODE_2 then
-      content['xml'] = true
-    elseif format == FILE_ENCODE then
-      if format == FILE_ENCODE then
-        local BOUNDARY = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '^.+=[%-]*(.+)')
-        if BOUNDARY and BOUNDARY ~= '' then
-          local files, formargs = form_multipart(BODY, BOUNDARY)
-          if files then
-            content['files'] = files
-          end
-          if formargs then
-            content['formargs'] = {}
-            for _, args in ipairs(formargs) do
-              content['formargs'][args[1]] = args[2]
-            end
+  local content = new_tab(0, 16)
+  if format == JSON_ENCODE then
+    content['json'] = true
+  elseif format == XML_ENCODE_1 or format == XML_ENCODE_2 then
+    content['xml'] = true
+  elseif format == FILE_ENCODE then
+    if format == FILE_ENCODE then
+      local BOUNDARY = match(HEADER['Content-Type'] or HEADER['content-type'] or '', '^.+=[%-]*(.+)')
+      if BOUNDARY and BOUNDARY ~= '' then
+        local files, formargs = form_multipart(BODY, BOUNDARY)
+        if files then
+          content['files'] = files
+        end
+        if formargs then
+          content['formargs'] = {}
+          for _, args in ipairs(formargs) do
+            content['formargs'][args[1]] = args[2]
           end
         end
       end
     end
-
-    local spl_pos = find(PATH, '%?')
-    local queryParams = form_argsencode(PATH)
-    if spl_pos and spl_pos < #PATH then
-      content['query'] = queryParams
-    end
-    if METHOD == "GET" or METHOD == "DELETE" then
-      content['args'] = queryParams
-    elseif METHOD == "POST" then
-      if format == FILE_ENCODE then
-        content['args'] = content['formargs']
-      elseif format == URL_ENCODE then
-        content['args'] = form_urlencode(BODY)
-      end
-    end
-    content['body'] = BODY
-    return true, content
-  else
-    return true
   end
+
+  local spl_pos = find(PATH, '%?')
+  local queryParams = form_argsencode(PATH)
+  if spl_pos and spl_pos < #PATH then
+    content['query'] = queryParams
+  end
+  if METHOD == "GET" or METHOD == "DELETE" then
+    content['args'] = queryParams
+  elseif METHOD == "POST" then
+    if format == FILE_ENCODE then
+      content['args'] = content['formargs']
+    elseif format == URL_ENCODE then
+      content['args'] = form_urlencode(BODY)
+    end
+  end
+  content['body'] = BODY
+  return true, content
 end
 
 local function X_Forwarded_FORMAT(ip_list)
