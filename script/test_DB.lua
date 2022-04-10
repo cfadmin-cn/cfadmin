@@ -5,7 +5,7 @@ local DB = require "DB"
 local db = DB:new {
 	host = 'localhost',
 	port = 3306,
-	database = 'test',
+	database = 'mysql',
 	username = 'root',
 	password = '123456789',
 	max = 1,
@@ -46,10 +46,21 @@ end)
 
 -- 测试预编译语句
 cf.fork(function ( ... )
-	local rkey = db:prepare([[SELECT version() AS version]])
-	local ret, err = db:execute(rkey)
+	local ret, err = db:execute([[SELECT version() AS version]])
 	if not ret then
 		return LOG:DEBUG(err)
 	end
 	LOG:DEBUG(ret)
+end)
+
+-- 测试开启事务
+cf.fork(function ()
+  local status, err = db:transaction(function (session)
+    LOG:WARN(session:query("show databases"))
+    LOG:WARN(session:execute("show tables"))
+
+    -- return session:rollback()
+    return session:commit()
+  end)
+  LOG:DEBUG(status, err)
 end)

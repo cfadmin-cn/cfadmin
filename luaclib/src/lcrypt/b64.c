@@ -1,119 +1,170 @@
 #include "lcrypt.h"
 
-static inline int b64index(uint8_t c) {
-  static const int decoding[] = {62,-1,-1,-1,63,52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-2,-1,-1,-1,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51};
-  int decoding_size = sizeof(decoding)/sizeof(decoding[0]);
-  if (c<43) {
-    return -1;
+#define BASE64_CHUNK (65535)
+
+#define BASE64_ENC_LENGTH(len) (((len) + 2) / 3 * 4)
+
+#define BASE64_DEC_LENGTH(len) ((len + 3) / 4 * 3)
+
+#define BASE64_URLSAFE(safe, ch, a, b, c, d) \
+  if (urlsafe) {            \
+    if (ch == a)            \
+      ch = b;               \
+    else if (ch == c)       \
+      ch = d;               \
   }
-  c -= 43;
-  if (c>=decoding_size)
-    return -1;
-  return decoding[c];
+
+static inline void encoder(uint8_t *buffer, uint32_t idx, uint8_t code, int32_t urlsafe) {
+  static const char b64code[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  uint8_t ch = b64code[code];
+  BASE64_URLSAFE(urlsafe, ch, '+', '-', '/', '_');
+  /* check encoder */
+  buffer[idx] = ch;
 }
 
-
 int lb64encode(lua_State *L) {
-  static const char* encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  size_t sz = 0;
-  const uint8_t * text = (const uint8_t *)luaL_checklstring(L, 1, &sz);
-  int encode_sz = (sz + 2)/3*4;
-  char tmp[SMALL_CHUNK];
-  char *buffer = tmp;
-  if (encode_sz > SMALL_CHUNK) {
-    buffer = lua_newuserdata(L, encode_sz);
+
+  size_t tsize = 0;
+  const uint8_t* text = (const uint8_t *)luaL_checklstring(L, 1, &tsize);
+  if (!text || tsize == 0)
+    return 0;
+
+  int32_t urlsafe = 0;
+  if (lua_isboolean(L, 2) && lua_toboolean(L, 2))
+    urlsafe = 1;
+
+  int32_t nopadding = 0;
+  if (lua_isboolean(L, 3) && lua_toboolean(L, 3))
+    nopadding = 1;
+
+  int esize = BASE64_ENC_LENGTH(tsize);
+
+  char *buffer;
+  if (tsize <= BASE64_CHUNK)
+    buffer = alloca(esize);
+  else
+    buffer = lua_newuserdata(L, esize);
+
+  int64_t nsize = tsize;
+  size_t idx, set, index = 0;
+
+  /* normal encoder */
+  for (idx = 0; idx < nsize - 2; idx += 3) {
+    set = (text[idx] << 16) | (text[idx + 1] << 8) | (text[idx + 2]);
+    encoder((uint8_t*)buffer, index++, set >> 18 & 0x3f, urlsafe);
+    encoder((uint8_t*)buffer, index++, set >> 12 & 0x3f, urlsafe);
+    encoder((uint8_t*)buffer, index++, set >> 6  & 0x3f, urlsafe);
+    encoder((uint8_t*)buffer, index++, set & 0x3f, urlsafe);
   }
-  int i,j;
-  j=0;
-  for (i=0;i<(int)sz-2;i+=3) {
-    uint32_t v = text[i] << 16 | text[i+1] << 8 | text[i+2];
-    buffer[j] = encoding[v >> 18];
-    buffer[j+1] = encoding[(v >> 12) & 0x3f];
-    buffer[j+2] = encoding[(v >> 6) & 0x3f];
-    buffer[j+3] = encoding[(v) & 0x3f];
-    j+=4;
+
+  // int padding = tsize - idx;
+  /* checked padding. */
+  switch (tsize - idx) {
+    case 1: /* only 1 char */
+      set = text[idx];
+      encoder((uint8_t*)buffer, index++, set >> 2, urlsafe);
+      encoder((uint8_t*)buffer, index++, (set << 4) & 0x3f, urlsafe);
+      if (!nopadding) {
+        buffer[index++] = '=';
+        buffer[index++] = '=';
+      }
+      break;
+    case 2: /* having 2 char */
+      set = text[idx] << 8 | text[idx + 1];
+      encoder((uint8_t*)buffer, index++, (set >> 10) & 0x3f, urlsafe);
+      encoder((uint8_t*)buffer, index++, (set >>  4) & 0x3f, urlsafe);
+      encoder((uint8_t*)buffer, index++, (set <<  2) & 0x3f, urlsafe);
+      if (!nopadding)
+        buffer[index++] = '=';
+      break;
   }
-  int padding = sz-i;
-  uint32_t v;
-  switch(padding) {
-  case 1 :
-    v = text[i];
-    buffer[j] = encoding[v >> 2];
-    buffer[j+1] = encoding[(v & 3) << 4];
-    buffer[j+2] = '=';
-    buffer[j+3] = '=';
-    break;
-  case 2 :
-    v = text[i] << 8 | text[i+1];
-    buffer[j] = encoding[v >> 10];
-    buffer[j+1] = encoding[(v >> 4) & 0x3f];
-    buffer[j+2] = encoding[(v & 0xf) << 2];
-    buffer[j+3] = '=';
-    break;
-  }
-  lua_pushlstring(L, buffer, encode_sz);
+  lua_pushlstring(L, buffer, index);
   return 1;
 }
 
+static inline uint8_t decoder(lua_State* L, uint8_t ch, int32_t urlsafe) {
+  static const int8_t b64code_idx[] = {
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  62,  -1,  -1,  -1,  63,
+    52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,
+    15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  -1,  -1,  -1,  -1,  -1,
+    -1,  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,
+    41,  42,  43,  44,  45,  46,  47,  48,  49,  50,  51,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+  };
+  BASE64_URLSAFE(urlsafe, ch, '-', '+', '_', '/');
+  int8_t code = b64code_idx[ch];
+  if (code == -1)
+    return luaL_error(L, "Invalid base64 decode byte. %d", ch);
+  return (uint8_t)code;
+}
+
 int lb64decode(lua_State *L) {
-  size_t sz = 0;
-  const uint8_t * text = (const uint8_t *)luaL_checklstring(L, 1, &sz);
-  int decode_sz = (sz+3)/4*3;
-  char tmp[SMALL_CHUNK];
-  char *buffer = tmp;
-  if (decode_sz > SMALL_CHUNK) {
-    buffer = lua_newuserdata(L, decode_sz);
-  }
-  int i,j;
-  int output = 0;
-  for (i=0;i<sz;) {
-    int padding = 0;
-    int c[4];
-    for (j=0;j<4;) {
-      if (i>=sz) {
-        return luaL_error(L, "Invalid base64 text");
+  size_t tsize = 0;
+  const uint8_t* text = (const uint8_t *)luaL_checklstring(L, 1, &tsize);
+  if (!text || tsize == 0)
+    return 0;
+
+  int32_t urlsafe = 0;
+  if (lua_isboolean(L, 2) && lua_toboolean(L, 2))
+    urlsafe = 1;
+
+  int dsize = BASE64_DEC_LENGTH(tsize);
+
+  char *buffer;
+  if (tsize <= BASE64_CHUNK)
+    buffer = alloca(dsize);
+  else
+    buffer = lua_newuserdata(L, dsize);
+
+  size_t index = 0, idx = 0;
+  uint32_t offsets, i, pos;
+  for (idx = 0; idx < tsize;)
+  {
+    i = 0, pos = 0;
+    uint8_t set[] = {0, 0, 0, 0};
+    while (idx + pos < tsize && i < 4) {
+      uint8_t ch = text[idx + (pos++)];
+      if (ch == '=') {
+        if (idx + pos < tsize - 2)
+          return luaL_error(L, "Invalid base64 decode text.");
+        break;
       }
-      c[j] = b64index(text[i]);
-      if (c[j] == -1) {
-        ++i;
+      if (ch == '\n')
         continue;
-      }
-      if (c[j] == -2) {
-        ++padding;
-      }
-      ++i;
-      ++j;
+      set[i++] = decoder(L, ch, urlsafe);
     }
-    uint32_t v;
-    switch (padding) {
-    case 0:
-      v = (unsigned)c[0] << 18 | c[1] << 12 | c[2] << 6 | c[3];
-      buffer[output] = v >> 16;
-      buffer[output+1] = (v >> 8) & 0xff;
-      buffer[output+2] = v & 0xff;
-      output += 3;
-      break;
-    case 1:
-      if (c[3] != -2 || (c[2] & 3)!=0) {
-        return luaL_error(L, "Invalid base64 text");
-      }
-      v = (unsigned)c[0] << 10 | c[1] << 4 | c[2] >> 2 ;
-      buffer[output] = v >> 8;
-      buffer[output+1] = v & 0xff;
-      output += 2;
-      break;
-    case 2:
-      if (c[3] != -2 || c[2] != -2 || (c[1] & 0xf) !=0)  {
-        return luaL_error(L, "Invalid base64 text");
-      }
-      v = (unsigned)c[0] << 2 | c[1] >> 4;
-      buffer[output] = v;
-      ++ output;
-      break;
-    default:
-      return luaL_error(L, "Invalid base64 text");
+    // printf("pos = %d, set = { %d, %d, %d, %d }\n", idx, set[0], set[1], set[2], set[3]);
+    offsets = (set[0] << 18) | (set[1] << 12) | (set[2] << 6) | set[3];
+    switch (4 - i){
+      case 0:
+        /* decode normal character. */
+        buffer[index++] = (offsets >> 16);
+        buffer[index++] = (offsets >>  8) & 0xFF;;
+        buffer[index++] = offsets & 0xFF;
+        break;
+      case 1:
+        /* padding 1 character. */
+        buffer[index++] = (offsets >> 16);
+        buffer[index++] = (offsets >>  8) & 0xFF;;
+        break;
+      case 2:
+        /* padding 2 character. */
+        buffer[index++] = offsets >> 16;
+        break;
     }
+    idx += pos;
   }
-  lua_pushlstring(L, buffer, output);
+  // printf("ret = %d\n", index);
+  lua_pushlstring(L, buffer, index);
   return 1;
 }

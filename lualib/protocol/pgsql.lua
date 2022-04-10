@@ -3,6 +3,7 @@
   Author: CandyMi[https://github.com/candymi]
 ]]
 
+local stream = require "stream"
 local tcp = require "internal.TCP"
 
 local crypt = require "crypt"
@@ -441,28 +442,7 @@ function pgsql:ctor(opt)
 end
 
 function pgsql:read(bytes)
-  local sock = self.sock
-	local buffer = sock:recv(bytes)
-	if not buffer then
-		return
-	end
-	if #buffer == bytes then
-		return buffer
-	end
-	bytes = bytes - #buffer
-	local buffers = {buffer}
-  local sock_read = sock.recv
-	while 1 do
-		buffer = sock_read(sock, bytes)
-		if not buffer then
-			return
-		end
-    bytes = bytes - #buffer
-    tinsert(buffers, buffer)
-		if bytes == 0 then
-			return tconcat(buffers)
-		end
-	end
+  return self.sock:readbytes(bytes)
 end
 
 function pgsql:write(data)
@@ -498,6 +478,9 @@ function pgsql:connect()
   else
     return nil, "PGSQL Server driver Invalid Configure."
   end
+
+  -- Socket Stream Wrapper.
+  self.sock = stream(self.sock)
 
   -- 发送启动协议
   self:write(self:startup())
@@ -575,7 +558,7 @@ end
 
 function pgsql:set_timeout(timeout)
   if self.sock and tonumber(timeout) then
-    self.sock._timeout = timeout
+    self.sock:timeout(timeout)
   end
 end
 

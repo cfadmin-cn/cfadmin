@@ -151,11 +151,100 @@ local function test_b64()
 
   print("----------*** 开始测试 base64 ***----------")
 
-  local rawData = "123456789"
+  local base64encode = require"crypt".base64encode
+  local base64decode = require"crypt".base64decode
+  local base64urlencode = require"crypt".base64urlencode
+  local base64urldecode = require"crypt".base64urldecode
 
-  Log:DEBUG("测试base64:" ..  crypt.base64encode(rawData), "原始数据为:" .. rawData)
+  local LOG = require "logging"
 
-  assert(rawData == crypt.base64decode(crypt.base64encode(rawData)))
+  -- 1. 测试base64与base64url的编码解码
+  local text = "Base64编码及解码测试"
+  local nb, ub = base64encode(text), base64urlencode(text)
+  local txt1, txt2 = base64decode(nb), base64urldecode(ub)
+  LOG:DEBUG(nb, ub)
+  LOG:DEBUG(assert(text == txt2), assert(text == txt1), assert(txt1 == txt2))
+
+  local v = 'Some_data_to_be_converted'
+
+  -- 2. 测试padding是否会影响解码
+  local b1 = 'U29tZV9kYXRhX3RvX2JlX2NvbnZlcnRlZA=='
+  local b2 = 'U29tZV9kYXRhX3RvX2JlX2NvbnZlcnRlZA='
+  local b3 = 'U29tZV9kYXRhX3RvX2JlX2NvbnZlcnRlZA'
+  LOG:DEBUG(1, v, assert(v == base64decode(b1)))
+  LOG:DEBUG(2, v, assert(v == base64decode(b2)))
+  LOG:DEBUG(3, v, assert(v == base64decode(b3)))
+
+  -- 3. 递推鲁棒性测试编码
+  local v1, v2
+  local t1 = 'A'         -- 'QQ=='
+  local t2 = 'AB'        -- 'QUI='
+  local t3 = 'ABC'       -- 'QUJD'
+  local t4 = 'ABCD'      -- 'QUJDRA=='
+  local t5 = 'ABCDE'     -- 'QUJDREU='
+  local t6 = 'ABCDEF'    -- 'QUJDREVG'
+  local t7 = 'ABCDEFG'   -- 'QUJDREVGRw=='
+  local t8 = 'ABCDEFGH'  -- 'QUJDREVGR0g='
+  local t9 = 'ABCDEFGHI' -- 'QUJDREVGR0hJ'
+
+  v1, v2 = base64decode("QQ=="), base64decode("QQ")
+  LOG:DEBUG(1, t1, assert(v1 == v2), assert(t1 == v1), assert(t1 == v2))
+
+  v1, v2 = base64decode("QUI="), base64decode("QUI")
+  LOG:DEBUG(2, t2, assert(v1 == v2), assert(t2 == v1), assert(t2 == v2))
+
+  v1, v2 = base64decode("QUJD"), base64decode("QUJD")
+  LOG:DEBUG(3, t3, assert(v1 == v2), assert(t3 == v1), assert(t3 == v2))
+
+  v1, v2 = base64decode("QUJDRA=="), base64decode("QUJDRA")
+  LOG:DEBUG(4, t4, assert(v1 == v2), assert(t4 == v1), assert(t4 == v2))
+
+  v1, v2 = base64decode("QUJDREU="), base64decode("QUJDREU")
+  LOG:DEBUG(5, t5, assert(v1 == v2), assert(t5 == v1), assert(t5 == v2))
+
+  v1, v2 = base64decode("QUJDREVG"), base64decode("QUJDREVG")
+  LOG:DEBUG(6, t6, assert(v1 == v2), assert(t6 == v1), assert(t6 == v2))
+
+  v1, v2 = base64decode("QUJDREVGRw=="), base64decode("QUJDREVGRw")
+  LOG:DEBUG(7, t7, assert(v1 == v2), assert(t7 == v1), assert(t7 == v2))
+
+  v1, v2 = base64decode("QUJDREVGR0g="), base64decode("QUJDREVGR0g")
+  LOG:DEBUG(8, t8, assert(v1 == v2), assert(t8 == v1), assert(t8 == v2))
+
+  v1, v2 = base64decode("QUJDREVGR0hJ"), base64decode("QUJDREVGR0hJ")
+  LOG:DEBUG(9, t9, assert(v1 == v2), assert(t9 == v1), assert(t9 == v2))
+
+  -- 4. 测试篡改字符
+  local bdata1  = 'NWE3MGQzMTBhYWYyODUxZTFlN2QwOWY2OWFmOGE5ZjMtMmUzOGIxZWNlZTVkNDUzNjkyYTg2NDAxYTVhZjk0MzUwMDAyLUx3QTF1OGpXWC8zelM2TUt0NG9pbW1qZzVEOD1='
+  local ubdata1 = 'NWE3MGQzMTBhYWYyODUxZTFlN2QwOWY2OWFmOGE5ZjMtMmUzOGIxZWNlZTVkNDUzNjkyYTg2NDAxYTVhZjk0MzUwMDAyLUx3QTF1OGpXWC8zelM2TUt0NG9pbW1qZzVEOD1'
+  LOG:DEBUG(base64decode(bdata1), base64decode(ubdata1))
+
+  local bdata2  = 'NWE3MGQzMTBhYWYyODUxZTFlN2QwOWY2OWFmOGE5ZjMtMmUzOGIxZWNlZTVkNDUzNjkyYTg2NDAxYTVhZjk0MzUwMDAyLUx3QTF1OGpXWC8zelM2TUt0NG9pbW1qZzVEOD0='
+  local ubdata2 = 'NWE3MGQzMTBhYWYyODUxZTFlN2QwOWY2OWFmOGE5ZjMtMmUzOGIxZWNlZTVkNDUzNjkyYTg2NDAxYTVhZjk0MzUwMDAyLUx3QTF1OGpXWC8zelM2TUt0NG9pbW1qZzVEOD0'
+  LOG:DEBUG(base64decode(bdata2), base64decode(ubdata2))
+
+  -- 5. paddding测试 1
+  local c1, c2
+  local test = "我刚刚想了一下，现在是不是应该为咱们的真实数据添加一点特殊字符.！"
+  -- 携带paddding测试
+  c1, c2 = base64encode(test), base64urlencode(test)
+  LOG:DEBUG(c1, c2)
+  LOG:DEBUG(assert(base64decode(c1) == test), assert(base64urldecode(c2) == test))
+  -- 去除paddding测试
+  c1, c2 = base64encode(test, true), base64urlencode(test, true)
+  LOG:DEBUG(c1, c2)
+  LOG:DEBUG(assert(base64decode(c1) == test), assert(base64urldecode(c2) == test))
+
+  -- 6. paddding测试 2
+  test = "A."
+  -- 携带paddding测试
+  c1, c2 = base64encode(test), base64urlencode(test)
+  LOG:DEBUG(c1, c2)
+  LOG:DEBUG(assert(base64decode(c1) == test), assert(base64urldecode(c2) == test))
+  -- 去除paddding测试
+  c1, c2 = base64encode(test, true), base64urlencode(test, true)
+  LOG:DEBUG(c1, c2)
+  LOG:DEBUG(assert(base64decode(c1) == test), assert(base64urldecode(c2) == test))
 
   print("----------*** base64 测试完毕 ***----------\n")
 
@@ -185,7 +274,7 @@ local function test_aes()
 
 
   local function test_aes_192_bit()
-    key_192 = "abcdefghabcdefghabcdefgh"
+    local key_192 = "abcdefghabcdefghabcdefgh"
     -- ECB
     local ecb_encryptData = crypt.aes_192_ecb_encrypt(key_192, text, iv)
     local ecb_rawData = crypt.aes_192_ecb_decrypt(key_192, ecb_encryptData, iv)
@@ -200,7 +289,7 @@ local function test_aes()
   end
 
   local function test_aes_256_bit()
-    key_256 = "abcdefghabcdefghabcdefghabcdefgh"
+    local key_256 = "abcdefghabcdefghabcdefghabcdefgh"
     -- ECB
     local ecb_encryptData = crypt.aes_256_ecb_encrypt(key_256, text, iv)
     local ecb_rawData = crypt.aes_256_ecb_decrypt(key_256, ecb_encryptData, iv)
@@ -369,9 +458,11 @@ end
 
 local function test_uuid( ... )
 
-  print("----------*** 开始测试 uuid 生成 ***----------")
+  print("----------*** 开始测试 uuid/guid 生成 ***----------")
 
   Log:DEBUG("生成的UUID为: " .. crypt.uuid())
+
+  Log:DEBUG("生成的GUID为: " .. crypt.guid())
 
   print("----------*** uuid 测试完成 ***----------\n")
 end
@@ -388,7 +479,7 @@ local function main()
 
     -- test_url,
 
-    -- test_b64,
+    test_b64,
 
     -- test_sha,
 
@@ -402,9 +493,9 @@ local function main()
 
     -- test_other,
 
-    test_rsa,
+    -- test_rsa,
 
-    -- test_uuid,
+    test_uuid,
 
   }
 

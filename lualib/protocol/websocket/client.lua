@@ -4,6 +4,7 @@ local log = require "logging"
 local Log = log:new{ dump = true, path = "protocol-wsclient"}
 
 local tcp = require "internal.TCP"
+local stream = require "stream"
 
 local cf = require "cf"
 local cf_fork = cf.fork
@@ -191,7 +192,7 @@ function websocket:ctor (opt)
   self.ssl = nil
   self.ext = nil
   self.url = opt.url
-  self.sock = tcp:new()
+  self.sock = stream(tcp:new())
   self.send_masked = true
   self.sock._timeout = toint(opt.timeout)
   self.max_payload_len = opt.max_payload_len or 65535
@@ -259,9 +260,7 @@ function websocket:send (data, bin)
   end
   assert(type(data) == 'string' and data ~= '', "Invalid websocket send data.")
   local sock = self.sock
-  return self:request(function ()
-    return _send_frame(sock, true, bin and 0x02 or 0x01, data, self.max_payload_len, self.send_masked, self.ext)
-  end)
+  return _send_frame(sock, true, bin and 0x02 or 0x01, data, self.send_masked, self.ext)
 end
 
 -- 发送ping
@@ -270,9 +269,7 @@ function websocket:ping(data)
     return nil, 'not connected.'
   end
   local sock = self.sock
-  return self:request(function ()
-    return _send_frame(sock, true, 0x09, type(data) == 'string' and #data <= 125 and data or "", self.max_payload_len, self.send_masked, self.ext)
-  end)
+  return _send_frame(sock, true, 0x09, type(data) == 'string' and #data <= 125 and data or "", self.send_masked, self.ext)
 end
 
 -- 发送pong
@@ -281,9 +278,7 @@ function websocket:pong(data)
     return nil, 'not connected.'
   end
   local sock = self.sock
-  return self:request(function ()
-    return _send_frame(sock, true, 0x0A, type(data) == 'string' and #data <= 125 and data or "", self.max_payload_len, self.send_masked, self.ext)
-  end)
+  return _send_frame(sock, true, 0x0A, type(data) == 'string' and #data <= 125 and data or "", self.send_masked, self.ext)
 end
 
 -- 清理连接
@@ -292,14 +287,7 @@ function websocket:close ()
     local sock = self.sock
     return self:request(function ()
       if self.state then
-        self:request(function ()
-          return _send_frame(sock, true, 0x08, strpack(">H", 1000), self.max_payload_len, self.send_masked, self.ext)
-        end)
-      end
-      if sock then
-        self:request(function ()
-          return sock_close(self)
-        end)
+        return _send_frame(sock, true, 0x08, strpack(">H", 1000), self.send_masked, self.ext)
       end
     end)
   end

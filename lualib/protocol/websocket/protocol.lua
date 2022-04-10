@@ -8,6 +8,8 @@ local wsuncompress = lz.wsuncompress
 local new_tab = require("sys").new_tab
 
 local error = error
+local assert = assert
+
 local strpack = string.pack
 local strunpack = string.unpack
 local random = math.random
@@ -24,31 +26,15 @@ local WS_TYPE = {
 }
 
 local function sock_recv (sock, bytes)
-	local buffer = sock:recv(bytes)
-	if not buffer then
-		return
-	end
-	if #buffer == bytes then
-		return buffer
-	end
-	bytes = bytes - #buffer
-	local buffers = {buffer}
-  local sock_read = sock.recv
-	while 1 do
-		buffer = sock_read(sock, bytes)
-		if not buffer then
-			return
-		end
-    bytes = bytes - #buffer
-    insert(buffers, buffer)
-		if bytes == 0 then
-			return concat(buffers)
-		end
-	end
+  local buf = sock:readbytes(bytes)
+  if not buf then
+    sock.closed = true
+  end
+  return buf
 end
 
 local function sock_send (sock, data)
-  return sock:send(data)
+  return sock:write(data)
 end
 
 local function wsdeflate(data)
@@ -177,7 +163,7 @@ function protocol.recv_frame(sock, max_payload_len, force_masking, buffers)
     end
 
     -- close帧有状态码
-    if opcode == "close" then
+    if opcode == 'close' then
       data = data:sub(3)
     end
 
@@ -191,10 +177,9 @@ end
 ---@param fin             boolean   @结束帧标志
 ---@param opcode          integer   @消息类型
 ---@param payload         string    @数据载荷
----@param max_payload_len integer   @最大长度限制
 ---@param masking         string    @数据掩码
 ---@param ext             string    @协议扩展
-function protocol.send_frame(sock, fin, opcode, payload, max_payload_len, masking, ext)
+function protocol.send_frame(sock, fin, opcode, payload, masking, ext)
 
   local payload_len = #payload
 
@@ -206,7 +191,7 @@ function protocol.send_frame(sock, fin, opcode, payload, max_payload_len, maskin
   end
 
   -- 结束位标志位 + 保留位 + 消息类型
-  local h1 = 0x80 | opcode
+  local h1 = (fin and 0x80 or 0x00) | opcode
   -- 如果有扩展协议则加上扩展响应头部
   if (opc ~= 'close' and opc ~= 'ping' and opc ~= 'pong') and payload_len > 125 and ext == 'deflate' then
     h1 = h1 | 0x40
@@ -225,22 +210,26 @@ function protocol.send_frame(sock, fin, opcode, payload, max_payload_len, maskin
     h2, len_ext = h2 | 0x7F, strpack(">I8", payload_len)
   end
 
-  local buffers = new_tab(3, 0)
-
-  insert(buffers, strpack(">BB", h1, h2))
+  local idx = 1
+  local buffers = new_tab(4, 0)
+  buffers[idx] = strpack(">BB", h1, h2)
 
   if len_ext then
-    buffers[#buffers+1] = len_ext
+    idx = idx + 1
+    buffers[idx] = len_ext
   end
 
   -- 创建随机掩码并与数据载荷进行异或
   if masking and payload_len > 0 then
     masking = strpack(">BBBB", random(255), random(255), random(255), random(255))
     payload = xor_str(payload, masking)
-    insert(buffers, masking)
+    idx = idx + 1
+    buffers[idx] = masking
   end
 
-  return sock_send(sock, concat(buffers)) and sock_send(sock, payload)
+  -- 根据实际情况需要减少发送数据次数.
+  buffers[idx + 1] = payload
+  sock_send(sock, concat(buffers))
 end
 
 return protocol

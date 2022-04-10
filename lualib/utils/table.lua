@@ -343,3 +343,31 @@ function table.reduce(func, list)
   end
   return args[1]
 end
+
+---comment 检查`key`是否包含在多个参数集合中.
+---@param key any   @指定的`key`
+---@param ... any   @`1`个或`N`个参数组成的集合
+---@return boolean  @包含返回`true`, 不包含返回`false`
+function table.on(key, ...)
+  if not key then
+    return false
+  end
+  local tab = {...}
+  for i = 1, #tab do
+    if key == tab[i] then
+      return true
+    end
+  end
+  return false
+end
+
+---comment 将就表的内容转移到新表内, 并且可以直接替换为新表引用(可用于释放大表内存)
+---@param tab table @之前的表
+---@return table    @新建的表
+function table.replace(tab)
+  local t = {}
+  for key, value in pairs(tab) do
+    t[key] = value
+  end
+  return t
+end

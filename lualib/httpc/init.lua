@@ -32,54 +32,56 @@ local __TIMEOUT__ = 15
 
 local methods = { get = true, post = true, put = true, delete = true, xml = true, json = true, file = true}
 
+local function http_requese(sock, opt, req, parameter)
+  local ok, err
+  if parameter and parameter.cert_path and parameter.key_path then
+    sock:ssl_set_privatekey(parameter.key_path)
+    sock:ssl_set_certificate(parameter.cert_path)
+    if not sock:ssl_set_verify() then
+      sock:close()
+      return nil, "SSL privatekey and certfile verify failed."
+    end
+  end
+  ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
+  if not ok then
+    sock:close()
+    return ok, err
+  end
+  ok, err = sock_send(sock, opt.protocol, req)
+  if not ok then
+    sock:close()
+    return ok, err
+  end
+  local code, msg, headers = httpc_response(sock, opt.protocol)
+  sock:close()
+  return code, msg, headers
+end
+
 local function raw( parameter )
-	local opt, err = splite_protocol(parameter.domain)
-	if not opt then
-		return nil, err
-	end
+  local opt, err = splite_protocol(parameter.domain)
+  if not opt then
+    return nil, err
+  end
 
-	local method = assert(type(parameter.method) == 'string' and methods[lower(parameter.method)] and upper(parameter.method), "[HTTPC ERROR]: invalide http method.")
-	parameter.method = method
+  local method = assert(type(parameter.method) == 'string' and methods[lower(parameter.method)] and upper(parameter.method), "[HTTPC ERROR]: invalide http method.")
+  parameter.method = method
 
-	-- GET方法禁止传递body
-	if parameter.method == "GET" then
-		parameter.body = nil
-	end
+  -- GET方法禁止传递body
+  if parameter.method == "GET" then
+    parameter.body = nil
+  end
 
-	-- POST/PUT方法禁止传递args
-	if parameter.method == "POST" or parameter.method == "PUT" or  parameter.method == "DELETE" then
-		parameter.args = nil
-	end
+  -- POST/PUT方法禁止传递args
+  if parameter.method == "POST" or parameter.method == "PUT" or  parameter.method == "DELETE" then
+    parameter.args = nil
+  end
 
-	opt.method = method
-	opt.body = parameter.body
-	opt.args = parameter.args
-	opt.headers = parameter.headers
+  opt.method = method
+  opt.body = parameter.body
+  opt.args = parameter.args
+  opt.headers = parameter.headers
 
-	local REQ = build_raw_req(opt)
-
-	local sock = sock_new():timeout(parameter.timeout or __TIMEOUT__)
-	if parameter.cert_path and parameter.key_path then
-		sock:ssl_set_privatekey(parameter.key_path)
-		sock:ssl_set_certificate(parameter.cert_path)
-		if not sock:ssl_set_verify() then
-			sock:close()
-			return nil, "SSL privatekey and certfile verify failed."
-		end
-	end
-	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local ok, err = sock_send(sock, opt.protocol, REQ)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local code, msg, headers = httpc_response(sock, opt.protocol)
-	sock:close()
-	return code, msg, headers
+  return http_requese(sock_new():timeout(parameter.timeout or __TIMEOUT__), opt, build_raw_req(opt), parameter)
 end
 
 ---comment HTTP[S] `GET`请求方法
@@ -91,31 +93,16 @@ end
 ---@return string 																					@服务器的响应内容.
 ---@return table<string, string>            								@服务器的响应头部.
 local function get(domain, headers, args, timeout)
-	local opt, err = splite_protocol(domain)
-	if not opt then
-		return nil, err
-	end
+  local opt, err = splite_protocol(domain)
+  if not opt then
+    return nil, err
+  end
 
-	opt.args = args
-	opt.headers = headers
-	opt.server = ua.get_user_agent()
+  opt.args = args
+  opt.headers = headers
+  opt.server = ua.get_user_agent()
 
-	local REQ = build_get_req(opt)
-
-	local sock = sock_new():timeout(timeout or __TIMEOUT__)
-	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local ok, err = sock_send(sock, opt.protocol, REQ)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local code, msg, headers = httpc_response(sock, opt.protocol)
-	sock:close()
-	return code, msg, headers
+  return http_requese(sock_new():timeout(timeout or __TIMEOUT__), opt, build_get_req(opt))
 end
 
 ---comment HTTP[S] `POST`请求方法
@@ -127,31 +114,16 @@ end
 ---@return string 																					@服务器的响应内容.
 ---@return table<string, string>            								@服务器的响应头部.
 local function post(domain, headers, body, timeout)
-	local opt, err = splite_protocol(domain)
-	if not opt then
-		return nil, err
-	end
+  local opt, err = splite_protocol(domain)
+  if not opt then
+    return nil, err
+  end
 
-	opt.body = body
-	opt.headers = headers
-	opt.server = ua.get_user_agent()
+  opt.body = body
+  opt.headers = headers
+  opt.server = ua.get_user_agent()
 
-	local REQ = build_post_req(opt)
-
-	local sock = sock_new():timeout(timeout or __TIMEOUT__)
-	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local ok, err = sock_send(sock, opt.protocol, REQ)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local code, msg, headers = httpc_response(sock, opt.protocol)
-	sock:close()
-	return code, msg, headers
+  return http_requese(sock_new():timeout(timeout or __TIMEOUT__), opt, build_post_req(opt))
 end
 
 ---comment HTTP[S] `DELETE`请求方法
@@ -164,31 +136,16 @@ end
 ---@return table<string, string>            								@服务器的响应头部.
 local function delete(domain, headers, body, timeout)
 
-	local opt, err = splite_protocol(domain)
-	if not opt then
-		return nil, err
-	end
+  local opt, err = splite_protocol(domain)
+  if not opt then
+    return nil, err
+  end
 
-	opt.body = body
-	opt.headers = headers
-	opt.server = ua.get_user_agent()
+  opt.body = body
+  opt.headers = headers
+  opt.server = ua.get_user_agent()
 
-	local REQ = build_delete_req(opt)
-
-	local sock = sock_new():timeout(timeout or __TIMEOUT__)
-	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local ok, err = sock_send(sock, opt.protocol, REQ)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local code, msg, headers = httpc_response(sock, opt.protocol)
-	sock:close()
-	return code, msg, headers
+  return http_requese(sock_new():timeout(timeout or __TIMEOUT__), opt, build_delete_req(opt))
 end
 
 ---comment HTTP[S] `PUT`请求方法
@@ -201,31 +158,16 @@ end
 ---@return table<string, string>            								@服务器的响应头部.
 local function put(domain, headers, body, timeout)
 
-	local opt, err = splite_protocol(domain)
-	if not opt then
-		return nil, err
-	end
+  local opt, err = splite_protocol(domain)
+  if not opt then
+    return nil, err
+  end
 
-	opt.body = body
-	opt.headers = headers
-	opt.server = ua.get_user_agent()
+  opt.body = body
+  opt.headers = headers
+  opt.server = ua.get_user_agent()
 
-	local REQ = build_put_req(opt)
-
-	local sock = sock_new():timeout(timeout or __TIMEOUT__)
-	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local ok, err = sock_send(sock, opt.protocol, REQ)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local code, msg, headers = httpc_response(sock, opt.protocol)
-	sock:close()
-	return code, msg, headers
+  return http_requese(sock_new():timeout(timeout or __TIMEOUT__), opt, build_put_req(opt))
 end
 
 ---comment HTTP[S] `POST`请求方法(使用`JSON`作为请求体)
@@ -238,31 +180,16 @@ end
 ---@return table<string, string>            								@服务器的响应头部.
 local function json(domain, headers, json, timeout)
 
-	local opt, err = splite_protocol(domain)
-	if not opt then
-		return nil, err
-	end
+  local opt, err = splite_protocol(domain)
+  if not opt then
+    return nil, err
+  end
 
-	opt.json = json
-	opt.headers = headers
-	opt.server = ua.get_user_agent()
+  opt.json = json
+  opt.headers = headers
+  opt.server = ua.get_user_agent()
 
-	local REQ = build_json_req(opt)
-
-	local sock = sock_new():timeout(timeout or __TIMEOUT__)
-	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local ok, err = sock_send(sock, opt.protocol, REQ)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local code, msg, headers = httpc_response(sock, opt.protocol)
-	sock:close()
-	return code, msg, headers
+  return http_requese(sock_new():timeout(timeout or __TIMEOUT__), opt, build_json_req(opt))
 end
 
 ---comment HTTP[S] `POST`请求方法(使用`XML`作为请求体)
@@ -275,31 +202,16 @@ end
 ---@return table<string, string>            								@服务器的响应头部.
 local function xml(domain, headers, xml, timeout)
 
-	local opt, err = splite_protocol(domain)
-	if not opt then
-		return nil, err
-	end
+  local opt, err = splite_protocol(domain)
+  if not opt then
+    return nil, err
+  end
 
-	opt.xml = xml
-	opt.headers = headers
-	opt.server = ua.get_user_agent()
+  opt.xml = xml
+  opt.headers = headers
+  opt.server = ua.get_user_agent()
 
-	local REQ = build_xml_req(opt)
-
-	local sock = sock_new():timeout(timeout or __TIMEOUT__)
-	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local ok, err = sock_send(sock, opt.protocol, REQ)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local code, msg, headers = httpc_response(sock, opt.protocol)
-	sock:close()
-	return code, msg, headers
+  return http_requese(sock_new():timeout(timeout or __TIMEOUT__), opt, build_xml_req(opt))
 end
 
 ---comment HTTP[S] `POST`请求方法(使用`File`作为请求体)
@@ -312,67 +224,52 @@ end
 ---@return table<string, string>            								@服务器的响应头部.
 local function file(domain, headers, files, timeout)
 
-	local opt, err = splite_protocol(domain)
-	if not opt then
-		return nil, err
-	end
+  local opt, err = splite_protocol(domain)
+  if not opt then
+    return nil, err
+  end
 
-	opt.files = files
-	opt.headers = headers
-	opt.server = ua.get_user_agent()
+  opt.files = files
+  opt.headers = headers
+  opt.server = ua.get_user_agent()
 
-	local REQ = build_file_req(opt)
-
-	local sock = sock_new():timeout(timeout or __TIMEOUT__)
-	local ok, err = sock_connect(sock, opt.protocol, opt.domain, opt.port)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local ok, err = sock_send(sock, opt.protocol, REQ)
-	if not ok then
-		sock:close()
-		return ok, err
-	end
-	local code, msg, headers = httpc_response(sock, opt.protocol)
-	sock:close()
-	return code, msg, headers
+  return http_requese(sock_new():timeout(timeout or __TIMEOUT__), opt, build_file_req(opt))
 end
 
 local map = { get = get, post = post, delete = delete, json = json, xml = xml, file = file, put = put }
 
 local function multi_request (list)
-	if type(list) ~= 'table' or #list < 1 then
+  if type(list) ~= 'table' or #list < 1 then
     return false, "[HTTPC ERROR]: Invalid request parameter."
   end
-	local s = now()
-	local response = {}
-	local array = {}
-	for index, req in ipairs(list) do
-		local fn = map[req.method and lower(req.method)]
-		if not fn then
-			response[index] = {false, '[HTTPC ERROR]: Unsupported request method.', {}, now() - s}
-		else
-			tinsert(array, function ()
-				local code, msg, headers = fn(req.domain, req.headers, req.args or req.body or req.json or req.xml or req.files, req.timeout)
-				response[index] = {code, msg, headers, now() - s}
-			end)
-		end
-	end
-	cf_join(tunpack(array))
-	return true, response
+  local s = now()
+  local response = {}
+  local array = {}
+  for index, req in ipairs(list) do
+    local fn = map[req.method and lower(req.method)]
+    if not fn then
+      response[index] = {false, '[HTTPC ERROR]: Unsupported request method.', {}, now() - s}
+    else
+      tinsert(array, function ()
+        local code, msg, headers = fn(req.domain, req.headers, req.args or req.body or req.json or req.xml or req.files, req.timeout)
+        response[index] = {code, msg, headers, now() - s}
+      end)
+    end
+  end
+  cf_join(tunpack(array))
+  return true, response
 end
 
 
 return {
-	raw = raw,
-	get = get,
-	post = post,
-	delete = delete,
-	json = json,
-	xml = xml,
-	file = file,
-	put = put,
-	multi_request = multi_request,
-	basic_authorization = build_basic_authorization,
+  raw = raw,
+  get = get,
+  post = post,
+  delete = delete,
+  json = json,
+  xml = xml,
+  file = file,
+  put = put,
+  multi_request = multi_request,
+  basic_authorization = build_basic_authorization,
 }

@@ -12,10 +12,29 @@ local hmac_sha256 = CRYPT.hmac_sha256
 local hmac_sha384 = CRYPT.hmac_sha384
 local hmac_sha512 = CRYPT.hmac_sha512
 local hmac_ripemd160 = CRYPT.hmac_ripemd160
+local hmac_pbkdf2 = CRYPT.hmac_pbkdf2
 
 local hexencode = CRYPT.hexencode
 
+
+local md_map = {
+  md5    = CRYPT.EVP_md5,
+  sha128 = CRYPT.EVP_sha128,
+  sha224 = CRYPT.EVP_sha224,
+  sha256 = CRYPT.EVP_sha256,
+  sha384 = CRYPT.EVP_sha384,
+  sha512 = CRYPT.EVP_sha512,
+}
+
 local HMAC = {}
+
+function HMAC.hmac_pbkdf2(mdname, password, salt, iter, hex)
+  local hash = hmac_pbkdf2(md_map[mdname], password, salt, iter)
+  if hash and hex then
+    return hexencode(hash)
+  end
+  return hash
+end
 
 function HMAC.hmac64(key, text, hex)
   local hash = hmac64(key, text)
