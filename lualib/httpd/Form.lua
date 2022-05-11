@@ -70,21 +70,13 @@ function form.multipart(body, BOUNDARY)
 			insert(FILES, {filename = name, file = file})
 		end
 	end
-	if #FILES > 0 then
-		-- return form.FILE, FILE
-		return 0, FILES
-	end
 	local ARGS = {}
 	for key, value in splite(body, 'name="([^"]*)"\r\n\r\n([^%-]-)\r\n[%-]-'..BOUNDARY) do
 		if (key and key ~= '' ) and (value and value ~= '') then
 			insert(ARGS, {key, value})
 		end
 	end
-	if #ARGS > 0 then
-		-- return form.ARGS, ARGS
-		return 1, ARGS
-	end
-	return
+	return FILES, ARGS
 end
 
 
