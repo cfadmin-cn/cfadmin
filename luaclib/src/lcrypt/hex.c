@@ -1,4 +1,5 @@
 #include "lcrypt.h"
+#include <ctype.h>
 
 static char lencode[] = "0123456789abcdef";
 
