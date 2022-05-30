@@ -52,15 +52,17 @@ int lfromhex(lua_State *L) {
   size_t idx = 0; int8_t hi; int8_t lo;
 
   while (idx < tsize){
+    /* 跳过空格 */
     while(isspace((uint8_t)text[idx]))
       idx++;
     if (idx >= tsize)
       break;
+    if (idx + 1 == tsize)
+      return luaL_error(L, "Invalid hexdecode ending.");
     /* 解码计算 */
-    hi = text[idx++]; hi = deindex[hi];
-    lo = text[idx++]; lo = deindex[lo];
-    if (lo == -1 || hi == -1)
-      return luaL_error(L, "Invalid hexdecode char pos in %d and %d", idx - 2, idx - 1);
+    hi = deindex[text[idx++]]; lo = deindex[text[idx++]];
+    if (hi == -1 || lo == -1)
+      return luaL_error(L, "Invalid hexdecode char pos between %d and %d", idx - 2, idx - 1);
     /* 还原数据 */
     luaL_addchar(&B, hi << 4 | lo);
   }
@@ -88,11 +90,13 @@ int ltohex(lua_State *L) {
   luaL_buffinit(L, &B);
 
   uint8_t code;
-  for (size_t i = 0; i < tsize; i++) {
-    code = text[i];
+  size_t i = 0;
+  while (i < tsize)
+  {
+    code = text[i++];
     luaL_addchar(&B, etable[code >> 4]);
     luaL_addchar(&B, etable[code & 0xF]);
-    if (n == 3)
+    if (n == 3 && i < tsize) /* 编码结尾不添加空格 */
       luaL_addchar(&B, ' ');
   }
   luaL_pushresult(&B);
