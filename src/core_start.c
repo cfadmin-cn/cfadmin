@@ -95,7 +95,7 @@ static inline void cfadmin_specify_nprocess(const char* w) {
     nprocess = 1;
   /* 自动检查可用核心数量 */
   if (!strcmp(w, "auto"))
-    nprocess = sysconf(_SC_NPROCESSORS_ONLN) < 1 ? 1 : sysconf(_SC_NPROCESSORS_ONLN);
+    nprocess = sysconf(_SC_NPROCESSORS_ONLN) < 2 ? 2 : sysconf(_SC_NPROCESSORS_ONLN);
 }
 
 /* 后台运行 */
@@ -290,8 +290,8 @@ int main(int argc, char const *argv[]) {
   cfadmin_init_args(argc, argv);
 
 #if defined(__MSYS__) || defined(__CYGWIN__)
-	/* Windows下不可使用多进程 */
-	nprocess = 1;
+  /* Windows下不可使用多进程 */
+  nprocess = 1;
 #else
   int n = -1;
   if (getenv("cfadmin_nprocess"))
