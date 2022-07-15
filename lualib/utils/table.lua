@@ -172,7 +172,7 @@ function table.format (tab, fmt, sep, sort)
     list[#list+1] = {k, v}
   end
   -- 根据key进行升序排列
-  tsort(list, sorts[tonumber(sort) or 1] or sort[1])
+  tsort(list, sorts[tonumber(sort) or 1] or sorts[1])
   -- 开始合并数据
   for idx, item in ipairs(list) do
     list[idx] = sformat(fmt or "%s=%s", item[1], item[2])
@@ -330,14 +330,14 @@ function table.reduce(func, list)
     if len == 1 then
       return list[1]
     end
-    return error("can't passed empty array.")
+    error("can't passed empty array.")
   end
   local args = {list[1], nil}
   for i = 2, len do
     args[2] = list[i]
     local result = func(args[1], args[2])
     if type(result) ~= 'number' then
-      return
+      error("return invalid result.")
     end
     args[1] = result
   end
