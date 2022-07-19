@@ -230,7 +230,7 @@ int core_worker_run(const char entry[]) {
 
   /* 根据进程运行模式选择不同的启动方式 */
   status = getenv("cfadmin_isWorker") ?
-    luaL_loadbufferx(L, worker_boot, strlen(worker_boot), "=[worker.lua]", "t") : luaL_loadfile(L, entry);
+  luaL_loadbufferx(L, worker_boot, strlen(worker_boot), "=[worker.lua]", "t") : luaL_loadfile(L, entry);
   if (status > 1){
     LOG("ERROR", lua_tostring(L, -1));
     lua_close(L);
