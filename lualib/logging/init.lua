@@ -2,9 +2,6 @@
 local cf = require "cf"
 local cf_at = cf.at
 
-local aio = require "aio"
-local aio_fflush = aio.fflush
-
 local class = require "class"
 
 local sys = require "sys"
@@ -37,7 +34,7 @@ if ASYNC and io_type(io.output()) == 'file' then
   local output = io.output()
   output:setvbuf("full", ASYNC_BUFFER_SIZE)
   local at = cf_at(0.5, function ()
-    aio_fflush(output)
+    output:flush()
   end)
 end
 
@@ -188,7 +185,7 @@ local function async_write(self, log)
       end
       if self.file then
         self.counter = 0
-        aio_fflush(self.file)
+        self.file:flush()
       end
     end)
   end
