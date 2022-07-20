@@ -200,7 +200,7 @@ function File:close( ... )
   local fd = self.fd
   self.fd = nil
   self.status = "closed"
-  return aio._close(fd)
+  tcp_close(fd)
 end
 
 -- 打开文件，并返回File(始终以rw模式打开, 没有则会创建)
