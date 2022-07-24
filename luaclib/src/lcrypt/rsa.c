@@ -1,4 +1,4 @@
-#include "lcrypto.h"
+#include "lcrypt.h"
 
 static inline RSA* new_public_key(lua_State *L) {
   size_t p_size = 0;
