@@ -1,14 +1,4 @@
-#include "lcrypt.h"
-// #include <openssl/err.h>
-
-static inline RSA* READ_PEM_PUB_KEY(FILE *f) {
-  RSA* rsa = NULL;
-  return ((rsa = PEM_read_RSA_PUBKEY(f, NULL, NULL, NULL))) ? rsa : PEM_read_RSAPublicKey(f, NULL, NULL, NULL);
-}
-
-static inline RSA* READ_PEM_PRI_KEY(FILE *f) {
-  return PEM_read_RSAPrivateKey(f, NULL, NULL, NULL);
-}
+#include "lcrypto.h"
 
 static inline RSA* new_public_key(lua_State *L) {
   size_t p_size = 0;
@@ -16,15 +6,30 @@ static inline RSA* new_public_key(lua_State *L) {
   if (!p_path || p_size <= 0)
     return NULL;
 
+  RSA* key;
+  BIO* IO = BIO_new(BIO_s_mem()); BIO_write(IO, (const char *)p_path, p_size);
+  key = PEM_read_bio_RSAPublicKey(IO, NULL, NULL, NULL);
+  if (!key) {
+    BIO_write(IO, (const char *)p_path, p_size); /* 重新写入 */
+    key = PEM_read_bio_RSA_PUBKEY(IO, NULL, NULL, NULL);
+  }
+  BIO_free(IO);
+  if (key){
+    // RSA_print_fp(stdout, key, 0);
+    return key;
+  }
   FILE* f = fopen((const char *)p_path, "rb");
   if (!f)
     return NULL;
 
-  RSA* p_key = READ_PEM_PUB_KEY(f);
-  // RSA_print_fp(f, p_key, 0);
-  // fflush(stdout);
+  key = PEM_read_RSAPublicKey(f, NULL, NULL, NULL);
+  if (!key){
+    fseek(f, SEEK_SET, 0); /* 需要将指针重置为开头 */
+    key = PEM_read_RSA_PUBKEY(f, NULL, NULL, NULL);
+  }
+  // RSA_print_fp(stdout, key, 0);
   fclose(f);
-  return p_key;
+  return key;
 }
 
 static inline RSA* new_private_key(lua_State *L) {
@@ -33,15 +38,22 @@ static inline RSA* new_private_key(lua_State *L) {
   if (!p_path || p_size <= 0)
     return NULL;
 
+  RSA* key;
+  BIO* IO = BIO_new(BIO_s_mem()); BIO_write(IO, (const char *)p_path, p_size);
+  key = PEM_read_bio_RSAPrivateKey(IO, NULL, NULL, NULL);
+  BIO_free(IO);
+  if (key){
+    // RSA_print_fp(stdout, key, 0);
+    return key;
+  }
   FILE* f = fopen((const char *)p_path, "rb");
   if (!f)
     return NULL;
 
-  RSA* p_key = READ_PEM_PRI_KEY(f);
-  // RSA_print_fp(f, p_key, 0);
-  // fflush(stdout);
+  key = PEM_read_RSAPrivateKey(f, NULL, NULL, NULL);
+  // RSA_print_fp(stdout, key, 0);
   fclose(f);
-  return p_key;
+  return key;
 }
 
 static inline const uint8_t* get_text(lua_State *L, size_t *size) {
@@ -85,7 +97,6 @@ int lrsa_public_key_encode(lua_State *L){
   luaL_pushresultsize(&b, RSA_size(key));
   RSA_free(key);
   return 1;
-
 }
 
 int lrsa_private_key_decode(lua_State *L) {
@@ -102,7 +113,7 @@ int lrsa_private_key_decode(lua_State *L) {
   luaL_Buffer b;
   unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(key));
 
-  size_t len = RSA_private_decrypt(text_size, text, result, key, get_mode(L));
+  ssize_t len = RSA_private_decrypt(text_size, text, result, key, get_mode(L));
   if (0 > len) {
     RSA_free(key);
     luaL_pushresultsize(&b, 0);
@@ -112,7 +123,6 @@ int lrsa_private_key_decode(lua_State *L) {
   luaL_pushresultsize(&b, len);
   RSA_free(key);
   return 1;
-
 }
 
 int lrsa_private_key_encode(lua_State *L){
@@ -153,7 +163,7 @@ int lrsa_public_key_decode(lua_State *L){
   luaL_Buffer b;
   unsigned char* result = (unsigned char*)luaL_buffinitsize(L, &b, RSA_size(key));
 
-  size_t len = RSA_public_decrypt(text_size, text, result, key, get_mode(L));
+  ssize_t len = RSA_public_decrypt(text_size, text, result, key, get_mode(L));
   if (0 > len) {
     RSA_free(key);
     luaL_pushresultsize(&b, 0);
@@ -245,7 +255,7 @@ int lrsa_verify(lua_State *L) {
 
   RSA* rsa = new_public_key(L);
   if (!rsa)
-    return luaL_error(L, "Can't find valide private rsa.");
+    return luaL_error(L, "Can't find valide public rsa.");
 
   size_t ssize = 0;
   const uint8_t *sign = (const uint8_t*)luaL_checklstring(L, 3, &ssize);
