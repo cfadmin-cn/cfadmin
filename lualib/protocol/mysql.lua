@@ -545,12 +545,16 @@ local function read_response (self, results)
       self.state = nil
       return nil, err
     end
-    if strbyte(packet, 1) == RESP_EOF and #packet < 9 then
+    local b = strbyte(packet, 1)
+    if b == RESP_EOF and #packet < 9 then
       local sever = get_eof_packet(packet)
       if sever.status_flags & SERVER_MORE_RESULTS == SERVER_MORE_RESULTS then
         again = true
       end
       break
+    end
+    if b == RESP_ERROR then
+      return nil, get_mysql_error_packet(packet:sub(2))
     end
     rows[#rows+1] = get_rows(packet, #fields)
   end
@@ -682,12 +686,16 @@ local function read_execute_reponse(self)
       self.state = nil
       return nil, err
     end
-    if strbyte(packet, 1) == RESP_EOF and #packet < 9 then
+    local b = strbyte(packet, 1)
+    if b == RESP_EOF and #packet < 9 then
       get_eof_packet(packet)
       -- if sever.status_flags & SERVER_MORE_RESULTS == SERVER_MORE_RESULTS then
       --   again = true
       -- end
       break
+    end
+    if b == RESP_ERROR then
+      return nil, get_mysql_error_packet(packet:sub(2))
     end
     rows[#rows+1] = get_bin_rows(packet, fields)
   end
