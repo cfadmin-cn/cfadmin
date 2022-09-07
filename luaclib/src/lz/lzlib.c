@@ -73,7 +73,7 @@ static inline int stream_inflate(lua_State* L, z_stream *z, int Z_MYWIND, const 
     z->next_out = buffer; z->avail_out = bsize;
     int ret = inflate(z, Z_SYNC_FLUSH);
     // printf("解压 : [ret] = %d, isize = [%ld], osize = [%ld]\n", ret, z->total_in, z->total_out);
-    if (ret != Z_OK) {
+    if (ret != Z_OK && ret != Z_STREAM_END) {
       inflateEnd(z);
       lua_pushboolean(L, 0);
       lua_pushfstring(L, "[ZLIB ERROR]: Invalid inflate buffer. %d", ret);
