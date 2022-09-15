@@ -79,6 +79,8 @@
 ### List of contributors
 
   * [suzaichuan](https://github.com/suzaichuan) - `Test` and `Problem Feedback`.
+  
+  * [Nuctori](https://github.com/Nuctori) - Feature Contribution.
 
 ### Users
 
