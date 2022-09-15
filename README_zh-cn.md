@@ -76,6 +76,8 @@
 
   * [suzaichuan](https://github.com/suzaichuan) - `积极测试`与`问题反馈`.
 
+  * [Nuctori](https://github.com/Nuctori) - `功能性代码`的贡献.
+
 ### 用户列表
 
   |项目名称|项目图片|
