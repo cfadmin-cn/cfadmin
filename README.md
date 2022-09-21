@@ -24,7 +24,7 @@
   </p>
 </div>
 
-### Advantage
+# Advantage
 
   - [x] Asynchronous I/O - The `Network I/O` and `File I/O` have been transformed, and the internal operations are now fully asynchronous.
 
@@ -40,23 +40,25 @@
 
   - [x] Enforcement and standardization -The framework forces you to write code, and you can also pass it on to your close friends.
 
-### Website
+# Website
 
   * [Home](https://cfadmin.cn/)(Only Chinese.)
 
   * [Wiki](https://doc.cfadmin.cn/)(Only Chinese.)
 
-### Build And Run
+# Build And Run
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/build.gif"/></p>
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/run.gif"/></p>
 
-### Preview
+# Preview
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/pre-login.png"/></p>
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/pre-dashboard.png"/></p>
+
+<details>  <summary> More picture </summary>
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/pre-profile.png"/></p>
 
@@ -70,25 +72,27 @@
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/pre-lang.png"/></p>
 
-### Feedback
+</details>
+
+# Feedback
 
   * [ISSUES](https://github.com/CandyMi/cfadmin/issues)
 
   * [QQ Group](https://shang.qq.com/wpa/qunwpa?idkey=5cc977ebaf4eb17391b2c6b03eb0ee36e3d3c1871bc95ba3c96ffc426a9dc907)
 
-### List of contributors
+# List of contributors
 
   * [suzaichuan](https://github.com/suzaichuan) - `Test` and `Problem Feedback`.
   
   * [Nuctori](https://github.com/Nuctori) - Feature Contribution.
 
-### Users
+# Users
 
   |Project Name|Project Logo|
   |:-:|:-:|
   |商票易|![](https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/company-2.png)
   |爆款捕手|![](https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/company-1.png)|
 
-### License
+# License
 
   [BSD LICENSE](https://github.com/CandyMi/cfadmin/blob/master/LICENSE)
