@@ -24,7 +24,7 @@
   </p>
 </div>
 
-### 优势
+# 特性优势
 
   - [x] 完善的异步I/O - 框架已经对网络、文件两种IO进行改造, 使内部的I/O全异步化成为可能.
 
@@ -42,17 +42,19 @@
 
   - [x] 强制化与规范化 - 框架强制要求您编写代码, 同样您也可以将其传授给挚友.
 
-### 网站
+# 学习网站
 
   * [社区首页](https://cfadmin.cn)
 
   * [学习文档](https://cfadmin.cn)
 
-### 预览
+# 使用预览
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/pre-login.png"/></p>
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/pre-dashboard.png"/></p>
+
+<details>  <summary> 更多图片 </summary>
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/pre-profile.png"/></p>
 
@@ -65,26 +67,28 @@
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/pre-aside.png"/></p>
 
 <p><img src="https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/pre-lang.png"/></p>
+  
+</details>
 
-### 反馈
+# 反馈方式
 
   * [我要提问](https://github.com/CandyMi/cfadmin/issues)
 
   * [我要加群](https://shang.qq.com/wpa/qunwpa?idkey=5cc977ebaf4eb17391b2c6b03eb0ee36e3d3c1871bc95ba3c96ffc426a9dc907)
 
-### 贡献者名单
+# 贡献名单
 
   * [suzaichuan](https://github.com/suzaichuan) - `积极测试`与`问题反馈`.
 
   * [Nuctori](https://github.com/Nuctori) - `功能性代码`的贡献.
 
-### 用户列表
+# 用户列表
 
   |项目名称|项目图片|
   |:-:|:-:|
   |商票易|![](https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/company-2.png)|
   |爆款捕手|![](https://raw.githubusercontent.com/wiki/CandyMi/cfadmin/images/company-1.png)|
 
-### 授权协议
+# 授权协议
 
   [BSD LICENSE](https://github.com/CandyMi/cfadmin/blob/master/LICENSE)
