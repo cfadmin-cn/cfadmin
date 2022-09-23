@@ -956,14 +956,26 @@ static int ssl_set_certificate(lua_State *L) {
   if (!path || size < 1)
     return luaL_error(L, "Invalid cert path");
 
-  // 为SSL与SSL_CTX设置证书, 如果两种加载都失败则返回失败.
-  if (1 != SSL_use_certificate_file(ssl, path, SSL_FILETYPE_PEM))
-    return luaL_error(L, "ssl ssl_set_certificate loading cert failed.");
+  X509 *cert;
+  /* 为`SSL`设置证书, 所有加载策略都失败就返回失败. */
+  BIO* IO = BIO_new(BIO_s_mem()); BIO_write(IO, path, size);
+  cert = PEM_read_bio_X509(IO, NULL, NULL, NULL);
+  BIO_free(IO);
 
-  if (1 != SSL_CTX_use_certificate_file(ctx, path, SSL_FILETYPE_PEM))
-    return luaL_error(L, "ssl_ctx ssl_set_certificate loading cert failed.");
+  /* 内存证书 */
+  if (cert && 1 == SSL_use_certificate(ssl, cert))
+    return 0;
 
-  return 1;
+  FILE* fp = fopen(path, "rb");
+  cert = PEM_read_X509(fp, NULL, NULL, NULL);
+  if (fp)
+    fclose(fp);
+
+  /* 文件证书 */
+  if (cert && 1 == SSL_use_certificate(ssl, cert))
+    return 0;
+
+  return luaL_error(L, "[ssl error]: read cert failed.");
 }
 
 // 加载私钥
@@ -981,14 +993,26 @@ static int ssl_set_privatekey(lua_State *L) {
   if (!path || size < 1)
     return luaL_error(L, "Invalid cert path");
 
-  // 为SSL与SSL_CTX设置私钥, 如果两种加载都失败则返回失败.
-  if (1 != SSL_use_PrivateKey_file(ssl, path, SSL_FILETYPE_PEM) && 1 != SSL_use_RSAPrivateKey_file(ssl, path, SSL_FILETYPE_PEM))
-    return luaL_error(L, "ssl ssl_set_privatekey loading private_key or rsa_private_key failed.");
+  EVP_PKEY *key;
+  /* 为`SSL`设置私钥, 所有加载策略都失败就返回失败. */
+  BIO* IO = BIO_new(BIO_s_mem()); BIO_write(IO, path, size);
+  key = PEM_read_bio_PrivateKey(IO, NULL, NULL, NULL);
+  BIO_free(IO);
 
-  if (1 != SSL_CTX_use_PrivateKey_file(ctx, path, SSL_FILETYPE_PEM) && 1 != SSL_CTX_use_RSAPrivateKey_file(ctx, path, SSL_FILETYPE_PEM))
-      return luaL_error(L, "ssl_ctx ssl_set_privatekey loading private key or rsa_private_key failed.");
+  /* 内存私钥 */
+  if (key && 1 == SSL_use_PrivateKey(ssl, key))
+    return 0;
 
-  return 1;
+  FILE* fp = fopen(path, "rb");
+  key = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
+  if (fp)
+    fclose(fp);
+
+  /* 文件私钥 */
+  if (key && 1 == SSL_use_PrivateKey(ssl, key))
+    return 0;
+
+  return luaL_error(L, "[ssl error]: read private key failed.");
 }
 
 // 如果私钥有安装密钥, 则再这里设置
@@ -1006,7 +1030,6 @@ static int ssl_set_userdata_key(lua_State *L) {
   if (!password || size < 1)
     return 1;
 
-  // SSL_set_default_passwd_cb_userdata(ssl, (void*)password);
   SSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)password);
   return 1;
 }
