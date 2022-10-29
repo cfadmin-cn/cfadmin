@@ -118,8 +118,8 @@ function Cookie.serialization ()
   for _, cookie in ipairs(cs) do
     local t = {}
     t[#t+1] = concat({cookie['name'], '=', encode_value(cookie['value'])})
-    t[#t+1] = cookie['max-age'] and concat({'max-age', '=', cookie['max-age']})
-    t[#t+1] = cookie['expires'] and concat({'expires', '=', os_date("%a, %d %b %Y %X GMT", cookie['expires'])})
+    t[#t+1] = cookie['max-age'] and concat({'max-age', '=', cookie['max-age']}) or nil
+    t[#t+1] = cookie['expires'] and concat({'expires', '=', os_date("%a, %d %b %Y %X GMT", cookie['expires'])}) or nil
     t[#t+1] = concat({'path', '=', cookie['path']})
     t[#t+1] = cookie['httponly']
     if cookie['httponly'] then
