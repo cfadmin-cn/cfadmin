@@ -13,8 +13,14 @@ INCLUDES += -I../../../src -I/usr/local/include
 LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
 
 CFLAGS = -O3 -Wall -shared -fPIC -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
-DLL = -lcore -lz
+
+# 是用内置库
+MICRO =
+DLL = -lcore
+# 使用`zlib`
+#MICRO = -DUSE_ZLIB=1
+#DLL = -lcore -lz
 
 build:
-	@$(CC) -o lz.so lzlib.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
+	@$(CC) -o lz.so lzlib.c miniz.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL) $(MICRO)
 	@mv *.so ../../
