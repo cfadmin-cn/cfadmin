@@ -15,11 +15,11 @@ LIBS = -L../ -L../../ -L../../../ -L/usr/local/lib
 CFLAGS = -O3 -Wall -shared -fPIC -Wl,-rpath,. -Wl,-rpath,.. -Wl,-rpath,/usr/local/lib
 
 # 是用内置库
-MICRO =
-DLL = -lcore
+# MICRO =
+# DLL = -lcore
 # 使用`zlib`
-#MICRO = -DUSE_ZLIB=1
-#DLL = -lcore -lz
+MICRO = -DUSE_ZLIB=1
+DLL = -lcore -lz
 
 build:
 	@$(CC) -o lz.so lzlib.c miniz.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL) $(MICRO)

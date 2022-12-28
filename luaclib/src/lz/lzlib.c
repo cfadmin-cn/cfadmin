@@ -20,6 +20,12 @@
 #if defined(USE_ZLIB)
 void* stream_zalloc(void* opaque, unsigned items, unsigned nsize)
 #else
+static inline void set_int32(char data[4], uint32_t bit) {
+  data[0] = (uint8_t)(bit) & 0xff;
+  data[1] = (uint8_t)(bit >> 8)  & 0xff;
+  data[2] = (uint8_t)(bit >> 16) & 0xff;
+  data[3] = (uint8_t)(bit >> 24) & 0xff;
+}
 void* stream_zalloc(void* opaque, size_t items, size_t nsize)
 #endif
 {
@@ -77,7 +83,7 @@ static inline size_t gzip_check(const uint8_t *buffer, size_t bsize) {
 #endif
 
 /* 压缩 */
-static inline int stream_deflate(lua_State* L, z_stream *z, int Z_MYMODE, const uint8_t* in, size_t in_size) {
+static inline int stream_deflate(lua_State* L, z_stream *z, int Z_MYFLUSH, int Z_MYMODE, const uint8_t* in, size_t in_size) {
   if (!z)
     return luaL_error(L, "[ZLIB ERROR]: `stream_deflate` got invalid `z_stream`.");
 
@@ -92,12 +98,17 @@ static inline int stream_deflate(lua_State* L, z_stream *z, int Z_MYMODE, const 
   uint8_t *out = lua_newuserdata(L, out_size);
   z->next_out = out; z->avail_out = out_size;
 
+  /* 计算偏移值 */
+  int offset = 0;
+  if (Z_MYFLUSH == Z_SYNC_FLUSH)
+    offset = 4;
+
   /* 压缩数据 */
-  deflate(z, Z_SYNC_FLUSH);
+  deflate(z, Z_MYFLUSH);
   deflateEnd(z);
 
   /* 结束 */
-  lua_pushlstring(L, (const char*)out, z->total_out - 4);
+  lua_pushlstring(L, (const char*)out, z->total_out - offset);
   lua_pushinteger(L, in_size);
   return 2;
 }
@@ -150,7 +161,7 @@ static inline int stream_inflate(lua_State* L, z_stream *z, int Z_MYWIND, const 
 int lws_compress(lua_State* L) {
   z_stream z; stream_init(&z); size_t bsize;
   const uint8_t *buffer = (const uint8_t *)luaL_checklstring(L, 1, &bsize);
-  return stream_deflate(L, &z, -MAX_WBITS, buffer, bsize);
+  return stream_deflate(L, &z, Z_SYNC_FLUSH, -MAX_WBITS, buffer, bsize);
 }
 
 int lws_uncompress(lua_State* L) {
@@ -164,11 +175,19 @@ int lgzip_compress(lua_State* L) {
   z_stream z; stream_init(&z); size_t bsize;
   const uint8_t *buffer = (const uint8_t *)luaL_checklstring(L, 1, &bsize);
 #if defined(USE_ZLIB)
-  stream_deflate(L, &z, MAX_WBITS + 16, buffer, bsize);
+  stream_deflate(L, &z, Z_FINISH, MAX_WBITS + 16, buffer, bsize);
 #else
-  stream_deflate(L, &z, -MAX_WBITS, buffer, bsize);
-  lua_pushlstring(L, /* GZIP Header */"\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x13", 10);
-  lua_pushvalue(L, -3); lua_concat(L, 2); lua_pushvalue(L, -2);
+  // 计算文件长度 与 CRC32 校验
+  stream_deflate(L, &z, Z_FINISH, -MAX_WBITS, buffer, bsize);
+  size_t tsize; const char *text = lua_tolstring(L, -2, &tsize);
+  // 拷贝`GZIP`头部与压缩帧
+  char *data = lua_newuserdata(L, tsize + 18);
+  memcpy(data, "\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x13", 10); memcpy(data + 10, text, tsize);
+  // 拷贝`CRC32`与`ISIZE`长度
+  set_int32(data + tsize + 10, crc32(0, buffer, bsize));
+  set_int32(data + tsize + 14, (uint32_t)bsize % 0xffffffff);
+  // `GZIP`包装完成
+  lua_pushlstring(L, data, tsize + 18); lua_pushinteger(L, bsize);
 #endif
   return 2;
 }
@@ -193,7 +212,7 @@ int lgzip_uncompress(lua_State* L) {
 int ldeflate_compress(lua_State* L) {
   z_stream z; stream_init(&z); size_t bsize;
   const uint8_t *buffer = (const uint8_t *)luaL_checklstring(L, 1, &bsize);
-  return stream_deflate(L, &z, -MAX_WBITS, buffer, bsize);
+  return stream_deflate(L, &z, Z_FINISH, -MAX_WBITS, buffer, bsize);
 }
 
 int ldeflate_uncompress(lua_State* L) {
@@ -206,7 +225,7 @@ int ldeflate_uncompress(lua_State* L) {
 int lzlib_compress(lua_State* L) {
   z_stream z; stream_init(&z); size_t bsize;
   const uint8_t *buffer = (const uint8_t *)luaL_checklstring(L, 1, &bsize);
-  return stream_deflate(L, &z, MAX_WBITS, buffer, bsize);
+  return stream_deflate(L, &z, Z_FINISH, MAX_WBITS, buffer, bsize);
 }
 
 int lzlib_uncompress(lua_State* L) {
