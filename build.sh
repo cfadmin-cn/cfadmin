@@ -16,8 +16,36 @@ current=`pwd`
 
 rm -rf build && mkdir build && cd build
 
+
+osID=`cat /etc/*-release | grep -w ID | cut -f2 -d '='`
+
+
+timeArea=`date +"%Z %z"`
+if [[ $timeArea == "CST +0800" ]] 
+then
+    echo -n "是否自动安装cfadmin所需依赖? y/n: "
+else
+    echo -n "Do you want to install the required dependencies? (y/N)? y/n: "
+fi
+
+#自动安装依赖
+read isAutoDependence 
+if [[ $isAutoDependence == "y" ]] || [[ $isAutoDependence == "yes" ]] 
+then
+    if [[ $osID == "debian" ]] || [[ $osID == "ubuntu" ]] 
+    then
+        sudo apt install gcc file autoconf automake make libtool git libssl-dev --no-upgrade
+    elif [[ $osID == "centos" ]] 
+    then
+        sudo yum install gcc file autoconf automake make libtool git openssl-devel -y
+    else
+        echo $osID "not support anto install dependence, please request issue. https://github.com/cfadmin-cn/cfadmin"
+    fi
+else
+    echo "not auto install dependence"
+fi
+
 # 通过时区,自动选择镜像源
-timeArea=`date +"%Z %z" `
 if [[ $timeArea == "CST +0800" ]] 
 then 
   git clone https://gitee.com/CandyMi/lua -b v5.4.3
