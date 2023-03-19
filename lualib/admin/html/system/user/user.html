@@ -47,7 +47,7 @@
         <!-- 新增用户按钮  -->
         <button class="layui-btn layui-btn-xs" onclick="xadmin.open('{* locale['dashboard.menu.user_manage.table.adduser'] *}', '{*user_add_url*}', 550, 430)"><i class="iconfont">&#59065;</i> {* locale['dashboard.menu.user_manage.table.adduser'] *}</button>
         <!-- 根据用户名或账户搜索 -->
-        <hr class="layui-bg"></hr>
+        <hr class="layui-bg"/>
         <div class="layui-input-inline">
           <select class="layui-input-block" id="searchCondition" lay-verify="required">
             <option value="">--{* locale['dashboard.menu.user_manage.table.search.condition'] *}--</option>
@@ -72,10 +72,11 @@
     <script type="text/javascript">
       var SearchName = "";
       var SearchCondition = "";
+      var layer, table
       layui.use(['jquery', 'table'], function(){
         var $ = layui.jquery;
-        var layer = layui.layer;
-        var table = layui.table;
+        layer = layui.layer;
+        table = layui.table;
         //监听工具条
         table.on('tool(table)', function(obj){
           var data = obj.data;
