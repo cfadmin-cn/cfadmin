@@ -44,8 +44,6 @@ static inline int do_aes_encrypt(lua_State *L, int bit, const uint8_t *key, cons
   if (!ctx)
     return luaL_error(L, "allocate EVP failed.");
 
-  EVP_CIPHER_CTX_set_padding(ctx, 0);
-
   // EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, bit, NULL);
 
   if (1 != EVP_EncryptInit_ex(ctx, aes_get_cipher(aes_mode, bit), NULL, key, iv)){
@@ -56,6 +54,7 @@ static inline int do_aes_encrypt(lua_State *L, int bit, const uint8_t *key, cons
     return 2;
   }
 
+  EVP_CIPHER_CTX_set_padding(ctx, 0);
   // printf("enc key len = %d\n", EVP_CIPHER_CTX_key_length(ctx));
 
   EVP_CIPHER_CTX_set_key_length(ctx, EVP_MAX_KEY_LENGTH);
@@ -94,8 +93,6 @@ static inline int do_aes_decrypt(lua_State *L, int bit, const uint8_t *key, cons
   if (!ctx)
     return luaL_error(L, "allocate EVP failed.");
 
-  EVP_CIPHER_CTX_set_padding(ctx, 0);
-
   // EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, bit, NULL);
 
   if (1 != EVP_DecryptInit_ex(ctx, aes_get_cipher(aes_mode, bit), NULL, key, iv)){
@@ -106,6 +103,7 @@ static inline int do_aes_decrypt(lua_State *L, int bit, const uint8_t *key, cons
     return 2;
   }
 
+  EVP_CIPHER_CTX_set_padding(ctx, 0);
   // printf("dec key len = %d\n", EVP_CIPHER_CTX_key_length(ctx));
 
   EVP_CIPHER_CTX_set_key_length(ctx, EVP_MAX_KEY_LENGTH);
