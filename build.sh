@@ -32,21 +32,21 @@ fi
 read isAutoDependence 
 if [[ $isAutoDependence == "y" ]] || [[ $isAutoDependence == "yes" ]] 
 then
-    if [[ $osID == "debian" ]] || [[ $osID == "ubuntu" ||  $osID == "kali" ]] ||  $osID == "linuxmint" ]]  ||  $osID == "pop" ]]  ||  $osID == "mx" ]] ||  $osID == "deepin" ]]
+    if [[ $osID == "debian" ]] || [[ $osID == "ubuntu" ]] ||  [[ $osID == "kali" ]] ||  [[ $osID == "linuxmint" ]]  ||  [[ $osID == "pop" ]]  ||  [[ $osID == "mx" ]] ||  [[ $osID == "deepin" ]]
     then
         if [ `id -u` -ne 0 ]; then
             sudo apt install gcc file autoconf automake make libtool git libssl-dev zlib1g-dev --no-upgrade
         else
             apt install gcc file autoconf automake make libtool git libssl-dev zlib1g-dev --no-upgrade
         fi
-    elif [[ $osID == "centos" ||  $osID == "rhel" ]] || [[ $osID == "suse"  ]] || [[ $osID == "rocky"  ]] || [[ $osID == "ol"  ]] || [[ $osID == "scientific"  ]]  || [[ $osID == "almalinux"  ]] 
+    elif [[ $osID == "centos" ]] ||  [[ $osID == "rhel" ]] || [[ $osID == "suse"  ]] || [[ $osID == "rocky"  ]] || [[ $osID == "ol"  ]] || [[ $osID == "scientific"  ]]  || [[ $osID == "almalinux"  ]] 
     then
         if [ `id -u` -ne 0 ]; then
             sudo yum install gcc file autoconf automake make libtool git zlib-devel openssl-devel -y
         else
             yum install gcc file autoconf automake make libtool git zlib-devel openssl-devel -y
         fi
-    elif [[ $osID == "arch" ||  $osID == "artix" ]] || [[ $osID == "manjaro"  ]] || [[ $osID == "endeavouros"  ]] || [[ $osID == "parabola"  ]]  || [[ $osID == "archbang"  ]]
+    elif [[ $osID == "arch" ]] ||  [[ $osID == "msys2" ]]  || [[ $osID == "artix" ]] || [[ $osID == "manjaro"  ]] || [[ $osID == "endeavouros"  ]] || [[ $osID == "parabola"  ]]  || [[ $osID == "archbang"  ]]
     then
         if [ `id -u` -ne 0 ]; then
             sudo pacman -S gcc file autoconf automake make libtool git zlib-devel openssl-devel
