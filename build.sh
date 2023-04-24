@@ -17,7 +17,7 @@ current=`pwd`
 rm -rf build && mkdir build && cd build
 
 
-osID=`cat /etc/*-release | grep -w ID | cut -f2 -d '='`
+osID=`cat /etc/*-release | grep -w ID | cut -f2 -d '=' |  tr -d '\"'`
 
 
 timeArea=`date +"%Z %z"`
