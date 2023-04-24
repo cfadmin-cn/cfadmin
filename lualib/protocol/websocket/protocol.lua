@@ -52,10 +52,10 @@ local protocol = { __VERSION__ = 0.1 }
 ---@param sock             table    @socket对象
 ---@param max_payload_len  integer  @最大长度限制
 ---@param force_masking    boolean  @强制检查掩码
----@param buffers          table    @内部的缓冲区
----@return   string    @消息数据
----@return   string    @消息类型
----@return   string    @错误信息
+---@param buffers?         table    @内部的缓冲区
+---@return   string | boolean       @消息数据
+---@return   string?                @消息类型
+---@return   string?                @错误信息
 function protocol.recv_frame(sock, max_payload_len, force_masking, buffers)
   local hdata = sock_recv(sock, 2)
   if not hdata then
@@ -177,7 +177,7 @@ end
 ---@param fin             boolean   @结束帧标志
 ---@param opcode          integer   @消息类型
 ---@param payload         string    @数据载荷
----@param masking         string    @数据掩码
+---@param masking         boolean   @数据掩码
 ---@param ext             string    @协议扩展
 function protocol.send_frame(sock, fin, opcode, payload, masking, ext)
 
@@ -221,10 +221,10 @@ function protocol.send_frame(sock, fin, opcode, payload, masking, ext)
 
   -- 创建随机掩码并与数据载荷进行异或
   if masking and payload_len > 0 then
-    masking = strpack(">BBBB", random(255), random(255), random(255), random(255))
-    payload = xor_str(payload, masking)
+    local mask = strpack(">BBBB", random(255), random(255), random(255), random(255))
+    payload = xor_str(payload, mask)
     idx = idx + 1
-    buffers[idx] = masking
+    buffers[idx] = mask
   end
 
   -- 根据实际情况需要减少发送数据次数.

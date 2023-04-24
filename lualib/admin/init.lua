@@ -144,8 +144,8 @@ function admin.init_page (app, db)
 end
 
 -- 初始化数据
-function admin.init_db (...)
-  return admin_db(...)
+function admin.init_db ()
+  return admin_db()
 end
 
 return admin

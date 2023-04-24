@@ -229,6 +229,7 @@ function Lexer:structure(opt)
       local value = self:constant()
       self:test ","
       self:line_end "opt"
+      ---@cast ident string
       t[ident] = value
    end
    return t
@@ -585,7 +586,7 @@ function msg_body:oneof(lex, info)
       if ident == "option" then
          toplevel.option(self, lex, oneof)
       else
-         local f, t = field(self, lex, ident, "no_label")
+         local f, t = field(self, lex, ident)
          self.locmap[f] = lex.pos
          if t then insert_tab(ts, t) end
          f.oneof_index = index - 1

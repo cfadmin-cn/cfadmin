@@ -36,6 +36,7 @@ end
 ---comment  创建一个由cf管理的超时器(只会触发一次)
 ---@param timeout number @`timeout`大于0才会创建定时器.
 ---@param func function  @时间到期后将会调用此函数.
+---@return Timer? @返回一个`timer`对象, 调用`timer:stop()`方法可停止.
 function cf.timeout(timeout, func)
   return time_out(timeout, func)
 end
@@ -43,7 +44,7 @@ end
 ---comment  创建一个由cf管理的循环定时器(需要手动停止)
 ---@param timeout number @`timeout`大于0才会创建定时器.
 ---@param func function  @间隔时间到期后将会调用此函数.
----@return table @返回一个`timer`对象, 调用`timer:stop()`方法可停止.
+---@return Timer? @返回一个`timer`对象, 调用`timer:stop()`方法可停止.
 function cf.at(timeout, func)
   return time_at(timeout, func)
 end
@@ -61,7 +62,6 @@ cf.yield = yield
 ---comment 让出当前协程执行权并休眠`timeout`秒
 ---@param timeout number @`timeout`大于0才会创建定时器.
 function cf.sleep(timeout)
-  timeout = tonumber(timeout)
   if timeout and timeout > 0 then
     return time_sleep(timeout)
   end
@@ -70,6 +70,7 @@ end
 
 ---comment 获取调用此方法的协程对象.
 ---@return thread
+---@return boolean
 function cf.self ()
   return co_self()
 end

@@ -27,7 +27,7 @@ end
 ---@param code integer @`HTTP`异常状态码(`400`-`600`之间)
 ---@param body string  @异常的具体内容(optional)
 ---@return integer @此方法只可用在`httpd:bedore`方法内.
----@return string  @调用方法必须是`return http.throw(code, body)`
+---@return string? @调用方法必须是`return http.throw(code, body)`
 function HTTP.throw(code, body)
 	assert(type(code) == 'number' and code >= 400 and code < 600, 'The specified error code must be within the range (400-600).')
 	if type(body) == 'string' and body ~= '' then

@@ -155,14 +155,14 @@ function system.role_response (content)
     return json_encode({code = 0, msg = '添加成功'})
   end
   if args.action == 'get_tree_list' then
-    return json_encode({code = 0, data = menu.menu_tree(db, {page=1, limit=1000})})
+    return json_encode({code = 0, data = menu.menu_tree(db)})
   end
   if args.action == 'get_veri_tree' then
     local id = toint(args.id)
     if not id then
       return json_encode({code = 400, msg = "错误的参数"})
     end
-    local menus = menu.menu_tree(db, {page=1, limit=1000})
+    local menus = menu.menu_tree(db)
     if #menus <= 0 then
       return json_encode({code = 0, data = json.empty_array})
     end

@@ -35,7 +35,7 @@ local jwt = { version = 0.1, algorithms = { HS256 = "HS256", HS384 = "HS384", HS
 ---@param secret string    @HASH摘要签名与对称加密使用的秘钥
 ---@param algorithm string @指定签名算法: [`HS256`, `HS384`, `HS512`]
 ---@return string | nil    @符合规范的json web token字符串或者nil
----@return string          @出错后的错误信息
+---@return string?         @出错后的错误信息
 function jwt.encode(text, secret, algorithm)
   assert(type(text) == 'string' and text ~= '' and type(secret) == 'string' and secret ~= '', "Invalid json web token encode parameter.")
   -- HEADER
@@ -56,7 +56,7 @@ end
 ---@param secret string    @摘要签名与对称解密使用的秘钥
 ---@param algorithm string @指定签名算法: [`HS256`, `HS384`, `HS512`]
 ---@return string | nil    @编码前的数据载荷或nil
----@return string          @出错后的错误信息
+---@return string?         @出错后的错误信息
 function jwt.decode(token, secret, algorithm)
   assert(type(token) == 'string' and token ~= '' and type(secret) == 'string' and secret ~= '', "Invalid json web token decode parameter.")
   local header, payload, signature = match(token or "", "([^.]+)%.([^.]+)%.([^.]+)")
