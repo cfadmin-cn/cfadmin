@@ -46,7 +46,7 @@ then
         else
             yum install gcc file autoconf automake make libtool git zlib-devel openssl-devel -y
         fi
-    elif [[ $osID == "arch" ]] ||  [[ $osID == "msys2" ]]  || [[ $osID == "artix" ]] || [[ $osID == "manjaro"  ]] || [[ $osID == "endeavouros"  ]] || [[ $osID == "parabola"  ]]  || [[ $osID == "archbang"  ]]
+    elif [[ $osID == "arch" ]] ||  [[ $osID == "msys2" ]]  || [[ $osID == "manjaro"  ]] || [[ $osID == "endeavouros"  ]] || [[ $osID == "parabola"  ]]  || [[ $osID == "archbang"  ]]
     then
         pacman -S gcc file autoconf automake make libtool git zlib openssl
     else
