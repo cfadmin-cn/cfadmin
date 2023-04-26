@@ -48,7 +48,7 @@ then
         fi
     elif [[ $osID == "arch" ]] ||  [[ $osID == "msys2" ]]  || [[ $osID == "artix" ]] || [[ $osID == "manjaro"  ]] || [[ $osID == "endeavouros"  ]] || [[ $osID == "parabola"  ]]  || [[ $osID == "archbang"  ]]
     then
-        pacman -S gcc file autoconf automake make libtool git zlib-devel openssl-devel
+        pacman -S gcc file autoconf automake make libtool git zlib openssl
     else
         echo $osID "not support anto install dependence, please request issue. https://github.com/cfadmin-cn/cfadmin"
     fi
