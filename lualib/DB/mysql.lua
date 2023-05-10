@@ -214,7 +214,7 @@ function DB:transaction(f)
       db:close()
       self.current = self.current - 1
     end
-    db, ret, err = nil, nil, nil
+    -- db, ret, err = nil, nil, nil
   end
 
   local ok, info = xpcall(f, traceback, session:new{ db = db })

@@ -16,7 +16,6 @@ local hostname = sys.hostname
 
 local null = null
 local type = type
-local pcall = pcall
 local error = error
 local tostring = tostring
 local strpack = string.pack
@@ -32,8 +31,8 @@ local strsub = string.sub
 local toint = math.tointeger
 
 local os_date = os.date
+local os_time = os.time
 
-local tabinsert = table.insert
 local tabconcat = table.concat
 
 -- TDS公共头部类型
@@ -57,8 +56,6 @@ local ACK_TOKEN = 0xAD
 local ENVCHANGE_TOKEN = 0xE3
 
 local COLMETADATA_TOKEN = 0x81
-
-local COLMETAROW_TOKEN = 0xD1
 
 local COLMETAROW_TOKEN = 0xD1
 
@@ -90,39 +87,26 @@ local TDS_ENV = {
 -- TDS字符集之间的转换兼容函数
 
 -- 引入libiconv库实现 USC-2LE 与 UTF8 之间的转换
-local liconv, liconv_to, liconv_from
-local ok, liconv_info = pcall(require, "liconv")
-if ok then
-  liconv = liconv_info
-  liconv_to, liconv_from = liconv.to, liconv.from
+local ok, iconv = pcall(require, "liconv")
+if not ok then
+  error("MSSQL Driver Must have Install libiconv.")
+end
+local liconv_to, liconv_from = iconv.to, iconv.from
+
+local function iconv_to(s, code)
+  return liconv_to(code, s)
 end
 
-local function iconv_to (str, opcode)
-  return liconv and liconv_to(opcode, str) or str
-end
-
-local function iconv_from (str, opcode)
-  return liconv and liconv_from(opcode, str) or str
-end
-
-local function to_usc2le (s)
-  return strpack("z", s)
-end
-
-local function from_usc2le (s)
-  local tab = new_tab(#s / 2, 0)
-  for index = 1, #s, 2 do
-    tab[#tab+1] = strchar(strbyte(s, index))
-  end
-  return tabconcat(tab)
+local function iconv_from(s, code)
+  return liconv_from(code, s)
 end
 
 local function TO_UCS2LE (s)
-  return liconv and iconv_to(s, "UCS-2LE") or strgsub(s, ".", to_usc2le)
+  return liconv_to("UCS-2LE", s)
 end
 
 local function FROM_UCS2LE(s)
-  return liconv and iconv_from(s, "UCS-2LE") or from_usc2le(s)
+  return liconv_from("UCS-2LE", s)
 end
 
 --[[
@@ -155,6 +139,7 @@ local TYPE_INT4 = 0x38       -- (56) INT4
 local TYPE_INT8 = 0x7F       -- (127) INT8
 
 local TYPE_FLOAT32 = 0x3B    -- (59) Float32
+local TYPE_DATETIME = 0x3d   -- (59) Float32
 local TYPE_FLOAT64 = 0x3E    -- (62) Float64
 local TYPE_DECIMAL = 0x6A    -- (106) Decimal
 local TYPE_NUMERIC = 0x6C    -- (108) Numeric
@@ -267,6 +252,10 @@ FTYPE_TAB[TYPE_NTEXT] = function (packet, pos)
   local len
   len, pos = strunpack("<I2", packet, pos + 11)
   return pos + len * 2
+end
+
+FTYPE_TAB[TYPE_DATETIME] = function (packet, pos)
+  return pos
 end
 
 FTYPE_TAB[TYPE_FLOAT32] = function (packet, pos)
@@ -531,21 +520,25 @@ RTYPE_TAB[TYPE_MONEY8] = function (packet, pos)
   return strunpack("<n", packet, pos)
 end
 
--- MSSQL要求起始时间必须为1900-1-1, 所以必须用算法求出当前日期的偏移值(这个偏移值必须再 + 343)
--- local DATETIME_OFFSET = os_time { year = 1900, month = 1, day = 1, hour = 0, min = 0, sec = 0 } + 343
-local DATETIME_OFFSET = -2209017600
+-- DATETIME 的另外一种形式
+local function datetime (packet, pos)
+  local day, ms
+  day, ms, pos = strunpack("<i4I4", packet, pos)
+  local sec = ms / 300
+  return fmt("%s.%03d", os_date("%F %X", os_time { year = 1900, month = 1, day = 1 + day, hour = 0, min = 0, sec = sec // 1}), ((sec % 1) * 1000) // 1), pos
+end
+
+RTYPE_TAB[TYPE_DATETIME] = datetime
 
 RTYPE_TAB[TYPE_DATETIMEN] = function (packet, pos)
   local len, value
   len, pos = strunpack("<B", packet, pos)
   if len == 4 then
-    local v1, v2
-    v1, v2, pos = strunpack("<I2I2", packet, pos)
-    value = os_date("%F %X", v1 * 86400 + DATETIME_OFFSET + v2 * 60)
+    local day, min
+    day, min, pos = strunpack("<I2I2", packet, pos)
+    value = os_date("%F %X", os_time { year = 1900, month = 1, day = 1 + day, hour = 0, min = 0 + min, sec = 0})
   elseif len == 8 then
-    local v1, v2
-    v1, v2, pos = strunpack("<I4I4", packet, pos)
-    value = tabconcat {os_date("%F %X", v1 * 86400 + DATETIME_OFFSET + v2 / 300 // 1), fmt(".%03u", ((v2 / 300 * 1e3 - v2 / 300 // 1 * 1e3 ) + 0.5) // 1)}
+    value, pos = datetime(packet, pos)
   else
     return null, pos
   end
@@ -703,7 +696,7 @@ local function tds_get_meta_data(packet, length, pos)
     if type(f) == 'function' then
       pos, precision, scale = f(packet, pos)
     else
-      error("Error: Unknown field type [" .. field_type .. "] ")
+      error("Error: Unknown field type [" .. field_type .. "] in " .. i)
     end
     local field_name = "?field_" .. i .. "?"
     field_length, pos = strunpack("<B", packet, pos)
@@ -727,7 +720,7 @@ local function tds_get_row_data (packet, pos, fields)
     if type(f) == 'function' then
       value, pos = f(packet, pos, field.precision, field.scale)
     else
-      error("Error: Unknown data type [" .. field.field_type .. "] ")
+      error("Error: Unknown data type [" .. field.field_type .. "] in " .. index)
     end
     -- print(field.field_type, value, pos)
     rows[#rows+1] = value
@@ -759,18 +752,18 @@ end
 local function tds_read_response(self, before_packets)
   local packet = tds_read_head(self)
   if not packet then
-    self.state = nil
+    self.state = false
     return nil, "The server disconnected before receiving the response header."
   end
 
   local OPCODE, STATUS, LENGTH, CHANNEL, PACKNO, WINDOW  = tds_unpack_header(packet)
   if OPCODE ~= PTYPE_RESPONSE then
-    self.state = nil
+    self.state = false
     return nil, "A protocol type not supported by TDS-7.0 was received."
   end
   local packet = tds_read_body(self, LENGTH)
   if not packet then
-    self.state = nil
+    self.state = false
     return nil, "The server disconnected before receiving the response data."
   end
 
@@ -789,7 +782,7 @@ local function tds_read_response(self, before_packets)
   end
 
   local result = new_tab(32, 8)
-  local pos = 1
+  local pos
   local fields, token_type, order, more_result, meta_field
   while 1 do
     token_type, pos = strunpack("<B", packet, pos)
@@ -890,7 +883,7 @@ local class = require "class"
 local mssql = class("mssql")
 
 function mssql:ctor(opt)
-  self.sock = tcp:new()
+  self.sock = stream(tcp())
   self.host = opt.host or "localhost"
   self.port = opt.port or 1433
   self.unixdomain = opt.unixdomain
@@ -899,7 +892,7 @@ function mssql:ctor(opt)
   self.database = opt.database or "master"
   self.username = opt.username or "sa"
   self.password = opt.password
-  -- self.state = "connected"
+  -- self.state = true
 end
 
 function mssql:read( bytes )
@@ -916,7 +909,7 @@ function mssql:connect( ... )
   end
 
   if self.unixdomain then
-    if not self.sock:connect_ex(self.unixdomain) then
+    if not self.sock:connectx(self.unixdomain) then
       return nil, "MSSQL Server [" .. tostring(self.unixdomain) .. "] Connect failed."
     end
   elseif self.host and self.port then
@@ -926,9 +919,6 @@ function mssql:connect( ... )
   else
     return nil, "MSSQL Server driver Invalid Configure."
   end
-
-  -- Socket Stream Wrapper.
-  self.sock = stream(self.sock)
 
   -- 发送TDS-7.0登录协议
   self:write(tds_login7(self))
@@ -949,7 +939,7 @@ function mssql:connect( ... )
   end
 
   local sever = new_tab(0, 6)
-  local pos = 1
+  local pos
   while 1 do
     local token_type
     token_type, pos = strunpack("<B", packet, pos)
@@ -994,7 +984,7 @@ function mssql:connect( ... )
     elseif token_type == ACK_TOKEN then
       local len, interface, tds_version, server_name_len, server_name, server_version_max1, server_version_max2, server_version_min
       len, pos = strunpack("<I2", packet, pos)
-      interface, tds_version, server_name_len, pos = strunpack("<BI4B", packet, pos)
+      interface, tds_version, server_name_len, pos = strunpack("<BI4B", packet, pos) ---@cast pos integer
       -- print(len, interface, tds_version)
       server_name = FROM_UCS2LE(strsub(packet, pos, pos + server_name_len * 2 - 1))
       pos = pos + server_name_len * 2
@@ -1016,7 +1006,7 @@ function mssql:connect( ... )
   -- var_dump(sever)
   self.max_packet_size = (sever.Packet_size and toint(sever.Packet_size.new_value) or toint(self.max_packet_size)) - 8
   self.sever = sever
-  self.state = "connected"
+  self.state = true
   return true
 end
 
@@ -1047,6 +1037,7 @@ function mssql:set_timeout(timeout)
   if self.sock and tonumber(timeout) then
     self.sock:timeout(timeout)
   end
+  return self
 end
 
 function mssql:close ()

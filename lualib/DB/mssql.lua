@@ -137,7 +137,7 @@ function DB:transaction(f)
       db:close()
       self.current = self.current - 1
     end
-    db, ret, err = nil, nil, nil
+    -- db, ret, err = nil, nil, nil
   end
   -- 每个事务都有独立的session
   local session = { nil, nil, nil }
