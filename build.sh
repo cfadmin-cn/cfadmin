@@ -35,9 +35,9 @@ then
     if [[ $osID == "debian" ]] || [[ $osID == "ubuntu" ]] ||  [[ $osID == "kali" ]] ||  [[ $osID == "linuxmint" ]]  ||  [[ $osID == "pop" ]]  ||  [[ $osID == "mx" ]] ||  [[ $osID == "deepin" ]]
     then
         if [ `id -u` -ne 0 ]; then
-            sudo apt install gcc file autoconf automake make libtool git libssl-dev zlib1g-dev --no-upgrade
+            sudo apt install gcc file autoconf automake make libtool git libssl-dev zlib1g-dev --no-upgrade -y
         else
-            apt install gcc file autoconf automake make libtool git libssl-dev zlib1g-dev --no-upgrade
+            apt install gcc file autoconf automake make libtool git libssl-dev zlib1g-dev --no-upgrade -y
         fi
     elif [[ $osID == "centos" ]] ||  [[ $osID == "rhel" ]] || [[ $osID == "suse"  ]] || [[ $osID == "rocky"  ]] || [[ $osID == "ol"  ]] || [[ $osID == "scientific"  ]]  || [[ $osID == "almalinux"  ]] 
     then
@@ -48,7 +48,7 @@ then
         fi
     elif [[ $osID == "arch" ]] ||  [[ $osID == "msys2" ]]  || [[ $osID == "manjaro"  ]] || [[ $osID == "endeavouros"  ]] || [[ $osID == "parabola"  ]]  || [[ $osID == "archbang"  ]]
     then
-        pacman -S gcc file autoconf automake make libtool git zlib openssl
+        pacman -S --noconfirm gcc file autoconf automake make libtool git zlib openssl
     else
         echo $osID "not support anto install dependence, please request issue. https://github.com/cfadmin-cn/cfadmin"
     fi
