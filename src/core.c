@@ -57,11 +57,13 @@ require 'cf'.wait()\n\
 
 /* 忽略信号 */
 static void SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
+  (void)loop; (void)signal; (void)revents;
   return ;
 }
 
 /* 退出信号 */
 static void SIG_EXIT(core_loop *loop, core_signal *signal, int revents){
+  (void)signal; (void)revents;
   /* 只有主进程退出的时候才需要通知子进程退出 */
   if (ev_userdata(loop))
     kill(0, SIGQUIT);
@@ -141,7 +143,12 @@ void init_lua_libs(lua_State *L, int mode){
   /* lua 标准库 */
   luaL_openlibs(L);
 
+  // 获取全局表
   lua_pushglobaltable(L);
+  // 将我可能被运行的文件名放置到全局表
+  lua_pushliteral(L, " return 'Hello world.' ");
+  lua_setfield(L, -2, "mycode");
+
   lua_pushliteral(L, "null");
   lua_pushlightuserdata(L, NULL);
   lua_rawset(L, -3);

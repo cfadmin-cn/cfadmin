@@ -1,37 +1,24 @@
 #ifndef __CORE_MEMORY__
 #define __CORE_MEMORY__
 
-#if defined(JEMALLOC)
-	#include <jemalloc/jemalloc.h>
-#elif defined(TCMALLOC)
-	#include <gperftools/tcmalloc.h>
-	#ifndef EXIT_SUCCESS
-		#define EXIT_SUCCESS (0)
-	#endif
-	#ifndef EXIT_FAILURE
-		#define EXIT_FAILURE (1)
-	#endif
-	#define malloc  tc_malloc
-	#define calloc  tc_calloc
-	#define realloc tc_realloc
-	#define free 	tc_free
-	void exit(int status);
-	void _exit(int status);
-	int atoi(const char *nptr);
-	char * getenv(const char* name);
-	int unsetenv(const char* name);
-	int setenv(const char* name, const char* value, int overwrite);
-#else
-	#include <stdlib.h>
-#endif
+#include <stdlib.h>
 
+#define malloc  xmalloc
+#define calloc  xcalloc
+#define realloc xrealloc
+#define free    xfree
 
-void* xmalloc (size_t size);
+#define strdup   xstrdup
+#define strndup  xstrndup
+#define realpath xrealpath
 
-void* xcalloc (size_t nmemb, size_t size);
+char* xstrdup(const char *s);
+char* xstrndup(const char *s, size_t n);
+char* xrealpath(const char *path, char *resolved);
 
+void* xmalloc(size_t size);
+void* xcalloc(size_t nmemb, size_t size);
 void* xrealloc(void* ptr, size_t size); 
-
-void xfree(void *ptr);
+void  xfree(void *ptr);
 
 #endif

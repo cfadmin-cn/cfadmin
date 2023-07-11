@@ -21,7 +21,7 @@ static int nprocess = 1;
 
 static int daemoned = 0;
 
-static int pmode = 0;
+// static int pmode = 0;
 
 static int nostd = 1;
 
@@ -105,7 +105,7 @@ static inline void cfadmin_specify_process_daemon() {
 
 static inline void cfadmin_init_args(int argc, char const *argv[]) {
   int opt = -1;
-  int opterr = 0;
+  // int opterr = 0;
   while ((opt = getopt(argc, (char *const *)argv, "hde:p:k:w:")) != -1) {
     switch(opt) {
       case 'd':
@@ -163,10 +163,6 @@ static inline void cfadmin_set_parameters(int mode) {
 /* 设置不同系统下的CPU亲缘性 */
 static inline void cfadmin_set_cpu_affinity(int num, pid_t pid) {
 #if defined(__linux__)
-#ifndef __USE_GNU
-  /* Linux可能会被忽略此宏导致无法编译通过. */
-  #define __USE_GNU 1
-#endif
   #include <sched.h>
   if (nprocess <= sysconf(_SC_NPROCESSORS_ONLN)){
     /* 在Linux会尝试绑定CPU亲缘性以提高进程执行效率. */
@@ -181,16 +177,18 @@ static inline void cfadmin_set_cpu_affinity(int num, pid_t pid) {
     cpuset_t mask; CPU_ZERO(&mask); CPU_SET((num + 1) % sysconf(_SC_NPROCESSORS_ONLN), &mask);
     cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpuset_t), (const cpuset_t *)&mask);
   }
+#else
+  (void)num;(void)pid;
 #endif
 }
 
-/* 初始化参数 */
-static inline void cfadmin_unset_parameters() {
-  unsetenv("cfadmin_isMaster");
-  unsetenv("cfadmin_isWorker");
-  unsetenv("cfadmin_nprocess");
-  unsetenv("cfadmin_script");
-}
+// /* 初始化参数 */
+// static inline void cfadmin_unset_parameters() {
+//   unsetenv("cfadmin_isMaster");
+//   unsetenv("cfadmin_isWorker");
+//   unsetenv("cfadmin_nprocess");
+//   unsetenv("cfadmin_script");
+// }
 
 /* 多进程 - 运行工作进程 */
 static inline int cfadmin_worker_run(const char* entry) {
@@ -199,8 +197,8 @@ static inline int cfadmin_worker_run(const char* entry) {
 
 /* 多进程 - 运行主进程 */
 static inline pid_t cfadmin_master_run() {
-  /* 获取父进程ID */
-  pid_t ppid = getpid();
+  // /* 获取父进程ID */
+  // pid_t ppid = getpid();
   /* 所有子进程的PID数组 */
   pid_t npid[nprocess];
   /* 初始化工作进程命令行参数 */
