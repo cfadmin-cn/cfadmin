@@ -55,6 +55,26 @@ require 'cf'.fork(f)\n\
 require 'cf'.wait()\n\
 ";
 
+static lua_State *L = NULL;
+
+/* 打印堆栈 */
+static void SIG_DUMP(int signo){
+  // printf("收到信号\n");
+  if (!L)
+    return;
+
+  int top = lua_gettop(L);
+  if (lua_getfield(L, LUA_REGISTRYINDEX, "co") != LUA_TTHREAD)
+    return lua_settop(L, top);
+
+  luaL_traceback(L, lua_tothread(L, -1), NULL, 0);
+  printf("\n===========Lua Stack===========\n");
+  printf("%s", lua_tostring(L, -1));
+  printf("\n===========Lua Stack===========\n");
+
+  return lua_settop(L, top);
+}
+
 /* 忽略信号 */
 static void SIG_IGNORE(core_loop *loop, core_signal *signal, int revents){
   (void)loop; (void)signal; (void)revents;
@@ -190,6 +210,9 @@ core_signal sigquit;
 
 static inline void signal_init(){
 
+  signal(SIGUSR1, SIG_DUMP);
+  signal(SIGUSR2, SIG_DUMP);
+
   /* 忽略连接中断信号 */
   core_signal_init(&sighup, SIG_IGNORE, SIGHUP);
   core_signal_start(CORE_LOOP_ &sighup);
@@ -229,7 +252,7 @@ int core_worker_run(const char entry[]) {
 
   int status = 0;
 
-  lua_State *L = lua_newstate(L_ALLOC, NULL);
+  L = lua_newstate(L_ALLOC, NULL);
   if (!L)
     core_exit();
 
@@ -273,7 +296,7 @@ int core_master_run(pid_t *pids, int* pidcount) {
   /* 初始化信号 */
   signal_init();
 
-  lua_State *L = lua_newstate(L_ALLOC, NULL);
+  L = lua_newstate(L_ALLOC, NULL);
   if (!L){
     LOG("ERROR", "New Lua State failed.");
     kill(0, SIGQUIT);

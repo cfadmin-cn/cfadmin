@@ -8,6 +8,11 @@
 #define realloc xrealloc
 #define free    xfree
 
+#define xmalloc  xmalloc
+#define xcalloc  xcalloc
+#define xrealloc xrealloc
+#define xfree    xfree
+
 #define strdup   xstrdup
 #define strndup  xstrndup
 #define realpath xrealpath

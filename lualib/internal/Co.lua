@@ -54,11 +54,13 @@ local function co_wrapper()
         local obj = co_rlist[index]
         local co, args = obj[CO_INDEX], obj[ARGS_INDEX]
         local ok, errinfo
+        tab['co'] = co
         if args then
           ok, errinfo = co_start(co, tunpack(args)) -- 带参数的协程
         else
           ok, errinfo = co_start(co) -- `fork`的协程不需要参数
         end
+        tab['co'] = nil
         -- 如果协程`执行出错`或`执行完毕`, 则去掉引用销毁
         if not ok or co_status(co) ~= 'suspended' then
           -- 如果发生异常，则应该把异常打印出来.
