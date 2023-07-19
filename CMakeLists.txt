@@ -48,9 +48,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -Wno-implicit-fallthrough -minlin
 
 # 编译版本
 if (CMAKE_BUILD_TYPE STREQUAL Release)
-  add_compile_options(-O2 -g -W -Wall) 
+  add_compile_options(-O2 -g -W -Wall -Wno-unused-parameter -Wno-unused-function -Wno-sign-compare)
 else()
-  add_compile_options(-O0 -g -W -Wall)
+  add_compile_options(-O0 -g -W -Wall -Wno-unused-parameter -Wno-unused-function -Wno-sign-compare)
   add_definitions(-DDEBUG=1)
 endif()
 
@@ -89,4 +89,27 @@ set_target_properties(
   cfadmin PROPERTIES
     LINK_FLAGS ${cf_rpath}
     INSTALL_RPATH "${cf_rpath}"
+)
+
+# 构建`luaclib`
+add_subdirectory( luaclib )
+
+# 调试环境
+file(COPY ${PROJECT_SOURCE_DIR}/lualib DESTINATION ${PROJECT_SOURCE_DIR}/build)
+file(COPY ${PROJECT_SOURCE_DIR}/script DESTINATION ${PROJECT_SOURCE_DIR}/build)
+
+# 安装`lualib`/`script`
+install(
+  DIRECTORY
+    ${PROJECT_SOURCE_DIR}/script
+    ${PROJECT_SOURCE_DIR}/lualib
+  DESTINATION
+    ${CMAKE_INSTALL_PREFIX}
+)
+
+# 安装头文件、动态库、可执行文件
+install(
+  TARGETS cfadmin core
+  RUNTIME  DESTINATION ${CMAKE_INSTALL_PREFIX} # cfadmin.exe
+  LIBRARY  DESTINATION ${CMAKE_INSTALL_PREFIX} # libcore
 )
