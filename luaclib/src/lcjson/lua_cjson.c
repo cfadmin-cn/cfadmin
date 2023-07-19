@@ -38,8 +38,8 @@
 
 #include <core.h>
 
-#include <strbuf.h>
-#include <fpconv.h>
+#include "strbuf.h"
+#include "fpconv.h"
 
 #ifndef CJSON_MODNAME
 #define CJSON_MODNAME   "cjson"

@@ -164,13 +164,13 @@ const char *match (lua_State *L, const char *o, const char *s, const char *e,
   stack->p = &giveup; stack->s = s; stack->caplevel = 0; stack++;
   lua_pushlightuserdata(L, stackbase);
   for (;;) {
-#if defined(DEBUG)
-      printf("-------------------------------------\n");
-      printcaplist(capture, capture + captop);
-      printf("s: |%s| stck:%d, dyncaps:%d, caps:%d  ",
-             s, (int)(stack - getstackbase(L, ptop)), ndyncap, captop);
-      printinst(op, p);
-#endif
+// #if defined(DEBUG)
+//       printf("-------------------------------------\n");
+//       printcaplist(capture, capture + captop);
+//       printf("s: |%s| stck:%d, dyncaps:%d, caps:%d  ",
+//              s, (int)(stack - getstackbase(L, ptop)), ndyncap, captop);
+//       printinst(op, p);
+// #endif
     assert(stackidx(ptop) + ndyncap == lua_gettop(L) && ndyncap <= captop);
     switch ((Opcode)p->i.code) {
       case IEnd: {
