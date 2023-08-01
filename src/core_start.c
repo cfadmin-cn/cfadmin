@@ -17,6 +17,8 @@ static char script_entry[MAX_FILENAME_LEN] = "script/main.lua";
 
 static char pid_filename[MAX_FILENAME_LEN] = "cfadmin.pid";
 
+static char exe_filename[MAX_FILENAME_LEN];
+
 static int nprocess = 1;
 
 static int daemoned = 0;
@@ -35,7 +37,7 @@ static inline void cfadmin_usage_print() {
   printf("cfadmin Version : %s\n", __CFADMIN_VERSION__ );
   printf("\n");
   printf(
-    "cfadmin Usage: ./cfadmin [options]\n" \
+    "cfadmin Usage: %s [options]\n" \
     "\n" \
     "    -h <None>           \"Print `cfadmin` usage.\"\n" \
     "\n" \
@@ -49,7 +51,7 @@ static inline void cfadmin_usage_print() {
     "\n" \
     "    -w <number Process> \"Spawn specified number of worker processes.\"\n" \
     "\n" \
-  );
+  , exe_filename);
   exit(0);
 }
 
@@ -104,6 +106,9 @@ static inline void cfadmin_specify_process_daemon() {
 }
 
 static inline void cfadmin_init_args(int argc, char const *argv[]) {
+  // 可执行文件名
+  memset(exe_filename, 0x0, MAX_FILENAME_LEN);
+  memcpy(exe_filename, argv[0], strlen(argv[0]));
   int opt = -1;
   // int opterr = 0;
   while ((opt = getopt(argc, (char *const *)argv, "hde:p:k:w:")) != -1) {
@@ -213,7 +218,7 @@ static inline pid_t cfadmin_master_run() {
       if (!pid) {
         /* 启动工作进程 */
         cfadmin_set_cpu_affinity(i, getpid());
-        int e = execvp("./cfadmin", (char *const *)argp);
+        int e = execvp(exe_filename, (char *const *)argp);
         if (e < 0)
           LOG("ERROR", strerror(errno));
       }
@@ -329,7 +334,7 @@ int main(int argc, char const *argv[]) {
   cfadmin_set_parameters(isMaster);
 
   /* 执行代码*/
-  int e = execvp("./cfadmin", (char *const *)argv);
+  int e = execvp(exe_filename, (char *const *)argv);
   if (e < 0) {
     LOG("ERROR", strerror(errno));
     exit(-1);
