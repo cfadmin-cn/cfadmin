@@ -26,4 +26,17 @@ void* xcalloc(size_t nmemb, size_t size);
 void* xrealloc(void* ptr, size_t size); 
 void  xfree(void *ptr);
 
+#ifdef __cplusplus
+  #if defined(__llvm__) || defined(__clang__)
+    #pragma GCC diagnostic ignored "-Winline-new-delete"
+  #endif
+  #include <new>
+  /* malloc */
+  inline void* operator new(std::size_t size) noexcept(false) { return xmalloc(size); }
+  inline void* operator new[](std::size_t size) noexcept(false) { return xmalloc(size); }
+  /* free */
+  inline void operator delete(void *ptr) noexcept { xfree(ptr); }
+  inline void operator delete[](void *ptr) noexcept { xfree(ptr); }
+#endif
+
 #endif
