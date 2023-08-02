@@ -1,11 +1,7 @@
 #define LUA_LIB
 
 #include <core.h>
-#include <openssl/ripemd.h>
-#include <openssl/rc4.h>
-#include <openssl/md4.h>
-#include <openssl/md5.h>
-#include <openssl/sha.h>
+#include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/hmac.h>

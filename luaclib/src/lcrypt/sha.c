@@ -9,26 +9,28 @@
 # define SHA512_DIGEST_LENGTH    64
 */
 
+static inline int sha_digest(lua_State *L, const char* text, size_t tsize, const EVP_MD *type) {
+  unsigned int rsize = EVP_MAX_MD_SIZE;
+  unsigned char result[rsize];
+  EVP_Digest(text, tsize, result, &rsize, type, NULL);
+  lua_pushlstring(L, (const char*)result, rsize);
+  return 1;
+}
+
 int lmd4(lua_State *L) {
   size_t sz = 0;
   const char * text = luaL_checklstring(L, 1, &sz);
   if (!text || sz <= 0)
     return luaL_error(L, "Invalid text value.");
-  unsigned char result[MD4_DIGEST_LENGTH];
-  MD4((const unsigned char*) text, sz, result);
-  lua_pushlstring(L, (const char *)result, MD4_DIGEST_LENGTH);
-  return 1;
-};
+  return sha_digest(L, text, sz, EVP_md4());
+}
 
 int lmd5(lua_State *L) {
   size_t sz = 0;
   const char * text = luaL_checklstring(L, 1, &sz);
   if (!text || sz <= 0)
     return luaL_error(L, "Invalid text value.");
-  unsigned char result[MD5_DIGEST_LENGTH];
-  MD5((const unsigned char*) text, sz, result);
-  lua_pushlstring(L, (const char *)result, MD5_DIGEST_LENGTH);
-  return 1;
+  return sha_digest(L, text, sz, EVP_md5());
 };
 
 int lsha128(lua_State *L) {
@@ -36,10 +38,7 @@ int lsha128(lua_State *L) {
   const char * text = luaL_checklstring(L, 1, &sz);
   if (!text || sz <= 0)
     return luaL_error(L, "Invalid text value.");
-  unsigned char result[SHA_DIGEST_LENGTH];
-  SHA1((const unsigned char*) text, sz, result);
-  lua_pushlstring(L, (const char *)result, SHA_DIGEST_LENGTH);
-  return 1;
+  return sha_digest(L, text, sz, EVP_sha1());
 };
 
 int lsha224(lua_State *L) {
@@ -47,10 +46,7 @@ int lsha224(lua_State *L) {
   const char * text = luaL_checklstring(L, 1, &sz);
   if (!text || sz <= 0)
     return luaL_error(L, "Invalid text value.");
-  unsigned char result[SHA224_DIGEST_LENGTH];
-  SHA224((const unsigned char*) text, sz, result);
-  lua_pushlstring(L, (const char *)result, SHA224_DIGEST_LENGTH);
-  return 1;
+  return sha_digest(L, text, sz, EVP_sha224());
 };
 
 int lsha256(lua_State *L) {
@@ -58,10 +54,7 @@ int lsha256(lua_State *L) {
   const char * text = luaL_checklstring(L, 1, &sz);
   if (!text || sz <= 0)
     return luaL_error(L, "Invalid text value.");
-  unsigned char result[SHA256_DIGEST_LENGTH];
-  SHA256((const unsigned char*) text, sz, result);
-  lua_pushlstring(L, (const char *)result, SHA256_DIGEST_LENGTH);
-  return 1;
+  return sha_digest(L, text, sz, EVP_sha256());
 };
 
 int lsha384(lua_State *L) {
@@ -69,10 +62,7 @@ int lsha384(lua_State *L) {
   const char * text = luaL_checklstring(L, 1, &sz);
   if (!text || sz <= 0)
     return luaL_error(L, "Invalid text value.");
-  unsigned char result[SHA384_DIGEST_LENGTH];
-  SHA384((const unsigned char*) text, sz, result);
-  lua_pushlstring(L, (const char *)result, SHA384_DIGEST_LENGTH);
-  return 1;
+  return sha_digest(L, text, sz, EVP_sha384());
 };
 
 int lsha512(lua_State *L) {
@@ -80,10 +70,7 @@ int lsha512(lua_State *L) {
   const char * text = luaL_checklstring(L, 1, &sz);
   if (!text || sz <= 0)
     return luaL_error(L, "Invalid text value.");
-  unsigned char result[SHA512_DIGEST_LENGTH];
-  SHA512((const unsigned char*) text, sz, result);
-  lua_pushlstring(L, (const char *)result, SHA512_DIGEST_LENGTH);
-  return 1;
+  return sha_digest(L, text, sz, EVP_sha512());
 };
 
 int lripemd160(lua_State *L) {
@@ -91,8 +78,5 @@ int lripemd160(lua_State *L) {
   const char * text = luaL_checklstring(L, 1, &sz);
   if (!text || sz <= 0)
     return luaL_error(L, "Invalid text value.");
-  unsigned char result[RIPEMD160_DIGEST_LENGTH];
-  RIPEMD160((const unsigned char*) text, sz, result);
-  lua_pushlstring(L, (const char *)result, RIPEMD160_DIGEST_LENGTH);
-  return 1;
+  return sha_digest(L, text, sz, EVP_ripemd160());
 };

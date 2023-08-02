@@ -101,18 +101,18 @@ function RSA.rsa_private_key_oaep_padding_encode(text, private_key_path, b64)
   return hash
 end
 
--- `text` 为加密后的内容, `public_key_path` 为公钥路径, `b64`为是否为`text·先进行`base64`解码
-function RSA.rsa_public_key_decode(text, public_key_path, b64)
-  return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_PKCS1_PADDING)
-end
+-- -- `text` 为加密后的内容, `public_key_path` 为公钥路径, `b64`为是否为`text·先进行`base64`解码
+-- function RSA.rsa_public_key_decode(text, public_key_path, b64)
+--   return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_PKCS1_PADDING)
+-- end
 
-function RSA.rsa_public_key_no_padding_decode(text, public_key_path, b64)
-  return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_NO_PADDING)
-end
+-- function RSA.rsa_public_key_no_padding_decode(text, public_key_path, b64)
+--   return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_NO_PADDING)
+-- end
 
-function RSA.rsa_public_key_oaep_padding_decode(text, public_key_path, b64)
-  return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_PKCS1_OAEP_PADDING)
-end
+-- function RSA.rsa_public_key_oaep_padding_decode(text, public_key_path, b64)
+--   return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_PKCS1_OAEP_PADDING)
+-- end
 
 -- RSA签名函数: 第一个参数是等待签名的明文, 第二个参数是私钥所在路径, 第三个参数是算法名称, 第四个参数决定是否以hex输出
 function RSA.rsa_sign(text, private_key_path, algorithm, hex)

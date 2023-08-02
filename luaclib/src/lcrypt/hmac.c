@@ -9,6 +9,14 @@
 # define SHA512_DIGEST_LENGTH    64
 */
 
+static inline int hmac_digest(lua_State *L, const char *text, size_t tsize, const char *key, size_t ksize, const EVP_MD *md) {
+  unsigned int len = EVP_MAX_MD_SIZE;
+  unsigned char resualt[EVP_MAX_MD_SIZE];
+  HMAC(md, key, ksize, (unsigned char *)text, tsize, resualt, &len);
+  lua_pushlstring(L, (const char *)resualt, len);
+  return 1;
+}
+
 int lhmac_md4(lua_State *L) {
   size_t key_sz = 0;
   size_t text_sz = 0;
@@ -21,13 +29,7 @@ int lhmac_md4(lua_State *L) {
   if (!text || text_sz <= 0)
     return luaL_error(L, "Invalid text value.");
 
-  uint32_t result_len = MD4_DIGEST_LENGTH;
-  unsigned char result[result_len];
-
-  HMAC(EVP_md4(), key, key_sz, (const unsigned char*)text, text_sz, result, &result_len);
-
-  lua_pushlstring(L, (const char *)result, result_len);
-  return 1;
+  return hmac_digest(L, text, text_sz, key, key_sz, EVP_md4());
 };
 
 int lhmac_md5(lua_State *L) {
@@ -42,13 +44,7 @@ int lhmac_md5(lua_State *L) {
   if (!text || text_sz <= 0)
     return luaL_error(L, "Invalid text value.");
 
-  uint32_t result_len = MD5_DIGEST_LENGTH;
-  unsigned char result[result_len];
-
-  HMAC(EVP_md5(), key, key_sz, (const unsigned char*)text, text_sz, result, &result_len);
-
-  lua_pushlstring(L, (const char *)result, result_len);
-  return 1;
+  return hmac_digest(L, text, text_sz, key, key_sz, EVP_md5());
 };
 
 int lhmac_sha128(lua_State *L) {
@@ -63,13 +59,7 @@ int lhmac_sha128(lua_State *L) {
   if (!text || text_sz <= 0)
     return luaL_error(L, "Invalid text value.");
   
-  uint32_t result_len = SHA_DIGEST_LENGTH;
-  unsigned char result[result_len];
-
-  HMAC(EVP_sha1(), key, key_sz, (const unsigned char*)text, text_sz, result, &result_len);
-
-  lua_pushlstring(L, (const char *)result, result_len);
-  return 1;
+  return hmac_digest(L, text, text_sz, key, key_sz, EVP_sha1());
 };
 
 int lhmac_sha224(lua_State *L) {
@@ -84,13 +74,7 @@ int lhmac_sha224(lua_State *L) {
   if (!text || text_sz <= 0)
     return luaL_error(L, "Invalid text value.");
 
-  uint32_t result_len = SHA224_DIGEST_LENGTH;
-  unsigned char result[result_len];
-
-  HMAC(EVP_sha224(), key, key_sz, (const unsigned char*)text, text_sz, result, &result_len);
-  
-  lua_pushlstring(L, (const char *)result, result_len);
-  return 1;
+  return hmac_digest(L, text, text_sz, key, key_sz, EVP_sha224());
 };
 
 int lhmac_sha256(lua_State *L) {
@@ -105,11 +89,7 @@ int lhmac_sha256(lua_State *L) {
   if (!text || text_sz <= 0)
     return luaL_error(L, "Invalid text value.");
 
-  uint32_t result_len = SHA256_DIGEST_LENGTH;
-  unsigned char result[result_len];
-  HMAC(EVP_sha256(), key, key_sz, (const unsigned char*)text, text_sz, result, &result_len);
-  lua_pushlstring(L, (const char *)result, result_len);
-  return 1;
+  return hmac_digest(L, text, text_sz, key, key_sz, EVP_sha256());
 };
 
 int lhmac_sha384(lua_State *L) {
@@ -124,11 +104,7 @@ int lhmac_sha384(lua_State *L) {
   if (!text || text_sz <= 0)
     return luaL_error(L, "Invalid text value.");
 
-  uint32_t result_len = SHA384_DIGEST_LENGTH;
-  unsigned char result[result_len];
-  HMAC(EVP_sha384(), key, key_sz, (const unsigned char*)text, text_sz, result, &result_len);
-  lua_pushlstring(L, (const char *)result, result_len);
-  return 1;
+  return hmac_digest(L, text, text_sz, key, key_sz, EVP_sha384());
 };
 
 int lhmac_sha512(lua_State *L) {
@@ -143,11 +119,7 @@ int lhmac_sha512(lua_State *L) {
   if (!text || text_sz <= 0)
     return luaL_error(L, "Invalid text value.");
 
-  uint32_t result_len = SHA512_DIGEST_LENGTH;
-  unsigned char result[result_len];
-  HMAC(EVP_sha512(), key, key_sz, (const unsigned char*)text, text_sz, result, &result_len);
-  lua_pushlstring(L, (const char *)result, result_len);
-  return 1;
+  return hmac_digest(L, text, text_sz, key, key_sz, EVP_sha512());
 };
 
 int lhmac_ripemd160(lua_State *L) {
@@ -162,9 +134,5 @@ int lhmac_ripemd160(lua_State *L) {
   if (!text || text_sz <= 0)
     return luaL_error(L, "Invalid text value.");
 
-  uint32_t result_len = RIPEMD160_DIGEST_LENGTH;
-  unsigned char result[result_len];
-  HMAC(EVP_ripemd160(), key, key_sz, (const unsigned char*)text, text_sz, result, &result_len);
-  lua_pushlstring(L, (const char *)result, result_len);
-  return 1;
+  return hmac_digest(L, text, text_sz, key, key_sz, EVP_ripemd160());
 };

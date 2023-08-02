@@ -221,22 +221,6 @@ int lhmac_pbkdf2(lua_State *L) {
   if (!dig_md)
     return luaL_error(L, "Invalid pbkdf2 hash type.");
 
-  int bsize = 0;
-  if (dig_md == EVP_md5())
-    bsize = MD5_DIGEST_LENGTH;
-  else if (dig_md == EVP_sha1())
-    bsize = SHA_DIGEST_LENGTH;
-  else if (dig_md == EVP_sha224())
-    bsize = SHA224_DIGEST_LENGTH;
-  else if (dig_md == EVP_sha256())
-    bsize = SHA256_DIGEST_LENGTH;
-  else if (dig_md == EVP_sha384())
-    bsize = SHA384_DIGEST_LENGTH;
-  else if (dig_md == EVP_sha512())
-    bsize = SHA512_DIGEST_LENGTH;
-  else
-    return luaL_error(L, "unsupported pbkdf2 hash type.");
-
   size_t psize;
   const char* password = (const char*)luaL_checklstring(L, 2, &psize);
   if (psize < 1)
@@ -248,6 +232,8 @@ int lhmac_pbkdf2(lua_State *L) {
     salt = NULL;
 
   lua_Integer iter = luaL_checkinteger(L, 4);
+
+  int bsize = EVP_MD_size(dig_md);
   unsigned char buffer[bsize];
 
   if (0 == PKCS5_PBKDF2_HMAC(password, psize, salt, sasize, iter > 0 ? iter : 1000, dig_md, bsize, buffer))
