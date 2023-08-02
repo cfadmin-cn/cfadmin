@@ -13,11 +13,11 @@ enum {
 
 #define MAX_FILENAME_LEN (1 << 10)
 
+#define exe_filename cfadmin_get_exefile()
+
 static char script_entry[MAX_FILENAME_LEN] = "script/main.lua";
 
 static char pid_filename[MAX_FILENAME_LEN] = "cfadmin.pid";
-
-static char exe_filename[MAX_FILENAME_LEN];
 
 static int nprocess = 1;
 
@@ -29,6 +29,17 @@ static int nostd = 1;
 
 #define MasterPrefix ("cfadmin - Manager Process :")
 #define WorkerPrefix ("cfadmin - Worker Process")
+
+const char* cfadmin_get_exefile() {
+  const char *filename = getenv("cfadmin_exefile");
+  if (!filename)
+    filename = "./cfadmin";
+  return filename;
+}
+
+void cfadmin_set_exefile(const char *filename) {
+  setenv("cfadmin_exefile", filename, 1);
+}
 
 /* 打印使用指南 */
 static inline void cfadmin_usage_print() {
@@ -106,9 +117,7 @@ static inline void cfadmin_specify_process_daemon() {
 }
 
 static inline void cfadmin_init_args(int argc, char const *argv[]) {
-  // 可执行文件名
-  memset(exe_filename, 0x0, MAX_FILENAME_LEN);
-  memcpy(exe_filename, argv[0], strlen(argv[0]));
+
   int opt = -1;
   // int opterr = 0;
   while ((opt = getopt(argc, (char *const *)argv, "hde:p:k:w:")) != -1) {
@@ -186,14 +195,6 @@ static inline void cfadmin_set_cpu_affinity(int num, pid_t pid) {
   (void)num;(void)pid;
 #endif
 }
-
-// /* 初始化参数 */
-// static inline void cfadmin_unset_parameters() {
-//   unsetenv("cfadmin_isMaster");
-//   unsetenv("cfadmin_isWorker");
-//   unsetenv("cfadmin_nprocess");
-//   unsetenv("cfadmin_script");
-// }
 
 /* 多进程 - 运行工作进程 */
 static inline int cfadmin_worker_run(const char* entry) {
@@ -316,6 +317,8 @@ int main(int argc, char const *argv[]) {
       下面为`cfadmin`检查配置的相关代码; 根据配置检查的实际情况决定是否需要使用多进程
       多进程模型目前仅在Linux下可以利用到多核`Accept`, 其他环境仅用多进程来做为`Worker`使用.
   */
+
+  cfadmin_set_exefile(argv[0]);
 
   /* 是否需要后台运行 */
   pid_t p = daemoned ? cfadmin_daemon(nostd) : getpid() ;
