@@ -1,134 +1,190 @@
-local CRYPT = require "lcrypt"
+local CRYPTO = require "lcrypt"
 
-local hexencode = CRYPT.hexencode
-local hexdecode = CRYPT.hexdecode
-local base64encode = CRYPT.base64encode
-local base64decode = CRYPT.base64decode
+local hexencode = CRYPTO.hexencode
+local hexdecode = CRYPTO.hexdecode
+local base64encode = CRYPTO.base64encode
+local base64decode = CRYPTO.base64decode
 
 -- 填充方式
-local RSA_NO_PADDING = CRYPT.RSA_NO_PADDING
-local RSA_PKCS1_PADDING = CRYPT.RSA_PKCS1_PADDING
-local RSA_PKCS1_OAEP_PADDING = CRYPT.RSA_PKCS1_OAEP_PADDING
+local RSA_NO_PADDING = CRYPTO.RSA_NO_PADDING
+local RSA_PKCS1_PADDING = CRYPTO.RSA_PKCS1_PADDING
+local RSA_PKCS1_OAEP_PADDING = CRYPTO.RSA_PKCS1_OAEP_PADDING
 
-local rsa_public_key_encode = CRYPT.rsa_public_key_encode
-local rsa_private_key_decode = CRYPT.rsa_private_key_decode
-
-local rsa_private_key_encode = CRYPT.rsa_private_key_encode
-local rsa_public_key_decode = CRYPT.rsa_public_key_decode
+local rsa_public_key_encode = CRYPTO.rsa_public_key_encode
+local rsa_private_key_encode = CRYPTO.rsa_private_key_encode
+local rsa_private_key_decode = CRYPTO.rsa_private_key_decode
 
 -- 当前支持的签名与验签方法
-local rsa_sign = CRYPT.rsa_sign
-local rsa_verify = CRYPT.rsa_verify
+local rsa_sign = CRYPTO.rsa_sign
+local rsa_verify = CRYPTO.rsa_verify
 
 -- 当前支持的签名与验签
 local rsa_algorithms = {
-  ["md5"]     =  CRYPT.nid_md5,
-  ["sha1"]    =  CRYPT.nid_sha1,
-  ["sha128"]  =  CRYPT.nid_sha1,
-  ["sha256"]  =  CRYPT.nid_sha256,
-  ["sha512"]  =  CRYPT.nid_sha512,
+  ["md5"]     =  CRYPTO.nid_md5,
+  ["sha1"]    =  CRYPTO.nid_sha1,
+  ["sha128"]  =  CRYPTO.nid_sha1,
+  ["sha224"]  =  CRYPTO.nid_sha224,
+  ["sha256"]  =  CRYPTO.nid_sha256,
+  ["sha384"]  =  CRYPTO.nid_sha384,
+  ["sha512"]  =  CRYPTO.nid_sha512,
 }
 
+-- 加密后的格式
+local rsa_padding = {
+  ["oaep"]       = RSA_PKCS1_OAEP_PADDING,
+  ["pkcs1"]      = RSA_PKCS1_PADDING,
+  ["nopadding"]  = RSA_NO_PADDING,
+}
+
+local function rsa_pub_enc(text, pkey, b64, padding)
+  local cipher = rsa_public_key_encode(text, pkey, rsa_padding[padding] or rsa_padding['pkcs1'])
+  if cipher and b64 then
+    return base64encode(cipher)
+  end
+  return cipher
+end
+
+local function rsa_pri_enc(text, pkey, b64, padding, pw)
+  local cipher = rsa_private_key_encode(text, pkey, rsa_padding[padding] or rsa_padding['pkcs1'], pw)
+  if cipher and b64 then
+    return base64encode(cipher)
+  end
+  return cipher
+end
+
+local function rsa_pri_dec(cipher, pkey, b64, padding, pw)
+  if b64 then
+    cipher = base64decode(cipher)
+  end
+  return rsa_private_key_decode(cipher, pkey, rsa_padding[padding] or rsa_padding['pkcs1'], pw)
+end
+
+-- local function rsa_pub_dec(cipher, pkey, b64, padding)
+--   if b64 then
+--     cipher = base64decode(cipher)
+--   end
+--   return rsa_public_key_decode(cipher, pkey, rsa_padding[padding] or rsa_padding['pkcs1'])
+-- end
+
+---@class crypto
 local RSA = {}
 
--- `text` 为原始文本内容, `public_key_path` 为公钥路径, `b64` 为是否为结果进行`base64`编码
-function RSA.rsa_public_key_encode(text, public_key_path, b64)
-  local hash = rsa_public_key_encode(text, public_key_path, RSA_PKCS1_PADDING)
-  if hash and b64 then
-    return base64encode(hash)
+---------------- 私钥加密/解密 --------------------
+
+---comment `RSA`私钥加密(`pkcs1`格式); 成功返回加密后的文本, 失败返回`false`与错误信息.
+---@param text   string  @待加密的文本
+---@param prikey string  @私钥内容或者私钥所在路径
+---@param b64?   boolean @将加密后的内容进行`BASE64`编码
+---@param pw?    string  @如果有密码则填入.
+function RSA.rsa_private_key_encode(text, prikey, b64, pw)
+  return rsa_pri_enc(text, prikey, b64 and true or false, 'pkcs1', pw)
+end
+
+---comment `RSA`私钥加密(`oaep`格式); 成功返回加密后的文本, 失败返回`false`与错误信息.
+---@param text   string  @待加密的文本
+---@param prikey string  @私钥内容或者私钥所在路径
+---@param b64?   boolean @将加密后的内容进行`BASE64`编码
+---@param pw?    string  @如果有密码则填入.
+function RSA.rsa_private_key_oaep_padding_encode(text, prikey, b64, pw)
+  return rsa_pri_enc(text, prikey, b64 and true or false, 'oaep', pw)
+end
+
+---comment `RSA`私钥加密(`nopadding`); 成功返回加密后的文本, 失败返回`false`与错误信息.
+---@param text   string  @待加密的文本
+---@param prikey string  @私钥内容或者私钥所在路径
+---@param b64    boolean @将加密后的内容进行`BASE64`编码
+---@param pw?    string  @如果有密码则填入.
+function RSA.rsa_private_key_no_padding_encode(text, prikey, b64, pw)
+  return rsa_pri_enc(text, prikey, b64 and true or false, 'nopadding', pw)
+end
+
+---comment `RSA`私钥解密(`pkcs1`格式); 成功返回解密后的明文, 失败返回`false`与错误信息.
+---@param cipher string  @已加密的文本
+---@param prikey string  @私钥内容或者私钥所在路径
+---@param b64?   boolean @内容进行`BASE64`解码
+---@param pw?    string  @如果有密码则填入.
+function RSA.rsa_private_key_decode(cipher, prikey, b64, pw)
+  return rsa_pri_dec(cipher, prikey, b64 and true or false, 'pkcs1', pw)
+end
+
+---comment `RSA`私钥解密(`oaep`格式); 成功返回解密后的明文, 失败返回`false`与错误信息.
+---@param cipher string  @已加密的文本
+---@param prikey string  @私钥内容或者私钥所在路径
+---@param b64?   boolean @内容进行`BASE64`解码
+---@param pw?    string  @如果有密码则填入.
+function RSA.rsa_private_key_oaep_padding_decode(cipher, prikey, b64, pw)
+  return rsa_pri_dec(cipher, prikey, b64 and true or false, 'oaep', pw)
+end
+
+---comment `RSA`私钥解密(`nopadding`); 成功返回解密后的明文, 失败返回`false`与错误信息.
+---@param cipher string  @已加密的文本
+---@param prikey string  @私钥内容或者私钥所在路径
+---@param b64?   boolean @内容进行`BASE64`解码
+---@param pw?    string  @如果有密码则填入.
+function RSA.rsa_private_key_no_padding_decode(cipher, prikey, b64, pw)
+  return rsa_pri_dec(cipher, prikey, b64 and true or false, 'nopadding', pw)
+end
+
+---------------- 公钥加密/解密 --------------------
+
+---comment `RSA`公钥加密(`pkcs1`格式); 成功返回加密后的文本, 失败返回`false`与错误信息.
+---@param text   string  @待加密的文本
+---@param pubkey string  @公钥内容或者公钥所在路径
+---@param b64?   boolean @将加密后的内容进行`BASE64`编码
+function RSA.rsa_public_key_encode(text, pubkey, b64)
+  return rsa_pub_enc(text, pubkey, b64 and true or false, 'pkcs1')
+end
+
+---comment `RSA`公钥加密(`oaep`格式); 成功返回加密后的文本, 失败返回`false`与错误信息.
+---@param text   string  @待加密的文本
+---@param pubkey string  @公钥内容或者公钥所在路径
+---@param b64?   boolean @将加密后的内容进行`BASE64`编码
+function RSA.rsa_public_key_oaep_padding_encode(text, pubkey, b64)
+  return rsa_pub_enc(text, pubkey, b64 and true or false, 'oaep')
+end
+
+---comment `RSA`公钥加密(`nopadding`); 成功返回加密后的文本, 失败返回`false`与错误信息.
+---@param text   string  @待加密的文本
+---@param pubkey string  @公钥内容或者公钥所在路径
+---@param b64?   boolean @将加密后的内容进行`BASE64`编码
+function RSA.rsa_public_key_no_padding_encode(text, pubkey, b64)
+  return rsa_pub_enc(text, pubkey, b64 and true or false, 'nopadding')
+end
+
+----------------------------------------------------------------------------------------------------
+
+---comment `RSA`签名函数(目前支持:`md5`、`sha128` ~ `sha512`)
+---@param text    string                                             @待签名的明文
+---@param prikey  string                                             @私钥内容或者所在路径
+---@param alg     "md5"|"sha128"|"sha224"|"sha256"|"sha384"|"sha512" @签名算法(例如: `"md5"`)
+---@param hex?    'base64' | boolean                                 @签名是否编码(可选)
+function RSA.rsa_sign(text, prikey, alg, hex)
+  local sign = rsa_sign(text, prikey, rsa_algorithms[alg] or rsa_algorithms['md5'])
+  if sign and hex then
+    if hex == 'base64' then
+      sign = base64encode(sign)
+    else
+      sign = hexencode(sign)
+    end
   end
-  return hash
+  return sign
 end
 
--- `text` 为原始文本内容, `public_key_path` 为公钥路径, `b64` 为是否为结果进行`base64`编码
-function RSA.rsa_public_key_no_padding_encode(text, public_key_path, b64)
-  local hash = rsa_public_key_encode(text, public_key_path, RSA_NO_PADDING)
-  if hash and b64 then
-    return base64encode(hash)
-  end
-  return hash
-end
-
--- `text` 为原始文本内容, `public_key_path` 为公钥路径, `b64` 为是否为结果进行`base64`编码
-function RSA.rsa_public_key_oaep_padding_encode(text, public_key_path, b64)
-  local hash = rsa_public_key_encode(text, public_key_path, RSA_PKCS1_OAEP_PADDING)
-  if hash and b64 then
-    return base64encode(hash)
-  end
-  return hash
-end
-
--- `text` 为加密后的内容, `private_key_path` 为私钥路径, `b64` 为是否为`text`先进行`base64`解码
-function RSA.rsa_private_key_decode(text, private_key_path, b64)
-  return rsa_private_key_decode(b64 and base64decode(text) or text, private_key_path, RSA_PKCS1_PADDING)
-end
-
--- `text` 为加密后的内容, `private_key_path` 为私钥路径, `b64` 为是否为`text`先进行`base64`解码
-function RSA.rsa_private_key_no_padding_decode(text, private_key_path, b64)
-  return rsa_private_key_decode(b64 and base64decode(text) or text, private_key_path, RSA_NO_PADDING)
-end
-
--- `text` 为加密后的内容, `private_key_path` 为私钥路径, `b64` 为是否为`text`先进行`base64`解码
-function RSA.rsa_private_key_oaep_padding_decode(text, private_key_path, b64)
-  return rsa_private_key_decode(b64 and base64decode(text) or text, private_key_path, RSA_PKCS1_OAEP_PADDING)
-end
-
-
--- `text` 为原始文本内容, `private_key_path` 为公钥路径, `b64` 为是否为结果进行`base64`编码
-function RSA.rsa_private_key_encode(text, private_key_path, b64)
-  local hash = rsa_private_key_encode(text, private_key_path, RSA_PKCS1_PADDING)
-  if hash and b64 then
-    return base64encode(hash)
-  end
-  return hash
-end
-
--- `text` 为原始文本内容, `private_key_path` 为公钥路径, `b64` 为是否为结果进行`base64`编码
-function RSA.rsa_private_key_no_padding_encode(text, private_key_path, b64)
-  local hash = rsa_private_key_encode(text, private_key_path, RSA_NO_PADDING)
-  if hash and b64 then
-    return base64encode(hash)
-  end
-  return hash
-end
-
--- `text` 为原始文本内容, `private_key_path` 为公钥路径, `b64` 为是否为结果进行`base64`编码
-function RSA.rsa_private_key_oaep_padding_encode(text, private_key_path, b64)
-  local hash = rsa_private_key_encode(text, private_key_path, RSA_PKCS1_OAEP_PADDING)
-  if hash and b64 then
-    return base64encode(hash)
-  end
-  return hash
-end
-
--- -- `text` 为加密后的内容, `public_key_path` 为公钥路径, `b64`为是否为`text·先进行`base64`解码
--- function RSA.rsa_public_key_decode(text, public_key_path, b64)
---   return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_PKCS1_PADDING)
--- end
-
--- function RSA.rsa_public_key_no_padding_decode(text, public_key_path, b64)
---   return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_NO_PADDING)
--- end
-
--- function RSA.rsa_public_key_oaep_padding_decode(text, public_key_path, b64)
---   return rsa_public_key_decode(b64 and base64decode(text) or text, public_key_path, RSA_PKCS1_OAEP_PADDING)
--- end
-
--- RSA签名函数: 第一个参数是等待签名的明文, 第二个参数是私钥所在路径, 第三个参数是算法名称, 第四个参数决定是否以hex输出
-function RSA.rsa_sign(text, private_key_path, algorithm, hex)
-  local hash = rsa_sign(text, private_key_path, rsa_algorithms[(algorithm or ""):lower()] or rsa_algorithms["md5"])
-  if hash and hex then
-    return hexencode(hash)
-  end
-  return hash
-end
-
--- RSA验签函数: 第一个参数是等待签名的明文, 第二个参数是私钥所在路径, 第三个参数为签名sign密文, 第四个参数是算法名称, 第五个参数决定是否对sign进行unhex
-function RSA.rsa_verify(text, public_key_path, sign, algorithm, hex)
+---comment `RSA`验签函数(目前支持:`md5`、`sha128` ~ `sha512`)
+---@param text    string                                             @待签名的明文
+---@param pubkey  string                                             @公钥内容或者所在路径
+---@param sign    string                                             @待对比的签名内容
+---@param alg     "md5"|"sha128"|"sha224"|"sha256"|"sha384"|"sha512" @签名算法(例如: `"md5"`)
+---@param hex?    'base64' | boolean                                 @`sign`是否解码(可选)
+function RSA.rsa_verify(text, pubkey, sign, alg, hex)
   if hex then
-    sign = hexdecode(sign)
+    if hex == 'base64' then
+      sign = base64decode(sign)
+    else
+      sign = hexdecode(sign)
+    end
   end
-  return rsa_verify(text, public_key_path, sign, rsa_algorithms[(algorithm or ""):lower()] or rsa_algorithms["md5"])
+  return rsa_verify(text, pubkey, sign, rsa_algorithms[alg] or rsa_algorithms['md5'])
 end
 
 -- 初始化函数
