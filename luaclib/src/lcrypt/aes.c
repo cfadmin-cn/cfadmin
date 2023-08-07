@@ -6,6 +6,7 @@
 #define AES_OFB_MODE (4)
 #define AES_CTR_MODE (8)
 #define AES_GCM_MODE (16)
+#define AES_CCM_MODE (32)
 
 #define aes_bit_to_ecb_evp(bit) (bit == 16 ? EVP_aes_128_ecb() : bit == 24 ? EVP_aes_192_ecb() : EVP_aes_256_ecb())
 
@@ -18,6 +19,8 @@
 #define aes_bit_to_ctr_evp(bit) (bit == 16 ? EVP_aes_128_ctr() : bit == 24 ? EVP_aes_192_ctr() : EVP_aes_256_ctr())
 
 #define aes_bit_to_gcm_evp(bit) (bit == 16 ? EVP_aes_128_gcm() : bit == 24 ? EVP_aes_192_gcm() : EVP_aes_256_gcm())
+
+#define aes_bit_to_ccm_evp(bit) (bit == 16 ? EVP_aes_128_ccm() : bit == 24 ? EVP_aes_192_ccm() : EVP_aes_256_ccm())
 
 static inline const EVP_CIPHER * aes_get_cipher(size_t mode, size_t bit) {
   switch(mode){
@@ -33,6 +36,8 @@ static inline const EVP_CIPHER * aes_get_cipher(size_t mode, size_t bit) {
       return aes_bit_to_ctr_evp(bit);
     case AES_GCM_MODE:
       return aes_bit_to_gcm_evp(bit);
+    case AES_CCM_MODE:
+      return aes_bit_to_ccm_evp(bit);
   }
   return NULL;
 }
@@ -47,14 +52,17 @@ static inline int do_aes_encrypt(lua_State *L, int bit, const uint8_t *key, cons
   // EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, bit, NULL);
 
   if (1 != EVP_EncryptInit_ex(ctx, aes_get_cipher(aes_mode, bit), NULL, key, iv)){
-    EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_encrypt_init failed.");
     return 2;
   }
 
-  EVP_CIPHER_CTX_set_padding(ctx, 0);
+  int padding = lua_tointeger(L, 5);
+  if (padding == EVP_PADDING_PKCS7)
+    EVP_CIPHER_CTX_set_padding(ctx, EVP_PADDING_PKCS7);
+  else if (padding == EVP_PADDING_ZERO)
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
   // printf("enc key len = %d\n", EVP_CIPHER_CTX_key_length(ctx));
 
   EVP_CIPHER_CTX_set_key_length(ctx, EVP_MAX_KEY_LENGTH);
@@ -64,24 +72,22 @@ static inline int do_aes_encrypt(lua_State *L, int bit, const uint8_t *key, cons
 
   int update_len = out_size;
   if (0 == EVP_EncryptUpdate(ctx, out, &update_len, text, tsize)){
-    EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_encrypt_update failed.");
     return 2;
   }
 
   int final_len = out_size;
   if (0 == EVP_EncryptFinal(ctx, out + update_len, &final_len)){
-    EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_encrypt_final failed.");
     return 2;
   }
 
   lua_pushlstring(L, (const char*)out, update_len + final_len);
-  EVP_CIPHER_CTX_cleanup(ctx);
+  // EVP_CIPHER_CTX_cleanup(ctx);
   EVP_CIPHER_CTX_free(ctx);
   return 1;
 }
@@ -96,14 +102,17 @@ static inline int do_aes_decrypt(lua_State *L, int bit, const uint8_t *key, cons
   // EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, bit, NULL);
 
   if (1 != EVP_DecryptInit_ex(ctx, aes_get_cipher(aes_mode, bit), NULL, key, iv)){
-    EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_decrypt_init failed.");
     return 2;
   }
 
-  EVP_CIPHER_CTX_set_padding(ctx, 0);
+  int padding = lua_tointeger(L, 5);
+  if (padding == EVP_PADDING_PKCS7)
+    EVP_CIPHER_CTX_set_padding(ctx, EVP_PADDING_PKCS7);
+  else if (padding == EVP_PADDING_ZERO)
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
   // printf("dec key len = %d\n", EVP_CIPHER_CTX_key_length(ctx));
 
   EVP_CIPHER_CTX_set_key_length(ctx, EVP_MAX_KEY_LENGTH);
@@ -113,24 +122,22 @@ static inline int do_aes_decrypt(lua_State *L, int bit, const uint8_t *key, cons
 
   int update_len = out_size;
   if (1 != EVP_DecryptUpdate(ctx, out, &update_len, cipher, csize)){
-    EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_decrypt_update failed.");
     return 2;
   }
 
   int final_len = out_size;
   if (1 != EVP_DecryptFinal_ex(ctx, out + update_len, &final_len)){
-    EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_decrypt_final failed.");
     return 2;
   }
 
   lua_pushlstring(L, (const char*)out, update_len + final_len);
-  EVP_CIPHER_CTX_cleanup(ctx);
+  // EVP_CIPHER_CTX_cleanup(ctx);
   EVP_CIPHER_CTX_free(ctx);
   return 1;
 }
@@ -164,7 +171,7 @@ static inline int AES_ENCRYPT(lua_State *L, int mode) {
 
   uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* text = NULL;
 
-  return lua_getargs(L, &bit, &text, &text_sz, &iv, &key) && do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, mode);
+  return lua_getargs(L, &bit, &text, &text_sz, &iv, &key), do_aes_encrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)text, text_sz, mode);
 }
 
 static inline int AES_DECRYPT(lua_State *L, int mode) {
@@ -173,7 +180,7 @@ static inline int AES_DECRYPT(lua_State *L, int mode) {
 
   uint8_t* iv = NULL; uint8_t* key = NULL; uint8_t* cipher = NULL;
 
-  return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key) && do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, mode);
+  return lua_getargs(L, &bit, &cipher, &cipher_sz, &iv, &key), do_aes_decrypt(L, bit, (const uint8_t*)key, (const uint8_t*)iv, (const uint8_t*)cipher, cipher_sz, mode);
 }
 
 /* 加密封装 */
@@ -233,20 +240,23 @@ int laes_ctr_decrypt(lua_State *L) {
 /* AES GCM */
 int laes_gcm_encrypt(lua_State *L) {
 
-  lua_Integer bit = 0; size_t text_sz = 0;
+  lua_Integer bit = 0; size_t text_sz = 0; size_t aad_sz;
 
   uint8_t* key = NULL; uint8_t* text = NULL; uint8_t* iv = NULL; 
 
-  lua_getargs(L, &bit, &text, &text_sz, &iv, &key); uint8_t *aad = (uint8_t *)luaL_checkstring(L, 5); 
+  lua_getargs(L, &bit, &text, &text_sz, &iv, &key);
+
+  uint8_t *aad = (uint8_t *)luaL_checklstring(L, 5, &aad_sz);
+
+  int tag_len = luaL_optinteger(L, 6, 16);
 
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   if (!ctx)
     return luaL_error(L, "allocate EVP failed.");
 
   if (1 != EVP_EncryptInit_ex(ctx, aes_get_cipher(AES_GCM_MODE, bit), NULL, key, iv)){
-    EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_encrypt_init failed.");
     return 2;
   }
@@ -257,16 +267,16 @@ int laes_gcm_encrypt(lua_State *L) {
   int len;  int total = 0;
 
   /* 添加`aad` */
-  if(1 != EVP_EncryptUpdate(ctx, NULL, &len, aad, strlen((char*)aad))) {
+  if(1 != EVP_EncryptUpdate(ctx, NULL, &len, aad, aad_sz)) {
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_encrypt_update update aad failed.");
     return 2;
   }
   // printf("len = %d", len);
   if(1 != EVP_EncryptUpdate(ctx, ciphertext, &len, text, text_sz)) {
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_encrypt_update update cipher failed.");
     return 2;
   }
@@ -274,19 +284,19 @@ int laes_gcm_encrypt(lua_State *L) {
 
   if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) {
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_encrypt_final update aad failed.");
     return 2;
   }
   total += len;
 
-  if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, ciphertext + total)) {
+  if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, tag_len, ciphertext + total)) {
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_encrypt_final get tag failed.");
     return 2;
   }
-  total += 16;
+  total += tag_len;
 
   lua_pushlstring(L, (const char*)ciphertext, total);
   EVP_CIPHER_CTX_free(ctx);
@@ -294,20 +304,23 @@ int laes_gcm_encrypt(lua_State *L) {
 }
 
 int laes_gcm_decrypt(lua_State *L) {
-  lua_Integer bit = 0; size_t text_sz = 0;
+  lua_Integer bit = 0; size_t text_sz = 0; size_t aad_sz;
 
   uint8_t* key = NULL; uint8_t* text = NULL; uint8_t* iv = NULL; 
 
-  lua_getargs(L, &bit, &text, &text_sz, &iv, &key); uint8_t *aad = (uint8_t *)luaL_checkstring(L, 5); 
+  lua_getargs(L, &bit, &text, &text_sz, &iv, &key);
+
+  uint8_t *aad = (uint8_t *)luaL_checklstring(L, 5, &aad_sz);
+
+  int tag_len = luaL_optinteger(L, 6, 16);
 
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   if (!ctx)
     return luaL_error(L, "allocate EVP failed.");
 
   if (1 != EVP_DecryptInit_ex(ctx, aes_get_cipher(AES_GCM_MODE, bit), NULL, key, iv)){
-    EVP_CIPHER_CTX_cleanup(ctx);
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_decrypt_init failed.");
     return 2;
   }
@@ -316,32 +329,32 @@ int laes_gcm_decrypt(lua_State *L) {
   int len; int total;
 
   /* 添加`aad` */
-  if(1 != EVP_DecryptUpdate(ctx, NULL, &len, aad, strlen((char*)aad))) {
+  if (1 != EVP_DecryptUpdate(ctx, NULL, &len, aad, aad_sz)) {
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_decrypt_update update aad failed.");
     return 2;
   }
 
   /* 添加加密文本 */
-  if(!EVP_DecryptUpdate(ctx, ciphertext, &len, text, text_sz - 16)) {
+  if (!EVP_DecryptUpdate(ctx, ciphertext, &len, text, text_sz - tag_len)) {
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_decrypt_update update aad failed.");
     return 2;
   }
   total = len;
 
-  if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, text + text_sz - 16)) {
+  if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, tag_len, text + text_sz - tag_len)) {
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_decrypt_final set tag failed.");
     return 2;
   }
 
   if (EVP_DecryptFinal_ex(ctx, ciphertext + len, &len) <= 0) {
     EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
+    lua_pushboolean(L, 0);
     lua_pushstring(L, "aes_decrypt_final flush data failed.");
     return 2;
   }
@@ -349,4 +362,13 @@ int laes_gcm_decrypt(lua_State *L) {
   lua_pushlstring(L, (const char*)ciphertext, total + len);
   EVP_CIPHER_CTX_free(ctx);
   return 1;
+}
+
+/* AES CCM */
+int laes_ccm_encrypt(lua_State *L) {
+  (void)L; return 0; // TODO
+}
+
+int laes_ccm_decrypt(lua_State *L) {
+  (void)L; return 0; // TODO
 }
