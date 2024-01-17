@@ -53,6 +53,7 @@
 *.lai
 src/e*.h
 src/l*.h
+build
 cfadmin
 
 # Kernel Module Compile Results

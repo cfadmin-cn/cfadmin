@@ -18,6 +18,12 @@ else()
   set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 endif()
 
+# 增加 CCache 支持
+find_program(CCACHE_FOUND ccache)
+if(CCACHE_FOUND)
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+endif()
 
 # 依赖openssl
 find_package(OpenSSL 1.0.1 REQUIRED)
@@ -95,8 +101,8 @@ set_target_properties(
 add_subdirectory( luaclib )
 
 # 调试环境
-file(COPY ${PROJECT_SOURCE_DIR}/lualib DESTINATION ${PROJECT_SOURCE_DIR}/build)
-file(COPY ${PROJECT_SOURCE_DIR}/script DESTINATION ${PROJECT_SOURCE_DIR}/build)
+execute_process(COMMAND ln -s -f ${CMAKE_SOURCE_DIR}/lualib ${CMAKE_SOURCE_DIR}/build)
+execute_process(COMMAND ln -s -f ${CMAKE_SOURCE_DIR}/scripts ${CMAKE_SOURCE_DIR}/build)
 
 # 安装`lualib`/`script`
 install(
