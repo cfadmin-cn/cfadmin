@@ -59,12 +59,12 @@ fi
 # 通过时区,自动选择镜像源
 if [[ $timeArea == "CST +0800" ]] 
 then 
-  git clone https://gitee.com/CandyMi/lua -b v5.4.3
+  git clone https://gitee.com/CandyMi/lua -b v5.4.6
   git clone https://gitee.com/CandyMi/libev -b v4.33
   git clone https://gitee.com/CandyMi/libeio
 
 else 
-  git clone https://github.com/CandyMi/lua -b v5.4.3
+  git clone https://github.com/CandyMi/lua -b v5.4.6
   git clone https://github.com/CandyMi/libev -b v4.33
   git clone https://github.com/CandyMi/libeio
 fi
