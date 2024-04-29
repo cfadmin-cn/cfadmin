@@ -63,6 +63,33 @@ static int crypt_set_key_value(lua_State *L) {
   lua_set_key_INT(L, "nid_sha256", NID_sha256);
   lua_set_key_INT(L, "nid_sha512", NID_sha512);
 
+  lua_set_key_PTR(L, "EVP_aes_128_ecb", EVP_aes_128_ecb());
+  lua_set_key_PTR(L, "EVP_aes_128_cbc", EVP_aes_128_cbc());
+  lua_set_key_PTR(L, "EVP_aes_128_cfb", EVP_aes_128_cfb());
+  lua_set_key_PTR(L, "EVP_aes_128_ofb", EVP_aes_128_ofb());
+  lua_set_key_PTR(L, "EVP_aes_128_ctr", EVP_aes_128_ctr());
+  lua_set_key_PTR(L, "EVP_aes_128_ocb", EVP_aes_128_ocb());
+  lua_set_key_PTR(L, "EVP_aes_128_gcm", EVP_aes_128_gcm());
+  lua_set_key_PTR(L, "EVP_aes_128_ccm", EVP_aes_128_ccm());
+
+  lua_set_key_PTR(L, "EVP_aes_192_ecb", EVP_aes_192_ecb());
+  lua_set_key_PTR(L, "EVP_aes_192_cbc", EVP_aes_192_cbc());
+  lua_set_key_PTR(L, "EVP_aes_192_cfb", EVP_aes_192_cfb());
+  lua_set_key_PTR(L, "EVP_aes_192_ofb", EVP_aes_192_ofb());
+  lua_set_key_PTR(L, "EVP_aes_192_ctr", EVP_aes_192_ctr());
+  lua_set_key_PTR(L, "EVP_aes_192_ocb", EVP_aes_192_ocb());
+  lua_set_key_PTR(L, "EVP_aes_192_gcm", EVP_aes_192_gcm());
+  lua_set_key_PTR(L, "EVP_aes_192_ccm", EVP_aes_192_ccm());
+
+  lua_set_key_PTR(L, "EVP_aes_256_ecb", EVP_aes_256_ecb());
+  lua_set_key_PTR(L, "EVP_aes_256_cbc", EVP_aes_256_cbc());
+  lua_set_key_PTR(L, "EVP_aes_256_cfb", EVP_aes_256_cfb());
+  lua_set_key_PTR(L, "EVP_aes_256_ofb", EVP_aes_256_ofb());
+  lua_set_key_PTR(L, "EVP_aes_256_ctr", EVP_aes_256_ctr());
+  lua_set_key_PTR(L, "EVP_aes_256_ocb", EVP_aes_256_ocb());
+  lua_set_key_PTR(L, "EVP_aes_256_gcm", EVP_aes_256_gcm());
+  lua_set_key_PTR(L, "EVP_aes_256_ccm", EVP_aes_256_ccm());
+
   /* 增加EVP的摘要方法模型  */
   lua_set_key_PTR(L, "EVP_md5", EVP_md5());
   // lua_set_key_PTR(L, "EVP_blake256", EVP_blake2s256());
@@ -129,19 +156,8 @@ LUAMOD_API int luaopen_lcrypt(lua_State *L) {
     {"rsa_sign", lrsa_sign},
     {"rsa_verify", lrsa_verify},
     // aes 加密
-    { "aes_ecb_encrypt", laes_ecb_encrypt },
-    { "aes_cbc_encrypt", laes_cbc_encrypt },
-    { "aes_cfb_encrypt", laes_cfb_encrypt },
-    { "aes_ofb_encrypt", laes_ofb_encrypt },
-    { "aes_ctr_encrypt", laes_ctr_encrypt },
-    { "aes_gcm_encrypt", laes_gcm_encrypt },
-    // aes 解密
-    { "aes_ecb_decrypt", laes_ecb_decrypt },
-    { "aes_cbc_decrypt", laes_cbc_decrypt },
-    { "aes_cfb_decrypt", laes_cfb_decrypt },
-    { "aes_ofb_decrypt", laes_ofb_decrypt },
-    { "aes_ctr_decrypt", laes_ctr_decrypt },
-    { "aes_gcm_decrypt", laes_gcm_decrypt },
+    { "aes_enc", laes_enc },
+    { "aes_dec", laes_dec },
     { "rc4", lrc4 },
     // DES加密/解密
     { "desencode", ldesencode },

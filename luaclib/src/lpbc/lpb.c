@@ -924,7 +924,7 @@ static void lpb_initslice(lua_State *L, int idx, lpb_Slice *s, size_t size) {
 
 static int lpb_unpackscalar(lua_State *L, int *pidx, int top, int fmt, pb_Slice *s) {
     unsigned mode = default_lstate(L)->int64_mode;
-    lpb_Value v;
+    lpb_Value v; memset(&v, 0x0, sizeof(v));
     switch (fmt) {
     case 'v':
         if (pb_readvarint64(s, &v.u64) == 0)

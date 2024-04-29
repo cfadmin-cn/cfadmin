@@ -62,19 +62,8 @@ int lhmac_pbkdf2(lua_State *L);
 
 int lrc4(lua_State *L);
 
-int laes_ecb_encrypt(lua_State *L);
-int laes_cbc_encrypt(lua_State *L);
-int laes_cfb_encrypt(lua_State *L);
-int laes_ofb_encrypt(lua_State *L);
-int laes_ctr_encrypt(lua_State *L);
-int laes_gcm_encrypt(lua_State *L);
-
-int laes_ecb_decrypt(lua_State *L);
-int laes_cbc_decrypt(lua_State *L);
-int laes_cfb_decrypt(lua_State *L);
-int laes_ofb_decrypt(lua_State *L);
-int laes_ctr_decrypt(lua_State *L);
-int laes_gcm_decrypt(lua_State *L);
+int laes_enc(lua_State *L);
+int laes_dec(lua_State *L);
 
 int lrsa_public_key_encode(lua_State *L);
 int lrsa_private_key_decode(lua_State *L);

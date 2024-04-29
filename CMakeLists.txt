@@ -102,7 +102,7 @@ add_subdirectory( luaclib )
 
 # 调试环境
 execute_process(COMMAND ln -s -f ${CMAKE_SOURCE_DIR}/lualib ${CMAKE_SOURCE_DIR}/build)
-execute_process(COMMAND ln -s -f ${CMAKE_SOURCE_DIR}/scripts ${CMAKE_SOURCE_DIR}/build)
+execute_process(COMMAND ln -s -f ${CMAKE_SOURCE_DIR}/script ${CMAKE_SOURCE_DIR}/build)
 
 # 安装`lualib`/`script`
 install(

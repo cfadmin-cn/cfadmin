@@ -1,30 +1,13 @@
 local CRYPT = require "lcrypt"
+
+local aesenc = CRYPT.aes_enc
+local aesdec = CRYPT.aes_dec
+
 local hexencode = CRYPT.hexencode
 local hexdecode = CRYPT.hexdecode
 
 local base64encode = CRYPT.base64encode
 local base64decode = CRYPT.base64decode
-
-local aes_ecb_encrypt = CRYPT.aes_ecb_encrypt
-local aes_ecb_decrypt = CRYPT.aes_ecb_decrypt
-
-local aes_cbc_encrypt = CRYPT.aes_cbc_encrypt
-local aes_cbc_decrypt = CRYPT.aes_cbc_decrypt
-
-local aes_cfb_encrypt = CRYPT.aes_cfb_encrypt
-local aes_cfb_decrypt = CRYPT.aes_cfb_decrypt
-
-local aes_ofb_encrypt = CRYPT.aes_ofb_encrypt
-local aes_ofb_decrypt = CRYPT.aes_ofb_decrypt
-
-local aes_ctr_encrypt = CRYPT.aes_ctr_encrypt
-local aes_ctr_decrypt = CRYPT.aes_ctr_decrypt
-
-local aes_gcm_encrypt = CRYPT.aes_gcm_encrypt
-local aes_gcm_decrypt = CRYPT.aes_gcm_decrypt
-
-local aes_ccm_encrypt = CRYPT.aes_ccm_encrypt
-local aes_ccm_decrypt = CRYPT.aes_ccm_decrypt
 
 ---@class CRYPT
 ---@field aes_128_ecb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
@@ -65,111 +48,60 @@ local aes_ccm_decrypt = CRYPT.aes_ccm_decrypt
 ---@field aes_256_gcm_decrypt  fun(key:string, cipher:string, iv:string, aad:string, tag_len:integer?, hex:boolean|'base64'?):string
 local AES = {}
 
---[[
- aes.aes_128/192/256_xxx_encrypt(...) -- 加密
- aes.aes_128/192/256_xxx_decrypt(...) -- 解密
---]]
-
-local len = { 16, 24, 32 }
-local bit = { 128, 192, 256 }
-
 local padding_map = {
   [0]  = CRYPT.AES_PADDING_ZERO,
-  -- [5]  = CRYPT.AES_PADDING_PKCS5,
+  [5]  = CRYPT.AES_PADDING_PKCS5,
   [7] = CRYPT.AES_PADDING_PKCS7,
 }
 
-local enc_map = {
-  { name = "cbc_encrypt", f = aes_cbc_encrypt },
-  { name = "ecb_encrypt", f = aes_ecb_encrypt },
-  { name = "cfb_encrypt", f = aes_cfb_encrypt },
-  { name = "ofb_encrypt", f = aes_ofb_encrypt },
-  { name = "ctr_encrypt", f = aes_ctr_encrypt },
-}
+local bits = { 128, 192, 256 }
 
-local dec_map = {
-  { name = "cbc_decrypt", f = aes_cbc_decrypt },
-  { name = "ecb_decrypt", f = aes_ecb_decrypt },
-  { name = "cfb_decrypt", f = aes_cfb_decrypt },
-  { name = "ofb_decrypt", f = aes_ofb_decrypt },
-  { name = "ctr_decrypt", f = aes_ctr_decrypt },
-}
+local list = { "ecb", "cbc", "cfb", "ofb", "ocb", "ctr" }
 
-for i = 1 , #enc_map do
-  local e, d = enc_map[i], dec_map[i]
-  for j = 1, #len do
-    AES[string.format("aes_%d_%s", bit[j], e.name)] = function(key, text, iv, hex, padding)
-      local hash, err = e.f(len[j], key, text, iv, padding_map[padding])
-      if hash then
-        if hex then
-          if hex == 'base64' then
-            hash = base64encode(hash)
-          else
-            hash = hexencode(hash)
-          end
-        end
-        return hash
+for _, name in ipairs(list) do
+  for _, bit in ipairs(bits) do
+    local nid = 'EVP_aes_' .. bit .. '_' .. name
+    AES['aes_' .. bit .. '_' ..  name .. '_encrypt'] = function (key, text, iv, hex, padding)
+      local data, errinfo = aesenc(CRYPT[nid], key, text, iv, padding_map[padding or 7])
+      if not data then
+        return nil, errinfo
       end
-      return false, err
-    end
-    AES[string.format("aes_%d_%s", bit[j], d.name)] = function(key, cipher, iv, hex, padding)
       if hex then
-        if hex == 'base64' then
-          cipher = base64decode(cipher, true)
-        else
-          cipher = hexdecode(cipher)
-        end
+        data = hex == 'base64' and base64encode(data) or hexencode(data)
       end
-      return d.f(len[j], key, cipher, iv, padding_map[padding])
+      return data
+    end
+    AES['aes_' .. bit .. '_' .. name .. '_decrypt'] = function (key, cipher, iv, hex, padding)
+      if hex then
+        cipher = hex == 'base64' and base64decode(cipher) or hexdecode(cipher)
+      end
+      return aesdec(CRYPT[nid], key, cipher, iv, padding_map[padding or 7])
     end
   end
 end
 
-local enc_map_ex = {
-  { name = "gcm_encrypt", f = aes_gcm_encrypt },
-  { name = "ccm_encrypt", f = aes_ccm_encrypt },
-}
+local list_ex = { "ccm", "gcm" }
 
-local dec_map_ex = {
-  { name = "gcm_decrypt", f = aes_gcm_decrypt },
-  { name = "ccm_decrypt", f = aes_ccm_decrypt },
-}
-
-for i = 1 , #enc_map_ex do
-  local e, d = enc_map_ex[i], dec_map_ex[i]
-  for j = 1, #len do
-    AES[string.format("aes_%d_%s", bit[j], e.name)] = function(key, text, iv, aad, tag_len, hex)
-      local hash, err = e.f(len[j], key, text, iv, aad, tag_len)
-      if hash then
-        if hex then
-          if hex == 'base64' then
-            hash = base64encode(hash)
-          else
-            hash = hexencode(hash)
-          end
-        end
-        return hash
+for _, name in ipairs(list_ex) do
+  for _, bit in ipairs(bits) do
+    local nid = 'EVP_aes_' .. bit .. '_' .. name
+    AES['aes_' .. bit .. '_' ..  name .. '_encrypt'] = function (key, text, iv, aad, taglen, hex)
+      local data, errinfo = aesenc(CRYPT[nid], key, text, iv, nil, aad, taglen)
+      if not data then
+        return nil, errinfo
       end
-      return false, err
-    end
-    AES[string.format("aes_%d_%s", bit[j], d.name)] = function(key, cipher, iv, aad, tag_len, hex)
       if hex then
-        if hex == 'base64' then
-          cipher = base64decode(cipher, true)
-        else
-          cipher = hexdecode(cipher)
-        end
+        data = hex == 'base64' and base64encode(data) or hexencode(data)
       end
-      return d.f(len[j], key, cipher, iv, aad, tag_len)
+      return data
+    end
+    AES['aes_' .. bit .. '_' .. name .. '_decrypt'] = function (key, cipher, iv, aad, taglen, hex)
+      if hex then
+        cipher = hex == 'base64' and base64decode(cipher) or hexdecode(cipher)
+      end
+      return aesdec(CRYPT[nid], key, cipher, iv, nil, aad, taglen)
     end
   end
-end
-
-function AES.aes_256_gcm_decrypt(key, cipher, iv, aad, hex)
-  if hex then
-    cipher = hexdecode(cipher)
-  end
-  return aes_gcm_decrypt(32, key, cipher, iv, aad)
 end
 
 -- 初始化函数
