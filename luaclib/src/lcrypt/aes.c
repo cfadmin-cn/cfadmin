@@ -15,28 +15,6 @@ static inline const EVP_CIPHER * aes_get_cipher(int nid)
   return EVP_get_cipherbynid(nid);
 }
 
-static inline int aes_set_ahead(lua_State *L, EVP_CIPHER_CTX *ctx, const uint8_t *aad, size_t aadlen, size_t total)
-{
-  int len = 0; /* CCM 模式需要 */
-  if (aes_is_ccm(EVP_CIPHER_CTX_get0_cipher(ctx)))
-  {
-    if(1 != EVP_CipherUpdate(ctx, NULL, &len, NULL, total)){
-      EVP_CIPHER_CTX_free(ctx);
-      lua_pushnil(L);
-      lua_pushfstring(L, "[cipher error]: clear aad `%s` failed.", (const char*)aad);
-      return 2;
-    }
-  }
-  len = 0;
-  if(1 != EVP_CipherUpdate(ctx, NULL, &len, aad, aadlen)) {
-    EVP_CIPHER_CTX_free(ctx);
-    lua_pushnil(L);
-    lua_pushfstring(L, "[cipher error]: update aad `%s` failed.", (const char*)aad);
-    return 2;
-  }
-  return 0;
-}
-
 // 加密函数
 static int do_aes_encrypt(lua_State *L, const EVP_CIPHER *c, const uint8_t *key, size_t keylen, const uint8_t *iv, size_t ivlen, const uint8_t *text, size_t tsize, int padding, const uint8_t *aad, size_t aadlen, int taglen)
 {
@@ -65,9 +43,23 @@ static int do_aes_encrypt(lua_State *L, const EVP_CIPHER *c, const uint8_t *key,
 
   if (aes_is_gcm(c) || aes_is_ccm(c))
   {
-    int r = aes_set_ahead(L, ctx, aad, aadlen, tsize - taglen);
-    if (r)
-      return r;
+    int len = 0; /* CCM 模式需要 */
+    if (aes_is_ccm(c))
+    {
+      if(1 != EVP_CipherUpdate(ctx, NULL, &len, NULL, tsize - taglen)){
+        EVP_CIPHER_CTX_free(ctx);
+        lua_pushnil(L);
+        lua_pushfstring(L, "[cipher error]: clear aad `%s` failed.", (const char*)aad);
+        return 2;
+      }
+    }
+    len = 0;
+    if(1 != EVP_CipherUpdate(ctx, NULL, &len, aad, aadlen)) {
+      EVP_CIPHER_CTX_free(ctx);
+      lua_pushnil(L);
+      lua_pushfstring(L, "[cipher error]: update aad `%s` failed.", (const char*)aad);
+      return 2;
+    }
   }
 
   uint8_t *out; size_t olen = 0; int update_len;
@@ -145,9 +137,23 @@ static int do_aes_decrypt(lua_State *L, const EVP_CIPHER *c, const uint8_t *key,
 
   if (aes_is_gcm(c) || aes_is_ccm(c))
   {
-    int r = aes_set_ahead(L, ctx, aad, aadlen, csize - taglen);
-    if (r)
-      return r;
+    int len = 0; /* CCM 模式需要 */
+    if (aes_is_ccm(c))
+    {
+      if(1 != EVP_CipherUpdate(ctx, NULL, &len, NULL, csize - taglen)){
+        EVP_CIPHER_CTX_free(ctx);
+        lua_pushnil(L);
+        lua_pushfstring(L, "[cipher error]: clear aad `%s` failed.", (const char*)aad);
+        return 2;
+      }
+    }
+    len = 0;
+    if(1 != EVP_CipherUpdate(ctx, NULL, &len, aad, aadlen)) {
+      EVP_CIPHER_CTX_free(ctx);
+      lua_pushnil(L);
+      lua_pushfstring(L, "[cipher error]: update aad `%s` failed.", (const char*)aad);
+      return 2;
+    }
   }
 
   uint8_t *out; size_t olen = 0; int update_len;
