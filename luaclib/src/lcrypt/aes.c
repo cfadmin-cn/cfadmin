@@ -1,14 +1,12 @@
 #include "lcrypt.h"
 
-static inline int aes_is_gcm(EVP_CIPHER_CTX *ctx)
+static inline int aes_is_gcm(const EVP_CIPHER * c)
 {
-  const EVP_CIPHER *c = EVP_CIPHER_CTX_get0_cipher(ctx);
   return (c == EVP_aes_128_gcm()) || (c == EVP_aes_192_gcm()) || (c == EVP_aes_256_gcm());
 }
 
-static inline int aes_is_ccm(EVP_CIPHER_CTX *ctx)
+static inline int aes_is_ccm(const EVP_CIPHER * c)
 {
-  const EVP_CIPHER *c = EVP_CIPHER_CTX_get0_cipher(ctx);
   return (c == EVP_aes_128_ccm()) || (c == EVP_aes_192_ccm()) || (c == EVP_aes_256_ccm());
 }
 
@@ -20,7 +18,7 @@ static inline const EVP_CIPHER * aes_get_cipher(int nid)
 static inline int aes_set_ahead(lua_State *L, EVP_CIPHER_CTX *ctx, const uint8_t *aad, size_t aadlen, size_t total)
 {
   int len = 0; /* CCM 模式需要 */
-  if (aes_is_ccm(ctx))
+  if (aes_is_ccm(EVP_CIPHER_CTX_get0_cipher(ctx)))
   {
     if(1 != EVP_CipherUpdate(ctx, NULL, &len, NULL, total)){
       EVP_CIPHER_CTX_free(ctx);
@@ -65,7 +63,7 @@ static int do_aes_encrypt(lua_State *L, const EVP_CIPHER *c, const uint8_t *key,
     return 2;
   }
 
-  if (aes_is_gcm(ctx) || aes_is_ccm(ctx))
+  if (aes_is_gcm(c) || aes_is_ccm(c))
   {
     int r = aes_set_ahead(L, ctx, aad, aadlen, tsize - taglen);
     if (r)
@@ -97,8 +95,10 @@ static int do_aes_encrypt(lua_State *L, const EVP_CIPHER *c, const uint8_t *key,
   }
   olen += update_len;
 
-  if (aes_is_gcm(ctx) || aes_is_ccm(ctx))
+  // printf("是否ccm or gcm ? %d\n", aes_is_gcm(c) || aes_is_ccm(c));
+  if (aes_is_gcm(c) || aes_is_ccm(c))
   {
+    // printf("加密有进入到这里吗?\n");
     if (1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, taglen, out + olen)) {
       EVP_CIPHER_CTX_free(ctx);
       lua_pushnil(L);
@@ -128,7 +128,7 @@ static int do_aes_decrypt(lua_State *L, const EVP_CIPHER *c, const uint8_t *key,
   }
 
   /* CCM 模式 没有这个会报错 */
-  if (aes_is_ccm(ctx))
+  if (aes_is_ccm(c))
     EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, taglen, (void *)((cipher + csize) - taglen));
 
   /* 设置 密钥 和 向量 的长度 */
@@ -143,7 +143,7 @@ static int do_aes_decrypt(lua_State *L, const EVP_CIPHER *c, const uint8_t *key,
     return 2;
   }
 
-  if (aes_is_gcm(ctx) || aes_is_ccm(ctx))
+  if (aes_is_gcm(c) || aes_is_ccm(c))
   {
     int r = aes_set_ahead(L, ctx, aad, aadlen, csize - taglen);
     if (r)
@@ -167,7 +167,7 @@ static int do_aes_decrypt(lua_State *L, const EVP_CIPHER *c, const uint8_t *key,
   olen += update_len;
 
   /* 不同模式 */
-  if (aes_is_gcm(ctx))
+  if (aes_is_gcm(c))
   {
     if (1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, taglen, (void *)((cipher + csize) - taglen))) {
       lua_pushnil(L);
@@ -178,8 +178,13 @@ static int do_aes_decrypt(lua_State *L, const EVP_CIPHER *c, const uint8_t *key,
 
   /* 解密成功需要附加数据 */
   int ret = EVP_DecryptFinal_ex(ctx, out + olen, &update_len);
-  if (ret == 1)
-    olen += update_len;
+  if (1 != ret)
+  {
+    lua_pushnil(L);
+    lua_pushstring(L, "[Cipher error]: dec final failed.");
+    return 2;
+  }
+  olen += update_len;
 
   lua_pushlstring(L, (const char *)out, olen);
   EVP_CIPHER_CTX_free(ctx);
