@@ -89,7 +89,7 @@ lparser_http_response(lua_State *L){
 }
 
 LUAMOD_API int
-luaopen_httpparser(lua_State *L) {
+luaopen_lhttpparser(lua_State *L) {
     luaL_checkversion(L);
     luaL_Reg httpparser_libs[] = {
       {"parser_response_chunked", lparser_response_chunked},

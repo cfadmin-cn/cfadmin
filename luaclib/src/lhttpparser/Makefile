@@ -19,5 +19,5 @@ CFLAGS = -O3 -Wall -shared -fPIC
 DLL = -lcore
 
 build:
-	@$(CC) -o httpparser.so httpparser.c lhttpparser.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
+	@$(CC) -o lhttpparser.so httpparser.c lhttpparser.c $(INCLUDES) $(LIBS) $(CFLAGS) $(DLL)
 	@mv *.so ../../
