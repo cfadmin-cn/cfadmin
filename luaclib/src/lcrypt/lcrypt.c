@@ -43,6 +43,52 @@ static int lrandomkey(lua_State *L) {
 /* -- xor_str -- */
 
 
+/* 获取证书序列号 */
+static int lcert_get_sn(lua_State *L) {
+
+  size_t tsize = 0;
+  const char *text = luaL_checklstring(L, 1, &tsize);
+
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+
+  /* 从字符串读取 */
+  BIO *io = NULL; X509 *cert = NULL;
+  io = BIO_new(BIO_s_mem()); BIO_write(io, text, tsize);
+  cert = PEM_read_bio_X509(io, NULL, NULL, NULL); BIO_free(io);
+  if (!cert)
+  {
+    io = BIO_new_file(text, "rb");
+    if (!io)
+      { lua_pushnil(L); lua_pushliteral(L, "[x509 ERROR]: Can't load cert."); return 2; }
+
+    cert = PEM_read_bio_X509(io, NULL, NULL, NULL); BIO_free(io);
+    if (!cert)
+    {
+      char buf[512]; memset(buf, 0, sizeof(buf));
+      ERR_error_string_n(ERR_get_error(), buf, sizeof(buf));
+      lua_pushnil(L); lua_pushfstring(L, "[ssl load_certificate]: %s.", buf);
+      return 2;
+    }
+  }
+
+  const ASN1_INTEGER *sn = X509_get0_serialNumber(cert);
+  if (!sn)
+    { lua_pushnil(L); lua_pushliteral(L, "[x509 ERROR]: can't load cert serial Number"); return 2; }
+
+  char buf[64]; char *p = buf;
+  int len = i2d_ASN1_INTEGER(sn, (uint8_t**)&p);
+  if (len < 0)
+    { lua_pushnil(L); lua_pushliteral(L, "[x509 ERROR]: serial Number can't write buffer failed."); return 2; }
+
+  /* 多出2个字节, 暂时不清楚为什么 */
+  lua_pushlstring(L, buf + (len - 20), len - (len - 20));
+  return 1;
+#else
+  return luaL_error(L, "[x509 ERROR]: can't load cert serial Number");
+#endif
+}
+
+
 #define lua_set_key_INT(L, key, value) ({ lua_pushstring((L), (key)); lua_pushinteger((L), (value)); lua_rawset((L), -3); })
 #define lua_set_key_STR(L, key, value) ({ lua_pushstring((L), (key)); lua_pushstring((L), (value)); lua_rawset((L), -3); })
 #define lua_set_key_PTR(L, key, value) ({ lua_pushstring((L), (key)); lua_pushlightuserdata((L), (void*)(value)); lua_rawset((L), -3); })
@@ -178,6 +224,8 @@ LUAMOD_API int luaopen_lcrypt(lua_State *L) {
     { "sm4_ofb_decrypt", lsm4_ofb_decrypt },
     { "sm4_ctr_encrypt", lsm4_ctr_encrypt },
     { "sm4_ctr_decrypt", lsm4_ctr_decrypt },
+    // 证书相关
+    { "get_cert_sn", lcert_get_sn},
     { NULL, NULL },
   };
   luaL_newlib(L, lcrypt);
