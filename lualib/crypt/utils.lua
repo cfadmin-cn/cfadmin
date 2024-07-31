@@ -39,12 +39,8 @@ function UTILS.hashkey (key, hex)
   return hash
 end
 
-function UTILS.get_cert_sn(cert, hex)
-  local data, err = get_cert_sn(cert)
-  if data then
-    return hex and hexencode(data) or data
-  end
-  return nil, err
+function UTILS.get_cert_sn(cert)
+  return get_cert_sn(cert)
 end
 
 -- 初始化函数
