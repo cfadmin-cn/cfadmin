@@ -71,18 +71,10 @@ static int lcert_get_sn(lua_State *L) {
     }
   }
 
-  const ASN1_INTEGER *sn = X509_get0_serialNumber(cert);
-  if (!sn)
-    { lua_pushnil(L); lua_pushliteral(L, "[x509 ERROR]: can't load cert serial Number"); X509_free(cert); return 2; }
-
-  char buf[64]; char *p = buf;
-  int len = i2d_ASN1_INTEGER(sn, (uint8_t**)&p);
-  if (len < 0)
-    { lua_pushnil(L); lua_pushliteral(L, "[x509 ERROR]: serial Number can't write buffer failed."); X509_free(cert); return 2; }
-
-  X509_free(cert);
-  /* 多出2个字节, 暂时不清楚为什么 */
-  lua_pushlstring(L, buf + 2, len - 2);
+  BIGNUM *bn = ASN1_INTEGER_to_BN(X509_get0_serialNumber(cert), NULL);
+  io = BIO_new(BIO_s_mem()); BN_print(io, bn);
+  const char *buf; int len = BIO_get_mem_data(io, &buf);
+  lua_pushlstring(L, buf, len); BIO_free(io); BN_free(bn); X509_free(cert);
   return 1;
 #else
   return luaL_error(L, "[x509 ERROR]: can't load cert serial Number");
