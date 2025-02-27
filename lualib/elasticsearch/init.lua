@@ -1,413 +1,394 @@
+local cf = require "cf"
 local httpc = require "httpc"
 
-local new_tab = require "sys".new_tab
-
-local json  = require "json"
+local json = require "json"
 local json_decode = json.decode
 local json_encode = json.encode
 
 local type = type
-local ipairs = ipairs
-local assert = assert
-local tostring = tostring
-local sub = string.sub
-local fmt = string.format
-local find = string.find
-local lower = string.lower
-local toint = math.tointeger
 
--- 检查ID是否需要转换
-local function convert_id(id)
-  if toint(id) then
-    return fmt("%.f", id)
-  end
-  return tostring(id)
-end
+local tabconcat = table.concat
 
--- 检查domain是否有效
-local function check_domain_valide(domain)
-  if not find(domain, "http[s]?://(.+)[:]?[%d]?") then
-    return nil, "Invalid domain."
+---comment 返回`HTTP`请求响应
+---@param self        ElasticSearch        @`ElasticSearch`对象
+---@param http_method string               @`HTTP`方法
+---@param path        string               @`HTTP`路径
+---@return table?                          @成功返回`table`, 出错返回`false`
+---@return string?                         @成功返`table`, 失败返回错误信息
+local function search_request(self, http_method, path, ...)
+  local code, body = httpc[http_method](self._domain .. path, ...)
+  if type(code) == 'nil' then
+    cf.sleep(0.1)
+    return search_request(self, http_method, path, ...)
   end
-  if sub(domain, -1) == "/" then
-    return nil, "domain is not allowed to end with [/]."
-  end
-  return domain
-end
-
--- 检查index是否有效
-local function check_index_valide(index)
-  if type(index) ~= 'string' or index == "" then
-    return nil, "Invalid Index."
-  end
-  if find(index, "^%_") or find(index, "/") then
-    return nil, "'Index' cannot start with '_' or contain special characters [/]."
-  end
-  return index
-end
-
--- 检查index是否有效
-local function check_types_valide(types)
-  if type(types) ~= 'string' or types == "" then
-    return nil, "Invalid Types."
-  end
-  if find(types, "^%_") or find(types, "/") then
-    return nil, "'Types' cannot start with '_' or contain special characters [/]."
-  end
-  return types
+  ---@cast body string
+  return json_decode(body)
 end
 
 local class = require "class"
 
-local Elasticsearch = class("Elasticsearch")
+---@class ElasticSearch : META
+local ElasticSearch = class("Lua.ElasticSearch")
 
-function Elasticsearch:ctor(opt)
-  self.domain = assert(check_domain_valide(opt.domain))
+function ElasticSearch:ctor(opt)
+  if type(opt) ~= 'table' then
+    error("[es error]: Invalid ElasticSearch configure.")
+  end
+  if type(opt.domain) ~= 'string' or opt.domain == '' then
+    error("[es error]: need domain.", 2)
+  end
+  -- 如果有设置集群认证模式
+  self:set_authorization(opt.username, opt.password)
+  self._sql     = type(opt.sql) == 'string' and opt.sql or nil
+  self._pool    = opt.pool -- 使用连接池
+  self._domain  = opt.domain
 end
 
--- 获取Elasticsearch状态信息
-function Elasticsearch:status()
-  local code, response = httpc.get(self.domain .. "/")
+function ElasticSearch:set_authorization(username, password)
+  self._authorization = { {"Content-Type", "application/json"} }
+  if username and password then
+    local key, value = httpc.basic_authorization(username, password)
+    self._authorization[#self._authorization+1] = {key, value}
+  end
+end
+
+function ElasticSearch:connect()
+  return self:login()
+end
+
+function ElasticSearch:login()
+  local code, body = httpc.get(self._domain .. '/', self._authorization, {}, 5)
   if code ~= 200 then
-    return false, code and json_decode(response) or response
+    return false, '[es error]: login failed.'
   end
-  return true, json_decode(response)
+  ---@cast body string
+  local tab = json_decode(body)
+  if tab and tab.version.distribution ~= 'opensearch' and tab.version.number then
+    self._ver = math.tointeger(tab.version.number:match("(%d+)"))
+  end
+  -- var_dump(tab)
+  return true
 end
 
--- 获取所有Node信息
-function Elasticsearch:nodes_status()
-  local code, response = httpc.get(self.domain .. "/_nodes/stats")
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 查看索引设置
+---@param index      string | table  @索引名
+function ElasticSearch:get_setting(index)
+  if type(index) ~= 'string' then
+    if type(index) ~= 'table' or #index < 1 then
+      return false, "[es error]: index was invalid."
+    end
+    index = tabconcat(index, ',')
   end
-  return code and code == 200 or false, json_decode(response)
+  return search_request(self, 'get', '/' .. index .. '/_settings', self._authorization)
 end
 
--- 获取集群状态
-function Elasticsearch:cluster_health()
-  local code, response = httpc.get(self.domain .. "/_cluster/health")
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 修改索引设置
+---@param index      string   @索引名
+---@param document   table    @规则文档
+function ElasticSearch:set_setting(index, document)
+  if type(index) ~= 'string' then
+    return false, "[es error]: index was invalid."
   end
-  return code and code == 200 or false, json_decode(response)
+  if type(document) ~= 'table' then
+    return false, "[es error]: document was invalid."
+  end
+  return search_request(self, 'put', '/' .. index .. '/_settings', self._authorization, json_encode(document))
 end
 
---[[
-
-创建索引
-
-  第一个参数为需要创建的索引名称;
-
-  第二个参数为创建的索引的配置(可选, 不填写在按照es默认配置创建索引, 否则需要按照指定规则填充table);
-
-返回值:
-
-  此方法在网络连接失败、索引已经存在、配置(如果有)编写正确的时候才会返回flase, 其他情况下将会返回true;
---]]
-function Elasticsearch:create_index(index, config)
-  local index = assert(check_index_valide(index))
-  local code, response = httpc.put(self.domain .. "/" .. lower(index), {{"Content-Type", "application/json"}}, type(config) == 'table' and json_encode(config) or nil)
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 主动关闭分页用的游标(`cursor`)
+---@param cursor string  @游标(`cursor`)
+function ElasticSearch:nocursor(cursor)
+  if type(cursor) ~= 'string' or cursor == '' then
+    return false, "[es error]: `cursor` was invalid."
   end
-  return code and code == 200 or false, json_decode(response)
+  local url = self._sql
+  if not url then
+    if self._ver then
+      if self._ver >= 7 then
+        url = '/_sql/close'
+      else
+        url = '/_xpack/sql/close'
+      end
+    else
+      url = '/_plugins/_sql/close' -- OpenSearch
+    end
+  else
+    url = url .. '/close'
+  end
+  return search_request(self, 'post', url, self._authorization, json_encode{cursor = cursor})
 end
 
---[[
-
-删除单个指定索引
-
-  index 参数为需要删除的字符串索引名称;
-
-返回值:
-
-  此方法在网络连接失败、索引不存在时才会返回flase, 其他情况下将会返回true;
-
---]]
-function Elasticsearch:delete_index(index)
-  local index = assert(check_index_valide(index))
-  local code, response = httpc.delete(self.domain .. "/" .. lower(index), {{"Content-Type", "application/json"}})
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 使用`SQL`的语法查询文档
+---@param document table     @指定的查询文档,如`{"query":"select * from test"}`
+---@param fields   table?    @(可选)字段类型(返回游标的搜索时需要指定)
+---@param nowrap   boolean?  @(可选)指定为`true`则返回原始内容与结构.
+function ElasticSearch:sql(document, fields, nowrap)
+  if type(document) ~= 'table' then
+    return false, "[es error]: document was invalid."
   end
-  return code and code == 200 or false, json_decode(response)
+  local url = self._sql
+  if not url then
+    if self._ver then
+      if self._ver >= 7 then
+        url = '/_sql?format=json'
+      else
+        url = '/_xpack/sql?format=json'
+      end
+    else
+      url = '/_plugins/_sql' -- OpenSearch
+    end
+  end
+  local tab, errinfo = search_request(self, 'post', url, self._authorization, json_encode(document))
+  if not tab then
+    return false, errinfo
+  end
+  -- 返回原始内容
+  if nowrap then
+    return tab
+  end
+  local rows, columns = tab.rows or tab.datarows, tab.columns or tab.schema or fields
+  if not rows or not columns then
+    return tab
+  end
+  -- 最终返回内容同关系型数据结构
+  local results = { }
+  if #columns < 1 then
+    return results
+  end
+  for i = 1, #rows do
+    local item = {}
+    local row = rows[i]
+    for j = 1, #row do
+      item[columns[j].alias or columns[j].name] = row[j]
+    end
+    results[i] = item
+  end
+  if tab.cursor then
+    return results, { cursor = tab.cursor, fields = columns }
+  end
+  return results
 end
 
---[[
-
-同时删除多个指定索引
-
-  indexs 参数视为一个索引字符串数组, 数组内的每个字符串都会被当做一个已存在的索引;
-
-返回值
-
-  此方法在网络连接失败、indexs内的索引不存在时才会返回flase, 其他情况下将会返回true;
-
---]]
-function Elasticsearch:delete_specify_index(indexs)
-  local indexs = assert(type(indexs) == 'table' and #indexs > 0 and table.concat(indexs, ",") or nil, "[delete_specify_index error] : array need a table and len must > 0.")
-  local code, response = httpc.delete(self.domain .. "/" .. lower(indexs), {{"Content-Type", "application/json"}})
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 查询文档
+---@param index      string | table  @索引名
+---@param document   table           @查询文档
+function ElasticSearch:query(index, document)
+  if type(index) == 'table' then
+    index = tabconcat(index, ',')
+  elseif type(index) ~= 'string' then
+    return false, "[es error]: `index` was invalid."
   end
-  return code and code == 200 or false, json_decode(response)
+  local query
+  if type(document) == 'table' then
+    local errinfo
+    query, errinfo = json_encode(document)
+    if not query then
+      return false, errinfo
+    end
+  end
+  return search_request(self, 'post', '/' .. index .. '/_search', self._authorization, query or '{}')
 end
 
---[[
-
-删除所有索引(慎用)
-
-  此方法用来删除Elasticesearch内的所有索引, 除非您确认需要清空es所有内容. 否则在其他任何清空下都不要使用它;
-
-  此方法没有任何参数, 返回200则表示true; 但即使es已经为空时多次调用始终会成功, 所以一般网络连接失败的时候才会为false;
-
---]] 
-function Elasticsearch:delete_all_index()
-  local code, response = httpc.delete(self.domain .. "/_all", {{"Content-Type", "application/json"}})
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 更新文档
+---@param index      string | table    @索引名
+---@param document   table             @自定义文档(支持脚本)
+---@param id         string | integer  @指定文档`ID`
+function ElasticSearch:update(index, document, id)
+  if type(index) == 'table' then
+    index = tabconcat(index, ',')
+  elseif type(index) ~= 'string' then
+    return false, "[es error]: `index` was invalid."
   end
-  return code and code == 200 or false, json_decode(response)
+  local url = '/' .. index .. '/_update/' .. id
+  if self._ver and self._ver < 7 then
+    url = '/' .. index .. '/_doc/' .. id .. '/_update'
+  end
+  return search_request(self, 'post', url, self._authorization, json_encode(document))
 end
 
--- 获取指定ID文档内容(仅返回source内容)
-function Elasticsearch:get_document_lite(index, types, id, columns)
-  assert(id and ((type(id) == 'string' or type(id) == 'number') and id ~= ''), "[get_document_lite error]: Invalide id.")
-  local index, err1 = check_index_valide(index)
-  local types, err2 = check_types_valide(types)
-  local code, response = httpc.get(self.domain .. "/" .. lower(assert(index, "[get_document_lite index error]: " .. (err1 or "") )) .. "/" .. lower(assert(types, "[get_document_lite types error]: " .. (err2 or ""))) .. "/" .. id .. "/_source" .. ((type(columns) == "table" and #columns > 0) and "?_source=" .. table.concat(columns, ",") or ""))
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 条件更新文档
+---@param index      string | table  @索引名
+---@param query      table           @更新规则
+function ElasticSearch:update_by_query(index, query)
+  if type(index) == 'table' then
+    index = tabconcat(index, ',')
+  elseif type(index) ~= 'string' then
+    return false, "[es error]: `index` was invalid."
   end
-  return code and code == 200 or false, json_decode(response)
+  return search_request(self, 'post', '/' .. index .. '/_update_by_query', self._authorization, json_encode(query))
 end
 
--- 获取指定ID文档内容(返回文档与相关属性)
-function Elasticsearch:get_document_extra(index, types, id, columns)
-  assert(id and ((type(id) == 'string' or type(id) == 'number') and id ~= ''), "[get_document_extra error]: Invalide id.")
-  local index, err1 = check_index_valide(index)
-  local types, err2 = check_types_valide(types)
-  local code, response = httpc.get(self.domain .. "/" .. lower(assert(index, "[get_document_extra index error]: " .. (err1 or ""))) .. "/" .. lower(assert(types, "[get_document_extra types error]: " .. (err2 or ""))) .. "/" .. id .. ((type(columns) == "table" and #columns > 0) and "?_source=" .. table.concat(columns, ",") or ""))
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 删除文档
+---@param index     string            @索引名
+---@param id        string | integer  @指定文档`ID`
+function ElasticSearch:delete(index, id)
+  if type(index) ~= 'string' then
+    return false, "[es error]: `index` was invalid."
   end
-  return code and code == 200 or false, json_decode(response)
+  if not id then
+    return false, "[es error]: `_id` was invalid."
+  end
+  return search_request(self, 'delete', '/' .. index .. '/_doc/' .. id, self._authorization)
 end
 
---[[
-
-批量获取指定文档内容
-
-  array    参数为对象数组, 数组内对象表示法为: { index = 索引名称, type = 类型名称, id = 文档id };
-
-  columns  参数为指定返回内容数组(可选), 如果有内容则仅返回数组内的field所对应的document {key : value}.
-
-返回值:
-
-  此方法仅在连接失败的时候会返回flase, 在传递错误的参数时会抛出异常, 其他情况下将会返回true;
-
---]]
-function Elasticsearch:mget_document(array, columns)
-  assert(type(array) == 'table' and #array > 0, "[mget_document index error]: array need a table and len must > 0.")
-  local docs = new_tab(#array, 0)
-  for i, item in ipairs(array) do
-    assert(type(item) == "table" and check_index_valide(item.index) and check_types_valide(item.type) and ((type(item.id) == 'string' or type(item.id) == 'number') and item.id ~= ''), "[mget_document error] : array index[" .. i .. "] object error.")
-    docs[#docs+1] = { _index = item.index, _type = item.type, _id = convert_id(item.id) }
+---comment 条件删除文档
+---@param index      string | table  @索引名
+---@param query      table           @删除规则
+function ElasticSearch:delete_by_query(index, query)
+  if type(index) == 'table' then
+    index = tabconcat(index, ',')
+  elseif type(index) ~= 'string' then
+    return false, "[es error]: `index` was invalid."
   end
-  local code, response = httpc.json(self.domain .. "/_mget" .. ((type(columns) == "table" and #columns > 0) and "?_source=" .. table.concat(columns, ",") or ""), nil, json_encode { docs = docs })
-  if not code then
-    return false, code and json_decode(response) or response
-  end
-  return code and code == 200 or false, json_decode(response)
+  return search_request(self, 'post', '/' .. index .. '/_delete_by_query', self._authorization, json_encode(query))
 end
 
---[[
-
-创建文档
-
-  index     参数为索引名称, 默认情况下不存在此索引会自动创建; (如果系统不允许自动创建, 会返回错误)
-
-  types     参数为类型名称, 默认情况下自动创建; (如果系统不允许自动创建, 会返回错误)
-
-  document  一个可被json序列化的table;
-
-返回值:
-
-  此方法在连接失败的时候会返回flase, 其他情况下则会返回true; 
-
-  请注意: es会为此文档随机生成id为20个字节的字符串, 所以它在大部分情况下都会成功.
-
---]]
-function Elasticsearch:add_document(index, types, document)
-  local index, err1 = check_index_valide(index)
-  local types, err2 = check_types_valide(types)
-  local document = assert(json_encode(document), "Invalid document.")
-  local code, response = httpc.json(self.domain .. "/" .. lower(assert(index, "[add_document index error]: "  .. (err1 or ""))) .. "/" .. lower(assert(types, "[add_document types error]: " .. (err2 or ""))), nil, document)
-  if code ~= 200 and code ~= 201 then
-    return false, code and json_decode(response) or response
+---comment 插入文档
+---@param index      string    @索引名
+---@param document   table     @文档内容
+---@param id string | integer? @指定文档`ID`(可选)
+function ElasticSearch:insert(index, document, id)
+  if type(index) ~= 'string' then
+    return false, '[es error]: Invalid `insert` index'
   end
-  return true, json_decode(response)
+  if type(document) ~= 'table' then
+    return false, '[es error]: Invalid `insert` document'
+  end
+  return search_request(self, 'post', '/' .. index .. '/_doc/' .. (id or ''), self._authorization, json_encode(document))
 end
 
---[[
-
-创建/更新指定ID的文档
-
-  index     参数为索引名称, 默认情况下不存在此索引会自动创建; (如果系统不允许自动创建, 会返回错误)
-
-  types     参数为类型名称, 默认情况下自动创建; (如果系统不允许自动创建, 会返回错误)
-
-  id        参数指定文档ID, 它可以为一个递增的数字或者字符串;
-
-  document  一个可被json序列化的table;
-
-返回值:
-
-  此方法在连接失败、插入失败(已存在)的时候会返回flase, 其他情况下则会返回true;
-
-  请注意: 将文档添加到一个已存在的ID上的行为等同于更新文档, 所以此操作总会是成功的;
-
---]]
-function Elasticsearch:add_id_document(index, types, id, document)
-  assert(id and ((type(id) == 'string' or type(id) == 'number') and id ~= ''), "[add_id_document error]: Invalide id.")
-  local index, err1 = check_index_valide(index)
-  local types, err2 = check_types_valide(types)
-  local document = assert(json_encode(document), "[add_id_document error]: Invalid document.")
-  local code, response = httpc.json(self.domain .. "/" .. lower(assert(index, "[add_id_document index error]: " .. (err1 or "") )) .. "/" .. lower(assert(types, "[add_id_document types error]: " .. (err2 or ""))) .. "/" .. convert_id(id), nil, document)
-  if code ~= 200 and code ~= 201 then
-    return false, code and json_decode(response) or response
+---comment `ElasticSearch`批量操作
+---@param index   string  @指定索引名
+---@param body    table   @指定操作类型
+function ElasticSearch:bulk(index, body)
+  if type(index) ~= 'string' then
+    error('es error: `index` was invalid.', 2)
   end
-  return true, json_decode(response)
+  if type(body) ~= 'table' or (#body & 0x02 == 0) then
+    error('es error: `body` was invalid.', 2)
+  end
+  local query = { }
+  for i = 1, #body, 2 do
+    -- local action, document = body[i], body[i+1]
+    query[#query+1] = tabconcat { json_encode(body[i]), '\n', json_encode(body[i+1]), '\n' }
+  end
+  return search_request(self, 'post', '/_bulk', self._authorization, tabconcat(query))
 end
 
---[[
-完整更新文档
+---@class ElasticSearch.Indices.Action.info
+---@field index             string|table?    @指定索引
+---@field alias             string?          @指定别名
+---@field filter            table?           @指定过滤器
+---@field indices           string[]?        @索引数组
+---@field aliases           string[]?        @别名数组
+---@field is_write_index    boolean?         @指定索引写入
 
-  index     索引名称, 不能以[_]开头、不能包含[/]、所有字符串必须为小写;
+---@class ElasticSearch.Indices.Actions
+---@field add     ElasticSearch.Indices.Action.info?  @增加别名
+---@field remove  ElasticSearch.Indices.Action.info?  @删除别名
 
-  types     类型名称, 不能以[_]开头、不能包含[/]、所有字符串必须为小写;
-
-  id        必须是一个有效的字符串或者正整数;
-
-  document  一个可被json序列化的table;
-
-返回值:
-
-  第一个返回值在网络连接失败、HTTP code非200/201的时候将为false, 其他情况下则会返回true;
-
-  请注意: 完整的文档更新将会在id不存在的时候插入一条新数据, 所以此操作总会是成功的;
-
---]]
-function Elasticsearch:update_document(index, types, id, document)
-  assert(id and ((type(id) == 'string' or type(id) == 'number') and id ~= ''), "[update_document error]: Invalide id.")
-  local index, err1 = check_index_valide(index)
-  local types, err2 = check_types_valide(types)
-  local document = assert(type(document) == 'table' and document, "[update_document error]: Invalid document.")
-  local code, response = httpc.json(self.domain .. "/" .. lower(assert(index, "[add_id_document index error]: " .. (err1 or "") )) .. "/" .. lower(assert(types, "[add_id_document types error]: " .. (err2 or ""))) .. "/" .. convert_id(id), nil, json_encode(document))
-  if code ~= 200 and code ~= 201 then
-    return false, code and json_decode(response) or response
+---comment `ElasticSearch`的别名操作
+---@param actions ElasticSearch.Indices.Actions[]  @指定操作
+function ElasticSearch:alias(actions)
+  if type(actions) ~= 'table' then
+    error('[es error]: `actions` was invalid', 2)
   end
-  return true, json_decode(response)
+  return search_request(self, 'post', '/_aliases', self._authorization, json_encode { actions = actions })
 end
 
---[[
-局部更新文档
+---@class ElasticSearch.Indices.GetQuery
+---@field source       boolean?                    @返回结果是否包含`_source`字段
+---@field refresh      boolean?                    @查询前是否先刷新相关分片数据
+---@field version      integer?                    @查询指定版本号的数据
+---@field preference   string?                     @指定查询的`preference`分片的数据
+---@field includes table | string | string[]?      @指定`_source`字段内的结果名称
 
-  index     索引名称, 不能以[_]开头、不能包含[/]、所有字符串必须为小写;
-
-  types     类型名称, 不能以[_]开头、不能包含[/]、所有字符串必须为小写;
-
-  id        必须是一个有效的字符串或者正整数;
-
-  columns   一个可被json序列化的table;
-
-返回值:
-
-  第一个返回值在网络连接失败、HTTP code非200的时候将为false, 其他情况下则会返回true;
-
-  请注意: 局部更新的行为就是真正的更新行为, 它会在ID映射的文档不存在的时候返回一个false;
-
---]]
-function Elasticsearch:update_document_columns(index, types, id, columns)
-  assert(id and ((type(id) == 'string' or type(id) == 'number') and id ~= ''), "[update_document_columns error]: Invalide id.")
-  local index, err1 = check_index_valide(index)
-  local types, err2 = check_types_valide(types)
-  local columns = assert(type(columns) == 'table' and columns, "[update_document_columns error]: Invalid columns.")
-  local code, response = httpc.json(self.domain .. "/" .. lower(assert(index, "[add_id_document index error]: " .. (err1 or "") )) .. "/" .. lower(assert(types, "[add_id_document types error]: " .. (err2 or ""))) .. "/" .. convert_id(id) .. "/_update", nil, json_encode { doc = columns })
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 根据`ID`查询指定文档
+---@param index     string                          @索引名称
+---@param id        integer | string                @文档`ID`
+---@param opt       ElasticSearch.Indices.GetQuery? @查询参数
+function ElasticSearch:get(index, id, opt)
+  if type(opt) ~= 'table' then
+    opt = { }
   end
-  return true, json_decode(response)
+
+  local mode = '/_doc/'
+  if type(opt['source']) ~= 'nil' then
+    mode = '/_source/'
+  end
+
+  local args = { }
+
+  if type(opt['includes']) == 'table' then
+    local includes = opt['includes']
+    ---@cast includes table
+    args[#args+1] = { '_source_includes', tabconcat(includes, ',') }
+  elseif type(opt['includes']) == 'string' then
+    args[#args+1] = { '_source_includes', opt['includes'] }
+  end
+
+  if type(opt['refresh']) ~= 'nil' then
+    args[#args+1] = { 'refresh', opt['refresh'] and 'true' or 'false' }
+  end
+
+  return search_request(self, 'get', '/' .. index .. mode .. id, self._authorization, args)
 end
 
---[[
-
-删除指定ID的文档  
-
-  index 索引名称, 不能以[_]开头、不能包含[/]、所有字符串必须为小写;
-
-  types 类型名称, 不能以[_]开头、不能包含[/]、所有字符串必须为小写;
-
-  id    必须是一个有效的字符串或者正整数;
-
-返回值: 
-
-  第一个返回值在网络连接失败、HTTP code非200、删除不存在的ID等等时候将为false;
-
-  第二个返回值为string类型表示连接失败. 请求成功、操作失败则为一个table;
-
---]]
-function Elasticsearch:delete_document(index, types, id)
-  assert(id and ((type(id) == 'string' or type(id) == 'number') and id ~= ''), "[delete_document error]: Invalide id.")
-  local index, err1 = check_index_valide(index)
-  local types, err2 = check_types_valide(types)
-  local code, response = httpc.delete(self.domain .. "/" .. lower(assert(index, "[delete_document index error]: " .. (err1 or ""))) .. "/" .. lower(assert(types, "[add_document types error]: " .. (err2 or ""))) .. "/" .. convert_id(id))
-  if not code then
-    return false, code and json_decode(response) or response
+---comment 刷新一个或多个索引
+---@param index string | string[]  @索引名称
+function ElasticSearch:flush(index)
+  if type(index) == 'table' then
+    index = tabconcat(index, ',')
+  elseif type(index) ~= 'string' then
+    error('[es error]: `indices` was invalid', 2)
   end
-  return code and code == 200 or false, json_decode(response)
+  return search_request(self, 'post', '/' .. index .. '/_flush/', self._authorization)
 end
 
---[[
-
-搜索文档:
-
-  index 索引名称, 不能以[_]开头、不能包含[/]、所有字符串必须为小写;
-
-  types 类型名称, 不能以[_]开头、不能包含[/]、所有字符串必须为小写;
-
-  opt 参数必须是一个非数组table或者nil, 指定它则有以下三个可选属性:
-
-    opt.from    指定搜索文档的开始位置, 行为类似于 LIMIT X, Y中的X;
-    opt.size    指定搜索文档的条目数量, 行为类似于 LIMIT X, Y中的Y;
-    opt.source  指定搜索文档返回的内容, 它不是一个字符串数组的时候将会出错;
-
-  sort 参数是排序相关性的DLS表达式语句, 如果不需要排序传递nil即可;
-
-  aggs 参数是表达聚合表达式的DLS表达式语句, 如果不需要聚合传递nil即可;
-
-  query 参数是一个es自定义查询DSL, 合理的表达式可以完成更多的复合查询;
-
-返回值:
-
-  第一个返回值在网络连接失败、HTTP code非200、索引不存在、表达式错误等等时候都会为false;
-
-  第二个返回值为string类型表示连接失败. 请求成功或操作失败, 第二个参数必然为一个table;
-
---]]
-function Elasticsearch:search_document(index, types, opt, sort, aggs, query)
-  local index, err1 = check_index_valide(index)
-  local types, err2 = check_types_valide(types)
-  local opt = (type(opt) ~= 'table' or #opt > 0) and {} or opt
-  local sort = type(sort) == 'table' and #sort > 0 and sort or nil
-  local code, response = httpc.json(self.domain .. "/" .. lower(assert(index, "[search_limit index error]: " .. (err1 or ""))) .. "/" .. lower(assert(types, "[search_limit types error]: " .. (err2 or ""))) .. "/_search?_source=" .. (type(opt.source) == 'table' and #opt.source > 0 and table.concat(opt.source, ",") or ''), nil, json_encode {
-      from = (toint(opt.from) and toint(opt.from) >= 0) and toint(opt.from) or nil, size = (toint(opt.size) and toint(opt.size) > 0) and toint(opt.size) or nil,
-      sort = sort, aggs = type(aggs) == 'table' and aggs or nil, query = type(query) ~= 'table' and { match_all = {} } or query,
-    })
-  if code ~= 200 then
-    return false, code and json_decode(response) or response
+---comment 获取一个或多个索引统计信息
+---@param index string | string[]  @索引名称
+function ElasticSearch:count(index)
+  if type(index) == 'table' then
+    index = tabconcat(index, ',')
+  elseif type(index) ~= 'string' then
+    error('[es error]: `indices` was invalid', 2)
   end
-  return code and code == 200 or false, json_decode(response)
+  return search_request(self, 'post', '/' .. index .. '/_count/', self._authorization)
 end
 
-return Elasticsearch
+---comment 使用默认分词器对指定文本`text`进行分词, 也可以通过传递`analyzer`参数来指定分词器
+---@param text     string    @分词的文本
+---@param analyzer string?   @分词器名称
+function ElasticSearch:analyze(text, analyzer)
+  if type(text) ~= 'string' then
+    error('[es error]: `text` was invalid', 2)
+  end
+  if analyzer and type(analyzer) ~= 'string' then
+    error('[es error]: `analyzer` was invalid', 2)
+  end
+  return search_request(self, 'post', '/_analyze', self._authorization, { analyzer = analyzer, text = text })
+end
+
+---comment 创建`Ingest pipeline`
+---@param id       string   @`pipeline ID`
+---@param document table    @`pipeline`配置
+function ElasticSearch:create_pipeline(id, document)
+  if type(id) ~= 'string' then
+    error('[es error]: `pipeline id` was invalid', 2)
+  end
+  if type(document) ~= 'table' then
+    error('[es error]: `document` was invalid', 2)
+  end
+  return search_request(self, 'put', '/_ingest/pipeline/' .. id, self._authorization, document)
+end
+
+---comment 删除`Ingest pipeline`
+---@param id       string   @`pipeline ID`(传入`*`可以删除所有)
+function ElasticSearch:remove_pipeline(id)
+  if type(id) ~= 'string' then
+    error('[es error]: `pipeline id` was invalid', 2)
+  end
+  return search_request(self, 'delete', '/_ingest/pipeline/' .. id, self._authorization)
+end
+
+return ElasticSearch

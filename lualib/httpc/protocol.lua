@@ -263,8 +263,13 @@ local function build_post_req (opt)
   insert(request, 'Accept: */*\r\n')
   insert(request, 'Accept-Encoding: gzip, identity\r\n')
   insert(request, 'Connection: keep-alive\r\n')
+
+  local ct = false
   if type(opt.headers) == "table" then
     for _, header in ipairs(opt.headers) do
+      if lower(header[1]) == 'content-type' then
+        ct = true
+      end
       assert(lower(header[1]) ~= 'content-length', "please don't give Content-Length")
       assert(#header == 2, "HEADER need key[1]->value[2] (2 values)")
       insert(request, header[1] .. ': ' .. header[2] .. CRLF)
@@ -279,11 +284,19 @@ local function build_post_req (opt)
     end
     local Body = concat(body, "&")
     insert(request, fmt('Content-Length: %s\r\n', #Body))
-    insert(request, 'Content-Type: application/x-www-form-urlencoded\r\n\r\n')
+    if not ct then
+      insert(request, 'Content-Type: application/x-www-form-urlencoded\r\n\r\n')
+    else
+      insert(request, '\r\n')
+    end
     insert(request, Body)
   elseif type(opt.body) == 'string' and opt.body ~= '' then
     insert(request, fmt('Content-Length: %s\r\n', #opt.body))
-    insert(request, 'Content-Type: application/x-www-form-urlencoded\r\n\r\n')
+    if not ct then
+      insert(request, 'Content-Type: application/x-www-form-urlencoded\r\n\r\n')
+    else
+      insert(request, '\r\n')
+    end
     insert(request, opt.body)
   else
     insert(request, "Content-Length: 0\r\n\r\n")
@@ -331,7 +344,7 @@ local function build_json_req (opt)
     insert(request, 'Content-Type: application/json')
     insert(request, fmt("Content-Length: %s", #opt.json))
   elseif type(opt.json) == 'table' then
-    opt.json = json_encode(opt.json)
+    opt.json = json_encode(opt['json'])
     insert(request, 'Content-Type: application/json')
     insert(request, "Content-Length: " .. #opt.json)
   else
