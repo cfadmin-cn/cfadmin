@@ -10,36 +10,36 @@ local base64encode = CRYPT.base64encode
 local base64decode = CRYPT.base64decode
 
 ---@class CRYPT
----@field aes_128_ecb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_ecb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_ecb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_128_cbc_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_cbc_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_cbc_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_128_cfb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_cfb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_cfb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_128_ofb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_ofb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_ofb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_128_ctr_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_ctr_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_ctr_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_128_ecb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_ecb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_ecb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_128_cbc_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_cbc_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_cbc_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_128_cfb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_cfb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_cfb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_128_ofb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_ofb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_ofb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_128_ctr_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_192_ctr_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
----@field aes_256_ctr_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:integer?):string
+---@field aes_128_ecb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_ecb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_ecb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_128_cbc_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_cbc_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_cbc_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_128_cfb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_cfb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_cfb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_128_ofb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_ofb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_ofb_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_128_ctr_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_ctr_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_ctr_encrypt  fun(key:string, text:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_128_ecb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_ecb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_ecb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_128_cbc_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_cbc_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_cbc_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_128_cfb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_cfb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_cfb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_128_ofb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_ofb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_ofb_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_128_ctr_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_192_ctr_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
+---@field aes_256_ctr_decrypt  fun(key:string, cipher:string, iv:string, hex:boolean|'base64'?, padding:CRYPT.AES.Padding?):string
 ---@field aes_128_gcm_encrypt  fun(key:string, text:string, iv:string, aad:string, tag_len:integer?, hex:boolean|'base64'?):string
 ---@field aes_192_gcm_encrypt  fun(key:string, text:string, iv:string, aad:string, tag_len:integer?, hex:boolean|'base64'?):string
 ---@field aes_256_gcm_encrypt  fun(key:string, text:string, iv:string, aad:string, tag_len:integer?, hex:boolean|'base64'?):string
@@ -48,10 +48,12 @@ local base64decode = CRYPT.base64decode
 ---@field aes_256_gcm_decrypt  fun(key:string, cipher:string, iv:string, aad:string, tag_len:integer?, hex:boolean|'base64'?):string
 local AES = {}
 
+---@enum (key) CRYPT.AES.Padding
 local padding_map = {
   [0]  = CRYPT.AES_PADDING_ZERO,
-  [5]  = CRYPT.AES_PADDING_PKCS5,
   [7] = CRYPT.AES_PADDING_PKCS7,
+  [923] = CRYPT.AES_PADDING_ANSI923,
+  [7816] = CRYPT.AES_PADDING_ISO7816,
 }
 
 local bits = { 128, 192, 256 }

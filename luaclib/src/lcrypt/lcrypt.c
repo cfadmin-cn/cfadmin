@@ -91,6 +91,12 @@ static int crypt_set_key_value(lua_State *L) {
   lua_set_key_INT(L, "OPENSSL_VERSION_NUMBER", OPENSSL_VERSION_NUMBER);
   lua_set_key_STR(L, "OPENSSL_VERSION_TEXT", OPENSSL_VERSION_TEXT);
 
+  /* 增加aes填充方式常量 */
+  lua_set_key_INT(L, "AES_PADDING_ZERO", EVP_PADDING_ZERO);
+  lua_set_key_INT(L, "AES_PADDING_PKCS7", EVP_PADDING_PKCS7);
+  lua_set_key_INT(L, "AES_PADDING_ISO7816", EVP_PADDING_ISO7816_4);
+  lua_set_key_INT(L, "AES_PADDING_ANSI923", EVP_PADDING_ANSI923);
+
   /* 增加rsa填充方式常量 */
   lua_set_key_INT(L, "RSA_NO_PADDING", RSA_NO_PADDING);
   lua_set_key_INT(L, "RSA_PKCS1_PADDING", RSA_PKCS1_PADDING);
